@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#517da2">
+<!-- Papan penemuan alamat server bot (ditulis bot ke GitHub Pages).
+     Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
+<meta name="nava-sync-config" content="sync.json">
+<title>Project Nava — Cashflow</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="assets/css/style.css?v=20250308b">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ HEADER ============ -->
+  <header class="topbar">
+    <div class="topbar-title">
+      <h1 id="pageTitle">Project Nava</h1>
+      <span id="pageSub" class="muted">Cashflow keluarga</span>
+    </div>
+    <button id="btnMore" class="icon-btn" aria-label="Lainnya">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4m0 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4m0 6a2 2 0 1 1 0 4 2 2 0 0 1 0-4"/></svg>
+    </button>
+  </header>
+
+  <!-- ============ TAB: BERANDA ============ -->
+  <section id="view-home" class="view active">
+    <div class="balance card">
+      <span class="lbl">Saldo bulan ini</span>
+      <strong id="hBalance" class="balance-val">Rp0</strong>
+      <div class="balance-meta">
+        <span><i class="dot in"></i> <span id="hIn">Rp0</span> masuk</span>
+        <span><i class="dot out"></i> <span id="hOut">Rp0</span> keluar</span>
+      </div>
+    </div>
+
+    <div id="poolCard" class="card pool-card" hidden>
+      <div class="list-head tight">
+        <strong><span class="pool-ic">📥</span> Menunggu Disimpan</strong>
+        <span id="poolBadge" class="pool-badge">0</span>
+      </div>
+      <p class="pool-hint">Diterima dari chat bot Alima. Tekan <b>Simpan</b> untuk masuk ke cashflow.</p>
+      <div id="poolList" class="list"></div>
+    </div>
+
+    <div class="list-head tight"><strong>Rekening saya</strong><button class="mini-btn" data-openacc>Atur</button></div>
+    <div id="hAccounts" class="acc-grid"></div>
+
+    <div class="quick-pick">
+      <div class="list-head tight"><strong>Pencatatan cepat</strong></div>
+      <div class="chips" id="hQuick"></div>
+    </div>
+
+    <div class="list-head">
+      <strong>Transaksi terakhir</strong>
+      <button class="mini-btn" data-goto="history">Lihat semua</button>
+    </div>
+    <div id="hRecent" class="list"></div>
+  </section>
+
+  <!-- ============ TAB: RIWAYAT ============ -->
+  <section id="view-history" class="view">
+    <div class="card">
+      <input type="text" id="fQ" placeholder="Cari kategori atau catatan…">
+      <div class="field-row mt">
+        <select id="fType" class="grow">
+          <option value="all">Semua jenis</option>
+          <option value="in">Pemasukan</option>
+          <option value="out">Pengeluaran</option>
+        </select>
+        <select id="fGroup" class="grow"></select>
+      </div>
+      <div class="field-row mt">
+        <label class="field grow"><span class="lbl">Dari</span><input type="date" id="fFrom"></label>
+        <label class="field grow"><span class="lbl">Sampai</span><input type="date" id="fTo"></label>
+      </div>
+      <div class="row-2 mt">
+        <button class="btn ghost" id="fClear">Reset filter</button>
+        <button class="btn" id="btnExportCsv">Ekspor CSV</button>
+      </div>
+    </div>
+    <div id="hList" class="list"></div>
+  </section>
+
+  <!-- ============ TAB: REKAP ============ -->
+  <section id="view-recap" class="view">
+    <div class="month-strip card">
+      <button id="rPrev" class="icon-btn sm" aria-label="Sebelumnya">‹</button>
+      <div class="grow center">
+        <strong id="rLabel">—</strong>
+        <div class="muted xs" id="rCount">—</div>
+      </div>
+      <button id="rNext" class="icon-btn sm" aria-label="Berikutnya">›</button>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat in">
+        <span class="stat-lbl">Pemasukan</span>
+        <strong id="rIn" class="stat-val">Rp0</strong>
+      </div>
+      <div class="stat out">
+        <span class="stat-lbl">Pengeluaran</span>
+        <strong id="rOut" class="stat-val">Rp0</strong>
+      </div>
+      <div class="stat net">
+        <span class="stat-lbl">Saldo periode</span>
+        <strong id="rNet" class="stat-val">Rp0</strong>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="list-head tight"><strong>Komposisi pengeluaran</strong></div>
+      <div id="rDonut" class="donut-wrap"></div>
+      <div id="rCats" class="cat-bars"></div>
+    </div>
+  </section>
+
+  <!-- ============ LAYER: TAMBAH TRANSAKSI (Money Lover style) ============ -->
+  <div id="txPage" class="tx-page hidden">
+    <div class="tx-top">
+      <button class="icon-btn" id="txClose" aria-label="Batal">✕</button>
+      <div class="grow center"><strong id="txPageTitle">Tambah Transaksi</strong></div>
+      <span style="width:38px"></span>
+    </div>
+
+    <div class="tx-amount-wrap">
+      <div class="tx-amount" id="txAmountDisplay">Rp0</div>
+      <div class="tx-amount-sub" id="txAmountHint">Ketik nominal di bawah</div>
+    </div>
+
+    <div class="tx-controls">
+      <div class="seg seg-sm" id="txType">
+        <button class="seg-btn active" data-t="out">－ Pengeluaran</button>
+        <button class="seg-btn" data-t="in">＋ Pemasukan</button>
+      </div>
+      <div class="tx-meta">
+        <div class="tx-accounts" id="txAccounts"></div>
+        <button class="tx-date" id="txDateBtn">
+          <span id="txDateLabel">Hari ini</span>
+          <input type="date" id="txDate" class="hidden">
+        </button>
+      </div>
+    </div>
+
+    <div class="tx-form">
+      <div class="fld">
+        <label for="txGroup">Kategori</label>
+        <div class="sel-wrap">
+          <select id="txGroup" aria-label="Kelompok kategori"></select>
+        </div>
+      </div>
+
+      <div class="fld hidden" id="txSubField">
+        <label for="txSub">Subkategori</label>
+        <div class="sel-wrap">
+          <select id="txSub" aria-label="Subkategori"></select>
+        </div>
+      </div>
+
+      <div class="fld">
+        <label for="txNote">Keterangan</label>
+        <input type="text" id="txNote" maxlength="200" placeholder="Contoh: belanja bulanan">
+      </div>
+
+      <div class="fld">
+        <label>&nbsp;</label>
+        <button class="scan-btn" id="btnScan">
+          <span class="scan-ico">📷</span>
+          <span class="scan-text"><b>Scan Struk</b><span class="muted xs" id="scanHint">Foto struk -&gt; nominal &amp; kategori otomatis</span></span>
+        </button>
+        <input type="file" id="scanFile" accept="image/*" capture="environment" class="hidden">
+      </div>
+    </div>
+
+    <div class="scan-status hidden" id="scanStatus">
+      <span class="scan-spinner"></span><span id="scanStatusText">Memproses foto…</span>
+    </div>
+
+    <div class="scan-result hidden" id="scanResult">
+      <div class="sr-head">
+        <b>Hasil scan</b>
+        <button class="mini-btn" id="scanClose">Batal</button>
+      </div>
+      <p class="muted xs" id="scanSummary">Periksa dulu sebelum disimpan.</p>
+    </div>
+
+    <p class="err tx-err hidden" id="txErr"></p>
+
+    <div class="keypad" id="txKeypad">
+      <button class="key" data-k="1">1</button>
+      <button class="key" data-k="2">2</button>
+      <button class="key" data-k="3">3</button>
+      <button class="key" data-k="4">4</button>
+      <button class="key" data-k="5">5</button>
+      <button class="key" data-k="6">6</button>
+      <button class="key" data-k="7">7</button>
+      <button class="key" data-k="8">8</button>
+      <button class="key" data-k="9">9</button>
+      <button class="key key-alt" data-k="del" aria-label="Hapus">⌫</button>
+      <button class="key" data-k="0">0</button>
+      <button class="key key-ok" data-k="ok" aria-label="Simpan">✓</button>
+    </div>
+  </div>
+
+  <!-- ============ SHEET: DETAIL TRANSAKSI ============ -->
+  <div id="txDetail" class="sheet-wrap hidden">
+    <div class="sheet-bg" data-dclose></div>
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <strong>Detail Transaksi</strong>
+        <button class="icon-btn" data-dclose aria-label="Tutup">✕</button>
+      </div>
+      <div class="sheet-body" id="txDetailBody"></div>
+    </div>
+  </div>
+
+  <!-- ============ BAR: UNDO HAPUS ============ -->
+  <div id="undoBar" class="undo-bar hidden">
+    <span id="undoText">Transaksi dihapus</span>
+    <button id="undoBtn" class="mini-btn">Urungkan</button>
+  </div>
+
+  <!-- ============ TAB: LAINNYA (alat + pengaturan) ============ -->
+  <section id="view-more" class="view">
+    <div class="list-head tight"><strong>Alat</strong></div>
+    <div class="tools">
+      <button class="tool" data-goto="notes">
+        <span class="tool-ico in">M</span>
+        <span class="tool-body"><b>Catatan &amp; Pengingat</b><span id="hNotesCount">0 catatan</span></span>
+        <span class="tool-go">›</span>
+      </button>
+      <button class="tool" data-goto="calc">
+        <span class="tool-ico out">K</span>
+        <span class="tool-body"><b>Kalkulator Servis HP</b><span>Hitung harga estimasi LCD &amp; baterai</span></span>
+        <span class="tool-go">›</span>
+      </button>
+      <button class="tool" data-mascim-open="1">
+        <span class="tool-ico svc">C</span>
+        <span class="tool-body"><b>Mas Cim Service HP</b><span id="hMascimInfo">Input servis, kas, &amp; Dana Bank</span></span>
+        <span class="tool-go">›</span>
+      </button>
+      <button class="tool" data-nt-open="1">
+        <span class="tool-ico trd">T</span>
+        <span class="tool-body"><b>Nava Trader</b><span id="hTraderInfo">IHSG, watchlist &amp; analisa saham BEI</span></span>
+        <span class="tool-go">›</span>
+      </button>
+    </div>
+
+    <div class="list-head"><strong>Bot &amp; Sinkronisasi</strong></div>
+    <div class="card" style="margin:0 14px 14px;padding:12px">
+      <div class="row-b" style="gap:10px;align-items:flex-start">
+        <div class="grow">
+          <div class="item-title" id="syncTitle">Belum terhubung</div>
+          <div class="item-sub" id="syncSub">Hubungkan server bot agar transaksi dari chat muncul di sini.</div>
+        </div>
+        <span class="sync-dot" id="syncDot"></span>
+      </div>
+      <div class="fld" style="margin-top:10px">
+        <label for="syncUrl">Alamat server bot (https://…)</label>
+        <input type="url" id="syncUrl" placeholder="https://domain-kamu.railway.app" inputmode="url" autocomplete="off">
+      </div>
+      <div class="row-2" style="margin-top:8px">
+        <button class="btn ghost" id="syncNow">Sinkron sekarang</button>
+        <button class="btn" id="syncSave">Simpan &amp; sinkron</button>
+      </div>
+      <p class="muted xs" style="margin:10px 0 0">
+        Cara isi dari chat bot: kirim <code>/keluar 25000 bensin</code> ke bot
+        <b id="botAt">alima</b>, lalu buka aplikasi ini — transaksinya otomatis muncul.
+      </p>
+    </div>
+
+    <div class="list-head"><strong>Akun</strong></div>
+    <div class="tools" id="accEditor"></div>
+
+    <div class="list-head"><strong>Kategori transaksi</strong></div>
+    <div class="card">
+      <div class="list-head tight">
+        <strong>Daftar kategori</strong>
+        <button id="catReset" class="mini-btn">Reset ke default</button>
+      </div>
+      <div id="catManager" class="cat-editor"></div>
+    </div>
+
+    <div class="list-head"><strong>Tambah kategori</strong></div>
+    <div class="card">
+      <div class="field-row">
+        <select id="ncType" class="grow"><option value="out">Pengeluaran</option><option value="in">Pemasukan</option></select>
+        <input type="text" id="ncGroup" class="grow" placeholder="Nama kategori">
+      </div>
+      <div class="field-row mt">
+        <select id="ncParent" class="grow"></select>
+        <input type="text" id="ncSub" class="grow" placeholder="Subkategori (opsional)">
+        <button id="ncAdd" class="btn">＋</button>
+      </div>
+      <p class="hint">Isi kategori dulu, lalu pilih induknya dan isi subkategori bila perlu.</p>
+    </div>
+
+    <div class="list-head"><strong>Data</strong></div>
+    <div class="card">
+      <div class="row-2">
+        <button id="dExport" class="btn">Export JSON</button>
+        <button id="dImport" class="btn">Import JSON</button>
+      </div>
+      <input type="file" id="dFile" accept="application/json" class="hidden">
+      <div class="row-2 mt">
+        <button id="dDemo" class="btn ghost">Isi Data Contoh</button>
+        <button id="dClear" class="btn danger ghost">Hapus Semua</button>
+      </div>
+      <p class="hint">Data disimpan di perangkat ini (localStorage). Tidak ada Chat ID atau isi percakapan yang disimpan.</p>
+    </div>
+
+    <div class="list-head"><strong>Cadangan Otomatis</strong></div>
+    <div class="card">
+      <p class="hint" id="abInfo">Memuat…</p>
+      <div id="abList" class="ab-list"></div>
+      <div class="row-2 mt">
+        <button id="abNow" class="btn">Cadangkan Sekarang</button>
+        <button id="abRestore" class="btn">Pulihkan yang Terakhir</button>
+      </div>
+      <p class="hint">App menyimpan salinan data tiap 30 menit (8 salinan terakhir). Berguna kalau HP ganti atau data browser dibersihkan. Untuk pindah ke HP lain, pakai <b>Export JSON</b> lalu <b>Import JSON</b> di HP tujuan.</p>
+    </div>
+
+    <div class="list-head"><strong>Tentang</strong></div>
+    <div class="card">
+      <p class="hint" id="aboutText">Project Nava v3.0 — Cashflow Mini App (gaya Money Lover).</p>
+    </div>
+  </section>
+
+  <!-- ============ TOOL: CATATAN / PENGINGAT VOICE (dipertahankan) ============ -->
+  <section id="view-notes" class="view">
+    <div class="compose card">
+      <textarea id="noteText" rows="2" placeholder="Catatan cepat…"></textarea>
+
+      <div id="recBar" class="rec-bar hidden">
+        <span class="rec-dot"></span>
+        <span id="recTime">00:00</span>
+        <div class="rec-wave" id="recWave"></div>
+        <button id="btnRecCancel" class="mini-btn">Batal</button>
+        <button id="btnRecStop" class="mini-btn danger">Selesai</button>
+      </div>
+
+      <div id="notePreview" class="audio-preview hidden">
+        <button id="btnPlayPreview" class="play-btn">
+          <svg id="icoPlay" viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+          <svg id="icoPause" class="hidden" viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+        </button>
+        <span id="prevLabel" class="grow">Rekaman</span>
+        <button id="btnDropAudio" class="mini-btn danger">Hapus</button>
+      </div>
+
+      <div class="compose-row">
+        <button id="btnMic" class="chip mic">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3m5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z"/></svg>
+          <span id="micLabel">Rekam</span>
+        </button>
+
+        <button id="btnRemind" class="chip">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22m7-6v-5a7 7 0 0 0-6-6.92V3a1 1 0 0 0-2 0v1.08A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/></svg>
+          <span id="remindLabel">Ingatkan</span>
+        </button>
+
+        <button id="btnSave" class="btn primary grow">Simpan</button>
+      </div>
+
+      <div id="remindBox" class="remind-box hidden">
+        <div class="field-row">
+          <label class="field grow">
+            <span class="lbl">Tanggal</span>
+            <input type="date" id="rmDate">
+          </label>
+          <label class="field">
+            <span class="lbl">Jam</span>
+            <input type="time" id="rmTime" value="09:00">
+          </label>
+        </div>
+        <div class="field-row">
+          <label class="field grow">
+            <span class="lbl">Ulangi</span>
+            <select id="rmRepeat">
+              <option value="none">Tidak ada</option>
+              <option value="daily">Harian</option>
+              <option value="weekly">Mingguan</option>
+              <option value="biweekly">2 Minggu</option>
+              <option value="monthly">Bulanan</option>
+              <option value="yearly">Tahunan</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="lbl">Ingat (mnt)</span>
+            <select id="rmLead">
+              <option value="0">Tepat waktu</option>
+              <option value="5" selected>5 menit</option>
+              <option value="15">15 menit</option>
+              <option value="30">30 menit</option>
+              <option value="60">1 jam</option>
+              <option value="1440">1 hari</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint">Isi tanggal &amp; jam untuk mengaktifkan pengingat. Bot juga akan mengirim pengingat ke chat kamu.</p>
+      </div>
+    </div>
+
+    <div class="seg" id="noteFilter">
+      <button class="seg-btn active" data-f="all">Semua</button>
+      <button class="seg-btn" data-f="today">Hari ini</button>
+      <button class="seg-btn" data-f="pending">Belum</button>
+      <button class="seg-btn" data-f="done">Selesai</button>
+    </div>
+
+    <div id="noteList" class="list"></div>
+  </section>
+
+  <!-- ============ TOOL: KALKULATOR HARGA SERVIS HP ============ -->
+  <section id="view-calc" class="view">
+
+    <!-- Harga part + Estimasi, sebaris -->
+    <div class="card">
+      <div class="k-in-row">
+        <label class="field k-in-half">
+          <span class="lbl">Harga part</span>
+          <input type="text" id="kPart" inputmode="numeric" placeholder="150000">
+        </label>
+        <div class="field k-in-half">
+          <span class="lbl">Harga estimasi</span>
+          <div class="k-est" id="kEst">Rp0</div>
+        </div>
+      </div>
+      <p class="hint xs" id="kFormulaOut" style="margin:10px 0 0">Isi harga part, lalu pilih perhitungan estimasi biaya.</p>
+    </div>
+
+    <!-- Brand + Seri, sebaris -->
+    <div class="card">
+      <div class="k-in-row">
+        <label class="field k-in-half">
+          <span class="lbl">Brand HP</span>
+          <div class="sel-wrap">
+            <select id="kBrand" aria-label="Brand HP"></select>
+          </div>
+        </label>
+        <label class="field k-in-half">
+          <span class="lbl">Seri HP</span>
+          <div class="sel-wrap">
+            <select id="kSeries" aria-label="Seri HP"></select>
+          </div>
+        </label>
+      </div>
+      <input type="text" id="kName" class="hidden" aria-hidden="true" tabindex="-1">
+    </div>
+
+    <div class="card">
+      <div class="list-head tight">
+        <strong>Perhitungan estimasi biaya</strong>
+      </div>
+      <div id="kRules" class="k-rules"></div>
+    </div>
+
+    <div class="row-2">
+      <button id="kSaveTpl" class="btn">Simpan harga</button>
+      <button id="kCopy" class="btn ghost">Salin</button>
+    </div>
+
+    <button id="kReset" class="btn ghost block">Reset</button>
+
+    <div class="card">
+      <div class="list-head tight">
+        <strong>Harga tersimpan</strong>
+      </div>
+      <p class="hint xs" style="margin:0 0 10px">Disimpan dari kombinasi brand, seri, dan estimasi biaya.</p>
+      <div id="tplList" class="list"></div>
+    </div>
+
+  </section>
+
+  <!-- ============ BOTTOM NAV ============ -->
+  <nav class="tabbar">
+    <button class="tab active" data-view="home">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      <span>Beranda</span>
+    </button>
+    <button class="tab" data-view="history">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M3 5h18v2H3zm0 6h18v2H3zm0 6h12v2H3z"/></svg>
+      <span>Riwayat</span>
+    </button>
+    <button class="tab fab-slot" data-fab aria-label="Tambah transaksi">
+      <span class="fab">
+        <svg viewBox="0 0 24 24" width="26" height="26"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+      </span>
+      <span>Tambah</span>
+    </button>
+    <button class="tab" data-view="recap">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M4 20h16v-2H4zm2-4h12v-2H6zm2-4h8V8H8zm10-6H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2"/></svg>
+      <span>Rekap</span>
+    </button>
+    <button class="tab" data-view="more">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4m0 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4m0 6a2 2 0 1 1 0 4 2 2 0 0 1 0-4"/></svg>
+      <span>Lainnya</span>
+      <i class="badge hidden" id="badgeNotes">0</i>
+    </button>
+  </nav>
+
+  <!-- ============ SHEET: MENU UTAMA ============ -->
+  <div id="sheet" class="sheet-wrap hidden">
+    <div class="sheet-bg" data-close></div>
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <strong id="sheetTitle">Menu</strong>
+        <button class="icon-btn" data-close aria-label="Tutup">✕</button>
+      </div>
+      <div id="sheetBody" class="sheet-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+</div>
+
+<!-- ============ MODUL: MAS CIM SERVICE HP ============
+     Berisi lengkap di assets/js/mascim.js?v=20250309a; di sini hanya kerangkanya.
+     Satu pemilik, satu teknisi — sengaja tanpa kasir/cabang/multi-role. -->
+<div id="mc" class="mc hidden" aria-hidden="true">
+  <!-- Bar navigasi internal modul -->
+  <div class="mc-bar">
+    <button class="mc-back" id="mcBack" aria-label="Kembali">‹</button>
+    <div class="mc-bar-title">
+      <b>Mas Cim Service HP</b>
+      <span id="mcBarSub">Beranda</span>
+    </div>
+    <button class="mc-act" id="mcRefresh" aria-label="Muat ulang">↻</button>
+  </div>
+  <div id="mcScreen" class="mc-screen"></div>
+</div>
+
+<!-- ============ MODUL: NAVA TRADER ============
+     Riset & trading harian saham BEI. Analisa, backtest, dan
+     paper trading. TIDAK pernah mengirim order ke bursa:
+     keputusan dan eksekusi tetap manual oleh pengguna. -->
+<div id="nt" class="nt hidden" aria-hidden="true">
+  <div class="nt-bar">
+    <button class="nt-back" id="ntBack" aria-label="Kembali">‹</button>
+    <div class="nt-bar-title">
+      <b>Nava Trader</b>
+      <span id="ntBarSub">IHSG &amp; watchlist</span>
+    </div>
+    <button class="nt-act" id="ntRefresh" aria-label="Muat ulang">↻</button>
+  </div>
+  <div class="nt-tagline">Data EOD / Delayed — bukan real-time. Tanpa transaksi otomatis.</div>
+  <div id="ntScreen" class="nt-screen"></div>
+</div>
+
+<script src="assets/js/tg.js?v=20250309a"></script>
+<script src="assets/js/store.js?v=20250309a"></script>
+<script src="assets/js/nava-bank.js?v=20250309a"></script>
+<script src="assets/js/sync.js?v=20250309a"></script>
+<script src="assets/js/scan.js?v=20250309a"></script>
+<script src="assets/js/voice.js?v=20250309a"></script>
+<script src="assets/js/notes.js?v=20250309a"></script>
+<script src="assets/js/transactions.js?v=20250309a"></script>
+<script src="assets/js/calc.js?v=20250309a"></script>
+<script src="assets/js/mascim-local.js?v=20250309a"></script>
+<script src="assets/js/mascim.js?v=20250309a"></script>
+<script src="assets/js/nava-trader-core.js?v=20250310b"></script>
+<script src="assets/js/nava-trader-bandar.js?v=20250310b"></script>
+<script src="assets/js/nava-trader-fund.js?v=20250310c"></script>
+<script src="assets/js/nava-trader-alert.js?v=20250310d"></script>
+<script src="assets/js/nava-kesegaran.js?v=20250311b"></script>
+<script src="assets/js/nava-trader-quote.js?v=20250311a"></script>
+<script src="assets/js/nava-trader.js?v=20250311a"></script>
+<script src="assets/js/backup.js?v=20250309a"></script>
+<script src="assets/js/app.js?v=20250309a"></script>
+</body>
+</html>

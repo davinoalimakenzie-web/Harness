@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#517da2">
+<meta name="robots" content="noindex, nofollow">
+<title>Nota Service — Mas Cim Service HP</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<!--
+  Halaman nota pelanggan yang dibuka dari link.
+
+  Dua jenis tautan yang bisa dibuka di sini:
+    1. LINK MANDIRI  (#/s/<data>) - isi nota ikut di dalam tautannya, jadi
+       bisa dibuka dari HP mana pun, jaringan apa pun, tanpa server. Isinya
+       sudah disaring sejak dibuat (lihat encodePublicNote di mascim-local.js).
+    2. LINK TOKEN    (#/nota/<token>) - isinya dibaca dari perangkat tempat
+       nota dibuat, dan bisa dicabut pemiliknya.
+
+  Dua sifat yang dijaga di halaman ini:
+    1. BACA SAJA. Tidak ada tombol yang bisa mengubah data apa pun, dan
+       halaman ini tidak memuat modul aplikasi (Store/Tx/Mascim UI), jadi
+       tidak ada jalan untuk menulis dari sini.
+    2. TEPAT ISI YANG BOLEH. Yang ditampilkan hanya field yang sudah
+       diizinkan keluar. PIN/pola layar, modal sparepart, Dana Bank, dan
+       catatan internal tidak pernah ikut - baik di link token maupun di
+       link mandiri.
+-->
+<div class="mc-public">
+  <div class="mc-public-box">
+    <div class="mc-public-brand">MAS CIM SERVICE HP</div>
+    <div class="mc-public-sub">Nota Service Pelanggan &middot; baca saja</div>
+    <div class="mc-public-box-body">
+      <p class="mc-hint" id="pLoading">Memuat nota&hellip;</p>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/mascim-local.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function rupiah(n) {
+    return 'Rp' + Number(n || 0).toLocaleString('id-ID');
+  }
+  function tgl(iso) {
+    if (!iso) return '-';
+    var d = new Date(iso);
+    if (isNaN(d)) return '-';
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) +
+      ' ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+  // Nomor WhatsApp ditampilkan sebagian saja: link nota bisa diteruskan.
+  function waSamar(wa) {
+    var s = String(wa || '').replace(/[\s-]/g, '');
+    if (s.length <= 6) return s;
+    return s.slice(0, 5) + '*****' + s.slice(-3);
+  }
+  function kv(k, v) {
+    return '<div class="mc-kv"><span>' + esc(k) + '</span><b>' + esc(v) + '</b></div>';
+  }
+
+  function body() { return document.querySelector('.mc-public-box-body'); }
+
+  function gagal(pesan) {
+    body().innerHTML =
+      '<div class="mc-noterevoked" style="margin-top:8px">' +
+        '<b>Nota tidak bisa ditampilkan</b>' +
+        '<span>' + esc(pesan) + '</span></div>' +
+      '<p class="mc-public-foot">Bila ini keliru, hubungi Mas Cim Service HP.</p>';
+  }
+
+  // Isi nota. Sengaja dibangun ulang di sini (bukan memakai modul UI) supaya
+  // halaman ini benar-benar terpisah dari aplikasi internal: tidak ada kode
+  // yang bisa ikut MEMUAT data di luar daftar putih di bawah.
+  function htmlNota(n) {
+    var h = '<div class="mc-note-doc">';
+    h += '<div class="mc-note-doc-head">' +
+      '<div><span>Nota Service</span><b>#' + esc(n.numberLabel) + '</b></div>' +
+      '<div class="mc-note-doc-date"><span>Diterbitkan</span><b>' + tgl(n.issuedAt) + '</b></div>' +
+    '</div>';
+
+    h += '<div class="mc-sec">Pelanggan &amp; Unit</div>' +
+      kv('Nama', n.customerName) +
+      kv('Unit', n.device) +
+      (n.whatsapp ? kv('WhatsApp', waSamar(n.whatsapp)) : '');
+
+    h += '<div class="mc-sec">Keluhan &amp; Kondisi</div>' +
+      kv('Keluhan', n.complaint) +
+      (n.intakeCondition ? kv('Kondisi saat Diterima', n.intakeCondition) : '');
+
+    if (n.parts && n.parts.length) {
+      h += '<div class="mc-sec">Sparepart Terpasang</div><div class="mc-ptable">';
+      n.parts.forEach(function (nama) {
+        h += '<div class="mc-prow"><span>' + esc(nama) + '</span></div>';
+      });
+      h += '</div>';
+    }
+
+    h += '<div class="mc-sec">Penanganan</div>' +
+      kv('Penanganan akhir', n.handling || 'Tidak ada penanganan tambahan');
+
+    h += '<div class="mc-sec">Biaya &amp; Garansi</div>' +
+      '<div class="mc-money big"><div><span>Total Biaya</span><b>' + rupiah(n.totalCost) + '</b></div></div>' +
+      (n.paidAt ? kv('Tanggal Lunas', tgl(n.paidAt)) : '') +
+      kv('Masa Garansi', n.warrantyDays + ' hari \u00b7 berlaku sampai ' + tgl(n.warrantyUntil));
+
+    h += '</div>';
+    return h;
+  }
+
+  function tampil(n) {
+    if (n.revoked) {
+      gagal('Link nota ini sudah dicabut oleh Mas Cim Service HP, jadi isinya tidak lagi ditampilkan.');
+      return;
+    }
+    var h = '<div class="mc-pad">' + htmlNota(n) + '</div>';
+    h += '<div class="mc-public-actions">' +
+      '<button class="mc-primary" id="pPrint">Cetak / PDF</button>' +
+    '</div>';
+    h += '<p class="mc-public-foot">Nota ini bersifat baca saja. ' +
+      'Masa garansi berlaku ' + n.warrantyDays + ' hari sejak tanggal terbit.</p>';
+    body().innerHTML = h;
+    var b = document.getElementById('pPrint');
+    if (b) b.addEventListener('click', function () { window.print(); });
+  }
+
+  // Token diambil dari hash (#/nota/<token>) supaya URL tetap bersih.
+  function tokenDariUrl() {
+    var h = String(window.location.hash || '');
+    var m = h.match(/#\/nota\/([A-Za-z0-9]+)/);
+    if (m) return m[1];
+    var q = String(window.location.search || '').match(/[?&]t=([A-Za-z0-9]+)/);
+    return q ? q[1] : '';
+  }
+
+  // Tautan mandiri: isi nota ikut di dalam URL (#/s/<data>), jadi halaman ini
+  // bisa menampilkannya tanpa data dari perangkat mana pun. Dipakai supaya
+  // nota garansi tetap bisa dibuka dari HP mana pun.
+  function mandiriDariUrl() {
+    var h = String(window.location.hash || '');
+    var m = h.match(/#\/s\/([A-Za-z0-9_-]+)/);
+    if (m) return m[1];
+    var q = String(window.location.search || '').match(/[?&]s=([A-Za-z0-9_-]+)/);
+    return q ? q[1] : '';
+  }
+
+  function muat() {
+    var mandiri = mandiriDariUrl();
+    if (mandiri) {
+      if (!window.MascimLocal) { gagal('Mesin data tidak termuat.'); return; }
+      try {
+        tampil(window.MascimLocal.decodePublicNote(mandiri));
+      } catch (e) {
+        gagal(e && e.message ? e.message : 'Tautan nota tidak terbaca.');
+      }
+      return;
+    }
+    var token = tokenDariUrl();
+    if (!token) {
+      gagal('Tautan nota tidak lengkap. Buka link persis seperti yang dikirim Mas Cim Service HP.');
+      return;
+    }
+    if (!window.MascimLocal) { gagal('Mesin data tidak termuat.'); return; }
+    try {
+      tampil(window.MascimLocal.getPublicNoteByToken(token));
+    } catch (e) {
+      gagal(e && e.message ? e.message : 'Nota tidak ditemukan.');
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', muat);
+  } else {
+    muat();
+  }
+})();
+</script>
+</body>
+</html>
