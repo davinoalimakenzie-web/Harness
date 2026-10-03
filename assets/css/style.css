@@ -844,6 +844,24 @@ body.mc-open{ overflow:hidden; }
 }
 .mc-ghost-btn:active{ background:#24302a; }
 .mc-ghost-btn.danger{ color:var(--mc-red); border-color:#4a2325; }
+/* Pemilih "Ambil dari Kalkulator Service" di sheet Tambah Sparepart.
+   Scroll-nya dibatasi supaya sheet tetap ringkas di HP kecil. */
+.mc-tpl-pick{ display:flex; flex-direction:column; gap:6px; max-height:190px; overflow-y:auto; }
+.mc-tpl-chip{
+  display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%;
+  min-height:44px; padding:9px 11px; text-align:left; cursor:pointer;
+  border:1px solid var(--mc-line); border-radius:12px;
+  background:var(--mc-card2); color:var(--mc-txt); font-size:14px;
+}
+.mc-tpl-chip b{ font-weight:700; }
+.mc-tpl-chip span{ font-size:11.5px; color:var(--mc-txt2); }
+.mc-tpl-chip.act{ border-color:var(--mc-accent); background:var(--mc-soft); }
+.mc-tpl-chip:active{ background:var(--mc-soft); }
+.mc-or{
+  display:flex; align-items:center; gap:10px; margin:10px 0 4px;
+  font-size:11.5px; color:var(--mc-txt2);
+}
+.mc-or::before, .mc-or::after{ content:''; flex:1; height:1px; background:var(--mc-line); }
 .mc-nav{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:4px 0 8px; }
 .mc-nav2{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
 .mc-nav button{
