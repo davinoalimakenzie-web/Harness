@@ -502,43 +502,6 @@
       '</div>');
 
     // Unit
-    /* Isi dropdown seri sesuai brand terpilih. Dipakai form tambah service dan
-       form edit, jadi daftar seri tidak pernah desolate.
-       Nilai disimpan tetap satu string "Brand Seri" — semua kode yang memakai
-       o.device (18 tempat) tidak perlu disentuh. */
-  function isiSeri(brandSel, seriSel, seriDipilih) {
-    if (!brandSel || !seriSel) return;
-    var list = (w.CalcUI.SERIES[brandSel.value] || []);
-    seriSel.innerHTML = '<option value="">Pilih seri</option>' +
-      list.map(function (s) {
-        return '<option value="' + esc(s) + '"' +
-          (s === seriDipilih ? ' selected' : '') + '>' + esc(s) + '</option>';
-      }).join('') +
-      '<option value="Lainnya">Lainnya…</option>';
-  }
-
-  /* Pecah device yang tersimpan jadi [idBrand, seri] supaya form edit bisa
-       menandai ulang dropdownnya.
-       Brand tidak selalu satu kata: "Samsung Galaxy A54" tapi juga bisa cuma
-       "Samsung" (seri dikosongkan). Jadi coba prefiks dari yang panjang dulu —
-       pecah di spasi pertama saja akan menganggap "Samsung" bukan brand sama
-       sekali. Kalau tidak ada yang cocok, kembalikan string utuh sebagai seri
-       supaya tidak ada yang terpotong. */
-  function pisahDevice(device) {
-    var d = String(device || '').trim();
-    if (!d) return ['', ''];
-    var kata = d.split(/\s+/);
-    for (var n = Math.min(3, kata.length); n >= 1; n--) {
-      var kandidat = kata.slice(0, n).join(' ');
-      var brand = w.CalcUI.BRANDS.filter(function (b) {
-        return b.name.toLowerCase() === kandidat.toLowerCase();
-      })[0];
-      if (brand) return [brand.id, kata.slice(n).join(' ')];
-    }
-    return ['', d];
-  }
-
-  // Device: dua dropdown yang saling terkait, sama seperti kalkulator.
     html += field('Device *',
       '<div class="mc-row2">' +
         '<select class="mc-inp" id="fBrand"><option value="">Pilih brand</option>' +
@@ -682,6 +645,43 @@
     // diabaikan mesin data saat status tidak dikirim eksplisit.
     d.service_status = INITIAL_STATUS;
     return d;
+  }
+
+  /* Isi dropdown seri sesuai brand terpilih.
+     WAJIB berada di scope modul: dipanggil dari bindForm() dan
+     openPartSheet(), bukan hanya dari renderForm(). Kalau dideklarasikan di
+     dalam renderForm, kedua pemanggil itu dapat ReferenceError — gejalanya
+     dropdown seri tidak pernah terisi DAN sheet sparepart tidak pernah terbuka. */
+  function isiSeri(brandSel, seriSel, seriDipilih) {
+    if (!brandSel || !seriSel) return;
+    var list = (w.CalcUI.SERIES[brandSel.value] || []);
+    seriSel.innerHTML = '<option value="">Pilih seri</option>' +
+      list.map(function (s) {
+        return '<option value="' + esc(s) + '"' +
+          (s === seriDipilih ? ' selected' : '') + '>' + esc(s) + '</option>';
+      }).join('') +
+      '<option value="Lainnya">Lainnya…</option>';
+  }
+
+  /* Pecah device yang tersimpan jadi [idBrand, seri] supaya form edit bisa
+     menandai ulang dropdownnya.
+     Brand tidak selalu satu kata: "Samsung Galaxy A54" tapi juga bisa cuma
+     "Samsung" (seri dikosongkan). Jadi coba prefiks dari yang panjang dulu —
+     pecah di spasi pertama saja akan menganggap "Samsung" bukan brand sama
+     sekali. Kalau tidak ada yang cocok, kembalikan string utuh sebagai seri
+     supaya tidak ada yang terpotong. */
+  function pisahDevice(device) {
+    var d = String(device || '').trim();
+    if (!d) return ['', ''];
+    var kata = d.split(/\s+/);
+    for (var n = Math.min(3, kata.length); n >= 1; n--) {
+      var kandidat = kata.slice(0, n).join(' ');
+      var brand = w.CalcUI.BRANDS.filter(function (b) {
+        return b.name.toLowerCase() === kandidat.toLowerCase();
+      })[0];
+      if (brand) return [brand.id, kata.slice(n).join(' ')];
+    }
+    return ['', d];
   }
 
   function bindForm() {
