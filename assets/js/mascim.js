@@ -814,11 +814,12 @@
     var part = M.draft.parts[M.draft.parts.length - 1];
     part.part_name = v.rule ? namaPartDariRule(v.rule) : (p.ruleId || 'Sparepart');
     part.capital_cost = p.part;
-    // Total biaya ikut terisi dari harga part yang dipilih, supaya tidak perlu
-    // dijumlahkan manual. TIDAK dikunci: kalau harga part berubah, teknisi
-    // tetap boleh mengoreksi total biayanya sendiri.
+    // Total Biaya memakai ESTIMASI dari Kalkulator, yaitu harga yang ditawarkan
+    // ke pelanggan, bukan harga modal part — modal sudah tampil sendiri di
+    // baris "Total Modal Part" jadi tidak boleh ikut ditambah dua kali.
+    // TIDAK dikunci: kalau harga berubah, teknisi tetap boleh mengoreksi.
     var lama = parseInt(String(M.draft.total_cost || '').replace(/\D/g, ''), 10) || 0;
-    M.draft.total_cost = lama + (parseInt(p.part, 10) || 0);
+    M.draft.total_cost = lama + (parseInt(p.est, 10) || 0);
     render();
     toast('Part ditambahkan, total biaya diperbarui');
   }
