@@ -1,11 +1,7 @@
 {
-  "api": "https://platform-evaluating-surgeon-tune.trycloudflare.com",
-  "apis": [
-    "https://platform-evaluating-surgeon-tune.trycloudflare.com",
-    "https://license-clause-rachel-firmware.trycloudflare.com",
-    "https://don-explained-below-nature.trycloudflare.com",
-    "https://usually-thomas-dot-smaller.trycloudflare.com"
-  ],
-  "updated_at": "2026-09-27T08:13:17.659Z",
-  "instance": ""
+  "api": "",
+  "apis": [],
+  "updated_at": "2026-10-03T00:00:00.000Z",
+  "instance": "",
+  "note": "Server sync dimatikan 2026-10-03. Data tersimpan di localStorage; pakai Export/Import JSON + Cadangan Otomatis. Tidak ada backend sync yang aktif."
 }
