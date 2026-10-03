@@ -450,7 +450,7 @@
      ========================================================= */
   function blankDraft() {
     return {
-      customer_name: '', whatsapp: '', device: '', complaint: '',
+      customer_name: '', whatsapp: '', device: '', complaint: '', seri_lain: '',
       intake_condition: '',
       screen_lock_type: 'Tanpa Kunci', screen_lock_secret: '',
       handling: '', total_cost: '', service_status: INITIAL_STATUS,
@@ -510,7 +510,11 @@
           }).join('') +
         '</select>' +
         '<select class="mc-inp" id="fSeries"><option value="">Pilih seri</option></select>' +
-      '</div>');
+      '</div>' +
+      // Kolom ini hanya dipakai kalau seri dipilih "Lainnya…", supaya model yang
+      // tidak ada di katalog tetap bisa dicatat sebagai "Brand + model".
+      '<input class="mc-inp sm" id="fSeriLain" value="' + esc(d.seri_lain || '') +
+      '" placeholder="Model lain (hanya jika pilih Lainnya…)">');
     // Kendala dan kondisi unit digabung jadi satu isian. Memisahkannya hanya
     // menambah tinggi form tanpa menambah informasi: yang dicari teknisi tetap
     // "apa yang rusak dan kondisi barang saat masuk". Satu teks ini disimpan di
@@ -629,6 +633,10 @@
       brandName = b ? b.name : '';
     }
     var seri = (sSel && sSel.value) || '';
+    // "Lainnya…" berarti modelnya diketik sendiri di kolom tambahan, bukan
+    // nama seri dari katalog.
+    d.seri_lain = (($('#fSeriLain') || {}).value || '').trim();
+    if (seri === 'Lainnya') seri = d.seri_lain;
     d.device = brandName ? (seri && seri !== 'Lainnya' ? brandName + ' ' + seri : brandName) : '';
 
     d.complaint = ($('#fComplaint') || {}).value || '';
@@ -661,7 +669,8 @@
         return '<option value="' + esc(s) + '"' +
           (s === seriDipilih ? ' selected' : '') + '>' + esc(s) + '</option>';
       }).join('') +
-      '<option value="Lainnya">Lainnya…</option>';
+      '<option value="Lainnya"' + (seriDipilih && list.indexOf(seriDipilih) < 0
+        ? ' selected' : '') + '>Lainnya…</option>';
   }
 
   /* Pecah device yang tersimpan jadi [idBrand, seri] supaya form edit bisa
@@ -746,10 +755,13 @@
         'dari Kalkulator bisa dipakai.</p></div>';
     }
 
+    // Ketiga jenis SELALU ditawarkan, walau belum ada harga tersimpan untuk
+    // device ini — justru itu jalur untuk membuat estimasi baru. Kalau jenis
+    // disembunyikan saat datanya kosong, tidak ada cara membuat harga baru.
     var opsiJenis = '<option value="">— jenis sparepart —</option>' +
-      (kat.lcd.length ? '<option value="lcd">LCD (' + kat.lcd.length + ')</option>' : '') +
-      (kat.baterai.length ? '<option value="baterai">Baterai (' + kat.baterai.length + ')</option>' : '') +
-      (kat.lain.length ? '<option value="lain">Lainnya (' + kat.lain.length + ')</option>' : '');
+      '<option value="lcd">LCD' + (kat.lcd.length ? ' (' + kat.lcd.length + ')' : '') + '</option>' +
+      '<option value="baterai">Baterai' + (kat.baterai.length ? ' (' + kat.baterai.length + ')' : '') + '</option>' +
+      '<option value="lain">Lainnya' + (kat.lain.length ? ' (' + kat.lain.length + ')' : '') + '</option>';
 
     return '<div class="mc-harga" id="pPick" data-brand="' + esc(brandId) + '" data-seri="' + esc(seri) + '">' +
       '<div class="mc-row2">' +
@@ -897,11 +909,18 @@
       isiSeri(brandSel, seriSel, sudah[1]);
       brandSel.addEventListener('change', function () {
         isiSeri(brandSel, seriSel, '');
-        // Device berubah -> katalog harga ikut berubah, jadi gambar ulang.
-        M.draft.device = '';
+        // readDraft() dulu supaya M.draft.device terisi dari select yang barusan
+        // berubah, dan field lain yang sudah diketik tidak ikut hilang saat
+        // form digambar ulang. Sebelumnya device dikosongkan di sini, lalu
+        // bindForm() membaca pisahDevice('') dan me-reset brand ke kosong —
+        // itu yang membuat dropdown seri selalu terisi lalu langsung hilang.
+        readDraft();
         render();
       });
-      seriSel.addEventListener('change', function () { render(); });
+      seriSel.addEventListener('change', function () {
+        readDraft();
+        render();
+      });
     }
     bindPemilihHarga();
 
