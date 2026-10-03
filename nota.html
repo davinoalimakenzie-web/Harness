@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#517da2">
 <meta name="robots" content="noindex, nofollow">
 <title>Nota Service — Mas Cim Service HP</title>
-<link rel="stylesheet" href="assets/css/style.css?v=20261003j">
+<link rel="stylesheet" href="assets/css/style.css?v=20261003k">
 </head>
 <body>
 
@@ -82,41 +82,37 @@
   // Isi nota. Sengaja dibangun ulang di sini (bukan memakai modul UI) supaya
   // halaman ini benar-benar terpisah dari aplikasi internal: tidak ada kode
   // yang bisa ikut MEMUAT data di luar daftar putih di bawah.
+  /* Isi nota yang dilihat pelanggan.
+
+       Hanya delapan hal ini yang boleh muncul:
+         no. nota, nama, WhatsApp, unit, penanganan, total biaya,
+         garansi, tanggal pengambilan.
+
+       PENTING: harga part / modal sparepart TIDAK PERNAH ikut. Yang tampil
+       dari sparepart juga dihapus supaya tidak ada yang bisa disalahartikan
+       sebagai harga. */
   function htmlNota(n) {
-    var h = '<div class="mc-note-doc">';
-    h += '<div class="mc-note-doc-head">' +
-      '<div><span>Nota Service</span><b>#' + esc(n.numberLabel) + '</b></div>' +
-      '<div class="mc-note-doc-date"><span>Diterbitkan</span><b>' + tgl(n.issuedAt) + '</b></div>' +
-    '</div>';
+      var h = '<div class="mc-note-doc">';
+      h += '<div class="mc-note-doc-head">' +
+        '<div><span>Nota Service</span><b>#' + esc(n.numberLabel) + '</b></div>' +
+      '</div>';
 
-    h += '<div class="mc-sec">Pelanggan &amp; Unit</div>' +
-      kv('Nama', n.customerName) +
-      kv('Unit', n.device) +
-      (n.whatsapp ? kv('WhatsApp', waSamar(n.whatsapp)) : '');
+      h += '<div class="mc-sec">Pelanggan &amp; Unit</div>' +
+        kv('Nama', n.customerName) +
+        kv('Unit', n.device) +
+        (n.whatsapp ? kv('WhatsApp', waSamar(n.whatsapp)) : '');
 
-    h += '<div class="mc-sec">Keluhan &amp; Kondisi</div>' +
-      kv('Keluhan', n.complaint) +
-      (n.intakeCondition ? kv('Kondisi saat Diterima', n.intakeCondition) : '');
+      h += '<div class="mc-sec">Penanganan</div>' +
+        kv('Penanganan akhir', n.handling || 'Tidak ada penanganan tambahan');
 
-    if (n.parts && n.parts.length) {
-      h += '<div class="mc-sec">Sparepart Terpasang</div><div class="mc-ptable">';
-      n.parts.forEach(function (nama) {
-        h += '<div class="mc-prow"><span>' + esc(nama) + '</span></div>';
-      });
+      h += '<div class="mc-sec">Biaya &amp; Garansi</div>' +
+        '<div class="mc-money big"><div><span>Total Biaya</span><b>' + rupiah(n.totalCost) + '</b></div></div>' +
+        kv('Masa Garansi', n.warrantyDays + ' hari · berlaku sampai ' + tgl(n.warrantyUntil)) +
+        kv('Tanggal Pengambilan', n.takenAt ? tgl(n.takenAt) : 'Belum diambil');
+
       h += '</div>';
+      return h;
     }
-
-    h += '<div class="mc-sec">Penanganan</div>' +
-      kv('Penanganan akhir', n.handling || 'Tidak ada penanganan tambahan');
-
-    h += '<div class="mc-sec">Biaya &amp; Garansi</div>' +
-      '<div class="mc-money big"><div><span>Total Biaya</span><b>' + rupiah(n.totalCost) + '</b></div></div>' +
-      (n.paidAt ? kv('Tanggal Lunas', tgl(n.paidAt)) : '') +
-      kv('Masa Garansi', n.warrantyDays + ' hari \u00b7 berlaku sampai ' + tgl(n.warrantyUntil));
-
-    h += '</div>';
-    return h;
-  }
 
   function tampil(n) {
     if (n.revoked) {

@@ -1694,34 +1694,24 @@
     var h = '<div class="mc-note-doc">' +
       '<div class="mc-note-doc-head">' +
         '<div><span>Nota Service</span><b>#' + esc(wn.numberLabel) + '</b></div>' +
-        '<div class="mc-note-doc-date"><span>Diterbitkan</span><b>' + tglJam(wn.issuedAt) + '</b></div>' +
       '</div>';
 
+    // Wajib sama persis dengan htmlNota() di nota.html. Kalau isinya berbeda,
+    // apa yang terlihat saat preview bisa berbeda dari yang dilihat pelanggan
+    // dari link — dan itu tidak boleh terjadi.
     h += '<div class="mc-sec">Pelanggan &amp; Unit</div>' +
       kv('Nama', esc(wn.customerName)) +
       kv('Unit', esc(wn.device)) +
       (wn.whatsapp ? kv('WhatsApp', esc(waSamar(wn.whatsapp))) : '');
-
-    h += '<div class="mc-sec">Keluhan &amp; Kondisi</div>' +
-      kv('Keluhan', esc(wn.complaint)) +
-      (wn.intakeCondition ? kv('Kondisi saat Diterima', esc(wn.intakeCondition)) : '');
-
-    if (wn.parts && wn.parts.length) {
-      h += '<div class="mc-sec">Sparepart Terpasang</div><div class="mc-ptable">';
-      wn.parts.forEach(function (nama) {
-        h += '<div class="mc-prow"><span>' + esc(nama) + '</span></div>';
-      });
-      h += '</div>';
-    }
 
     h += '<div class="mc-sec">Penanganan</div>' +
       kv('Penanganan akhir', esc(wn.handling || 'Tidak ada penanganan tambahan'));
 
     h += '<div class="mc-sec">Biaya &amp; Garansi</div>' +
       '<div class="mc-money big"><div><span>Total Biaya</span><b>' + rupiah(wn.totalCost) + '</b></div></div>' +
-      (wn.paidAt ? '<div class="mc-kv"><span>Tanggal Lunas</span><b>' + tglJam(wn.paidAt) + '</b></div>' : '') +
-      '<div class="mc-kv"><span>Masa Garansi</span><b>' + wn.warrantyDays + ' hari &middot; berlaku sampai ' +
-        tglJam(wn.warrantyUntil) + '</b></div>';
+      kv('Masa Garansi', wn.warrantyDays + ' hari · berlaku sampai ' +
+        tglJam(wn.warrantyUntil)) +
+      kv('Tanggal Pengambilan', wn.takenAt ? tglJam(wn.takenAt) : 'Belum diambil');
 
     h += '</div>';
     return h;

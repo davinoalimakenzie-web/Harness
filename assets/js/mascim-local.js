@@ -702,6 +702,7 @@
       issuedAt: wn.issuedAt,
       warrantyDays: wn.warrantyDays,
       warrantyUntil: wn.warrantyUntil,
+      takenAt: order.takenAt || null,
       token: wn.token,
       revoked: !!wn.revokedAt,
       revokedAt: wn.revokedAt || null,
@@ -852,7 +853,10 @@
       s: (note.parts || []).slice(0, 40),
       b: note.totalCost || 0,
       a: note.paidAt || '',
-      r: note.receivedAt || ''
+      r: note.receivedAt || '',
+      // g = tanggal pengambilan. Kunci baru; link lama yang tidak punya g
+      // tetap terbaca dan hanya menampilkan "Belum diambil".
+      g: note.takenAt || ''
     };
     return b64urlEncode(JSON.stringify(ringkas));
   }
@@ -883,6 +887,7 @@
       issuedAt: teks_(o.i),
       warrantyDays: Number(o.w) || 0,
       warrantyUntil: teks_(o.u),
+      takenAt: teks_(o.g),
       // Tautan mandiri tidak punya token dan tidak bisa dicabut.
       token: '',
       revoked: false,
@@ -1199,6 +1204,12 @@
     // Status final (Done/Done Diambil/Cancel/Cancel Diambil) mengesahkan
     // waktu selesai; kembali ke Progress/Nggandul melepaskannya lagi.
     o.completedAt = isClosedStatus(status) ? (o.completedAt || nowIso()) : null;
+    // Tanggal pengambilan dicatat saat status pertama kali jadi "Diambil".
+    // Di-stamp hanya sekali (pakai || ) supaya Mundur dan maju lagi tidak
+    // mengubah tanggal aslinya, dan dilepas kalau kembali ke status belum
+    // diambil supaya tidak pernah ada tanggal ambil tanpa barang diambil.
+    var diambil = status === 'Done Diambil' || status === 'Cancel Diambil';
+    o.takenAt = diambil ? (o.takenAt || nowIso()) : null;
     o.serviceStatus = status;
     o.updatedAt = nowIso();
     // Barang yang sudah diambil = modal sparepart tidak lagi tertahan,
