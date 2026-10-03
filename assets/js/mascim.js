@@ -547,6 +547,7 @@
 
     // Sparepart
     html += '<div class="mc-sec">Sparepart <span class="mc-sec-note">boleh kosong</span></div>';
+    html += renderPemilihHarga(d);
     if (d.parts.length) {
       html += '<div class="mc-parts">';
       d.parts.forEach(function (p, i) {
@@ -684,6 +685,205 @@
     return ['', d];
   }
 
+  /* ============================================================
+     PEMILIH HARGA SPAREPART DARI KALKULATOR
+
+     Berdiri sendiri,inline di form tambah service. Sheet detail
+     tidak bisa dipakai untuk ini: saat nota baru, part masih bagian
+     dari draft dan belum punya orderId, jadi tidak bisa POST sendiri.
+
+     Alurnya dua dropdown berjajar:
+       Jenis  -> LCD / Baterai / Lainnya
+       Varian -> varian yang BENAR-BENAR ada di Kalkulator untuk
+                 (brand, seri) device ini saja, jadi tidak pernah
+                 menampilkan daftar kosong yang membingungkan.
+     Tombol centang dipakai untuk konfirmasi sebelum harga benar-benar
+     ditambahkan ke daftar sparepart.
+
+     Kalau belum ada harga untuk jenis itu, muncul kalkulator kecil
+     untuk membuat estimasi baru — rumusnya sama persis dengan
+     Kalkulator Service, dan hasilnya langsung tersimpan supaya nota
+     berikutnya untuk device yang sama tinggal pilih.
+     ============================================================ */
+
+  function jenisDariRule(rule) {
+    return /baterai/i.test(rule.id) ? 'baterai' : 'lcd';
+  }
+
+  function ruleByRuleId(id) {
+    return (w.CalcUI.RULES || []).filter(function (r) { return r.id === id; })[0] || null;
+  }
+
+  /* Semua entri Kalkulator untuk device ini, dikelompokkan per jenis. */
+  function katalogUntukDevice(brandId, seri) {
+    var out = { lcd: [], baterai: [], lain: [] };
+    if (!brandId || !seri) return out;
+    (w.Store.state.templates || []).forEach(function (t) {
+      var p = t.payload || {};
+      if (p.brandId !== brandId || p.series !== seri) return;
+      var rule = ruleByRuleId(p.ruleId);
+      if (!rule) { out.lain.push({ tpl: t, rule: null }); return; }
+      out[jenisDariRule(rule)].push({ tpl: t, rule: rule });
+    });
+    return out;
+  }
+
+  function labelVarian(v) {
+    var p = v.tpl.payload || {};
+    var nama = v.rule ? (v.rule.name || v.rule.id) : (p.ruleId || 'Lainnya');
+    return nama + ' · modal ' + rupiah(p.part) + ' → ' + rupiah(p.est);
+  }
+
+  function renderPemilihHarga(d) {
+    var bits = pisahDevice(d && d.device);
+    var brandId = bits[0], seri = bits[1];
+    var kat = katalogUntukDevice(brandId, seri);
+    var ada = kat.lcd.length + kat.baterai.length + kat.lain.length;
+
+    if (!brandId || !seri) {
+      return '<div class="mc-harga">' +
+        '<p class="mc-hint">Pilih brand dan seri di atas dulu, supaya harga ' +
+        'dari Kalkulator bisa dipakai.</p></div>';
+    }
+
+    var opsiJenis = '<option value="">— jenis sparepart —</option>' +
+      (kat.lcd.length ? '<option value="lcd">LCD (' + kat.lcd.length + ')</option>' : '') +
+      (kat.baterai.length ? '<option value="baterai">Baterai (' + kat.baterai.length + ')</option>' : '') +
+      (kat.lain.length ? '<option value="lain">Lainnya (' + kat.lain.length + ')</option>' : '');
+
+    return '<div class="mc-harga" id="pPick" data-brand="' + esc(brandId) + '" data-seri="' + esc(seri) + '">' +
+      '<div class="mc-row2">' +
+        '<select class="mc-inp sm" id="pJenis">' + opsiJenis + '</select>' +
+        '<select class="mc-inp sm" id="pVarian"><option value="">— pilih varian —</option></select>' +
+      '</div>' +
+      '<div id="pVarianInfo" class="mc-hint"></div>' +
+      '<button class="mc-ghost-btn" id="pPakai" disabled>' +
+        '✓ Pakai harga ini</button>' +
+      // Kalkulator mini untuk device ini: dipakai hanya kalau jenis yang
+      // dipilih belum punya harga tersimpan di Kalkulator.
+      '<div id="pBaru" class="mc-harga-baru mc-none">' +
+        '<p class="mc-hint" id="pBaruInfo"></p>' +
+        '<div class="mc-row2">' +
+          '<label class="mc-field"><span class="mc-lbl">Harga part (Rp)</span>' +
+            '<input class="mc-inp sm" id="pBaruPart" inputmode="numeric" placeholder="0"></label>' +
+          '<label class="mc-field"><span class="mc-lbl">Estimasi (Rp)</span>' +
+            '<input class="mc-inp sm" id="pBaruEst" inputmode="numeric" placeholder="otomatis"></label>' +
+        '</div>' +
+        '<button class="mc-ghost-btn" id="pBaruSimpan">✓ Simpan harga ini ke Kalkulator</button>' +
+      '</div>' +
+      (ada ? '' : '<p class="mc-hint">Belum ada harga untuk ' + esc(seri) +
+        ' di Kalkulator. Pilih jenis, lalu buat estimasi baru di bawah.</p>') +
+    '</div>';
+  }
+
+  /* Menerjemahkan pilihan Jenis+Varian menjadi draft part baru. */
+  function pakaiHargaDariKatalog() {
+    var pick = $('#pPick');
+    if (!pick) return;
+    var brandId = pick.dataset.brand, seri = pick.dataset.seri;
+    var jenis = ($('#pJenis') || {}).value;
+    var varianId = ($('#pVarian') || {}).value;
+    if (!jenis || !varianId) return;
+    var kat = katalogUntukDevice(brandId, seri);
+    var v = (kat[jenis] || []).filter(function (x) {
+      return (x.tpl.payload.ruleId || '') === varianId;
+    })[0];
+    if (!v) return;
+    var p = v.tpl.payload;
+    dPushPart();
+    var part = M.draft.parts[M.draft.parts.length - 1];
+    part.part_name = v.rule ? namaPartDariRule(v.rule) : (p.ruleId || 'Sparepart');
+    part.capital_cost = p.part;
+    render();
+    toast('Part ditambahkan dari Kalkulator');
+  }
+
+  function bindPemilihHarga() {
+    var pick = $('#pPick');
+    if (!pick) return;
+    var brandId = pick.dataset.brand, seri = pick.dataset.seri;
+    var jenisSel = $('#pJenis'), varianSel = $('#pVarian');
+    var info = $('#pVarianInfo'), pakai = $('#pPakai');
+    var baru = $('#pBaru'), baruInfo = $('#pBaruInfo');
+
+    function isiVarian() {
+      var jenis = jenisSel.value;
+      varianSel.innerHTML = '<option value="">— pilih varian —</option>';
+      info.textContent = '';
+      pakai.disabled = true;
+      baru.classList.add('mc-none');
+      if (!jenis) return;
+      var kat = katalogUntukDevice(brandId, seri);
+      var list = kat[jenis] || [];
+      if (!list.length) {
+        // Belum ada -> tawarkan kalkulator kecil untuk membuat estimasi baru.
+        baru.classList.remove('mc-none');
+        baruInfo.textContent = 'Belum ada harga untuk jenis ini di ' + seri +
+          '. Tulis harga part, estimasi dihitung otomatis. Disimpan supaya bisa dipakai lagi.';
+        return;
+      }
+      list.forEach(function (v) {
+        varianSel.innerHTML += '<option value="' +
+          esc((v.tpl.payload || {}).ruleId || '') + '">' +
+          esc(labelVarian(v)) + '</option>';
+      });
+    }
+
+    jenisSel.addEventListener('change', isiVarian);
+    varianSel.addEventListener('change', function () {
+      var id = varianSel.value;
+      if (!id) { info.textContent = ''; pakai.disabled = true; return; }
+      var kat = katalogUntukDevice(brandId, seri);
+      var all = kat.lcd.concat(kat.baterai, kat.lain);
+      var v = all.filter(function (x) {
+        return (x.tpl.payload || {}).ruleId === id;
+      })[0];
+      if (!v) return;
+      var p = v.tpl.payload;
+      info.textContent = 'Modal ' + rupiah(p.part) + ' · estimasi ' + rupiah(p.est) +
+        ' — masukkan sebagai modal part.';
+      pakai.disabled = false;
+    });
+
+    pakai.addEventListener('click', pakaiHargaDariKatalog);
+
+    // Kalkulator kecil: harga part -> estimasi dengan rumus yang sama.
+    var partIn = $('#pBaruPart'), estIn = $('#pBaruEst');
+    function hitungBaru() {
+      var jenis = jenisSel.value;
+      var part = parseInt(String(partIn.value || '').replace(/\D/g, ''), 10) || 0;
+      if (!jenis || !part) { estIn.value = ''; return; }
+      // Ambil rule representatif: varian pertama dari kalkulator untuk jenis itu.
+      var rule = ruleUntukJenis(brandId, seri, jenis);
+      if (rule) estIn.value = w.CalcUI.hitung(part, rule).est;
+    }
+    partIn.addEventListener('input', hitungBaru);
+    $('#pBaruSimpan').addEventListener('click', function () {
+      var jenis = jenisSel.value;
+      var part = parseInt(String(partIn.value || '').replace(/\D/g, ''), 10) || 0;
+      var est = parseInt(String(estIn.value || '').replace(/\D/g, ''), 10) || 0;
+      if (!jenis || !part) { alertErr('Pilih jenis dan isi harga part'); return; }
+      var rule = ruleUntukJenis(brandId, seri, jenis);
+      if (!rule) { alertErr('Jenis ini belum punya aturan hitung'); return; }
+      if (!est) est = w.CalcUI.hitung(part, rule).est;
+      upsertTplBrandSeri(brandId, seri, rule, part, est);
+      render();
+      toast('Tersimpan di Kalkulator — pakai lagi kapan saja');
+    });
+  }
+
+  /* Rule yang dipakai sebagai acuan rumus untuk sebuah jenis. Kalau device ini
+     belum punya, pakai rule default Kalkulator supaya kalkulator kecil tetap
+     bisa dipakai. */
+  function ruleUntukJenis(brandId, seri, jenis) {
+    var kat = katalogUntukDevice(brandId, seri);
+    var ada = kat[jenis] || [];
+    if (ada.length) return ada[0].rule;
+    var semua = w.CalcUI.RULES || [];
+    var cocok = semua.filter(function (r) { return jenisDariRule(r) === jenis; })[0];
+    return cocok || semua[0] || null;
+  }
+
   function bindForm() {
     var s = screen();
 
@@ -697,8 +897,13 @@
       isiSeri(brandSel, seriSel, sudah[1]);
       brandSel.addEventListener('change', function () {
         isiSeri(brandSel, seriSel, '');
+        // Device berubah -> katalog harga ikut berubah, jadi gambar ulang.
+        M.draft.device = '';
+        render();
       });
+      seriSel.addEventListener('change', function () { render(); });
     }
+    bindPemilihHarga();
 
     // Tombol Chat WhatsApp muncul begitu nomornya valid, tanpa perlu
     // menggambar ulang seluruh form (supaya kursor tidak hilang).

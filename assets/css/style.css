@@ -846,6 +846,21 @@ body.mc-open{ overflow:hidden; }
 /* Petunjuk kecil di sheet Tambah Sparepart: nama device, dan status apakah
    harga terisi otomatis atau perlu diisi manual. */
 .mc-hint{ font-size:12px; color:var(--mc-txt2); line-height:1.45; margin:2px 0 10px; }
+/* Pemilih harga sparepart dari Kalkulator, inline di form tambah service.
+   .mc-none dipakai sebagai utility "sembunyikan" — scoped ke kelas ini saja
+   supaya tidak ikut memengaruhi komponen lain yang mungkin pakai .hide. */
+.mc-harga{
+  border:1px dashed var(--mc-line); border-radius:12px; padding:10px;
+  margin:0 0 12px; background:var(--mc-card);
+}
+.mc-harga .mc-row2{ margin-bottom:6px; }
+.mc-harga .mc-ghost-btn{ margin:8px 0 0; }
+.mc-harga-baru{
+  margin-top:10px; padding-top:10px; border-top:1px solid var(--mc-line);
+}
+.mc-harga .mc-none,
+.mc-harga-baru.mc-none,
+.mc-none{ display:none; }
 .mc-nav{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:4px 0 8px; }
 .mc-nav2{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
 .mc-nav button{
