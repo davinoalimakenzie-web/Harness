@@ -1690,50 +1690,141 @@
     return brand + ' ' + seri;
   }
 
+  /* Simpan harga sparepart ke Kalkulator Service supaya bisa dipakai lagi
+     di nota berikutnya tanpa diketik ulang.
+     Bentuk payload-nya sengaja dibuat sama persis dengan calc.js (lihat
+     saveTpl di sana) supaya keduanya membaca koleksi yang sama: kunci unik
+     brand + seri + ruleId, sama seperti logika anti-duplikat di Kalkulator. */
+  function upsertTplBrandSeri(brandId, seri, rule, part, est) {
+    if (!brandId || !seri || !rule || !(part > 0)) return;
+    var brand = w.CalcUI.BRANDS.filter(function (b) { return b.id === brandId; })[0];
+    if (!brand) return;
+
+    var list = w.Store.state.templates || (w.Store.state.templates = []);
+    var payload = {
+      brandId: brandId, brandName: brand.name,
+      series: seri, ruleId: rule.id, part: part, est: est
+    };
+    var dup = list.filter(function (t) {
+      var p = t.payload || {};
+      return p.brandId === brandId && p.series === seri && p.ruleId === rule.id;
+    })[0];
+    if (dup) {
+      dup.payload = payload;
+      dup.updatedAt = new Date().toISOString();
+    } else {
+      list.unshift({
+        id: w.Store.uid(),
+        createdAt: new Date().toISOString(),
+        payload: payload
+      });
+    }
+    if (list.length > 30) list.length = 30;   // sama seperti batas di calc.js
+    w.Store.save();
+  }
+
+  /* Harga tersimpan untuk device + jenis part tertentu, kalau ada. */
+  function cariTplBrandSeri(brandId, seri, ruleId) {
+    return (w.Store.state.templates || []).filter(function (t) {
+      var p = t.payload || {};
+      return p.brandId === brandId && p.series === seri && p.ruleId === ruleId;
+    })[0] || null;
+  }
+
+  /* Nama jenis sparepart yang wajar dipakai di nota, dari id rule Kalkulator.
+     Rule-nya sebenarnya soal rumus harga (LCD/Baterai/dll), jadi nama part
+     diturunkan dari situ supaya konsisten dengan Kalkulator. */
+  function namaPartDariRule(rule) {
+    if (/iphone/i.test(rule.id)) return rule.id.indexOf('baterai') === 0 ? 'Baterai iPhone' : 'LCD iPhone';
+    if (/baterai/i.test(rule.id)) return 'Baterai';
+    if (/oled/i.test(rule.id)) return 'LCD OLED';
+    if (/bagus/i.test(rule.id)) return 'LCD Premium';
+    return 'LCD';
+  }
+
   function openPartSheet() {
-    // Modal sparepart SELALU memakai Dana Bank secara otomatis, jadi tidak
-    // ada lagi pilihan Dana Bank di sini. Dua sumber harga: ambil dari
-    // Kalkulator Service yang tersimpan, atau isi manual. Keduanya mengisi
-    // isian yang sama, jadi nilainya tetap bisa dikoreksi sebelum disimpan.
-    var tpl = (w.Store.state.templates || []);
-    var picker = '';
-    if (tpl.length) {
-      // Dropdown, bukan daftar kartu: sheet tetap pendek dan tidak perlu
-      // scroll. Opsi pertama berarti isi manual, jadi dua cara ini tetap
-      // bisa dipakai bergantian.
-      picker =
-        '<div class="mc-field">' +
-          '<span class="mc-lbl">Sparepart dari Kalkulator</span>' +
-          '<select class="mc-inp" id="pTplSel">' +
-            '<option value="">— isi manual —</option>' +
-            tpl.map(function (t) {
-              var p = t.payload || {};
-              return '<option value="' + esc(t.id) + '">' +
-                esc(labelTplSingkat(p)) + ' · ' + rupiah(p.part) +
-              '</option>';
-            }).join('') +
-          '</select>' +
-        '</div>';
+    // Dua sumber, tapi tujuannya nol ketik: kalau harga untuk device ini sudah
+    // pernah tersimpan di Kalkulator, modal dan estimasi terisi otomatis
+    // begitu jenis sparepart dipilih. Kalau belum pernah, form membuka isian
+    // manual — dan begitu disimpan, harga itu otomatis masuk Kalkulator
+    // sehingga nota berikutnya untuk device yang sama tinggal pilih.
+    var deviceBits = pisahDevice(M.current && M.current.device);
+    var brandId = deviceBits[0], seri = deviceBits[1];
+    var RULES = w.CalcUI.RULES || [];
+
+    var head = '';
+    if (brandId && seri) {
+      head = '<p class="mc-hint">Unit: ' + esc(seri) + '</p>';
     }
 
+    // Dropdown jenis sparepart. Tanpa brand/seri yang jelas, jenis tetap
+    // bisa dipilih supaya teknisi tetap bisa mencatat apa pun.
+    var jenis = RULES.length
+      ? '<div class="mc-field">' +
+          '<span class="mc-lbl">Jenis sparepart</span>' +
+          '<select class="mc-inp" id="pRule">' +
+            '<option value="">— pilih jenis —</option>' +
+            RULES.map(function (r) { return '<option value="' + esc(r.id) + '">' + esc(namaPartDariRule(r)) + '</option>'; }).join('') +
+          '</select>' +
+        '</div>'
+      : '';
+
     sheetOrWarn('Tambah Sparepart',
-      (picker ? '<div class="mc-pad">' + picker + '</div>' : '') +
-      '<div class="mc-pad"><div class="mc-row2">' +
-        '<label class="mc-field"><span class="mc-lbl">Nama Part *</span>' +
-          '<input class="mc-inp" id="pName" placeholder="Contoh: LCD AMOLED"></label>' +
-        '<label class="mc-field"><span class="mc-lbl">Modal (Rp) *</span>' +
-          '<input class="mc-inp" id="pCost" inputmode="numeric" placeholder="0"></label>' +
-      '</div></div>',
+      '<div class="mc-pad">' + head + jenis +
+        '<div class="mc-row2">' +
+          '<label class="mc-field"><span class="mc-lbl">Nama Part *</span>' +
+            '<input class="mc-inp" id="pName" placeholder="Contoh: LCD AMOLED"></label>' +
+          '<label class="mc-field"><span class="mc-lbl">Modal (Rp) *</span>' +
+            '<input class="mc-inp" id="pCost" inputmode="numeric" placeholder="0"></label>' +
+        '</div>' +
+        '<label class="mc-field"><span class="mc-lbl">Estimasi harga jual (Rp)</span>' +
+          '<input class="mc-inp" id="pEst" inputmode="numeric" placeholder="otomatis dari modal"></label>' +
+        '<p class="mc-hint" id="pHint"></p>' +
+      '</div>',
       function (body) {
-        // Pilih harga tersimpan -> isi modal dan nama, sisanya tetap bisa diedit.
-        var sel = $('#pTplSel', body);
-        if (sel) {
-          sel.addEventListener('change', function () {
-            var t = tpl.filter(function (x) { return x.id === sel.value; })[0];
-            if (!t) return;
-            var p = t.payload || {};
-            $('#pCost', body).value = p.part || '';
-            $('#pName', body).value = labelTplSingkat(p);
+        var ruleSel = $('#pRule', body);
+        var estIn = $('#pEst', body);
+        var nameIn = $('#pName', body);
+        var costIn = $('#pCost', body);
+        var hint = $('#pHint', body);
+
+        function ruleById(id) {
+          return RULES.filter(function (r) { return r.id === id; })[0] || null;
+        }
+
+        function terisiOtomatis(rule) {
+          // Kalau harga device ini sudah pernah tersimpan, isi modal + estimasi
+          // dan kunci agar tidak berubah tak sengaja. Ini inti "nol ketik".
+          var tpl = cariTplBrandSeri(brandId, seri, rule.id);
+          if (!tpl || !(tpl.payload.part > 0)) return false;
+          costIn.value = tpl.payload.part;
+          estIn.value = w.CalcUI.hitung(tpl.payload.part, rule).est;
+          costIn.readOnly = true;
+          estIn.readOnly = true;
+          return true;
+        }
+
+        if (ruleSel) {
+          ruleSel.addEventListener('change', function () {
+            var rule = ruleById(ruleSel.value);
+            costIn.readOnly = false;
+            estIn.readOnly = false;
+            costIn.value = '';
+            estIn.value = '';
+            if (!rule) { hint.textContent = ''; return; }
+            nameIn.value = namaPartDariRule(rule);
+            if (!brandId || !seri) {
+              hint.textContent = 'Brand atau seri belum lengkap, isi harga manual.';
+              return;
+            }
+            if (terisiOtomatis(rule)) {
+              hint.textContent = 'Terisi otomatis dari Kalkulator — harga ini tersimpan untuk ' +
+                seri + '. Bisa dibuka dengan edit.';
+            } else {
+              hint.textContent = 'Belum ada harga tersimpan untuk ' + seri +
+                '. Isi modal dan estimasinya manual — nanti tersimpan otomatis untuk nota berikutnya.';
+              costIn.focus();
+            }
             TG.haptic('success');
           });
         }
@@ -1743,13 +1834,25 @@
         b.style.marginTop = '12px';
         b.textContent = 'Simpan Sparepart';
         b.addEventListener('click', function () {
-          var name = ($('#pName').value || '').trim();
+          var name = (nameIn.value || '').trim();
           if (!name) { alertErr('Nama part wajib diisi'); return; }
-          var cost = parseInt(String($('#pCost').value).replace(/\D/g, ''), 10) || 0;
+          var cost = parseInt(String(costIn.value).replace(/\D/g, ''), 10) || 0;
+          var est = parseInt(String(estIn.value).replace(/\D/g, ''), 10) || 0;
+          var rule = ruleSel ? ruleById(ruleSel.value) : null;
+          // Estimasi boleh kosong — kalau diisi dipakai, kalau tidak dihitung
+          // dari modal memakai rumus Kalkulator yang sama.
+          if (!est && rule && cost > 0) est = w.CalcUI.hitung(cost, rule).est;
+
           tutupSheet();
           api('POST', '/api/mascim/services/' + encodeURIComponent(M.current.id) + '/parts',
             { part_name: name, capital_cost: cost })
-            .then(function () { toast('Sparepart ditambahkan'); loadDetail(M.current.id); reload(); })
+            .then(function () {
+              // Otomatis tersimpan di Kalkulator supaya nota berikutnya nol ketik.
+              upsertTplBrandSeri(brandId, seri, rule, cost, est);
+              toast('Sparepart ditambahkan');
+              loadDetail(M.current.id);
+              reload();
+            })
             .catch(function (e) { alertErr(e.message); });
         });
         body.appendChild(b);

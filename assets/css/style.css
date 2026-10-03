@@ -843,8 +843,9 @@ body.mc-open{ overflow:hidden; }
 }
 .mc-ghost-btn:active{ background:#24302a; }
 .mc-ghost-btn.danger{ color:var(--mc-red); border-color:#4a2325; }
-/* Pemilih "Ambil dari Kalkulator Service" di sheet Tambah Sparepart.
-   Scroll-nya dibatasi supaya sheet tetap ringkas di HP kecil. */
+/* Petunjuk kecil di sheet Tambah Sparepart: nama device, dan status apakah
+   harga terisi otomatis atau perlu diisi manual. */
+.mc-hint{ font-size:12px; color:var(--mc-txt2); line-height:1.45; margin:2px 0 10px; }
 .mc-nav{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:4px 0 8px; }
 .mc-nav2{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
 .mc-nav button{
