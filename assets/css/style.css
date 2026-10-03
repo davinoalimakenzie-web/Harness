@@ -843,6 +843,18 @@ body.mc-open{ overflow:hidden; }
 }
 .mc-ghost-btn:active{ background:#24302a; }
 .mc-ghost-btn.danger{ color:var(--mc-red); border-color:#4a2325; }
+/* Tanda sudah tersimpan: tombol "Simpan & Buka Detail" berubah kuning setelah
+   sukses, jadi progresnya kelihatan tanpa tombol tambahan. */
+/* Warna kuning disamakan dengan status "Progress" yang sudah dipakai proyek
+   (.mc-stat.warn), supaya konsisten dengan palet yang ada. */
+.mc-ghost-btn.tersimpan{
+  color:#d29922; border-color:#d29922;
+  background:rgba(210,153,34,.16); font-weight:700;
+}
+/* Nama + WhatsApp satu baris: sel kedua hanya separuh lebar, jadi isi dan
+   tombol Chat harus boleh menyusut agar tidak meluber di layar sempit. */
+.mc-pelanggan .mc-wa{ min-width:0; }
+.mc-pelanggan .mc-wa .mc-inp{ min-width:0; flex:1 1 auto; }
 /* Petunjuk kecil di sheet Tambah Sparepart: nama device, dan status apakah
    harga terisi otomatis atau perlu diisi manual. */
 .mc-hint{ font-size:12px; color:var(--mc-txt2); line-height:1.45; margin:2px 0 10px; }

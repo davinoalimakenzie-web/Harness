@@ -492,14 +492,21 @@
        ditanyakan. */
 
     // Pelanggan
-    html += field('Nama Pelanggan *', '<input class="mc-inp" id="fName" value="' + esc(d.customer_name) + '" placeholder="Contoh: Pak Budi" autocomplete="name">');
-    html += field('WhatsApp (opsional)',
-      '<div class="mc-wa">' +
-        '<input class="mc-inp" id="fWa" inputmode="tel" value="' + esc(d.whatsapp) + '" placeholder="081234567890">' +
-        '<a class="mc-wa-btn' + (validWa(d.whatsapp) ? '' : ' hidden') + '" id="fWaBtn" ' +
-          (validWa(d.whatsapp) ? 'href="https://wa.me/' + waNum(d.whatsapp) + '"' : '') +
-          ' target="_blank" rel="noopener">Chat</a>' +
-      '</div>');
+    // Nama dan WhatsApp berdampingan dalam satu baris supaya tidak
+    // memakan tinggi form di layar HP. Tombol Chat ikut pindah ke dalam
+    // baris yang sama, jadi tidak lagi butuh blok field tersendiri.
+    html += '<div class="mc-field mc-pelanggan"><span class="mc-lbl">Nama Pelanggan *</span>' +
+      '<div class="mc-row2">' +
+        '<input class="mc-inp" id="fName" value="' + esc(d.customer_name) +
+          '" placeholder="Contoh: Pak Budi" autocomplete="name">' +
+        '<div class="mc-wa">' +
+          '<input class="mc-inp" id="fWa" inputmode="tel" value="' + esc(d.whatsapp) +
+            '" placeholder="WhatsApp (opsional)">' +
+          '<a class="mc-wa-btn' + (validWa(d.whatsapp) ? '' : ' hidden') + '" id="fWaBtn" ' +
+            (validWa(d.whatsapp) ? 'href="https://wa.me/' + waNum(d.whatsapp) + '"' : '') +
+            ' target="_blank" rel="noopener">Chat</a>' +
+        '</div>' +
+      '</div></div>';
 
     // Unit
     html += field('Device *',
@@ -581,9 +588,10 @@
     // detail. Mesinya juga mengunci nilai ini, jadi mustahil nota dibuat
     // langsung jadi Done / Cancel lewat form.
 
+    // Hanya satu tombol aksi. Setelah tersimpan, warnanya berubah kuning
+    // sebagai tanda progres, jadi tidak perlu tombol "Simpan" terpisah —
+    // yang diklik tetap "Simpan & Buka Detail".
     html += '<div class="mc-submit">' +
-      '<button class="mc-primary" id="fSave"' + (M.lock ? ' disabled' : '') + '>' +
-        (M.lock ? 'Menyimpan…' : (editing ? 'Simpan Perubahan' : 'Simpan')) + '</button>' +
       '<button class="mc-ghost-btn" id="fSaveOpen">Simpan &amp; Buka Detail</button>' +
       '<button class="mc-ghost-btn danger" id="fExit">Exit</button>' +
     '</div>';
@@ -806,8 +814,13 @@
     var part = M.draft.parts[M.draft.parts.length - 1];
     part.part_name = v.rule ? namaPartDariRule(v.rule) : (p.ruleId || 'Sparepart');
     part.capital_cost = p.part;
+    // Total biaya ikut terisi dari harga part yang dipilih, supaya tidak perlu
+    // dijumlahkan manual. TIDAK dikunci: kalau harga part berubah, teknisi
+    // tetap boleh mengoreksi total biayanya sendiri.
+    var lama = parseInt(String(M.draft.total_cost || '').replace(/\D/g, ''), 10) || 0;
+    M.draft.total_cost = lama + (parseInt(p.part, 10) || 0);
     render();
-    toast('Part ditambahkan dari Kalkulator');
+    toast('Part ditambahkan, total biaya diperbarui');
   }
 
   function bindPemilihHarga() {
@@ -1005,10 +1018,16 @@
 
     // Status tidak lagi bisa dipilih di form ini; lihat catatan di renderForm.
 
-    var save = $('#fSave');
-    if (save) save.addEventListener('click', function () { submit(false); });
+    // fSave tidak ada lagi — satu-satunya aksi adalah "Simpan & Buka Detail".
     var so = $('#fSaveOpen');
-    if (so) so.addEventListener('click', function () { submit(true); });
+    if (so) {
+      so.addEventListener('click', function () {
+        if (M.lock) return;
+        so.classList.add('tersimpan');
+        so.innerHTML = '✓ Tersimpan';
+        submit(true);
+      });
+    }
     var ex = $('#fExit');
     if (ex) ex.addEventListener('click', exitForm);
   }
