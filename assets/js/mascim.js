@@ -502,11 +502,62 @@
       '</div>');
 
     // Unit
-    html += field('Device *', '<input class="mc-inp" id="fDevice" value="' + esc(d.device) + '" placeholder="Contoh: Samsung A54" autocomplete="off">');
-    html += field('Kendala *', '<textarea class="mc-inp" id="fComplaint" rows="2" placeholder="Keluhan utama dari pelanggan">' + esc(d.complaint) + '</textarea>');
-    html += field('Kondisi &amp; Kelengkapan saat Diterima' +
-      '<span class="mc-sec-note"> opsional — tampil di nota pelanggan</span>',
-      '<textarea class="mc-inp" id="fIntake" rows="2" placeholder="Contoh: Body penyok, kartu SIM tidak ada, speaker normal, tutup latch hilang">' + esc(d.intake_condition) + '</textarea>');
+    /* Isi dropdown seri sesuai brand terpilih. Dipakai form tambah service dan
+       form edit, jadi daftar seri tidak pernah desolate.
+       Nilai disimpan tetap satu string "Brand Seri" — semua kode yang memakai
+       o.device (18 tempat) tidak perlu disentuh. */
+  function isiSeri(brandSel, seriSel, seriDipilih) {
+    if (!brandSel || !seriSel) return;
+    var list = (w.CalcUI.SERIES[brandSel.value] || []);
+    seriSel.innerHTML = '<option value="">Pilih seri</option>' +
+      list.map(function (s) {
+        return '<option value="' + esc(s) + '"' +
+          (s === seriDipilih ? ' selected' : '') + '>' + esc(s) + '</option>';
+      }).join('') +
+      '<option value="Lainnya">Lainnya…</option>';
+  }
+
+  /* Pecah device yang tersimpan jadi [idBrand, seri] supaya form edit bisa
+       menandai ulang dropdownnya.
+       Brand tidak selalu satu kata: "Samsung Galaxy A54" tapi juga bisa cuma
+       "Samsung" (seri dikosongkan). Jadi coba prefiks dari yang panjang dulu —
+       pecah di spasi pertama saja akan menganggap "Samsung" bukan brand sama
+       sekali. Kalau tidak ada yang cocok, kembalikan string utuh sebagai seri
+       supaya tidak ada yang terpotong. */
+  function pisahDevice(device) {
+    var d = String(device || '').trim();
+    if (!d) return ['', ''];
+    var kata = d.split(/\s+/);
+    for (var n = Math.min(3, kata.length); n >= 1; n--) {
+      var kandidat = kata.slice(0, n).join(' ');
+      var brand = w.CalcUI.BRANDS.filter(function (b) {
+        return b.name.toLowerCase() === kandidat.toLowerCase();
+      })[0];
+      if (brand) return [brand.id, kata.slice(n).join(' ')];
+    }
+    return ['', d];
+  }
+
+  // Device: dua dropdown yang saling terkait, sama seperti kalkulator.
+    html += field('Device *',
+      '<div class="mc-row2">' +
+        '<select class="mc-inp" id="fBrand"><option value="">Pilih brand</option>' +
+          w.CalcUI.BRANDS.map(function (b) {
+            return '<option value="' + esc(b.id) + '">' + esc(b.name) + '</option>';
+          }).join('') +
+        '</select>' +
+        '<select class="mc-inp" id="fSeries"><option value="">Pilih seri</option></select>' +
+      '</div>');
+    // Kendala dan kondisi unit digabung jadi satu isian. Memisahkannya hanya
+    // menambah tinggi form tanpa menambah informasi: yang dicari teknisi tetap
+    // "apa yang rusak dan kondisi barang saat masuk". Satu teks ini disimpan di
+    // field `complaint` DAN disalin ke `intake_condition`, jadi bagian kondisi
+    // di nota pelanggan tetap terisi tanpa ada isian kedua.
+    html += field('Kendala &amp; kondisi unit *' +
+      '<span class="mc-sec-note"> tampil di nota pelanggan</span>',
+      '<textarea class="mc-inp" id="fComplaint" rows="3" ' +
+      'placeholder="Contoh: Layar pecah tidak bisa disentuh. Body penyok, kartu SIM tidak ada, speaker normal">'
+      + esc(d.complaint || d.intake_condition) + '</textarea>');
 
     // Kunci layar. Grid "Pola" dihapus: hanya menempelkan angka, tidak ada
     // pengenalan coretan, jadi tidak bisa dipakai sebagai kunci sungguhan.
@@ -605,9 +656,21 @@
     var d = M.draft;
     d.customer_name = ($('#fName') || {}).value || '';
     d.whatsapp = ($('#fWa') || {}).value || '';
-    d.device = ($('#fDevice') || {}).value || '';
+    // Device disusun dari dua dropdown, lalu digabung jadi satu string
+    // "Brand Seri" supaya seluruh kode lain yang membaca o.device tetap utuh.
+    var bSel = $('#fBrand'), sSel = $('#fSeries');
+    var brandName = '';
+    if (bSel && bSel.value) {
+      var b = w.CalcUI.BRANDS.filter(function (x) { return x.id === bSel.value; })[0];
+      brandName = b ? b.name : '';
+    }
+    var seri = (sSel && sSel.value) || '';
+    d.device = brandName ? (seri && seri !== 'Lainnya' ? brandName + ' ' + seri : brandName) : '';
+
     d.complaint = ($('#fComplaint') || {}).value || '';
-    d.intake_condition = ($('#fIntake') || {}).value || '';
+    // Satu isian untuk kendala sekaligus kondisi unit; disalin agar bagian
+    // kondisi di nota pelanggan tidak ikut kosong.
+    d.intake_condition = d.complaint;
     d.screen_lock_type = ($('#fLock') || {}).value || 'Tanpa Kunci';
     // Pola disimpan pada input tersembunyi (hasil menggambar), bukan kolom teks.
     var patInput = $('#fPatSecret');
@@ -623,6 +686,19 @@
 
   function bindForm() {
     var s = screen();
+
+    // Brand -> seri. Seri hanya menampilkan model milik brand yang dipilih,
+    // jadi tidak mungkin memilih seri yang tidak cocok. Saat form dibuka untuk
+    // edit, device yang sudah tersimpan dipecah lalu ditandai ulang.
+    var brandSel = $('#fBrand'), seriSel = $('#fSeries');
+    if (brandSel && seriSel) {
+      var sudah = pisahDevice(M.draft && M.draft.device);
+      if (sudah[0]) brandSel.value = sudah[0];
+      isiSeri(brandSel, seriSel, sudah[1]);
+      brandSel.addEventListener('change', function () {
+        isiSeri(brandSel, seriSel, '');
+      });
+    }
 
     // Tombol Chat WhatsApp muncul begitu nomornya valid, tanpa perlu
     // menggambar ulang seluruh form (supaya kursor tidak hilang).
