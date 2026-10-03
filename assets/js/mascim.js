@@ -485,10 +485,14 @@
 
     var html = '<div class="mc-pad">';
 
+    /* Ringkas: nomor nota dan tanggal dibuat otomatis sistem, jadi tidak perlu
+       ditanyakan. Nomor nota terbit saat nota pertama kali tersimpan berstatus
+       Progress, dan tanggal masuk selalu hari ini. Menampilkan "ID Internal"
+       hanya membingungkan karena bukan nomor yang dilihat pelanggan. */
     html += '<div class="mc-nota-head">' +
-      '<div><span>' + (editing && M.current.noteIssued ? 'No Nota' : 'ID Internal') + '</span><b>' +
+      '<div><span>Nota</span><b>' +
         (editing ? esc(refNota(M.current)) : 'otomatis') + '</b></div>' +
-      '<div><span>Tanggal Masuk</span><b>' + tglJam(new Date().toISOString()) + '</b></div>' +
+      '<div><span>Tanggal</span><b>' + hariIni() + '</b></div>' +
     '</div>';
 
     // Pelanggan
@@ -1605,18 +1609,67 @@
     w.App.sheet(title, html, onOpen);
   }
 
+  /* Label satu harga tersimpan di Kalkulator Service.
+       Dipakai ulang oleh sheet Tambah Sparepart supaya labelnya sama persis
+       dengan yang tampil di daftar "Harga tersimpan". */
+  function labelTplSingkat(p) {
+    var brand = p.brandName || 'Tanpa brand';
+    var seri = p.series || '-';
+    return brand + ' ' + seri;
+  }
+
   function openPartSheet() {
     // Modal sparepart SELALU memakai Dana Bank secara otomatis, jadi tidak
-    // ada lagi pilihan/pilihan Dana Bank di sini. Cuma dua isian, dibuat
-    // sebaris supaya tidak makan tempat.
+    // ada lagi pilihan Dana Bank di sini. Dua sumber harga: ambil dari
+    // Kalkulator Service yang tersimpan, atau isi manual. Keduanya mengisi
+    // isian yang sama, jadi nilainya tetap bisa dikoreksi sebelum disimpan.
+    var tpl = (w.Store.state.templates || []);
+    var picker = '';
+    if (tpl.length) {
+      picker =
+        '<div class="mc-field">' +
+          '<span class="mc-lbl">Ambil dari Kalkulator Service</span>' +
+          '<div class="mc-tpl-pick" id="pTpl">' +
+            tpl.map(function (t) {
+              var p = t.payload || {};
+              return '<button type="button" class="mc-tpl-chip" data-tplpick="' + esc(t.id) + '">' +
+                '<b>' + esc(labelTplSingkat(p)) + '</b>' +
+                '<span>modal ' + rupiah(p.part) + ' · estimasi ' + rupiah(p.est) + '</span>' +
+              '</button>';
+            }).join('') +
+          '</div>' +
+        '</div>' +
+        '<div class="mc-or"><span>atau isi manual</span></div>';
+    }
+
     sheetOrWarn('Tambah Sparepart',
-      '<div class="mc-row2">' +
+      (picker ? '<div class="mc-pad">' + picker + '</div>' : '') +
+      '<div class="mc-pad"><div class="mc-row2">' +
         '<label class="mc-field"><span class="mc-lbl">Nama Part *</span>' +
           '<input class="mc-inp" id="pName" placeholder="Contoh: LCD AMOLED"></label>' +
         '<label class="mc-field"><span class="mc-lbl">Modal (Rp) *</span>' +
           '<input class="mc-inp" id="pCost" inputmode="numeric" placeholder="0"></label>' +
-      '</div>',
+      '</div></div>',
       function (body) {
+        // Pilih harga tersimpan -> isi modal dan nama, sisanya tetap manual.
+        var wrap = $('#pTpl', body);
+        if (wrap) {
+          wrap.addEventListener('click', function (e) {
+            var btn = e.target.closest('[data-tplpick]');
+            if (!btn) return;
+            var t = tpl.filter(function (x) { return x.id === btn.dataset.tplpick; })[0];
+            if (!t) return;
+            var p = t.payload || {};
+            $('#pCost', body).value = p.part || '';
+            if (!$('#pName', body).value.trim()) {
+              $('#pName', body).value = labelTplSingkat(p);
+            }
+            wrap.querySelectorAll('.mc-tpl-chip').forEach(function (c) { c.classList.remove('act'); });
+            btn.classList.add('act');
+            TG.haptic('success');
+          });
+        }
+
         var b = document.createElement('button');
         b.className = 'mc-primary';
         b.style.marginTop = '12px';
