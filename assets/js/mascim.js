@@ -489,6 +489,11 @@
     var modal = d.parts.reduce(function (a, p) { return a + (parseInt(String(p.capital_cost).replace(/\D/g, ''), 10) || 0); }, 0);
     var jasa = total - modal;
     var warn = jasa < 0;
+    // Modal dibekukan untuk render ini. Saat teknisi mengubah Total Biaya,
+    // Perkiraan Jasa dihitung ulang dari angka beku ini, bukan dari
+    // menghitung ulang baris sparepart — supaya Total Modal Part tidak
+    // ikut bergeser sendiri saat yang diedit sebenarnya hanya total.
+    d.modalFrozen = modal;
 
     var html = '<div class="mc-pad">';
 
@@ -841,6 +846,29 @@
     toast('Part ditambahkan, total biaya diperbarui');
   }
 
+/* Hitung ulang kotak Total Modal Part + Perkiraan Jasa tanpa menggambar ulang
+     seluruh form, supaya kursor di input yang sedang diketik tidak hilang.
+     Perkiraan Jasa = Total Biaya - Total Modal Part, dan Total Modal Part
+     memakai angka beku dari render ini supaya tidak ikut bergeser. */
+  function syncKalkula(s) {
+    var box = (s || document).querySelector('.mc-calc');
+    if (!box) return;
+    var totalIn = $('#fTotal');
+    var total = parseInt(String(
+      (totalIn ? totalIn.value : M.draft.total_cost) || ''
+    ).replace(/\D/g, ''), 10) || 0;
+    var modal = (M.draft.modalFrozen != null)
+      ? M.draft.modalFrozen
+      : M.draft.parts.reduce(function (a, p) {
+        return a + (parseInt(String(p.capital_cost).replace(/\D/g, ''), 10) || 0);
+      }, 0);
+    var jasa = total - modal;
+    box.innerHTML =
+      '<div><span>Total Modal Part</span><b>' + rupiah(modal) + '</b></div>' +
+      '<div><span>Perkiraan Jasa</span><b class="' + (jasa < 0 ? 'neg' : 'pos') + '">' +
+      rupiah(jasa) + '</b></div>';
+  }
+
   function bindPemilihHarga() {
     var pick = $('#pPick');
     if (!pick) return;
@@ -957,9 +985,12 @@
       if (!rule) { alertErr('Pilih perhitungan dulu'); return; }
       if (!part) { alertErr('Isi harga part'); return; }
       if (!est) est = w.CalcUI.hitung(part, rule).est;
-      upsertTplBrandSeri(brandId, seri, rule, part, est);
+      var simpan = upsertTplBrandSeri(brandId, seri, rule, part, est);
+      if (!simpan.ok) { alertErr('Gagal menyimpan: ' + simpan.reason); return; }
       render();
-      toast('Tersimpan di Kalkulator — pakai lagi kapan saja');
+      toast(simpan.replaced
+        ? 'Harga lama untuk kombinasi ini diganti'
+        : 'Tersimpan di Kalkulator — pakai lagi kapan saja');
     });
   }
 
@@ -1080,19 +1111,7 @@
         readDraft();
         var pi = +this.dataset.pi, pf = this.dataset.pf;
         if (M.draft.parts[pi]) M.draft.parts[pi][pf] = this.value;
-        // perbarui pratinjau angka tanpa menggambar ulang seluruh form
-        // (supaya kursor di input tidak hilang)
-        var total = parseInt(String(M.draft.total_cost).replace(/\D/g, ''), 10) || 0;
-        var modal = M.draft.parts.reduce(function (a, p) {
-          return a + (parseInt(String(p.capital_cost).replace(/\D/g, ''), 10) || 0);
-        }, 0);
-        var box = s.querySelector('.mc-calc');
-        if (box) {
-          box.innerHTML =
-            '<div><span>Total Modal Part</span><b>' + rupiah(modal) + '</b></div>' +
-            '<div><span>Perkiraan Jasa</span><b class="' + (total - modal < 0 ? 'neg' : 'pos') + '">' +
-            rupiah(total - modal) + '</b></div>';
-        }
+        syncKalkula(s);
       });
     }
     var del = s.querySelectorAll('[data-delpart]');
@@ -1105,6 +1124,18 @@
     }
 
     // Status tidak lagi bisa dipilih di form ini; lihat catatan di renderForm.
+
+    // Total Biaya: setiap ketikan langsung memperbarui Perkiraan Jasa.
+    // Sebelumnya tidak ada listener sama sekali di kolom ini, jadi angkanya
+    // hanya ikut berubah ketika baris sparepart yang diubah. Akibatnya
+    // Perkiraan Jasa menampilkan nilai lama yang tidak lagi sesuai.
+    var totalIn = $('#fTotal');
+    if (totalIn) {
+      totalIn.addEventListener('input', function () {
+        M.draft.total_cost = this.value;
+        syncKalkula(s);
+      });
+    }
 
     // fSave tidak ada lagi — satu-satunya aksi adalah "Simpan & Buka Detail".
     // Tombol diklik -> berubah kuning dulu, baru submit(). Submit() sendiri
@@ -2021,33 +2052,25 @@
      Bentuk payload-nya sengaja dibuat sama persis dengan calc.js (lihat
      saveTpl di sana) supaya keduanya membaca koleksi yang sama: kunci unik
      brand + seri + ruleId, sama seperti logika anti-duplikat di Kalkulator. */
+  /* Menyimpan harga ke Kalkulator lewat satu fungsi di store.js, sama dengan
+     yang dipakai Kalkulator Service. Fungsi itu memakai kunci
+     brand|seri|rule yang deterministik: kombinasi sama SELALU mengganti
+     harga lamanya, tidak pernah menumpuk. Hasilnya dikembalikan supaya
+     kegagalan bisaditunjukkan ke pengguna, bukan diam-diam hilang. */
   function upsertTplBrandSeri(brandId, seri, rule, part, est) {
-    if (!brandId || !seri || !rule || !(part > 0)) return;
-    var brand = w.CalcUI.BRANDS.filter(function (b) { return b.id === brandId; })[0];
-    if (!brand) return;
-
-    var list = w.Store.state.templates || (w.Store.state.templates = []);
-    var payload = {
+    if (!brandId || !seri || !rule) {
+      return { ok: false, reason: 'Pilih brand, seri, dan perhitungan dulu' };
+    }
+    var brand = (w.CalcUI.BRANDS || []).filter(function (b) {
+      return b.id === brandId;
+    })[0];
+    if (!brand) return { ok: false, reason: 'Brand tidak dikenal' };
+    return w.Store.upsertTemplate({
       brandId: brandId, brandName: brand.name,
       series: seri, ruleId: rule.id, part: part, est: est
-    };
-    var dup = list.filter(function (t) {
-      var p = t.payload || {};
-      return p.brandId === brandId && p.series === seri && p.ruleId === rule.id;
-    })[0];
-    if (dup) {
-      dup.payload = payload;
-      dup.updatedAt = new Date().toISOString();
-    } else {
-      list.unshift({
-        id: w.Store.uid(),
-        createdAt: new Date().toISOString(),
-        payload: payload
-      });
-    }
-    if (list.length > 30) list.length = 30;   // sama seperti batas di calc.js
-    w.Store.save();
+    });
   }
+
 
   /* Harga tersimpan untuk device + jenis part tertentu, kalau ada. */
   function cariTplBrandSeri(brandId, seri, ruleId) {

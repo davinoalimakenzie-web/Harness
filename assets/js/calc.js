@@ -255,36 +255,26 @@
     var seri = readSeries();
     if (!seri) { w.App.toast('Pilih seri HP dulu'); return; }
 
-    S.state.templates = S.state.templates || [];
-
-    /* Hindari duplikat kombinasi brand+seri+perhitungan yang sama. */
-    var dup = S.state.templates.filter(function (t) {
-      var p = t.payload || {};
-      return p.brandId === brandId && p.series === seri && p.ruleId === rule.id;
-    })[0];
-    if (dup) {
-      dup.payload = {
-        brandId: brandId, brandName: brandById(brandId).name,
-        series: seri, ruleId: rule.id, part: part,
-        est: hitung(part, rule).est
-      };
-      dup.updatedAt = new Date().toISOString();
-    } else {
-      S.state.templates.unshift({
-        id: S.uid(),
-        createdAt: new Date().toISOString(),
-        payload: {
-          brandId: brandId, brandName: brandById(brandId).name,
-          series: seri, ruleId: rule.id, part: part,
-          est: hitung(part, rule).est
-        }
-      });
+    /* Penyimpanan harga ditangani satu fungsi di store.js, sama yang dipakai
+       form Tambah Sparepart. Sebelumnya logika duplikatnya ditulis ulang di
+       sini, sehingga aturannya bisa berbeda dan ID acak (S.uid()) membuat
+       kombinasi kembar lolos dedup lalu menumpuk. Fungsi di store.js memakai
+       kunci brand|seri|rule yang deterministik dan memverifikasi hasilnya
+       benar-benar masuk localStorage. */
+    var hasil = S.upsertTemplate({
+      brandId: brandId, brandName: brandById(brandId).name,
+      series: seri, ruleId: rule.id, part: part,
+      est: hitung(part, rule).est
+    });
+    if (!hasil.ok) {
+      w.App.toast('Gagal menyimpan: ' + hasil.reason);
+      return;
     }
-    if (S.state.templates.length > 30) S.state.templates.length = 30;
-    S.save();
     renderTpl();
     TG.haptic('success');
-    w.App.toast('Harga tersimpan');
+    w.App.toast(hasil.replaced
+      ? 'Harga lama untuk kombinasi ini diganti'
+      : 'Harga tersimpan (' + hasil.total + ' tersimpan)');
   }
 
   function applyTpl(p) {

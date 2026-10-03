@@ -149,6 +149,7 @@
     var type = t.type === 'out' ? 'out' : 'in';
     var catText = String(t.cat || '');
     var found = null;
+    var replaced = false;
     BASE_CATEGORIES.forEach(function (g) {
       if (g.type !== type) return;
       g.subs.forEach(function (s) {
@@ -1122,8 +1123,113 @@
     }
   };
 
+  /* ==========================================================
+     HARGA PART KALKULATOR — satu-satunya tempat menuliskannya
+
+     Dipakai bersama oleh Kalkulator Service (calc.js) dan form
+     Tambah Sparepart (mascim.js). dipeusatkan supaya keduanya tidak
+     bisa berbeda aturan, dan supaya tidak ada duplikat.
+
+     Aturan dedup: satu entri per kombinasi
+         brand + seri unit + jenis perhitungan
+     Menyimpan kombinasi yang sama lagi akan MENGGANTI harga lamanya,
+     bukan menambah baris baru. Ini penting karena data bertambah terus
+     seiring masuknya servis: tanpa dedup, katalog menumpuk salinan dari
+     kombinasi yang sama.
+
+     ID entri diturunkan dari kuncinya sendiri, jadi deterministik:
+     kombinasi yang sama selalu menghasilkan ID yang sama. Kalau ID
+     dibuat acak setiap kali (uid), kombinasi kembar bisa lolos dedup
+     karena dua baris punya ID berbeda.
+
+     Setiap penyimpanan diverifikasi dengan menulis lalu membaca
+     kembali. Kalau localStorage penuh atau ditolak browser, hasilnya
+     dikembalikan ke pemanggil sebagai kegagalan — bukan diam-diam
+     sukses palsu.
+     ========================================================== */
+  /* Batas ini bukan batas dedup — dedup bekerja lewat kunci, sehingga
+     kombinasi kembar tidak pernah menambah baris. Batas ini hanya jaring
+     pengaman kalau localStorage benar-benar mau penuh. Nilainya dibuat jauh
+     lebih besar dari jumlah kombinasi yang realistis (6 brand x ~25 seri x
+     6 perhitungan = 900), supaya tidak pernah memotong datanya sendiri. Kalau sampai kena batas, pemanggil diberi tahu lewat
+     trimmed — pemotongan diam-diam berarti data hilang tanpa jejak. */
+  var TPL_LIMIT = 3000;
+
+  function templateKey(p) {
+    return [p.brandId || '', p.series || '', p.ruleId || ''].join('|');
+  }
+
+  function upsertTemplate(payload) {
+    if (!payload || !payload.brandId || !payload.series || !payload.ruleId) {
+      return { ok: false, reason: 'Data harga tidak lengkap' };
+    }
+    if (!(parseInt(payload.part, 10) > 0)) {
+      return { ok: false, reason: 'Harga part harus lebih dari 0' };
+    }
+    var list = state.templates || (state.templates = []);
+    var key = templateKey(payload);
+    var id = 'tpl_' + key;
+    var stamp = new Date().toISOString();
+
+    var found = null;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === id || templateKey(list[i].payload || {}) === key) {
+        found = list[i];
+        break;
+      }
+    }
+    if (found) {
+      // Ganti, bukan tambah. createdAt asli dipertahankan, dan payload
+      // lamanya disimpan dulu supaya bisa dikembalikan kalau penulisan
+      // ke localStorage ternyata gagal.
+      found._prev = found.payload;
+      found.payload = payload;
+      found.updatedAt = stamp;
+      replaced = true;
+    } else {
+      list.unshift({ id: id, createdAt: stamp, payload: payload });
+    }
+    var trimmed = 0;
+    if (list.length > TPL_LIMIT) {
+      trimmed = list.length - TPL_LIMIT;
+      list.length = TPL_LIMIT;
+    }
+
+    // Verifikasi betulan tersimpan, bukan hanya "tidak melempar error".
+    saveNow();
+    var written = false;
+    try {
+      var raw = localStorage.getItem(KEY);
+      var back = raw ? JSON.parse(raw) : null;
+      written = !!(back && back.templates && back.templates.some(function (t) {
+        return templateKey(t.payload || {}) === key;
+      }));
+    } catch (e) {
+      written = false;
+    }
+    if (!written) {
+      // Kembalikan ke kondisi sebelum percobaan, supaya tidak ada data
+      // separuh jadi tertinggal di memori lalu hilang setelah refresh.
+      if (found) {
+        if (found._prev) found.payload = found._prev;
+        delete found._prev;
+        delete found.updatedAt;
+      } else {
+        state.templates = list.filter(function (t) { return t.id !== id; });
+      }
+      saveNow();
+      return { ok: false, reason: 'Penyimpanan penuh atau ditolak browser' };
+    }
+    if (found) delete found._prev;
+    return {
+      ok: true, id: id, total: list.length,
+      replaced: replaced, trimmed: trimmed
+    };
+  }
+
   w.Store = {
     state: state, save: save, saveNow: saveNow, uid: uid,
+    upsertTemplate: upsertTemplate, templateKey: templateKey,
     todayStr: todayStr, nowLocalInput: nowLocalInput, ymOf: ymOf,
     monthLabel: monthLabel, dayLabel: dayLabel, shiftMonth: shiftMonth,
     parseAmount: parseAmount, validateTx: validateTx,
