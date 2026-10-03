@@ -413,7 +413,6 @@ button.item .item-sub{ margin-top:3px; }
 .ce-subs{ display:flex; flex-wrap:wrap; gap:6px; }
 .ce-sub{ font-size:11.5px; padding:4px 9px; border-radius:8px; background:var(--tap); color:var(--text-2); }
 
-
 /* =========================================================
    PROJECT NAVA v3 — Cashflow (gaya Money Lover)
    Halaman input transaksi full-screen + keypad numerik
@@ -846,22 +845,6 @@ body.mc-open{ overflow:hidden; }
 .mc-ghost-btn.danger{ color:var(--mc-red); border-color:#4a2325; }
 /* Pemilih "Ambil dari Kalkulator Service" di sheet Tambah Sparepart.
    Scroll-nya dibatasi supaya sheet tetap ringkas di HP kecil. */
-.mc-tpl-pick{ display:flex; flex-direction:column; gap:6px; max-height:190px; overflow-y:auto; }
-.mc-tpl-chip{
-  display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%;
-  min-height:44px; padding:9px 11px; text-align:left; cursor:pointer;
-  border:1px solid var(--mc-line); border-radius:12px;
-  background:var(--mc-card2); color:var(--mc-txt); font-size:14px;
-}
-.mc-tpl-chip b{ font-weight:700; }
-.mc-tpl-chip span{ font-size:11.5px; color:var(--mc-txt2); }
-.mc-tpl-chip.act{ border-color:var(--mc-accent); background:var(--mc-soft); }
-.mc-tpl-chip:active{ background:var(--mc-soft); }
-.mc-or{
-  display:flex; align-items:center; gap:10px; margin:10px 0 4px;
-  font-size:11.5px; color:var(--mc-txt2);
-}
-.mc-or::before, .mc-or::after{ content:''; flex:1; height:1px; background:var(--mc-line); }
 .mc-nav{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:4px 0 8px; }
 .mc-nav2{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
 .mc-nav button{
@@ -875,11 +858,6 @@ body.mc-open{ overflow:hidden; }
    saling menimpa. */
 
 /* ---- form ---- */
-.mc-nota-head{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
-.mc-nota-head div{ background:var(--mc-card); border:1px solid var(--mc-line); border-radius:10px; padding:8px 10px; }
-.mc-nota-head span{ display:block; font-size:11px; color:var(--mc-txt2); }
-.mc-nota-head b{ font-size:14px; }
-
 .mc-field{ display:block; margin:0 0 10px; }
 .mc-lbl{ display:block; font-size:12px; color:var(--mc-txt2); margin-bottom:4px; }
 .mc-inp{

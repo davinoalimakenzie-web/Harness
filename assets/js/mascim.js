@@ -485,15 +485,11 @@
 
     var html = '<div class="mc-pad">';
 
-    /* Ringkas: nomor nota dan tanggal dibuat otomatis sistem, jadi tidak perlu
-       ditanyakan. Nomor nota terbit saat nota pertama kali tersimpan berstatus
-       Progress, dan tanggal masuk selalu hari ini. Menampilkan "ID Internal"
-       hanya membingungkan karena bukan nomor yang dilihat pelanggan. */
-    html += '<div class="mc-nota-head">' +
-      '<div><span>Nota</span><b>' +
-        (editing ? esc(refNota(M.current)) : 'otomatis') + '</b></div>' +
-      '<div><span>Tanggal</span><b>' + hariIni() + '</b></div>' +
-    '</div>';
+    /* Nomor nota dan tanggal masuk TIDAK ditampilkan di form. Keduanya dibuat
+       sistem: nota terbit otomatis saat order pertama kali tersimpan berstatus
+       Progress, dan tanggal masuk selalu hari ini. Ditampilkan hanya bikin form
+       panjang tanpa gunanya — datanya tetap ada di record, cuma tidak perlu
+       ditanyakan. */
 
     // Pelanggan
     html += field('Nama Pelanggan *', '<input class="mc-inp" id="fName" value="' + esc(d.customer_name) + '" placeholder="Contoh: Pak Budi" autocomplete="name">');
@@ -1626,20 +1622,22 @@
     var tpl = (w.Store.state.templates || []);
     var picker = '';
     if (tpl.length) {
+      // Dropdown, bukan daftar kartu: sheet tetap pendek dan tidak perlu
+      // scroll. Opsi pertama berarti isi manual, jadi dua cara ini tetap
+      // bisa dipakai bergantian.
       picker =
         '<div class="mc-field">' +
-          '<span class="mc-lbl">Ambil dari Kalkulator Service</span>' +
-          '<div class="mc-tpl-pick" id="pTpl">' +
+          '<span class="mc-lbl">Sparepart dari Kalkulator</span>' +
+          '<select class="mc-inp" id="pTplSel">' +
+            '<option value="">— isi manual —</option>' +
             tpl.map(function (t) {
               var p = t.payload || {};
-              return '<button type="button" class="mc-tpl-chip" data-tplpick="' + esc(t.id) + '">' +
-                '<b>' + esc(labelTplSingkat(p)) + '</b>' +
-                '<span>modal ' + rupiah(p.part) + ' · estimasi ' + rupiah(p.est) + '</span>' +
-              '</button>';
+              return '<option value="' + esc(t.id) + '">' +
+                esc(labelTplSingkat(p)) + ' · ' + rupiah(p.part) +
+              '</option>';
             }).join('') +
-          '</div>' +
-        '</div>' +
-        '<div class="mc-or"><span>atau isi manual</span></div>';
+          '</select>' +
+        '</div>';
     }
 
     sheetOrWarn('Tambah Sparepart',
@@ -1651,21 +1649,15 @@
           '<input class="mc-inp" id="pCost" inputmode="numeric" placeholder="0"></label>' +
       '</div></div>',
       function (body) {
-        // Pilih harga tersimpan -> isi modal dan nama, sisanya tetap manual.
-        var wrap = $('#pTpl', body);
-        if (wrap) {
-          wrap.addEventListener('click', function (e) {
-            var btn = e.target.closest('[data-tplpick]');
-            if (!btn) return;
-            var t = tpl.filter(function (x) { return x.id === btn.dataset.tplpick; })[0];
+        // Pilih harga tersimpan -> isi modal dan nama, sisanya tetap bisa diedit.
+        var sel = $('#pTplSel', body);
+        if (sel) {
+          sel.addEventListener('change', function () {
+            var t = tpl.filter(function (x) { return x.id === sel.value; })[0];
             if (!t) return;
             var p = t.payload || {};
             $('#pCost', body).value = p.part || '';
-            if (!$('#pName', body).value.trim()) {
-              $('#pName', body).value = labelTplSingkat(p);
-            }
-            wrap.querySelectorAll('.mc-tpl-chip').forEach(function (c) { c.classList.remove('act'); });
-            btn.classList.add('act');
+            $('#pName', body).value = labelTplSingkat(p);
             TG.haptic('success');
           });
         }
