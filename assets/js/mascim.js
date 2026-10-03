@@ -534,34 +534,9 @@
     // "apa yang rusak dan kondisi barang saat masuk". Satu teks ini disimpan di
     // field `complaint` DAN disalin ke `intake_condition`, jadi bagian kondisi
     // di nota pelanggan tetap terisi tanpa ada isian kedua.
-    html += field('Kendala &amp; kondisi unit *' +
-      '<span class="mc-sec-note"> tampil di nota pelanggan</span>',
-      '<textarea class="mc-inp" id="fComplaint" rows="3" ' +
-      'placeholder="Contoh: Layar pecah tidak bisa disentuh. Body penyok, kartu SIM tidak ada, speaker normal">'
-      + esc(d.complaint || d.intake_condition) + '</textarea>');
-
-    // Kunci layar. Grid "Pola" dihapus: hanya menempelkan angka, tidak ada
-    // pengenalan coretan, jadi tidak bisa dipakai sebagai kunci sungguhan.
-    html += field('Kunci Layar',
-      '<select class="mc-inp" id="fLock">' + LOCK_TYPES.map(function (t) {
-        return '<option' + (d.screen_lock_type === t ? ' selected' : '') + '>' + t + '</option>';
-      }).join('') + '</select>');
-    if (d.screen_lock_type !== 'Tanpa Kunci') {
-      if (d.screen_lock_type === 'Pola') {
-        // Pola digambar langsung di area pola; tidak ada kolom teks.
-        html += field('Gambar pola (disimpan terenkripsi)', patternPad(d.screen_lock_secret));
-      } else {
-        html += field('Nilai Kunci (disimpan terenkripsi)',
-          '<div class="mc-lock">' +
-            '<input class="mc-inp" id="fSecret" type="password" inputmode="' + (d.screen_lock_type === 'PIN' ? 'numeric' : 'text') + '" value="' + esc(d.screen_lock_secret) + '" placeholder="isi kunci layar">' +
-            '<button class="mc-eye" id="fEye" type="button" aria-label="Tampilkan">👁</button>' +
-          '</div>');
-      }
-    }
-
-    // Penanganan
-    html += field('Penanganan (opsional)',
-      '<textarea class="mc-inp" id="fHandling" rows="2" placeholder="Diisi setelah pemeriksaan / pengerjaan">' + esc(d.handling) + '</textarea>');
+    // Urutan membaca teknisi: device -> hitung biaya -> baru isi keluhan,
+    // kunci layar, dan penanganan. Ketiganya karena itu diletakkan di
+    // bawah blok Perkiraan Jasa, bukan di bawah Device.
 
     // Sparepart
     html += '<div class="mc-sec">Sparepart <span class="mc-sec-note">boleh kosong</span></div>';
@@ -588,6 +563,40 @@
     if (warn) {
       html += '<p class="mc-warn">Total modal sparepart lebih besar dari total biaya. Periksa datanya sebelum menyimpan.</p>';
     }
+
+    // Tiga blok berikut dipindahkan ke sini, lihat catatan urutan di atas.
+
+    // Kendala & kondisi unit
+    html += field('Kendala &amp; kondisi unit *' +
+      '<span class="mc-sec-note"> tampil di nota pelanggan</span>',
+      '<textarea class="mc-inp" id="fComplaint" rows="3" ' +
+      'placeholder="Contoh: Layar pecah tidak bisa disentuh. Body penyok, kartu SIM tidak ada, speaker normal">'
+      + esc(d.complaint || d.intake_condition) + '</textarea>');
+
+    // Kunci layar. Dipakai daftar centang (chip), bukan dropdown, karena
+    // teknisi tahu pilihannya tanpa perlu membuka menu. Kolom isian hanya
+    // muncul setelah ada yang dicentang, dan langsung disembunyikan lagi
+    // setelah terisi, supaya tidak memakan tempat di layar HP.
+    html += '<div class="mc-field"><span class="mc-lbl">Kunci Layar</span>' +
+      '<div class="mc-locks" id="fLockChips">' +
+      LOCK_TYPES.map(function (t) {
+        return '<button type="button" class="mc-lockchip' +
+          (d.screen_lock_type === t ? ' on' : '') + '" data-lock="' + esc(t) + '">' +
+          esc(t) + '</button>';
+      }).join('') +
+      '</div>' +
+      '<div class="mc-lockwrap mc-none" id="fLockWrap">' +
+        '<input class="mc-inp" id="fSecret" type="password" inputmode="' +
+          (d.screen_lock_type === 'PIN' ? 'numeric' : 'text') + '" value="' +
+          esc(d.screen_lock_secret) + '" placeholder="isi kunci layar">' +
+        '<button class="mc-eye" id="fEye" type="button" aria-label="Tampilkan">👁</button>' +
+        '<span class="mc-lockok" id="fLockOk" hidden>✓ tersimpan</span>' +
+      '</div>' +
+      '</div>';
+
+    // Penanganan
+    html += field('Penanganan (opsional)',
+      '<textarea class="mc-inp" id="fHandling" rows="2" placeholder="Diisi setelah pemeriksaan / pengerjaan">' + esc(d.handling) + '</textarea>');
 
     // Status
     // Tidak ada pilihan status di form tambah service. Nota baru SELALU
@@ -658,10 +667,11 @@
     // Satu isian untuk kendala sekaligus kondisi unit; disalin agar bagian
     // kondisi di nota pelanggan tidak ikut kosong.
     d.intake_condition = d.complaint;
-    d.screen_lock_type = ($('#fLock') || {}).value || 'Tanpa Kunci';
-    // Pola disimpan pada input tersembunyi (hasil menggambar), bukan kolom teks.
-    var patInput = $('#fPatSecret');
-    d.screen_lock_secret = (patInput || $('#fSecret') || {}).value || '';
+    // Chip kunci layar menyimpan pilihan aktif di atribut data, jadi
+    // tidak ada <select> yang perlu dibaca.
+    var chipOn = $('#fLockChips .on');
+    d.screen_lock_type = chipOn ? chipOn.dataset.lock : 'Tanpa Kunci';
+    d.screen_lock_secret = ($('#fSecret') || {}).value || '';
     d.handling = ($('#fHandling') || {}).value || '';
     d.total_cost = ($('#fTotal') || {}).value || '';
     // Status tidak bisa dipilih di form: selalu Progress untuk nota baru,
@@ -841,25 +851,52 @@
 
     function isiVarian() {
       var jenis = jenisSel.value;
-      varianSel.innerHTML = '<option value="">— pilih varian —</option>';
+      varianSel.innerHTML = '<option value="">— pilih perhitungan —</option>';
       info.textContent = '';
       pakai.disabled = true;
       baru.classList.add('mc-none');
       if (!jenis) return;
-      var kat = katalogUntukDevice(brandId, seri);
-      var list = kat[jenis] || [];
-      if (!list.length) {
-        // Belum ada -> tawarkan kalkulator kecil untuk membuat estimasi baru.
+
+      // Varian menampilkan seluruh perhitungan Kalkulator, jadi selalu ada
+      // pilihan. Yang sudah punya harga untuk device ini memakai harga
+      // tersimpan, sisanya menampilkan rumusnya.
+      var semua = (w.CalcUI.RULES || []).filter(function (r) {
+        return jenisDariRule(r) === jenis;
+      });
+      if (!semua.length) {
         baru.classList.remove('mc-none');
-        baruInfo.textContent = 'Belum ada harga untuk jenis ini di ' + seri +
-          '. Tulis harga part, estimasi dihitung otomatis. Disimpan supaya bisa dipakai lagi.';
+        baruInfo.textContent = 'Jenis ini tidak punya rumus di Kalkulator.';
         return;
       }
-      list.forEach(function (v) {
-        varianSel.innerHTML += '<option value="' +
-          esc((v.tpl.payload || {}).ruleId || '') + '">' +
-          esc(labelVarian(v)) + '</option>';
+
+      var kat = katalogUntukDevice(brandId, seri);
+      var tersimpan = {};
+      (kat[jenis] || []).forEach(function (v) {
+        tersimpan[(v.tpl.payload || {}).ruleId] = v;
       });
+
+      // Yang punya harga tersimpan ditampilkan paling dulu.
+      semua.sort(function (a, b) {
+        var x = tersimpan[a.id] ? 0 : 1, y = tersimpan[b.id] ? 0 : 1;
+        return x - y;
+      });
+
+      semua.forEach(function (r) {
+        var v = tersimpan[r.id];
+        var label = v ? labelVarian(v)
+          : r.name + ' · belum ada harga (' + rumusLabel(r) + ')';
+        varianSel.innerHTML += '<option value="' + esc(r.id) + '">' +
+          esc(label) + '</option>';
+      });
+
+      if (!kat[jenis].length) {
+        baruInfo.textContent = 'Pilih perhitungan, lalu tulis harga part. ' +
+          'Estimasi dihitung dengan rumus Kalkulator yang sama.';
+      }
+    }
+
+    function rumusLabel(r) {
+      return 'part × 2 + ' + (r.pct != null ? r.pct : 0) + '%';
     }
 
     jenisSel.addEventListener('change', isiVarian);
@@ -871,50 +908,59 @@
       var v = all.filter(function (x) {
         return (x.tpl.payload || {}).ruleId === id;
       })[0];
-      if (!v) return;
-      var p = v.tpl.payload;
-      info.textContent = 'Modal ' + rupiah(p.part) + ' · estimasi ' + rupiah(p.est) +
-        ' — masukkan sebagai modal part.';
-      pakai.disabled = false;
+
+      if (v) {
+        // Sudah ada harga tersimpan untuk perhitungan ini.
+        var p = v.tpl.payload;
+        baru.classList.add('mc-none');
+        info.textContent = 'Modal ' + rupiah(p.part) + ' · estimasi ' + rupiah(p.est) +
+          ' — masukkan sebagai modal part.';
+        pakai.disabled = false;
+        return;
+      }
+
+      // Belum ada harga: buka kalkulator mini supaya bisa dibuat sekarang
+      // dengan rumus Kalkulator yang sama.
+      pakai.disabled = true;
+      baru.classList.remove('mc-none');
+      hitungBaru();
+      if (partIn) partIn.focus();
     });
 
     pakai.addEventListener('click', pakaiHargaDariKatalog);
 
     // Kalkulator kecil: harga part -> estimasi dengan rumus yang sama.
     var partIn = $('#pBaruPart'), estIn = $('#pBaruEst');
+
+    // Rule yang dipakai adalah varian yang SEDANG DIPILIH di dropdown, bukan
+    // rule representatif per jenis. Kalau tidak, memilih "LCD Bagus" (20%)
+    // tetap dihitung dengan rumus jenis pertama, jadi estimasinya salah.
+    function ruleTerpilih() {
+      var id = varianSel.value;
+      if (!id) return null;
+      return (w.CalcUI.RULES || []).filter(function (r) {
+        return r.id === id;
+      })[0] || null;
+    }
+
     function hitungBaru() {
-      var jenis = jenisSel.value;
       var part = parseInt(String(partIn.value || '').replace(/\D/g, ''), 10) || 0;
-      if (!jenis || !part) { estIn.value = ''; return; }
-      // Ambil rule representatif: varian pertama dari kalkulator untuk jenis itu.
-      var rule = ruleUntukJenis(brandId, seri, jenis);
-      if (rule) estIn.value = w.CalcUI.hitung(part, rule).est;
+      var rule = ruleTerpilih();
+      if (!rule || !part) { estIn.value = ''; return; }
+      estIn.value = w.CalcUI.hitung(part, rule).est;
     }
     partIn.addEventListener('input', hitungBaru);
     $('#pBaruSimpan').addEventListener('click', function () {
-      var jenis = jenisSel.value;
       var part = parseInt(String(partIn.value || '').replace(/\D/g, ''), 10) || 0;
       var est = parseInt(String(estIn.value || '').replace(/\D/g, ''), 10) || 0;
-      if (!jenis || !part) { alertErr('Pilih jenis dan isi harga part'); return; }
-      var rule = ruleUntukJenis(brandId, seri, jenis);
-      if (!rule) { alertErr('Jenis ini belum punya aturan hitung'); return; }
+      var rule = ruleTerpilih();
+      if (!rule) { alertErr('Pilih perhitungan dulu'); return; }
+      if (!part) { alertErr('Isi harga part'); return; }
       if (!est) est = w.CalcUI.hitung(part, rule).est;
       upsertTplBrandSeri(brandId, seri, rule, part, est);
       render();
       toast('Tersimpan di Kalkulator — pakai lagi kapan saja');
     });
-  }
-
-  /* Rule yang dipakai sebagai acuan rumus untuk sebuah jenis. Kalau device ini
-     belum punya, pakai rule default Kalkulator supaya kalkulator kecil tetap
-     bisa dipakai. */
-  function ruleUntukJenis(brandId, seri, jenis) {
-    var kat = katalogUntukDevice(brandId, seri);
-    var ada = kat[jenis] || [];
-    if (ada.length) return ada[0].rule;
-    var semua = w.CalcUI.RULES || [];
-    var cocok = semua.filter(function (r) { return jenisDariRule(r) === jenis; })[0];
-    return cocok || semua[0] || null;
   }
 
   function bindForm() {
@@ -963,14 +1009,48 @@
       });
     }
 
-    // Kunci layar: saat jenis berubah, tampilkan/hilangkan field & pola
-    var lock = $('#fLock');
-    if (lock) {
-      lock.addEventListener('change', function () {
-        readDraft();
-        render();
+    // Kunci layar: daftar centang. Memilih chip langsung menyimpan ke draft
+    // tanpa menggambar ulang seluruh form, supaya layar tidak berkedip.
+    // Kolom isian muncul setelah ada yang dicentang dan disembunyikan lagi
+    // begitu terisi, jadi tidak memakan tempat di layar HP.
+    var chips = document.querySelectorAll('#fLockChips .mc-lockchip');
+    var wrap = $('#fLockWrap'), lockOk = $('#fLockOk'), lockIn = $('#fSecret');
+    var on = $('#fLockChips .on');
+
+    function syncLockUI() {
+      if (!wrap) return;
+      var tipe = (on ? on.dataset.lock : 'Tanpa Kunci');
+      var isi = (lockIn ? lockIn.value : '').trim();
+      // Kolom hanya tampil kalau ada kunci yang dipilih DAN belum diisi.
+      wrap.classList.toggle('mc-none', tipe === 'Tanpa Kunci' || !!isi);
+      if (lockOk) lockOk.hidden = !isi;
+    }
+
+    for (var ci = 0; ci < chips.length; ci++) {
+      chips[ci].addEventListener('click', function () {
+        var pilih = this.dataset.lock;
+        var aktif = this.classList.contains('on');
+        for (var k = 0; k < chips.length; k++) chips[k].classList.remove('on');
+        // Centang yang sama dicentang lagi berarti membatalkan kunci.
+        if (!aktif) this.classList.add('on');
+        M.draft.screen_lock_type = aktif ? 'Tanpa Kunci' : pilih;
+        if (lockIn) {
+          lockIn.value = '';
+          lockIn.inputMode = pilih === 'PIN' ? 'numeric' : 'text';
+        }
+        M.draft.screen_lock_secret = '';
+        syncLockUI();
+        if (lockIn && !aktif) lockIn.focus();
       });
     }
+    if (lockIn) {
+      lockIn.addEventListener('input', function () {
+        M.draft.screen_lock_secret = lockIn.value;
+        syncLockUI();
+      });
+    }
+    syncLockUI();
+
     var eye = $('#fEye');
     if (eye) {
       eye.addEventListener('click', function () {
@@ -1027,13 +1107,18 @@
     // Status tidak lagi bisa dipilih di form ini; lihat catatan di renderForm.
 
     // fSave tidak ada lagi — satu-satunya aksi adalah "Simpan & Buka Detail".
+    // Tombol diklik -> berubah kuning dulu, baru submit(). Submit() sendiri
+    // memanggil render() yang menghapus elemen ini, jadi tanpa jeda singkat
+    // kuningnya tidak pernah sempat terlihat sama sekali.
     var so = $('#fSaveOpen');
+    var saving = false;
     if (so) {
       so.addEventListener('click', function () {
-        if (M.lock) return;
+        if (M.lock || saving) return;
+        saving = true;
         so.classList.add('tersimpan');
         so.innerHTML = '✓ Tersimpan';
-        submit(true);
+        setTimeout(function () { submit(true); }, 700);
       });
     }
     var ex = $('#fExit');

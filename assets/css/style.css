@@ -855,6 +855,21 @@ body.mc-open{ overflow:hidden; }
    tombol Chat harus boleh menyusut agar tidak meluber di layar sempit. */
 .mc-pelanggan .mc-wa{ min-width:0; }
 .mc-pelanggan .mc-wa .mc-inp{ min-width:0; flex:1 1 auto; }
+/* Kunci layar: daftar centang, bukan dropdown, supaya teknisi tidak perlu
+   membuka menu. Kolom isian muncul hanya setelah ada yang dicentang dan
+   disembunyikan lagi begitu terisi, supaya tidak makan tempat di layar HP. */
+.mc-locks{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
+.mc-lockchip{
+  padding:7px 12px; border-radius:10px; font-size:13px; font-weight:600;
+  background:var(--mc-card2); border:1px solid var(--mc-line);
+  color:var(--mc-txt2); cursor:pointer; font-family:inherit;
+}
+.mc-lockchip.on{
+  background:var(--mc-grn-d); border-color:var(--mc-grn); color:#eafff3;
+}
+.mc-lockwrap{ display:flex; align-items:center; gap:6px; }
+.mc-lockwrap .mc-inp{ flex:1 1 auto; min-width:0; }
+.mc-lockok{ font-size:12px; font-weight:700; color:var(--mc-grn); white-space:nowrap; }
 /* Petunjuk kecil di sheet Tambah Sparepart: nama device, dan status apakah
    harga terisi otomatis atau perlu diisi manual. */
 .mc-hint{ font-size:12px; color:var(--mc-txt2); line-height:1.45; margin:2px 0 10px; }
