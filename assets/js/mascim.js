@@ -402,12 +402,19 @@
   }
 
   function badgeServis(s) {
-    // 6 status: Done & Done Diambil = hijau, Cancel & Cancel Diambil = merah,
-    // Nggandul = kuning (perlu dikonfirmasi), Progress = biru.
-    var tone = (s === 'Done' || s === 'Done Diambil') ? 'ok'
-      : (s === 'Cancel' || s === 'Cancel Diambil') ? 'neg'
-      : s === 'Nggandul' ? 'warn' : 'info';
-    return '<span class="mc-badge ' + tone + '">' + esc(s) + '</span>';
+    // Tiap status punya warna sendiri, sama seperti kartu di Beranda:
+    // Progress kuning, Done hijau, Done Diambil biru, Cancel orange,
+    // Cancel Diambil merah, Nggandul ungu.
+    //
+    // Kelas khusus status dipakai, bukan ok/neg/warn yang sudah ada,
+    // karena kelas badge those juga dipakai untuk hal lain di preview
+    // nota. Mengubah artinya akan mengubah warna yang tidak ada
+    // hubungannya dengan status.
+    var TONE = {
+      'Progress': 'st-prog', 'Done': 'st-done', 'Done Diambil': 'st-ambil',
+      'Cancel': 'st-cancel', 'Cancel Diambil': 'st-cambil', 'Nggandul': 'st-ngg'
+    };
+    return '<span class="mc-badge ' + (TONE[s] || 'info') + '">' + esc(s) + '</span>';
   }
 
   /* =========================================================

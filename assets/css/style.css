@@ -972,6 +972,14 @@ select.mc-inp{ appearance:none; }
 .mc-badge.ok{ color:var(--mc-grn); border-color:var(--mc-grn-d); background:#0f2a1c; }
 .mc-badge.warn{ color:var(--mc-org); border-color:#6b4a17; background:#2a1f10; }
 .mc-badge.neg{ color:var(--mc-red); border-color:#4a2325; background:#2a1416; }
+/* Warna badge status. Terpisah dari .mc-badge.ok / .neg yang sudah dipakai
+   untuk maksud lain di preview nota. Nilainya sama dengan kartu Beranda. */
+.mc-badge.st-prog  { color:#d29922; border-color:#6b5316; background:#2a1f10; }
+.mc-badge.st-done  { color:#2ea043; border-color:var(--mc-grn-d); background:#0f2a1c; }
+.mc-badge.st-ambil { color:#2f81f7; border-color:#1f4e8c; background:#0f1c33; }
+.mc-badge.st-cancel { color:#f0883e; border-color:#6b4a17; background:#2a1f10; }
+.mc-badge.st-cambil { color:#e5534b; border-color:#4a2325; background:#2a1416; }
+.mc-badge.st-ngg   { color:#a371f7; border-color:#4c3a7a; background:#1e1733; }
 .mc-badge.info{ color:var(--mc-txt2); border-color:var(--mc-line); background:var(--mc-card2); }
 .mc-card-name{ font-size:15px; font-weight:600; }
 .mc-card-dev{ font-size:12px; color:var(--mc-txt2); }
@@ -1105,7 +1113,12 @@ select.mc-inp{ appearance:none; }
   background: var(--mc-tone-bg, rgba(127,127,127,.10));
 }
 .mc-stat b { font-size: 20px; line-height: 1.1; font-weight: 700; color: var(--mc-tone, inherit); }
-.mc-stat span { font-size: 9px; font-weight: 600; opacity: .75; letter-spacing: .2px; color: inherit; }
+/* Label kartu SELALU putih. Semula `color: inherit`, sehingga kartu Cancel
+   ikut kena aturan global `.neg{ color:var(--mc-red) }` yang dibuat untuk
+   nilai uang — hasilnya hanya label "Cancel" yang merah, sedangkan empat
+   kartu lain tetap putih. Warna status sudah tampil lewat angka (--mc-tone)
+   di atas, jadi label tidak perlu berwarna. */
+.mc-stat span { font-size: 9px; font-weight: 600; opacity: .75; letter-spacing: .2px; color: #fff; }
 
 /* Tiap status punya warna kartunya sendiri */
 .mc-stat.warn  { --mc-tone: #d29922; --mc-tone-bg: rgba(210,153,34,.16); }  /* Progress — kuning */

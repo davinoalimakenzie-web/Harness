@@ -58,7 +58,13 @@
   */
   var STATUS_TRANS = {
     'Progress': ['Done', 'Cancel'],
-    'Done': ['Done Diambil'],
+    // Dari "Done" masih boleh dibatalkan: pekerjaan selesai tapi ternyata
+    // pelanggan berubah pikiran atau unit tidak diambil. Tanpa ini, nota
+    // yang salah masuk Done tidak punya jalan keluar selain membiarkan
+    // nota tetap menggantung.
+    'Done': ['Done Diambil', 'Cancel'],
+    // Dari "Cancel" hanya boleh ke "Cancel Diambil": barang tetap keluar
+    // meski dibatalkan, jadi tanggal pengambilan tetap harus tercatat.
     'Cancel': ['Cancel Diambil'],
     'Done Diambil': [],
     'Cancel Diambil': [],
@@ -1755,8 +1761,16 @@
     var orders = db.orders.filter(function (o) { return !o.deletedAt; });
     var masukHariIni = orders.filter(function (o) { return o.receivedAt.slice(0, 10) === today; }).length;
     var proses = orders.filter(function (o) { return o.serviceStatus === ACTIVE_STATUS; }).length;
-    var selesai = orders.filter(function (o) { return isDoneStatus(o.serviceStatus); }).length;
-    var cancel = orders.filter(function (o) { return isCancelStatus(o.serviceStatus); }).length;
+    // Kartu "Done" hanya menghitung status 'Done' persis. Semula memakai
+    // isDoneStatus() yang mencakup 'Done' DAN 'Done Diambil', jadi nota yang
+    // sudah diambil tetap ikut terhitung di kartu Done — membuat Done dan
+    // Diambil sama-sama menampilkan angka yang sama.
+    var selesai = orders.filter(function (o) { return o.serviceStatus === 'Done'; }).length;
+    // Kartu "Cancel" hanya status 'Cancel' persis, bukan 'Cancel Diambil'.
+    // Catatan di bawah sudah menyatakan keduanya tidak dihitung, tapi kode
+    // sebelumnya masih memakai isCancelStatus() yang ikut menghitungnya —
+    // bug yang sama seperti kartu Done.
+    var cancel = orders.filter(function (o) { return o.serviceStatus === 'Cancel'; }).length;
     var nggandul = orders.filter(function (o) { return o.serviceStatus === NGGANDUL; }).length;
 
     var cf = cashflowSummary({ from: monthStart });
