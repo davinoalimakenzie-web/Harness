@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261003t">
+<link rel="stylesheet" href="assets/css/style.css?v=20261003u">
 </head>
 <body>
 
@@ -306,6 +306,27 @@
         <button id="dShareTelegram" class="btn ghost full">Kirim Backup ke Telegram</button>
       </div>
       <input type="file" id="dFile" accept="application/json" class="hidden">
+      <!-- Uji Kunci Layar. Area pola di sini memakai kode yang sama
+           persis dengan form Tambah Service. -->
+      <div class="card mt" id="padTestCard">
+        <div class="list-head"><strong>Uji Kunci Layar</strong></div>
+        <p class="hint">
+          Panel ini memakai kode area pola yang persis sama dengan form Tambah
+          Service. Kalau pola bisa digambar di sini, berarti juga bisa di form
+          — dan kalau tidak, masalahnya ada di area pola, bukan di catatan.
+        </p>
+        <button id="padOpen" class="btn ghost full">Buka Area Pola</button>
+        <div id="padHost" class="mt"></div>
+        <div id="padInfo" class="hint">Belum ada pola digambar.</div>
+        <div class="mt">
+          <input class="btn" id="padText" type="password" inputmode="text"
+                 autocomplete="new-password" autocorrect="off"
+                 autocapitalize="off" spellcheck="false"
+                 placeholder="Uji ketik Password / PIN" style="width:100%">
+          <div id="padTextInfo" class="hint">Uji kolom teks: belum ada isian.</div>
+        </div>
+      </div>
+
       <div class="row-2 mt">
         <button id="dDemo" class="btn ghost">Isi Data Contoh</button>
         <button id="dClear" class="btn danger ghost">Hapus Semua</button>
@@ -520,7 +541,7 @@
 </div>
 
 <!-- ============ MODUL: MAS CIM SERVICE HP ============
-     Berisi lengkap di assets/js/mascim.js?v=20261003t; di sini hanya kerangkanya.
+     Berisi lengkap di assets/js/mascim.js?v=20261003u; di sini hanya kerangkanya.
      Satu pemilik, satu teknisi — sengaja tanpa kasir/cabang/multi-role. -->
 <div id="mc" class="mc hidden" aria-hidden="true">
   <!-- Bar navigasi internal modul -->
@@ -552,24 +573,24 @@
   <div id="ntScreen" class="nt-screen"></div>
 </div>
 
-<script src="assets/js/tg.js?v=20261003t"></script>
-<script src="assets/js/store.js?v=20261003t"></script>
-<script src="assets/js/nava-bank.js?v=20261003t"></script>
-<script src="assets/js/scan.js?v=20261003t"></script>
-<script src="assets/js/voice.js?v=20261003t"></script>
-<script src="assets/js/notes.js?v=20261003t"></script>
-<script src="assets/js/transactions.js?v=20261003t"></script>
-<script src="assets/js/calc.js?v=20261003t"></script>
-<script src="assets/js/mascim-local.js?v=20261003t"></script>
-<script src="assets/js/mascim.js?v=20261003t"></script>
-<script src="assets/js/nava-trader-core.js?v=20261003t"></script>
-<script src="assets/js/nava-trader-bandar.js?v=20261003t"></script>
-<script src="assets/js/nava-trader-fund.js?v=20261003t"></script>
-<script src="assets/js/nava-trader-alert.js?v=20261003t"></script>
-<script src="assets/js/nava-kesegaran.js?v=20261003t"></script>
-<script src="assets/js/nava-trader-quote.js?v=20261003t"></script>
-<script src="assets/js/nava-trader.js?v=20261003t"></script>
-<script src="assets/js/backup.js?v=20261003t"></script>
-<script src="assets/js/app.js?v=20261003t"></script>
+<script src="assets/js/tg.js?v=20261003u"></script>
+<script src="assets/js/store.js?v=20261003u"></script>
+<script src="assets/js/nava-bank.js?v=20261003u"></script>
+<script src="assets/js/scan.js?v=20261003u"></script>
+<script src="assets/js/voice.js?v=20261003u"></script>
+<script src="assets/js/notes.js?v=20261003u"></script>
+<script src="assets/js/transactions.js?v=20261003u"></script>
+<script src="assets/js/calc.js?v=20261003u"></script>
+<script src="assets/js/mascim-local.js?v=20261003u"></script>
+<script src="assets/js/mascim.js?v=20261003u"></script>
+<script src="assets/js/nava-trader-core.js?v=20261003u"></script>
+<script src="assets/js/nava-trader-bandar.js?v=20261003u"></script>
+<script src="assets/js/nava-trader-fund.js?v=20261003u"></script>
+<script src="assets/js/nava-trader-alert.js?v=20261003u"></script>
+<script src="assets/js/nava-kesegaran.js?v=20261003u"></script>
+<script src="assets/js/nava-trader-quote.js?v=20261003u"></script>
+<script src="assets/js/nava-trader.js?v=20261003u"></script>
+<script src="assets/js/backup.js?v=20261003u"></script>
+<script src="assets/js/app.js?v=20261003u"></script>
 </body>
 </html>

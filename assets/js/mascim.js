@@ -233,10 +233,17 @@
      supaya tetap jalan di HP maupun di browser desktop.
   */
   function bindPatternPad(secretOut) {
-    var pad = document.getElementById('fPat');
-    var line = document.getElementById('fPatLine');
-    var hint = document.getElementById('fPatHint');
-    if (!pad || !line) return;
+    // Area pola dicari dari INDUK input tersembunyinya, bukan dari seluruh
+    // dokumen. Area uji di halaman Data memakai kode yang sama seperti
+    // form, jadi keduanya bisa hidup berdampingan; pencarian global akan
+    // terpasang ke area yang salah.
+    var wrap = secretOut ? secretOut.parentNode : null;
+    var pad = wrap ? wrap.querySelector('.mc-pat')
+                   : document.getElementById('fPat');
+    if (!pad) return;
+    var line = pad.querySelector('.mc-pcanvas');
+    var hint = pad.querySelector('.mc-phint');
+    if (!line) return;
     var grid = pad.querySelector('.mc-pgrid');
     var nodeList = pad.querySelectorAll('.mc-dot, .mc-pdot');
     var tracing = false, pts = [], drawn = [];
@@ -2834,6 +2841,14 @@
   // Helper nota garansi diekspor untuk pengujian: test harus bisa memastikan
   // pesan WhatsApp dan isi cetakan benar-benar bebas data internal, bukan
   // hanya terlihat benar di layar.
+  // Area pola dan perekamnya diekspor supaya bisa diuji langsung dari
+  // halaman Data tanpa harus membuat nota dulu. Keduanya adalah kode yang
+  // sama persis dengan yang dipakai di form Tambah Service — kalau area
+  // pola gagal di sini, berarti gagal juga di form.
+  w.MascimUI._testPad = {
+    patternPad: patternPad,
+    bindPatternPad: bindPatternPad
+  };
   w.MascimUI._testNote = {
     pesanWhatsapp: pesanWhatsapp,
     noteHtml: noteHtml,

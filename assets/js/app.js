@@ -421,6 +421,56 @@
 
   /* ---------------- Init ---------------- */
   var _inited = false;
+  /* ---------------- Uji Kunci Layar ---------------- */
+  /* Panel uji memakai patternPad() dan bindPatternPad() milik form Tambah
+     Service, bukan implementasi terpisah. Jadi kalau pola bisa digambar di
+     sini, area pola di form pasti bisa juga — dan kalau tidak, masalahnya
+     terisolasi di satu tempat, bukan tersebar di form nota. */
+  function initPadTest() {
+    var openBtn = $('#padOpen');
+    var host = $('#padHost');
+    var info = $('#padInfo');
+    if (!openBtn || !host || !info) return;
+
+    openBtn.addEventListener('click', function () {
+      var P = w.MascimUI && w.MascimUI._testPad;
+      if (!P || typeof P.patternPad !== 'function') {
+        info.textContent = 'Kode area pola belum termuat. Muat ulang halaman.';
+        return;
+      }
+      host.innerHTML = P.patternPad('');
+      var pad = host.querySelector('#fPat');
+      var secret = host.querySelector('#fPatSecret');
+      if (!pad || !secret) { info.textContent = 'Area pola gagal dibuat.'; return; }
+
+      P.bindPatternPad(secret);
+      pad.addEventListener('patternchange', function () {
+        var v = secret.value || '';
+        if (!v) {
+          info.textContent = 'Pola dibersihkan.';
+          return;
+        }
+        var n = v.split(';').filter(Boolean).length;
+        info.textContent = 'Pola tersimpan: ' + n + ' titik. Nilainya: ' + v;
+      });
+      openBtn.textContent = 'Buka Ulang Area Pola';
+      info.textContent = 'Ketuk lalu tarik untuk menggambar pola.';
+    });
+
+    // Uji kolom teks: memastikan yang diketik benar-benar sama dengan yang
+    // tersimpan, tanpa ada yang mengubah kapital atau autocorrect.
+    var txt = $('#padText');
+    var txtInfo = $('#padTextInfo');
+    if (txt && txtInfo) {
+      txt.addEventListener('input', function () {
+        var v = txt.value;
+        txtInfo.textContent = 'Uji kolom teks: ' + (v
+          ? v.length + ' karakter, tersimpan apa adanya: ' + v
+          : 'belum ada isian');
+      });
+    }
+  }
+
   function init() {
     if (_inited) return;   // jaga agar listener tidak terpasang dua kali
     _inited = true;
@@ -619,6 +669,7 @@
 
     // Data
     $('#dExport').addEventListener('click', exportJSON);
+    initPadTest();
     var shareBtn = $('#dShareTelegram');
     if (shareBtn) shareBtn.addEventListener('click', bagikanKeTelegram);
     $('#dImport').addEventListener('click', function () { $('#dFile').click(); });
