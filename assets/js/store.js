@@ -181,10 +181,40 @@
   }
 
   /* ---------------- Load / Save ---------------- */
+
+  /* Salinan pengaman SEKALI TULIS.
+
+     Ini bukan snapshot yang digantikan tiap 30 menit seperti punya backup.js.
+     Yang ini disimpan sekali saja, lalu TIDAK PERNAH ditulis ulang. Isinya
+     persis data yang tersimpan sebelum kode versi ini menyentuh apa pun,
+     apa adanya dan tanpa migrate/normalize.
+
+     Gunanya: kalau suatu saat versi berikutnya merusak data, data aslinya
+     masih utuh di sini dan bisa dikembalikan. Karena written-once, salinan
+     ini justru tidak bisa ikut rusak oleh perubahan yang akan dilindungi.
+
+     karena hanya ditulis sekali, storage juga tidak bertambah terus.
+     Boleh dihapus manual dari panel Cadangkan Sekarang bila sudah tidak
+     diperlukan. */
+  var SAFETY_KEY = KEY + '.safety';
+
+  function safetySnapshot(raw) {
+    try {
+      // Sudah ada -> jangan sentuh. Ini yang membuatnya "tidak berubah".
+      if (localStorage.getItem(SAFETY_KEY)) return false;
+      if (!raw || raw.length < 32) return false;   // belum ada data berarti
+      localStorage.setItem(SAFETY_KEY, raw);
+      return true;
+    } catch (e) {
+      return false;   // storage penuh: jangan ganggu proses load
+    }
+  }
+
   function load() {
     try {
       var raw = localStorage.getItem(KEY);
       if (raw) {
+        safetySnapshot(raw);
         var p = migrate(JSON.parse(raw));
         if (p) return normalize(p);
       }
@@ -192,6 +222,7 @@
       for (var i = 0; i < OLD_KEYS.length; i++) {
         var oldRaw = localStorage.getItem(OLD_KEYS[i]);
         if (oldRaw) {
+          safetySnapshot(oldRaw);
           var op = migrate(JSON.parse(oldRaw));
           if (op) return normalize(op);
         }
