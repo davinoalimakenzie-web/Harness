@@ -1106,7 +1106,8 @@
     // Total biaya yang berubah membuat status lama meragukan — KECUALI
     // saat nota masih Progress. Di tahap itu status memang belum apa-apa,
     // dan koreksi biaya adalah hal yang wajar. Kalau ikut ditandai Nggandul,
-    // setiap koreksi biaya di tahap awal akan merusak alur status.
+    // setiap koreksi biaya saat teknisi masih menghitung akan merusak
+    // alur status.
     var masihAwal = cur.serviceStatus === 'Progress';
     if (costChanged && patch.service_status == null && !masihAwal) {
       markNggandul(cur, 'Total biaya diubah menjadi Rp' + merged.total_cost.toLocaleString('id-ID') +

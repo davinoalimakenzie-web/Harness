@@ -307,6 +307,10 @@
       if (n >= 0 && drawn.indexOf(n) < 0) { drawn.push(n); light(n); }
       drawLine();
     }
+    function selesai() {
+      if (hint) hint.textContent = 'Pola tersimpan: ' + drawn.length + ' titik. Ketuk ulang untuk mengganti.';
+      pad.dispatchEvent(new Event('patternchange'));
+    }
     function up() {
       if (!tracing) return;
       tracing = false;
@@ -321,15 +325,23 @@
                  (((b.top + b.height / 2) - r.top) / r.height).toFixed(4));
       }
       if (secretOut) secretOut.value = out.join(';');
-      if (hint) hint.textContent = 'Pola tersimpan: ' + drawn.length + ' titik. Ketuk ulang untuk mengganti.';
       // Beri tahu bagian luar. Tanpa event ini, draft tidak pernah ikut
       // terisi dan pola yang digambar hilang saat form disimpan.
-      pad.dispatchEvent(new Event('patternchange'));
+      selesai();
     }
-    pad.addEventListener('pointerdown', down);
-    pad.addEventListener('pointermove', move);
-    pad.addEventListener('pointerup', up);
-    pad.addEventListener('pointercancel', up);
+    // Listener sentuh di beberapa WebView Treats sebagai pasif secara
+    // default, sehingga preventDefault diabaikan dan gesture browser
+    // membatalkan pointer di tengah jalan.
+    pad.addEventListener('pointerdown', down, { passive: false });
+    pad.addEventListener('pointermove', move, { passive: false });
+    pad.addEventListener('pointerup', up, { passive: false });
+    pad.addEventListener('pointercancel', function () {
+      // Dibatalkan bukan berarti gagal: selesaikan saja apa yang sudah
+      // digambar, jangan hapus.
+      tracing = false;
+      if (drawn.length) selesai();
+      else clearLine();
+    }, { passive: false });
     clearLine();
   }
 
@@ -1707,14 +1719,22 @@
     // sengaja tidak ada di form Tambah/Edit karena saat membuat nota statusnya
     // masih Progress dan penanganan belum ada artinya; kolomnya dimunculkan
     // di sini begitu pengerjaan dinyatakan selesai.
-    if (o.serviceStatus === 'Done') {
-      html += '<div class="mc-sec">Penanganan</div>' +
-        '<div class="mc-lockwrap mc-none" id="dHandWrap">' +
-          '<textarea class="mc-inp" id="dHandling" rows="2" placeholder="Contoh: ganti LCD, ganti baterai, bersihkan bagian dalam">' +
-            esc(o.handling || '') + '</textarea>' +
-        '</div>' +
-        '<button class="mc-ghost-btn" id="dHandleSave" style="margin-bottom:10px">Simpan Penanganan</button>';
-    }
+    // Penanganan dan Total Biaya bisa langsung diketik di layar ini, di
+    // SEMUA status. Tidak ada tombol simpan terpisah: nilai tersimpan saat
+    // kursor keluar dari kolomnya. Tombol Simpan dahulu disembunyikan selalu
+    // dan teksnya tidak pernah terlihat karena pembungkusnya membawa kelas
+    // mc-none sejak awal.
+    html += '<div class="mc-sec">Biaya &amp; Penanganan</div>' +
+      '<label class="mc-field"><span class="mc-lbl">Total Biaya (Rp)</span>' +
+        '<input class="mc-inp" id="dTotal" inputmode="numeric" placeholder="0" value="' +
+        esc(o.totalCost != null && o.totalCost !== '' ? String(o.totalCost) : '') + '">' +
+      '</label>' +
+      '<label class="mc-field"><span class="mc-lbl">Penanganan</span>' +
+        '<textarea class="mc-inp" id="dHandling" rows="2" placeholder="Contoh: ganti LCD, ganti baterai, bersihkan bagian dalam">' +
+          esc(o.handling || '') + '</textarea>' +
+      '</label>' +
+      '<p class="mc-hint sm">Tersimpan otomatis saat kursor berpindah. ' +
+        'Tekan tombol Segarkan di bawah untuk memuat ulang tampilan.</p>';
 
     // Tombol aksi besar ("Selesaikan Garapan", "Catat Pembayaran") dan tombol
     // Hapus sudah dihapus di SEMUA status. Status hanya berubah lewat dropdown
@@ -1731,8 +1751,6 @@
             }).join('') + '</div>'
           : '<div class="mc-dropmenu"><span class="mc-hint sm">Status sudah final.</span></div>') +
       '</div>' +
-      '<button class="mc-ghost-btn" id="dEdit">' +
-        (o.serviceStatus === 'Progress' ? 'Edit Cepat' : 'Edit Data') + '</button>' +
     '</div>';
 
     html += '</div>';
@@ -1757,73 +1775,40 @@
       .catch(function (er) { alertErr(er.message); });
   }
 
-  /* Edit cepat untuk nota berstatus Progress.
-
-     Hanya dua kolom yang boleh diubah di tahap ini: penanganan dan total
-     biaya. Memakai form penuh di tahap ini membuka data unit, pelanggan,
-     dan sparepart untuk diubah setelah pekerjaan berjalan, padahal itu
-     sudah selesai dikunci. */
-  function openEditCepat() {
-    var o = M.current;
-    if (!o) return;
-    var total = o.totalCost != null && o.totalCost !== '' ? String(o.totalCost) : '';
-
-    sheetOrWarn('Edit Cepat (Progress)',
-      '<p class="mc-hint">While nota masih <b>Progress</b>, yang bisa diubah hanya ' +
-        'penanganan dan total biaya. Ubah unit, pelanggan, atau sparepart ' +
-        'setelah statusnya berubah.</p>' +
-      '<label class="mc-field"><span class="mc-lbl">Penanganan</span>' +
-        '<textarea class="mc-inp" id="ecHandling" rows="2" placeholder="Contoh: ganti LCD, ganti baterai">' +
-          esc(o.handling || '') + '</textarea></label>' +
-      '<label class="mc-field"><span class="mc-lbl">Total Biaya (Rp)</span>' +
-        '<input class="mc-inp" id="ecTotal" inputmode="numeric" value="' + esc(total) + '" placeholder="0">' +
-        '</label>',
-      function (body) {
-        var b = document.createElement('button');
-        b.className = 'mc-primary';
-        b.style.marginTop = '12px';
-        b.textContent = 'Simpan';
-        b.addEventListener('click', function () {
-          var h = $('#ecHandling');
-          var t = $('#ecTotal');
-          var nTotal = parseInt(String((t ? t.value : '') || '').replace(/\D/g, ''), 10) || 0;
-          b.disabled = true;
-          api('PATCH', '/api/mascim/services/' + encodeURIComponent(o.id),
-            { handling: (h ? h.value : '').trim(), total_cost: nTotal })
-            .then(function (r) {
-              tutupSheet();
-              if (r.service) M.current = r.service;
-              toast('Tersimpan');
-              loadDetail(o.id);
-              reload();
-            })
-            .catch(function (e) { b.disabled = false; alertErr(e.message); });
-        });
-        body.appendChild(b);
-      });
-  }
-
   function bindDetail() {
-    // Simpan penanganan. Kolomnya hanya ada saat status Done, jadi
-    // elemennya dicek null lebih dulu sebelum dipakai.
-    var handBtn = $('#dHandleSave');
-    if (handBtn) {
-      handBtn.addEventListener('click', function () {
-        var ta = $('#dHandling');
-        if (!ta) return;
-        var val = ta.value.trim();
-        handBtn.disabled = true;
-        api('PATCH', '/api/mascim/services/' + encodeURIComponent(M.id), { handling: val })
-          .then(function (r) {
-            handBtn.disabled = false;
-            if (M.current) M.current.handling = r.service ? r.service.handling : val;
-            toast('Penanganan tersimpan');
-            loadDetail(M.id);
-          })
-          .catch(function (err) {
-            handBtn.disabled = false;
-            alertErr('Gagal menyimpan penanganan: ' + (err && err.message || err));
-          });
+    // Penyimpanan otomatis: nilai dikirim saat kursor berpindah dari kolom,
+    // bukan lewat tombol. Dua kolom memakai satu jalur supaya tidak ada
+    // permintaan yang saling menimpa ketika keduanya berubah berdekatan.
+    var sedangSimpan = false;
+    function simpanOtomatis(bidang, nilai, label) {
+      if (sedangSimpan) return;
+      sedangSimpan = true;
+      api('PATCH', '/api/mascim/services/' + encodeURIComponent(M.id), bidang)
+        .then(function (r) {
+          sedangSimpan = false;
+          if (r.service && M.current) M.current = r.service;
+          toast(label + ' tersimpan');
+          reload();
+        })
+        .catch(function (err) {
+          sedangSimpan = false;
+          alertErr('Gagal menyimpan ' + label.toLowerCase() + ': ' + (err && err.message || err));
+        });
+    }
+    var dTotal = $('#dTotal');
+    if (dTotal) {
+      dTotal.addEventListener('blur', function () {
+        var v = parseInt(String(dTotal.value || '').replace(/\D/g, ''), 10) || 0;
+        if (M.current && v === M.current.totalCost) return;
+        simpanOtomatis({ total_cost: v }, v, 'Total Biaya');
+      });
+    }
+    var dHandling = $('#dHandling');
+    if (dHandling) {
+      dHandling.addEventListener('blur', function () {
+        var v = dHandling.value.trim();
+        if (M.current && v === (M.current.handling || '')) return;
+        simpanOtomatis({ handling: v }, v, 'Penanganan');
       });
     }
     var s = screen();
@@ -1873,17 +1858,8 @@
     // "Ubah Status", jadi tidak ada dua jalur yang bisa berbeda.
 
     // Tombol "Edit Data" membuka form isian nota.
-    var editBtn = $('#dEdit');
-    if (editBtn) editBtn.addEventListener('click', function () {
-      // Selama nota masih Progress, yang boleh diubah hanya penanganan dan
-      // total biaya. Data unit, pelanggan, dan sparepart dikunci di tahap ini
-      // supaya tidak berubah setelah teknisi mulai bekerja.
-      if (M.current && M.current.serviceStatus === 'Progress') { openEditCepat(); return; }
-      M.draft = draftFromOrder(M.current);
-      M.editing = M.current.id;
-      M.view = 'form';
-      render();
-    });
+    // Tombol Edit dihapus: Penanganan dan Total Biaya bisa langsung diketik
+    // di layar ini, jadi tidak perlu membuka form.
 
     // --- Nota garansi pelanggan ---
     // Terbitkan: hanya aktif setelah syarat terpenuhi. Mesin data tetap
