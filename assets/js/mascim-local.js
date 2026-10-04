@@ -77,13 +77,13 @@
      Garansi: masa garansi yang salesman bisa pilih saat mencatat pembayaran.
      "Non Garansi" dipakai kalau tidak ada garansi sama sekali.
   */
-  var WARRANTY_OPTIONS = ['30 Hari', '60 Hari', 'Non Garansi'];
+  var WARRANTY_OPTIONS = ['7 Hari', '30 Hari', '60 Hari', 'Non Garansi'];
 
   /*
      Metode pembayaran. "Campuran" dipakai kalau sebagian Tunai sebagian
      Qriss; total nominal tetap satu baris (yang sudah diinput teknisi).
   */
-  var PAYMENT_METHODS = ['Tunai', 'Qriss', 'Campuran (Tunai dan Qriss)'];
+  var PAYMENT_METHODS = ['Cash', 'QRIS', 'Transfer Bank'];
 
   /*
      Terima nilai opsional dari payload dan pastikan ia salah satu dari daftar
@@ -105,6 +105,13 @@
      60 hari dihitung dari tanggal nota diterbitkan (bukan dari tanggal nota
      dibuat, dan bukan dari tanggal pembayaran).
   */
+  /* Lama garansi dari label pilihan. "Non Garansi" (dan apa pun yang tidak
+     dikenali) berarti tanpa batas waktu, jadi 0. */
+  function hariGaransi(label) {
+    var m = String(label == null ? '' : label).match(/(\d+)/);
+    return m ? parseInt(m[1], 10) : 0;
+  }
+
   var WARRANTY_NOTE_DAYS = 60;
 
   /*
@@ -582,7 +589,7 @@
      jalan nomor yang terlewat tidak akan dipakai ulang dan tidak akan ada
      dua nota dengan nomor sama.
   */
-  function issueWarrantyNote(orderId) {
+  function issueWarrantyNote(orderId, warranty) {
     var db = load();
     var row = db.orders.filter(function (x) { return x.id === orderId; })[0];
     if (!row) throw notFound('Nota tidak ditemukan');
@@ -613,8 +620,11 @@
     row.warrantyNote = {
       number: number,
       issuedAt: now,
-      warrantyDays: WARRANTY_NOTE_DAYS,
-      warrantyUntil: addDaysIso(now, WARRANTY_NOTE_DAYS),
+      // Garansi dibaca dari label yang dipilih, bukan angka tetap. Non garansi
+      // berarti warrantyUntil null: nota dibuka selamanya, bukan kedaluwarsa.
+      warrantyDays: hariGaransi(warranty),
+      warrantyUntil: hariGaransi(warranty) > 0
+        ? addDaysIso(now, hariGaransi(warranty)) : null,
       token: makeNoteToken(),
       revokedAt: null
     };
@@ -1457,11 +1467,11 @@
     }
 
     var warranty = normOpt(p.warranty, WARRANTY_OPTIONS, 'Garansi');
-    if (!warranty) throw bad('Pilih garansi lebih dulu (30 Hari, 60 Hari, atau Non Garansi).');
+    if (!warranty) throw bad('Pilih garansi lebih dulu (7 Hari, 30 Hari, 60 Hari, atau Non Garansi).');
     var payMethod = normOpt(
       p.payment_method != null ? p.payment_method : p.paymentMethod,
       PAYMENT_METHODS, 'Metode pembayaran');
-    if (!payMethod) throw bad('Pilih metode pembayaran lebih dulu (Tunai, Qriss, atau Campuran).');
+    if (!payMethod) throw bad('Pilih metode pembayaran lebih dulu (Cash, QRIS, atau Transfer Bank).');
 
     var row = db.orders.filter(function (x) { return x.id === orderId; })[0];
     var now = nowIso();
@@ -1476,7 +1486,16 @@
     // tercatat ke Project Nava. Idempoten.
     settleBankOnTaken(orderId);
     syncJasaToNava(orderId);
-    return computeOrder(row);
+
+    // Nota garansi diterbitkan tepat saat nota ditutup, memakai garansi yang
+    // baru saja dipilih. Tanpa ini, tombol submit hanya mengubah status dan
+    // pelanggan tidak pernah menerima nota sama sekali.
+    var note = null;
+    try { note = issueWarrantyNote(orderId, warranty).note; } catch (e) { note = null; }
+
+    var hasil = computeOrder(row);
+    hasil.note = note;
+    return hasil;
   }
 
   function removePayment(paymentId) {
@@ -1889,7 +1908,7 @@
       if (method === 'DELETE') return out({ deleted: deleteOrder(id) });
     }
     if (len === 3 && r[0] === 'services' && sub === 'issue-note' && method === 'POST') {
-      var iss = issueWarrantyNote(id);
+      var iss = issueWarrantyNote(id, body && body.warranty);
       return out({ note: iss.note, reused: !!iss.reused });
     }
     if (len === 3 && r[0] === 'services' && sub === 'revoke-note' && method === 'POST') {

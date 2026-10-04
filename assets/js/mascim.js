@@ -225,6 +225,7 @@
         '<div class="mc-pgrid">' + dots + '</div>' +
         '<div class="mc-phint" id="fPatHint">Ketuk lalu tarik untuk menggambar pola</div>' +
       '</div>' +
+      '<button type="button" class="mc-primary full" id="fPatSave">Simpan Pola</button>' +
     '</div>';
   }
 
@@ -507,7 +508,7 @@
     return {
       customer_name: '', whatsapp: '', device: '', complaint: '', seri_lain: '',
       intake_condition: '',
-      screen_lock_type: 'Tanpa Kunci', screen_lock_secret: '',
+      screen_lock_type: 'Tanpa Kunci', screen_lock_secret: '', screenLockSaved: false,
       handling: '', total_cost: '', service_status: INITIAL_STATUS,
       parts: [],
     };
@@ -1139,9 +1140,18 @@
       // pernah muncul untuk pola.
       var patSecret = $('#fPatSecret');
       var isi = ((patSecret ? patSecret.value : (lockIn ? lockIn.value : '')) || '').trim();
-      // Kolom hanya tampil kalau ada kunci yang dipilih DAN belum diisi.
-      wrap.classList.toggle('mc-none', tipe === 'Tanpa Kunci' || !!isi);
-      if (lockOk) lockOk.hidden = !isi;
+      // Dua jenis kunci punya aturan berbeda, dan dicampur jadi satu akan
+      // merusak salah satunya:
+      //  - PIN / Password: disembunyikan begitu terisi, seperti diminta.
+      //  - Pola: TIDAK cukup digambar, harus disimpan lewat tombol dulu.
+      //    Kalau langsung disembunyikan begitu ada isi, pola yang baru
+      //    digambar hilang sebelum sempat dilihat.
+      var terisi = tipe !== 'Tanpa Kunci' && !!isi;
+      var sudahBenar = tipe === 'Pola'
+        ? !!M.draft.screenLockSaved
+        : terisi;
+      wrap.classList.toggle('mc-none', !sudahBenar);
+      if (lockOk) lockOk.hidden = !sudahBenar;
     }
 
     for (var ci = 0; ci < chips.length; ci++) {
@@ -1182,7 +1192,23 @@
     if (pat && patSecret) {
       pat.addEventListener('patternchange', function () {
         M.draft.screen_lock_secret = patSecret.value || '';
+        // Digambar BUKAN tersimpan. Area tetap terbuka sampai tombol Simpan
+        // ditekan.
+        M.draft.screenLockSaved = false;
         syncLockUI();
+      });
+    }
+
+    // Tombol Simpan pola: satu-satunya cara menutup area pola, dan berlaku
+    // di status apa pun karena area ini milik field kunci layar.
+    var patSave = $('#fPatSave');
+    if (patSave) {
+      patSave.addEventListener('click', function () {
+        var secret = $('#fPatSecret');
+        if (!secret || !secret.value) { alertErr('Gambar pola dulu'); return; }
+        M.draft.screen_lock_secret = secret.value;
+        M.draft.screenLockSaved = true;
+        render();
       });
     }
     syncLockUI();
@@ -1597,7 +1623,7 @@
     }
 
     // Pembayaran hanya bisa dicatat saat garapan sudah "Done".
-    // Alurnya satu tombol besar di bawah (lihat #dNext):
+    // Alurnya satu dropdown status di bawah.
     //   Progress -> Done -> Catat Pembayaran -> (lunas) Konfirmasi -> Diambil
     if (payIsLocked) {
       html += '<p class="mc-hint sm">Pembayaran dicatat setelah garapan ditandai <b>Done</b>.' +
@@ -1667,19 +1693,11 @@
         '</button>';
     }
 
-    // Aksi. Satu tombol besar "#dNext" yang selalu melakukan langkah berikutnya
+    // Aksi. Hanya dropdown "Ubah Status"
     // sesuai status nota (lihat flowOf). Jadi tidak ada lagi tebakan "tombol
-    // mana yang harus saya tekan". Di bawahnya tombol sekunder: dropdown status
-    // lengkap, edit data, dan hapus.
+    // mana yang harus saya tekan". Di bawahnya dropdown status lengkap dan
+    // tombol edit data.
     var statusOpts = STATUS_TRANS[o.serviceStatus] || [];
-    var nextLabel = flow.label;
-    var nextSub = {
-      done: 'garapan sudah selesai, belum diambil',
-      bayar: 'catat DP atau pelunasan',
-      konfirmasi: 'pilih garansi & metode bayar, lalu tutup nota',
-      'taken-cancel': 'tandai nota batal & sudah diambil',
-      status: 'pilih status yang benar dulu',
-    }[flow.kode] || '';
 
     // Penanganan hanya muncul ketika nota sudah berstatus Done. Field ini
     // sengaja tidak ada di form Tambah/Edit karena saat membuat nota statusnya
@@ -1694,15 +1712,12 @@
         '<button class="mc-ghost-btn" id="dHandleSave" style="margin-bottom:10px">Simpan Penanganan</button>';
     }
 
-    html += '<div class="mc-sec">Aksi</div>';
-    // Nota yang sudah final tidak punya langkah berikutnya, jadi tombolnya
-    // benar-benar dinonaktifkan (bukan hanya berwarna abu-abu) — supaya jelas
-    // tidak ada aksi yang bisa dilakukan lagi.
-    var isFinal = flow.kode === 'selesai' || flow.kode === 'batal';
-    html += '<button class="mc-next ' + (flow.tone || '') + '" id="dNext"' + (isFinal ? ' disabled' : '') + '>' +
-      esc(nextLabel) + (nextSub ? ' <em>\u00b7 ' + esc(nextSub) + '</em>' : '') + '</button>';
-
-    html += '<div class="mc-acts" style="margin-top:8px">' +
+    // Tombol aksi besar ("Selesaikan Garapan", "Catat Pembayaran") dan tombol
+    // Hapus sudah dihapus di SEMUA status. Status hanya berubah lewat dropdown
+    // "Ubah Status" di bawah, supaya tidak ada lagi dua jalan mengubah status
+    // yang bisa berbeda satu sama lain.
+    html += '<div class="mc-sec">Ubah Status</div>';
+    html += '<div class="mc-acts">' +
       '<div class="mc-drop" id="dStatusDrop">' +
         '<button class="mc-ghost-btn" id="dStatusBtn">Ubah Status \u25be</button>' +
         (statusOpts.length
@@ -1713,7 +1728,6 @@
           : '<div class="mc-dropmenu"><span class="mc-hint sm">Status sudah final.</span></div>') +
       '</div>' +
       '<button class="mc-ghost-btn" id="dEdit">Edit Data</button>' +
-      '<button class="mc-ghost-btn danger" id="dDelete">Hapus</button>' +
     '</div>';
 
     html += '</div>';
@@ -1726,7 +1740,7 @@
   }
 
   // Ubah status nota. Dipakai oleh dropdown "Ubah Status" dan oleh tombol
-  // utama #dNext, jadi keduanya lewat satu jalur yang sama (satu tempat
+  // dari dropdown "Ubah Status", jadi semuanya lewat satu jalur yang sama (satu tempat
   // untuk validasi, pesan sukses, dan penanganan error).
   function applyStatus(orderId, want) {
     api('POST', '/api/mascim/services/' + encodeURIComponent(orderId) + '/status',
@@ -1796,21 +1810,16 @@
       if (!st) return;
       var want = st.dataset.st;
       statusMenu.style.display = '';
+      // Menutup nota jadi "Done Diambil" tidak langsung mengubah status:
+      // garansi dan metode pembayaran harus dipilih dulu lewat sheet, dan
+      // tombol submit di sheet itulah yang benar-benar menutup nota. Jadi
+      // tidak ada nota "Done Diambil" yang tanpa garansi.
+      if (want === 'Done Diambil') { openConfirmSheet(); return; }
       applyStatus(o.id, want);
     });
 
-    // Tombol utama "#dNext": melakukan satu langkah berikutnya sesuai status
-    // nota. Tidak ada sheet yang muncul dengan sendirinya — semua terjadi
-    // karena user menekan tombol yang memang dia minta.
-    var nextBtn = $('#dNext');
-    if (nextBtn) nextBtn.addEventListener('click', function () {
-      var kode = flowOf(M.current).kode;
-      if (kode === 'done') applyStatus(M.current.id, 'Done');
-      else if (kode === 'konfirmasi') openConfirmSheet();
-      else if (kode === 'taken-cancel') applyStatus(M.current.id, 'Cancel Diambil');
-      else if (kode === 'bayar') openPaySheet();
-      else if (kode === 'status') { var b = $('#dStatusBtn'); if (b) b.click(); }
-    });
+    // Tombol aksi besar dihapus: perubahan status hanya lewat dropdown
+    // "Ubah Status", jadi tidak ada dua jalur yang bisa berbeda.
 
     // Tombol "Edit Data" membuka form isian nota.
     var editBtn = $('#dEdit');
@@ -1873,48 +1882,7 @@
     var partBtn = $('#dAddPart');
     if (partBtn) partBtn.addEventListener('click', function () { openPartSheet(); });
 
-    var delBtn = $('#dDelete');
-    if (delBtn) delBtn.addEventListener('click', function () {
-      var orderId = M.current.id;
-      var nomor = M.current.noteNumber;
-      api('GET', '/api/mascim/services/' + encodeURIComponent(orderId) + '/can-delete')
-        .then(function (r) {
-          var c = r.check;
-          if (!c.allowed) { alertErr(c.reason || 'Nota ini tidak bisa dihapus'); return; }
-          // Konfirmasi lewat sheet. App.confirm tidak tersedia di app ini,
-          // jadi pakai sheetOrWarn supaya selalu ada dua pilihan jelas.
-          sheetOrWarn('Hapus Nota #' + nomor,
-            '<p class="mc-hint">Nota <b>#' + esc(nomor) + '</b> akan dihapus permanen. ' +
-            'Tindakan ini tidak bisa dibatalkan.</p>',
-            function (body) {
-              var row = document.createElement('div');
-              row.style.display = 'grid';
-              row.style.gridTemplateColumns = '1fr 1fr';
-              row.style.gap = '8px';
-              row.style.marginTop = '12px';
-
-              var btnBatal = document.createElement('button');
-              btnBatal.className = 'mc-ghost-btn';
-              btnBatal.textContent = 'Batal';
-              btnBatal.addEventListener('click', function () { tutupSheet(); });
-
-              var btnYa = document.createElement('button');
-              btnYa.className = 'mc-primary';
-              btnYa.textContent = 'Hapus';
-              btnYa.addEventListener('click', function () {
-                tutupSheet();
-                api('DELETE', '/api/mascim/services/' + encodeURIComponent(orderId))
-                  .then(function () { toast('Nota dihapus'); M.view = 'list'; M.current = null; reload(); })
-                  .catch(function (e) { alertErr(e.message); });
-              });
-
-              row.appendChild(btnBatal);
-              row.appendChild(btnYa);
-              body.appendChild(row);
-            });
-        })
-        .catch(function (e) { alertErr(e.message); });
-    });
+    // Tombol Hapus dihapus di semua status.
   }
 
   // Menutup sheet dengan aman. Semua aksi Simpan memanggil ini; kalau w.App
@@ -2090,7 +2058,13 @@
     lines.push('');
     lines.push('Total biaya: ' + rupiah(wn.totalCost));
     if (wn.paidAt) lines.push('Tanggal lunas: ' + tglJam(wn.paidAt));
-    lines.push('Masa garansi: ' + wn.warrantyDays + ' hari (sampai ' + tglJam(wn.warrantyUntil) + ')');
+    if (wn.warrantyDays > 0) {
+      lines.push('Masa garansi: ' + wn.warrantyDays + ' hari (sampai ' + tglJam(wn.warrantyUntil) + ')');
+    } else {
+      // Non garansi berarti link tanpa batas waktu. Menuliskan "0 hari"
+      // akan disalahartikan sebagai kedaluwarsa.
+      lines.push('Masa garansi: tanpa batas waktu (non garansi)');
+    }
     lines.push('');
     lines.push('Lihat nota (baca saja):');
     // Ke pelanggan dikirim link mandiri, karena hanya itu yang bisa dibuka
@@ -2465,10 +2439,17 @@
           tutupSheet();
           api('POST', '/api/mascim/services/' + encodeURIComponent(M.current.id) + '/confirm-taken',
             { warranty: war, payment_method: met })
-            .then(function () {
+            .then(function (r) {
+              var svc = r.service || {};
+              M.current = svc;
               toast('Nota selesai — Done Diambil');
               loadDetail(M.current.id);
               reload();
+              // Nota langsung dikirim ke WhatsApp pelanggan. Submit menjadi
+              // satu-satunya jalan, jadi tidak ada lagi langkah "kirim nota"
+              // yang bisa terlupa.
+              if (svc.note) bagikanWhatsapp(svc.note);
+              else alertErr('Nota ditutup, tapi nota garansi gagal terbit');
             })
             .catch(function (e) { alertErr(e.message); });
         });

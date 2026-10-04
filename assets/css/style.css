@@ -1831,3 +1831,6 @@ select.mc-inp{ appearance:none; }
 /* Tombol bagikan ke Telegram: penuh satu baris agar mudah ditekuk. */
 .share-wrap{ display:block; }
 .btn.full{ display:flex; width:100%; }
+
+/* Tombol Simpan Pola di bawah area gambar. */
+.mc-pat-wrap .mc-primary.full{ width:100%; margin-top:10px; }
