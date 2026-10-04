@@ -1076,11 +1076,17 @@
       intake_condition: patch.intake_condition != null ? patch.intake_condition
         : (patch.intakeCondition != null ? patch.intakeCondition : cur.intakeCondition),
       screen_lock_type: patch.screen_lock_type != null ? patch.screen_lock_type : cur.screenLockType,
+      // Kunci hanya berubah kalau klien memang mengirimkannya. Sebelumnya
+      // kunci yang tidak disebut ikut menjadi string kosong, sehingga setiap
+      // PATCH sebagian — misalnya hanya penanganan — menghapus kunci layar
+      // yang sudah tersimpan lalu ditolak karena "kunci wajib diisi".
       screen_lock_secret: patch.screen_lock_secret != null ? patch.screen_lock_secret
-        : (patch.screen_lock_type && patch.screen_lock_type !== 'Tanpa Kunci' ? cur.screenLockSecret : ''),
+        : (patch.screen_lock_type === 'Tanpa Kunci' ? '' : cur.screenLockSecret),
       handling: patch.handling != null ? patch.handling : cur.handling,
       total_cost: patch.total_cost != null ? patch.total_cost : cur.totalCost,
-      payment_status: patch.payment_status != null ? patch.payment_status : 'Belum Bayar',
+      // Status pembayaran lama harus bertahan kalau tidak dikirim ulang;
+      // sebelumnya PATCH penanganan ikut mem resetting nota yang sudah lunas.
+      payment_status: patch.payment_status != null ? patch.payment_status : cur.paymentStatus,
       received_at: patch.received_at != null ? patch.received_at : cur.receivedAt
     });
 

@@ -1884,16 +1884,38 @@
         // dan biaya pun tidak bisa dipertanggungjawabkan ke pelanggan.
         // Ditahan di sini, bukan hanya di lapisan data, supaya sheet garansi tidak
         // pernah terbuka untuk nota yang belum lengkap.
-        var handling = (o.handling || '').trim();
-        if (!handling) {
+        // Yang dibaca adalah kolom yang SEDANG diketik, bukan salinan nota
+        // di memori. Kolom bisa sudah berisi teks sementara catatannya masih
+        // kosong karena simpan otomatisnya belum selesai; membaca yang lama
+        // membuat penanganan yang sudah diketik tetap dianggap kosong.
+        var el = $('#dHandling');
+        var ketik = el ? el.value.trim() : '';
+        var tersimpan = (o.handling || '').trim();
+        if (!ketik && !tersimpan) {
           alertErr('Penanganan wajib diisi sebelum status diubah ke Done Diambil.\n\n' +
             'Tulis dulu apa yang dikerjakan pada nota ini — kolomnya ada di ' +
             'bagian "Biaya & Penanganan" pada layar ini.');
           statusMenu.style.display = 'none';
-          var hEl = $('#dHandling');
-          if (hEl) { hEl.focus(); hEl.scrollIntoView({ block: 'center' }); }
+          if (el) { el.focus(); el.scrollIntoView({ block: 'center' }); }
           return;
         }
+        // Tombol status bisa ditekan sebelum blur sempat menyimpan. Simpan
+        // dulu, baru buka sheet — kalau tidak, nota bisa tertutup tanpa
+        // penanganan ikut tersimpan.
+        if (ketik && ketik !== tersimpan) {
+          statusMenu.style.display = 'none';
+          api('PATCH', '/api/mascim/services/' + encodeURIComponent(M.id), { handling: ketik })
+            .then(function () {
+              return loadDetail(M.id).catch(function () { return null; });
+            })
+            .then(function () { openConfirmSheet(); })
+            .catch(function (err) {
+              alertErr('Gagal menyimpan penanganan: ' + (err && err.message || err));
+              statusMenu.style.display = '';
+            });
+          return;
+        }
+        statusMenu.style.display = 'none';
         openConfirmSheet();
         return;
       }
