@@ -939,7 +939,10 @@ select.mc-inp{ appearance:none; }
          letter-spacing:.6px; margin:16px 0 8px; font-weight:700; }
 .mc-sec-note{ text-transform:none; letter-spacing:0; font-weight:400; opacity:.8; }
 .mc-parts{ display:grid; gap:6px; margin-bottom:8px; }
-.mc-part{ display:grid; grid-template-columns:1fr 90px 34px; gap:5px; align-items:center; }
+.mc-part{ display:grid; grid-template-columns:1fr 1fr 34px; gap:5px; align-items:center; }
+/* Kolom modal dibuat setinggi kolom nama supaya keduanya benar-benar
+   sama, bukan hanya sama lebar. */
+.mc-part .mc-inp{ width:100%; min-width:0; }
 .mc-x{
   height:40px; border:1px solid var(--mc-line); border-radius:10px;
   background:transparent; color:var(--mc-red); font-size:15px; cursor:pointer;
@@ -948,6 +951,17 @@ select.mc-inp{ appearance:none; }
 .mc-calc>div{ display:flex; justify-content:space-between; padding:9px 12px; font-size:13px; }
 .mc-calc>div+div{ border-top:1px solid var(--mc-line); }
 .mc-calc span{ color:var(--mc-txt2); }
+/* Total Biaya duduk di kotak yang sama dengan dua baris lain, tapi
+   nilainya tetap berupa input supaya masih bisa dikoreksi manual dan
+   Perkiraan Jasa ikut berubah. Inputnya dibuat transparan dan
+   tanpa garis, sehingga bentuknya nampak sama dari nilai yang
+   hanya bisa dibaca. */
+.mc-calc b.mc-edit{ font-weight:700; }
+.mc-calc .mc-in-edit{
+  width:96px; text-align:right; background:transparent; border:none;
+  color:inherit; font:inherit; font-weight:700; padding:0;
+}
+.mc-calc .mc-in-edit:focus{ outline:none; color:var(--mc-accent,#2ea043); }
 .mc-warn{
   background:#2a1f10; border:1px solid #6b4a17; color:#ffcf8f;
   border-radius:10px; padding:10px 12px; font-size:13px; margin:0 0 10px;
@@ -1077,7 +1091,14 @@ select.mc-inp{ appearance:none; }
 .mc-pat-wrap { margin-top: 4px; }
 .mc-pat {
   position: relative;
+  /* Tinggi ditulis langsung, bukan hanya lewat aspect-ratio. WebView
+     Telegram di sebagian Android lama tidak mengenal aspect-ratio, dan
+     karena itu div ini jadi berlebar tanpa tinggi — anak-anaknya yang
+     memakai height:100% ikut jadi nol dan area pola tidak terlihat sama
+     sekali. Tinggi eksplisit membuat tampilan tidak bergantung pada
+     dukungan aspect-ratio. */
   width: min(72vw, 260px);
+  height: min(72vw, 260px);
   aspect-ratio: 1;
   margin: 0 auto;
   touch-action: none;

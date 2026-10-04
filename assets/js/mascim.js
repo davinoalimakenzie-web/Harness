@@ -597,11 +597,16 @@
     }
     html += '<button class="mc-ghost-btn" id="fAddPart">+ Tambah Sparepart</button>';
 
-    // Biaya
-    html += field('Total Biaya (boleh kosong)', '<input class="mc-inp" id="fTotal" inputmode="numeric" value="' + esc(d.total_cost) + '" placeholder="0">');
+    // Biaya. Ketiganya satu kotak dengan gaya sama supaya tidak terlihat
+    // seperti kolom isian yang kebetulan berada di antara dua angka hasil
+    // hitungan.
+    // Total Biaya tetap berupa input supaya masih bisa dikoreksi manual.
     html += '<div class="mc-calc">' +
-      '<div><span>Total Modal Part</span><b>' + rupiah(modal) + '</b></div>' +
-      '<div><span>Perkiraan Jasa</span><b class="' + (warn ? 'neg' : 'pos') + '">' + rupiah(jasa) + '</b></div>' +
+      '<div><span>Total Biaya</span><b class="mc-edit">' +
+        '<input class="mc-in-edit" id="fTotal" inputmode="numeric" placeholder="0" value="' + esc(d.total_cost) + '">' +
+      '</b></div>' +
+      '<div><span>Total Modal Part</span><b id="calcModal">' + rupiah(modal) + '</b></div>' +
+      '<div><span>Perkiraan Jasa</span><b id="calcJasa" class="' + (warn ? 'neg' : 'pos') + '">' + rupiah(jasa) + '</b></div>' +
     '</div>';
     if (warn) {
       html += '<p class="mc-warn">Total modal sparepart lebih besar dari total biaya. Periksa datanya sebelum menyimpan.</p>';
@@ -637,9 +642,6 @@
       '</div>' +
       '</div>';
 
-    // Penanganan
-    html += field('Penanganan (opsional)',
-      '<textarea class="mc-inp" id="fHandling" rows="2" placeholder="Diisi setelah pemeriksaan / pengerjaan">' + esc(d.handling) + '</textarea>');
 
     // Status
     // Tidak ada pilihan status di form tambah service. Nota baru SELALU
@@ -715,7 +717,9 @@
     var chipOn = $('#fLockChips .on');
     d.screen_lock_type = chipOn ? chipOn.dataset.lock : 'Tanpa Kunci';
     d.screen_lock_secret = ($('#fSecret') || {}).value || '';
-    d.handling = ($('#fHandling') || {}).value || '';
+    // Penanganan TIDAK lagi diambil di form ini. Kolomnya hanya muncul di
+    // layar Detail dan hanya ketika status sudah Done, jadi di sini
+    // nilai lama dibiarkan apa adanya supaya tidak terhapus oleh edit lain.
     d.total_cost = ($('#fTotal') || {}).value || '';
     // Status tidak bisa dipilih di form: selalu Progress untuk nota baru,
     // dan saat mengedit status lama nota tidak ikut berubah karena field ini
@@ -901,10 +905,16 @@
         return a + (parseInt(String(p.capital_cost).replace(/\D/g, ''), 10) || 0);
       }, 0);
     var jasa = total - modal;
-    box.innerHTML =
-      '<div><span>Total Modal Part</span><b>' + rupiah(modal) + '</b></div>' +
-      '<div><span>Perkiraan Jasa</span><b class="' + (jasa < 0 ? 'neg' : 'pos') + '">' +
-      rupiah(jasa) + '</b></div>';
+    // Hanya dua nilai yang dihitung ulang. Kotak ini TIDAK ditulis ulang
+    // dengan innerHTML, karena input #fTotal ada di dalam kotak yang sama
+    // dan akan ikut terhapus beserta angka yang sedang diketik.
+    var elModal = box.querySelector('#calcModal');
+    var elJasa = box.querySelector('#calcJasa');
+    if (elModal) elModal.textContent = rupiah(modal);
+    if (elJasa) {
+      elJasa.textContent = rupiah(jasa);
+      elJasa.className = (jasa < 0 ? 'neg' : 'pos');
+    }
   }
 
   function bindPemilihHarga() {
@@ -1614,6 +1624,19 @@
       status: 'pilih status yang benar dulu',
     }[flow.kode] || '';
 
+    // Penanganan hanya muncul ketika nota sudah berstatus Done. Field ini
+    // sengaja tidak ada di form Tambah/Edit karena saat membuat nota statusnya
+    // masih Progress dan penanganan belum ada artinya; kolomnya dimunculkan
+    // di sini begitu pengerjaan dinyatakan selesai.
+    if (o.serviceStatus === 'Done') {
+      html += '<div class="mc-sec">Penanganan</div>' +
+        '<div class="mc-lockwrap mc-none" id="dHandWrap">' +
+          '<textarea class="mc-inp" id="dHandling" rows="2" placeholder="Contoh: ganti LCD, ganti baterai, bersihkan bagian dalam">' +
+            esc(o.handling || '') + '</textarea>' +
+        '</div>' +
+        '<button class="mc-ghost-btn" id="dHandleSave" style="margin-bottom:10px">Simpan Penanganan</button>';
+    }
+
     html += '<div class="mc-sec">Aksi</div>';
     // Nota yang sudah final tidak punya langkah berikutnya, jadi tombolnya
     // benar-benar dinonaktifkan (bukan hanya berwarna abu-abu) — supaya jelas
@@ -1659,6 +1682,28 @@
   }
 
   function bindDetail() {
+    // Simpan penanganan. Kolomnya hanya ada saat status Done, jadi
+    // elemennya dicek null lebih dulu sebelum dipakai.
+    var handBtn = $('#dHandleSave');
+    if (handBtn) {
+      handBtn.addEventListener('click', function () {
+        var ta = $('#dHandling');
+        if (!ta) return;
+        var val = ta.value.trim();
+        handBtn.disabled = true;
+        api('PATCH', '/api/mascim/services/' + encodeURIComponent(M.id), { handling: val })
+          .then(function (r) {
+            handBtn.disabled = false;
+            if (M.current) M.current.handling = r.service ? r.service.handling : val;
+            toast('Penanganan tersimpan');
+            loadDetail(M.id);
+          })
+          .catch(function (err) {
+            handBtn.disabled = false;
+            alertErr('Gagal menyimpan penanganan: ' + (err && err.message || err));
+          });
+      });
+    }
     var s = screen();
     var o = M.current;
 

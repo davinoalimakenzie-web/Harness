@@ -22,8 +22,9 @@
   var App = {
     view: 'home',
 
-    // Dipakai juga oleh auto-export Mas Cim.
+    // Dipakai juga oleh auto-export Mas Cim dan tombol Bagikan.
     exportJSON: exportJSON,
+    bagikanKeTelegram: bagikanKeTelegram,
 
     toast: function (msg, ms) {
       var t = $('#toast');
@@ -279,7 +280,9 @@
      Tambahan "mascim" kunci baru, importJSON mengabaikannya sehingga
      file lama tetap bisa diimpor.
      senyap = dipanggil otomatis, tidak perlu toast manual. */
-  function exportJSON(senyap) {
+  /* Susun file backup. Dipakai oleh dua jalur: unduh ke HP, dan bagikan
+     ke chat Telegram lewat share sheet. */
+  function backupFile() {
     var obj = JSON.parse(S.Data.exportJSON());
     var adaMascim = false;
     try {
@@ -288,22 +291,75 @@
         adaMascim = true;
       }
     } catch (e) {}
-    var stamp = new Date();
+    var t = new Date();
     var fname = 'backup-nava-' + S.todayStr() + '-' +
-      [stamp.getHours(), stamp.getMinutes(), stamp.getSeconds()]
+      [t.getHours(), t.getMinutes(), t.getSeconds()]
         .map(function (n) { return String(n).padStart(2, '0'); }).join('') + '.json';
-    var blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
-    var url = URL.createObjectURL(blob);
+    return {
+      nama: fname,
+      adaMascim: adaMascim,
+      blob: new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' })
+    };
+  }
+
+  /* Unduh file ke penyimpanan HP. */
+  function exportJSON(senyap) {
+    var f = backupFile();
+    var url = URL.createObjectURL(f.blob);
     var a = document.createElement('a');
     a.href = url;
-    a.download = fname;
+    a.download = f.nama;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
     TG.haptic('success');
     App.toast(senyap
       ? 'Backup otomatis ke HP (nota ke-' + (S.Data.state.notes || []).length + ')'
-      : 'Backup JSON diunduh' + (adaMascim ? ' + Mas Cim' : ''));
+      : 'Backup JSON diunduh' + (f.adaMascim ? ' + Mas Cim' : ''));
   }
+
+  /* Bagikan file backup ke chat Telegram.
+
+     Aplikasi ini berjalan sepenuhnya di dalam WebView dan tidak punya
+     backend, jadi tidak ada jalur untuk mengirim file ke chat
+     secara otomatis. Yang bisa dilakukan adalah share sheet Android: di sana
+     Telegram muncul sebagai tujuan, dan file yang dikirim langsung masuk
+     ke chat tersimpan di cloud — bukan sekadar file di perangkat yang
+     hilang bersama uninstall.
+
+     navigator.canShare + navigator.share hanya tersedia di konteks aman
+     dan tidak ada di semua WebView; kalau tidak tersedia, jatuh ke
+     unduh biasa. */
+  function bagikanKeTelegram() {
+    var f = backupFile();
+    var file = null;
+    try { file = new File([f.blob], f.nama, { type: 'application/json' }); }
+    catch (e) { file = null; }
+
+    var bisa = false;
+    try {
+      bisa = !!(navigator.canShare && navigator.share && file &&
+        navigator.canShare({ files: [file] }));
+    } catch (e) { bisa = false; }
+
+    if (!bisa) {
+      exportJSON(false);
+      App.toast('Bagikan file belum tersedia di sini — backup diunduh ke HP');
+      return;
+    }
+    navigator.share({
+      files: [file],
+      title: 'Backup ' + S.todayStr(),
+      text: 'Backup data servis ' + S.todayStr()
+    }).then(function () {
+      TG.haptic('success');
+      App.toast('Kirim ke Telegram — pilih Telegram lalu kirim');
+    }).catch(function (e) {
+      // pengguna menutup share sheet: bukan error
+      if (e && e.name === 'AbortError') return;
+      App.toast('Gagal membagikan: ' + ((e && e.message) || e));
+    });
+  }
+
 
   function importJSON(file) {
     var reader = new FileReader();
