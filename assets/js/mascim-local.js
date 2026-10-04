@@ -1471,6 +1471,11 @@
     if (order.remaining > 0) {
       throw bad('Pembayaran belum lunas. Sisa tagihan: ' + order.remaining + '.');
     }
+    // Pengaman lapis kedua: antarmuka sudah menahan lebih dulu, tapi aturan ini
+    // berlaku untuk jalur mana pun yang mencapai pengambilan nota.
+    if (!((order.handling || '') + '').trim()) {
+      throw bad('Penanganan wajib diisi lebih dulu sebelum nota ditutup.');
+    }
 
     var warranty = normOpt(p.warranty, WARRANTY_OPTIONS, 'Garansi');
     if (!warranty) throw bad('Pilih garansi lebih dulu (7 Hari, 30 Hari, 60 Hari, atau Non Garansi).');

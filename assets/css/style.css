@@ -1845,3 +1845,15 @@ select.mc-inp{ appearance:none; }
   display:block; font-size:10.5px; letter-spacing:.3px;
   text-transform:uppercase; opacity:.6; margin-bottom:1px;
 }
+
+/* Tombol buka/tutup isi kunci layar. Sengaja bukan .mc-hide: kelas itu
+   tidak ada di berkas ini, sehingga tombolnya tak pernah terlihat. */
+.mc-locktoggle {
+  display: block; width: 100%;
+  margin: 8px 0 0; padding: 10px 12px;
+  background: var(--mc-line, #223); color: var(--mc-dim, #9aa);
+  border: 1px solid var(--mc-line, #223); border-radius: 10px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: inherit;
+}
+.mc-locktoggle:active { background: #1a1f27; }

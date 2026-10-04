@@ -521,6 +521,9 @@
       customer_name: '', whatsapp: '', device: '', complaint: '', seri_lain: '',
       intake_condition: '',
       screen_lock_type: 'Tanpa Kunci', screen_lock_secret: '', screenLockSaved: false,
+      // Status buka/tutup area kunci disimpan di draft, bukan di DOM,
+      // supaya bertahan meski form digambar ulang.
+      lockHidden: false,
       handling: '', total_cost: '', service_status: INITIAL_STATUS,
       parts: [],
     };
@@ -656,12 +659,15 @@
           esc(t) + '</button>';
       }).join('') +
       '</div>' +
+      '<button type="button" class="mc-locktoggle" id="fLockToggle">' +
+        (d.lockHidden ? '\u25B8 Tampilkan isi kunci' : '\u25BE Sembunyikan isi kunci') +
+      '</button>' +
       // Kolom isian menyesuaikan jenis kunci. Untuk "Pola" yang yang tampil
       // adalah area gambar, BUKAN kolom teks: memakai kolom teks untuk pola
       // membuat pengguna mengetik angka-angka pola, dan kunci yang digambar
       // tidak pernah ikut terbaca.
       '<div class="mc-lockwrap' +
-          (d.screen_lock_type === 'Tanpa Kunci' || d.screen_lock_secret ? ' mc-none' : '') +
+          (d.screen_lock_type === 'Tanpa Kunci' ? ' mc-none' : '') +
           '" id="fLockWrap">' +
         (d.screen_lock_type === 'Pola'
           ? patternPad(d.screen_lock_secret)
@@ -765,6 +771,10 @@
     var secTeks = $('#fSecret');
     var secPola = $('#fPatSecret');
     d.screen_lock_secret = (secPola ? secPola.value : (secTeks ? secTeks.value : '')) || '';
+    // Status buka/tutup area kunci ikut dibawa, kalau tidak setiap ketukan
+    // pada chip akan membukanya lagi tanpa diminta.
+    var lockToggleNow = $('#fLockToggle');
+    if (lockToggleNow) d.lockHidden = lockToggleNow.textContent.indexOf('Tampilkan') >= 0;
     // Penanganan TIDAK lagi diambil di form ini. Kolomnya hanya muncul di
     // layar Detail dan hanya ketika status sudah Done, jadi di sini
     // nilai lama dibiarkan apa adanya supaya tidak terhapus oleh edit lain.
@@ -1158,12 +1168,20 @@
       //  - Pola: TIDAK cukup digambar, harus disimpan lewat tombol dulu.
       //    Kalau langsung disembunyikan begitu ada isi, pola yang baru
       //    digambar hilang sebelum sempat dilihat.
-      var terisi = tipe !== 'Tanpa Kunci' && !!isi;
-      var sudahBenar = tipe === 'Pola'
-        ? !!M.draft.screenLockSaved
-        : terisi;
-      wrap.classList.toggle('mc-none', !sudahBenar);
-      if (lockOk) lockOk.hidden = !sudahBenar;
+      // Area kunci SELALU terbuka selama jenisnya sudah dipilih. Menyembunyikan
+      // otomatis adalah sumber bug yang berulang: pad disembunyikan selama
+      // belum ada yang tersimpan, padahal tombol Simpan justru berada DI
+      // DALAM pad itu — jadi tidak ada jalan masuk sama sekali.
+      // Sembunyikan hanya lewat tombol yang ditekan pengguna.
+      var tampil = tipe !== 'Tanpa Kunci' && !M.draft.lockHidden;
+      wrap.classList.toggle('mc-none', !tampil);
+      if (lockOk) lockOk.hidden = !(tipe !== 'Tanpa Kunci' && !!isi);
+      var tog = $('#fLockToggle');
+      if (tog) {
+        tog.textContent = M.draft.lockHidden
+          ? '\u25B8 Tampilkan isi kunci'
+          : '\u25BE Sembunyikan isi kunci';
+      }
     }
 
     for (var ci = 0; ci < chips.length; ci++) {
@@ -1173,13 +1191,23 @@
         var aktif = this.classList.contains('on');
         M.draft.screen_lock_type = aktif ? 'Tanpa Kunci' : pilih;
         M.draft.screen_lock_secret = '';
-        // Form digambar ulang, BUKAN hanya mengubah kelas chip._each jenis
+        // Form digambar ulang, BUKAN hanya mengubah kelas chip. Setiap jenis
         // kunci punya isian yang berbeda: PIN dan Password memakai kolom
         // teks, Pola memakai area gambar. Tanpa menggambar ulang, memilih
         // Pola hanya menampilkan kolom teks dan area gambarnya tidak pernah
         // muncul — karena juga bindPatternPad tidak pernah menemukan
         // elemen #fPat untuk dipasangkan.
         render();
+      });
+    }
+
+    // Sembunyikan/tampilkan isi kunci: pilihan pengguna, bukan otomatis, dan
+    // tetap berlaku di status apa pun karena ini milik field kunci layar.
+    var lockToggle = $('#fLockToggle');
+    if (lockToggle) {
+      lockToggle.addEventListener('click', function () {
+        M.draft.lockHidden = !M.draft.lockHidden;
+        syncLockUI();
       });
     }
 
@@ -1850,7 +1878,25 @@
       // garansi dan metode pembayaran harus dipilih dulu lewat sheet, dan
       // tombol submit di sheet itulah yang benar-benar menutup nota. Jadi
       // tidak ada nota "Done Diambil" yang tanpa garansi.
-      if (want === 'Done Diambil') { openConfirmSheet(); return; }
+      if (want === 'Done Diambil') {
+        // Syarat wajib: penanganan harus terisi lebih dulu. Nota yang ditutup
+        // tanpa keterangan pekerjaan tidak bisa ditindaklanjuti Exceptions,
+        // dan biaya pun tidak bisa dipertanggungjawabkan ke pelanggan.
+        // Ditahan di sini, bukan hanya di lapisan data, supaya sheet garansi tidak
+        // pernah terbuka untuk nota yang belum lengkap.
+        var handling = (o.handling || '').trim();
+        if (!handling) {
+          alertErr('Penanganan wajib diisi sebelum status diubah ke Done Diambil.\n\n' +
+            'Tulis dulu apa yang dikerjakan pada nota ini — kolomnya ada di ' +
+            'bagian "Biaya & Penanganan" pada layar ini.');
+          statusMenu.style.display = 'none';
+          var hEl = $('#dHandling');
+          if (hEl) { hEl.focus(); hEl.scrollIntoView({ block: 'center' }); }
+          return;
+        }
+        openConfirmSheet();
+        return;
+      }
       applyStatus(o.id, want);
     });
 
