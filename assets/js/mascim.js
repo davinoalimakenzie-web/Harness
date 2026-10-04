@@ -1531,12 +1531,16 @@
       '</div>' +
     '</div>';
 
+    // No. Nota dan Tanggal Masuk selalu tampil di semua status. Nomor resmi
+    // baru ada setelah nota garansi diterbitkan; sebelum itu yang ditampilkan
+    // adalah ref internal, tetap memakai kolom yang sama.
     html += '<div class="mc-dhead">' +
       '<div class="mc-dnote' + (o.noteIssued ? '' : ' ref') + '"' +
         (o.noteIssued ? '' : ' title="Nomor nota terbit setelah nota garansi diterbitkan"') + '>' +
+        '<span class="mc-dlbl">No. Nota</span>' +
         (o.noteIssued ? '#' + esc(o.noteNumber) : esc(o.internalRef || 'Tanpa ref')) +
       '</div>' +
-      '<div class="mc-dtgl">' + tglJam(o.receivedAt) + '</div>' +
+      '<div class="mc-dtgl"><span class="mc-dlbl">Tanggal Masuk</span>' + tglJam(o.receivedAt) + '</div>' +
       '<div class="mc-dbadges">' + badgeServis(o.serviceStatus) +
         '<span class="mc-badge ' + (o.paymentStatus === 'Lunas' ? 'ok' : o.paymentStatus === 'DP' ? 'warn' : 'neg') + '">' +
         esc(o.paymentStatus) + '</span></div>' +
@@ -1727,7 +1731,8 @@
             }).join('') + '</div>'
           : '<div class="mc-dropmenu"><span class="mc-hint sm">Status sudah final.</span></div>') +
       '</div>' +
-      '<button class="mc-ghost-btn" id="dEdit">Edit Data</button>' +
+      '<button class="mc-ghost-btn" id="dEdit">' +
+        (o.serviceStatus === 'Progress' ? 'Edit Cepat' : 'Edit Data') + '</button>' +
     '</div>';
 
     html += '</div>';
@@ -1750,6 +1755,52 @@
         toast('Status: ' + want);
       })
       .catch(function (er) { alertErr(er.message); });
+  }
+
+  /* Edit cepat untuk nota berstatus Progress.
+
+     Hanya dua kolom yang boleh diubah di tahap ini: penanganan dan total
+     biaya. Memakai form penuh di tahap ini membuka data unit, pelanggan,
+     dan sparepart untuk diubah setelah pekerjaan berjalan, padahal itu
+     sudah selesai dikunci. */
+  function openEditCepat() {
+    var o = M.current;
+    if (!o) return;
+    var total = o.totalCost != null && o.totalCost !== '' ? String(o.totalCost) : '';
+
+    sheetOrWarn('Edit Cepat (Progress)',
+      '<p class="mc-hint">While nota masih <b>Progress</b>, yang bisa diubah hanya ' +
+        'penanganan dan total biaya. Ubah unit, pelanggan, atau sparepart ' +
+        'setelah statusnya berubah.</p>' +
+      '<label class="mc-field"><span class="mc-lbl">Penanganan</span>' +
+        '<textarea class="mc-inp" id="ecHandling" rows="2" placeholder="Contoh: ganti LCD, ganti baterai">' +
+          esc(o.handling || '') + '</textarea></label>' +
+      '<label class="mc-field"><span class="mc-lbl">Total Biaya (Rp)</span>' +
+        '<input class="mc-inp" id="ecTotal" inputmode="numeric" value="' + esc(total) + '" placeholder="0">' +
+        '</label>',
+      function (body) {
+        var b = document.createElement('button');
+        b.className = 'mc-primary';
+        b.style.marginTop = '12px';
+        b.textContent = 'Simpan';
+        b.addEventListener('click', function () {
+          var h = $('#ecHandling');
+          var t = $('#ecTotal');
+          var nTotal = parseInt(String((t ? t.value : '') || '').replace(/\D/g, ''), 10) || 0;
+          b.disabled = true;
+          api('PATCH', '/api/mascim/services/' + encodeURIComponent(o.id),
+            { handling: (h ? h.value : '').trim(), total_cost: nTotal })
+            .then(function (r) {
+              tutupSheet();
+              if (r.service) M.current = r.service;
+              toast('Tersimpan');
+              loadDetail(o.id);
+              reload();
+            })
+            .catch(function (e) { b.disabled = false; alertErr(e.message); });
+        });
+        body.appendChild(b);
+      });
   }
 
   function bindDetail() {
@@ -1824,6 +1875,10 @@
     // Tombol "Edit Data" membuka form isian nota.
     var editBtn = $('#dEdit');
     if (editBtn) editBtn.addEventListener('click', function () {
+      // Selama nota masih Progress, yang boleh diubah hanya penanganan dan
+      // total biaya. Data unit, pelanggan, dan sparepart dikunci di tahap ini
+      // supaya tidak berubah setelah teknisi mulai bekerja.
+      if (M.current && M.current.serviceStatus === 'Progress') { openEditCepat(); return; }
       M.draft = draftFromOrder(M.current);
       M.editing = M.current.id;
       M.view = 'form';
@@ -2074,6 +2129,34 @@
     return lines.join('\n');
   }
 
+  /* Salin teks ke papan klip. navigator.clipboard sering tidak ada di
+     WebView Telegram atau hanya boleh jalan di konteks aman, jadi ada
+     jalur cadangan berbasis textarea. */
+  function salin(teks) {
+    if (!teks) return false;
+    try {
+      if (navigator.clipboard && w.isSecureContext) {
+        navigator.clipboard.writeText(teks);
+        return true;
+      }
+    } catch (e) { /* lanjut ke jalur cadangan */ }
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = teks;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      var ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function bagikanWhatsapp(wn) {
     if (!wn) return;
     if (wn.revoked) { toast('Link sudah dicabut, tidak bisa dibagikan'); return; }
@@ -2081,8 +2164,28 @@
     if (!pesan) return;
     var target = (M.current && M.current.whatsapp) ? waNum(M.current.whatsapp) : '';
     var url = 'https://wa.me/' + (target || '') + '?text=' + encodeURIComponent(pesan);
-    try { w.open(url, '_blank', 'noopener'); }
-    catch (e) { w.open(url, '_blank'); }
+
+    // Membuka wa.me dari WebView bisa ditolak tanpa pesan apa pun, jadi
+    // selalu siapkan jalan kedua: salin pesannya ke papan klip sehingga
+    // teknisi cukup menempelkannya di WhatsApp. Peringatan baru muncul setelah jeda singkat, karena tidak ada
+    // cara pasti mengetahui apakah jendela wa.me benar-benar terbuka.
+    var belumTerbuka = setTimeout(function () {
+      var msg = 'Tidak ada WhatsApp yang terbuka otomatis. '
+        + 'Pesan + link nota sudah disalin — tempel di chat pelanggan.';
+      try { salin(pesan); } catch (e) {}
+      alertErr(msg);
+    }, 2500);
+    var tandai = function () { clearTimeout(belumTerbuka); };
+
+    try {
+      var win = w.open(url, '_blank', 'noopener');
+      if (win) { win.addEventListener('pagehide', tandai); setTimeout(tandai, 2000); }
+      else tandai();
+    } catch (e) {
+      tandai();
+      try { salin(pesan); } catch (e2) {}
+      alertErr('Pesan + link nota sudah disalin — tempel di chat pelanggan.');
+    }
   }
 
   // Cetak / PDF. Cetak ke printer atau simpan jadi PDF lewat dialog cetak

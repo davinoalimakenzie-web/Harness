@@ -1834,3 +1834,9 @@ select.mc-inp{ appearance:none; }
 
 /* Tombol Simpan Pola di bawah area gambar. */
 .mc-pat-wrap .mc-primary.full{ width:100%; margin-top:10px; }
+
+/* Label kecil di header nota: No. Nota dan Tanggal Masuk. */
+.mc-dlbl{
+  display:block; font-size:10.5px; letter-spacing:.3px;
+  text-transform:uppercase; opacity:.6; margin-bottom:1px;
+}
