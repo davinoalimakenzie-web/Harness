@@ -417,9 +417,47 @@
     return '<span class="mc-badge ' + (TONE[s] || 'info') + '">' + esc(s) + '</span>';
   }
 
-  /* =========================================================
+  /* ==========================================================
+     BACKUP OTOMATIS
+     ========================================================== */
+  /* Backup otomatis ke HP setiap 10 nota baru tersimpan.
+
+     Berbeda dengan snapshot berkala, ini menyimpan salinan yang benar-benar
+     keluar dari aplikasi: file JSON yang mendarat di penyimpanan HP. Kalau
+     Telegram dihapus atau cache dibersihkan, localStorage ikut hilang — ini
+     satu-satunya jaring pengaman yang tidak bergantung pada app.
+
+     Penanda disimpan sebagai JUMLAH nota terakhir yang sudah diekspor, bukan
+     sebagai waktu. Kalau app ditutup selama beberapa nota, celah yang hilang
+     tetap ditemukan di buka berikutnya dan langsung diekspor.
+
+     Semua dibungkus try: kegagalan unduhan tidak boleh menggagalkan
+     penyimpanan nota. */
+  var AUTO_EKSPOR_KEY = 'projectnava.autoExport';
+
+  function autoEksporSetiap10() {
+    try {
+      var db = (w.MascimLocal && typeof w.MascimLocal._db === 'function')
+        ? w.MascimLocal._db() : null;
+      if (!db || !Array.isArray(db.orders)) return;
+      var total = db.orders.length;
+      if (!total) return;
+      var last = parseInt(localStorage.getItem(AUTO_EKSPOR_KEY) || '0', 10) || 0;
+      if (total < last + 10) return;
+      // Tandai dulu: kalau unduhan gagal, nota ini tidak diulang
+      // setiap kali ada yang menyimpan berikutnya.
+      localStorage.setItem(AUTO_EKSPOR_KEY, String(total));
+      if (w.App && typeof w.App.exportJSON === 'function') {
+        w.App.exportJSON(true);
+      }
+    } catch (e) {
+      console.warn('mascim: auto-ekspor dilewati', e);
+    }
+  }
+
+  /* ==========================================================
      DAFTAR SERVIS — kartu (bukan tabel), cari & filter
-     ========================================================= */
+     ========================================================== */
   function renderList(s) {
     setBar('Servis');
     var f = M.search.trim();
@@ -1262,7 +1300,11 @@
       // langsung ke buku kontak HP, jadi yang dibuat adalah file vCard
       // (.vcf) — Android/iOS akan menawarinya saat mengimpor. Kalau perangkat
       // mendukung berbagi, file-nya dibagikan agar bisa langsung simpan.
-      if (!wasEdit) simpanKontak(svc);
+      if (!wasEdit) {
+        simpanKontak(svc);
+        // Backup otomatis ke HP setiap 10 nota baru.
+        autoEksporSetiap10();
+      }
 
       if (openAfter) {
         M.view = 'detail';

@@ -22,6 +22,9 @@
   var App = {
     view: 'home',
 
+    // Dipakai juga oleh auto-export Mas Cim.
+    exportJSON: exportJSON,
+
     toast: function (msg, ms) {
       var t = $('#toast');
       t.textContent = msg;
@@ -270,16 +273,36 @@
   }
 
   /* ---------------- Backup ---------------- */
-  function exportJSON() {
-    var blob = new Blob([S.Data.exportJSON()], { type: 'application/json' });
+  /* Export semua: Project Nava + Mas Cim.
+     Versi lama hanya menulis Project Nava, jadi seluruh data Mas Cim
+     hilang dari file backup padahal justru data yang paling cepat bertambah.
+     Tambahan "mascim" kunci baru, importJSON mengabaikannya sehingga
+     file lama tetap bisa diimpor.
+     senyap = dipanggil otomatis, tidak perlu toast manual. */
+  function exportJSON(senyap) {
+    var obj = JSON.parse(S.Data.exportJSON());
+    var adaMascim = false;
+    try {
+      if (w.MascimLocal && typeof w.MascimLocal._db === 'function') {
+        obj.mascim = w.MascimLocal._db();
+        adaMascim = true;
+      }
+    } catch (e) {}
+    var stamp = new Date();
+    var fname = 'backup-nava-' + S.todayStr() + '-' +
+      [stamp.getHours(), stamp.getMinutes(), stamp.getSeconds()]
+        .map(function (n) { return String(n).padStart(2, '0'); }).join('') + '.json';
+    var blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
-    a.download = 'project-nava-backup-' + S.todayStr() + '.json';
+    a.download = fname;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
     TG.haptic('success');
-    App.toast('Backup JSON diunduh');
+    App.toast(senyap
+      ? 'Backup otomatis ke HP (nota ke-' + (S.Data.state.notes || []).length + ')'
+      : 'Backup JSON diunduh' + (adaMascim ? ' + Mas Cim' : ''));
   }
 
   function importJSON(file) {
