@@ -314,6 +314,9 @@
       }
       if (secretOut) secretOut.value = out.join(';');
       if (hint) hint.textContent = 'Pola tersimpan: ' + drawn.length + ' titik. Ketuk ulang untuk mengganti.';
+      // Beri tahu bagian luar. Tanpa event ini, draft tidak pernah ikut
+      // terisi dan pola yang digambar hilang saat form disimpan.
+      pad.dispatchEvent(new Event('patternchange'));
     }
     pad.addEventListener('pointerdown', down);
     pad.addEventListener('pointermove', move);
@@ -633,13 +636,34 @@
           esc(t) + '</button>';
       }).join('') +
       '</div>' +
-      '<div class="mc-lockwrap mc-none" id="fLockWrap">' +
-        '<input class="mc-inp" id="fSecret" type="password" inputmode="' +
-          (d.screen_lock_type === 'PIN' ? 'numeric' : 'text') + '" value="' +
-          esc(d.screen_lock_secret) + '" placeholder="isi kunci layar">' +
-        '<button class="mc-eye" id="fEye" type="button" aria-label="Tampilkan">👁</button>' +
-        '<span class="mc-lockok" id="fLockOk" hidden>✓ tersimpan</span>' +
+      // Kolom isian menyesuaikan jenis kunci. Untuk "Pola" yang yang tampil
+      // adalah area gambar, BUKAN kolom teks: memakai kolom teks untuk pola
+      // membuat pengguna mengetik angka-angka pola, dan kunci yang digambar
+      // tidak pernah ikut terbaca.
+      '<div class="mc-lockwrap' +
+          (d.screen_lock_type === 'Tanpa Kunci' || d.screen_lock_secret ? ' mc-none' : '') +
+          '" id="fLockWrap">' +
+        (d.screen_lock_type === 'Pola'
+          ? patternPad(d.screen_lock_secret)
+          : '<input class="mc-inp" id="fSecret" type="password" inputmode="' +
+              (d.screen_lock_type === 'PIN' ? 'numeric' : 'text') +
+              // autocorrect dan otomatis kapital di keyboard Android bisa
+              // mengubah password yang diketik menjadi teks yang berbeda,
+              // sehingga kunci yang tersimpan tidak sama dengan yang diketik.
+              '" autocapitalize="off" autocomplete="new-password"' +
+              ' autocorrect="off" spellcheck="false"' +
+              '" value="' + esc(d.screen_lock_secret) + '" placeholder="' +
+              (d.screen_lock_type === 'PIN' ? 'misal: 1234' : 'isi kunci layar') + '">' +
+            '<button class="mc-eye" id="fEye" type="button" aria-label="Tampilkan">👁</button>') +
+        '<span class="mc-lockok" id="fLockOk"' +
+          (d.screen_lock_secret ? '' : ' hidden') + '>✓ tersimpan</span>' +
       '</div>' +
+      // Kalau sudah ada kunci yang tersimpan, tampilkan rangkuman supaya
+      // teknisi tahu ada kunci tanpa perlu membongkar area gambar pola.
+      (d.screen_lock_type !== 'Tanpa Kunci' && d.screen_lock_secret
+        ? '<button type="button" class="mc-lockclear" id="fLockClear">Hapus Kunci (' +
+          esc(d.screen_lock_type) + ')</button>'
+        : '') +
       '</div>';
 
 
@@ -716,7 +740,11 @@
     // tidak ada <select> yang perlu dibaca.
     var chipOn = $('#fLockChips .on');
     d.screen_lock_type = chipOn ? chipOn.dataset.lock : 'Tanpa Kunci';
-    d.screen_lock_secret = ($('#fSecret') || {}).value || '';
+    // Kunci bisa berupa teks (PIN/Password) ATAU pola. Membaca hanya kolom
+    // teks membuat pola yang sudah digambar hilang begitu form ini disalin.
+    var secTeks = $('#fSecret');
+    var secPola = $('#fPatSecret');
+    d.screen_lock_secret = (secPola ? secPola.value : (secTeks ? secTeks.value : '')) || '';
     // Penanganan TIDAK lagi diambil di form ini. Kolomnya hanya muncul di
     // layar Detail dan hanya ketika status sudah Done, jadi di sini
     // nilai lama dibiarkan apa adanya supaya tidak terhapus oleh edit lain.
@@ -1099,7 +1127,11 @@
     function syncLockUI() {
       if (!wrap) return;
       var tipe = (on ? on.dataset.lock : 'Tanpa Kunci');
-      var isi = (lockIn ? lockIn.value : '').trim();
+      // Isi kunci bisa ada di kolom teks ATAU di area pola, tergantung
+      // jenis kuncinya. Hanya membaca kolom teks membuat "tersimpan" tidak
+      // pernah muncul untuk pola.
+      var patSecret = $('#fPatSecret');
+      var isi = ((patSecret ? patSecret.value : (lockIn ? lockIn.value : '')) || '').trim();
       // Kolom hanya tampil kalau ada kunci yang dipilih DAN belum diisi.
       wrap.classList.toggle('mc-none', tipe === 'Tanpa Kunci' || !!isi);
       if (lockOk) lockOk.hidden = !isi;
@@ -1108,23 +1140,41 @@
     for (var ci = 0; ci < chips.length; ci++) {
       chips[ci].addEventListener('click', function () {
         var pilih = this.dataset.lock;
+        // Chip yang sama dicentang lagi berarti membatalkan kunci.
         var aktif = this.classList.contains('on');
-        for (var k = 0; k < chips.length; k++) chips[k].classList.remove('on');
-        // Centang yang sama dicentang lagi berarti membatalkan kunci.
-        if (!aktif) this.classList.add('on');
         M.draft.screen_lock_type = aktif ? 'Tanpa Kunci' : pilih;
-        if (lockIn) {
-          lockIn.value = '';
-          lockIn.inputMode = pilih === 'PIN' ? 'numeric' : 'text';
-        }
         M.draft.screen_lock_secret = '';
-        syncLockUI();
-        if (lockIn && !aktif) lockIn.focus();
+        // Form digambar ulang, BUKAN hanya mengubah kelas chip._each jenis
+        // kunci punya isian yang berbeda: PIN dan Password memakai kolom
+        // teks, Pola memakai area gambar. Tanpa menggambar ulang, memilih
+        // Pola hanya menampilkan kolom teks dan area gambarnya tidak pernah
+        // muncul — karena juga bindPatternPad tidak pernah menemukan
+        // elemen #fPat untuk dipasangkan.
+        render();
       });
     }
+
+    var clear = $('#fLockClear');
+    if (clear) {
+      clear.addEventListener('click', function () {
+        M.draft.screen_lock_secret = '';
+        render();
+      });
+    }
+
     if (lockIn) {
       lockIn.addEventListener('input', function () {
         M.draft.screen_lock_secret = lockIn.value;
+        syncLockUI();
+      });
+    }
+
+    // Pola: simpan hasil gambar ke draft setiap kali selesai.
+    var patSecret = $('#fPatSecret');
+    var pat = $('#fPat');
+    if (pat && patSecret) {
+      pat.addEventListener('patternchange', function () {
+        M.draft.screen_lock_secret = patSecret.value || '';
         syncLockUI();
       });
     }

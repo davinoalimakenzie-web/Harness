@@ -619,6 +619,8 @@
 
     // Data
     $('#dExport').addEventListener('click', exportJSON);
+    var shareBtn = $('#dShareTelegram');
+    if (shareBtn) shareBtn.addEventListener('click', bagikanKeTelegram);
     $('#dImport').addEventListener('click', function () { $('#dFile').click(); });
     $('#dFile').addEventListener('change', function (e) {
       if (e.target.files[0]) importJSON(e.target.files[0]);

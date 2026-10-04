@@ -1817,3 +1817,17 @@ select.mc-inp{ appearance:none; }
   opacity: .55;
   cursor: default;
 }
+
+/* Tombol hapus kunci layar. Muncul hanya ketika sudah ada kunci yang
+   tersimpan, supaya teknisi bisa mengosongkan tanpa menggambar ulang. */
+.mc-lockclear{
+  width:100%; margin-top:6px; padding:9px 12px;
+  background:transparent; border:1px dashed var(--mc-line);
+  border-radius:10px; color:var(--mc-txt2);
+  font-size:12.5px; cursor:pointer;
+}
+.mc-lockclear:active{ background:rgba(127,127,127,.12); }
+
+/* Tombol bagikan ke Telegram: penuh satu baris agar mudah ditekuk. */
+.share-wrap{ display:block; }
+.btn.full{ display:flex; width:100%; }

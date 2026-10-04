@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261003s">
+<link rel="stylesheet" href="assets/css/style.css?v=20261003t">
 </head>
 <body>
 
@@ -298,6 +298,13 @@
         <button id="dExport" class="btn">Export JSON</button>
         <button id="dImport" class="btn">Import JSON</button>
       </div>
+      <div class="share-wrap mt">
+        <!-- Kirim file backup ke chat Telegram lewat share sheet Android.
+             Telegram dipilih sebagai tujuan SHARE di dalam share sheet, jadi
+             filenya masuk ke chat dan tersimpan di cloud, bukan sekadar file
+             yang hilang bersama uninstall aplikasi. -->
+        <button id="dShareTelegram" class="btn ghost full">Kirim Backup ke Telegram</button>
+      </div>
       <input type="file" id="dFile" accept="application/json" class="hidden">
       <div class="row-2 mt">
         <button id="dDemo" class="btn ghost">Isi Data Contoh</button>
@@ -513,7 +520,7 @@
 </div>
 
 <!-- ============ MODUL: MAS CIM SERVICE HP ============
-     Berisi lengkap di assets/js/mascim.js?v=20261003s; di sini hanya kerangkanya.
+     Berisi lengkap di assets/js/mascim.js?v=20261003t; di sini hanya kerangkanya.
      Satu pemilik, satu teknisi — sengaja tanpa kasir/cabang/multi-role. -->
 <div id="mc" class="mc hidden" aria-hidden="true">
   <!-- Bar navigasi internal modul -->
@@ -545,24 +552,24 @@
   <div id="ntScreen" class="nt-screen"></div>
 </div>
 
-<script src="assets/js/tg.js?v=20261003s"></script>
-<script src="assets/js/store.js?v=20261003s"></script>
-<script src="assets/js/nava-bank.js?v=20261003s"></script>
-<script src="assets/js/scan.js?v=20261003s"></script>
-<script src="assets/js/voice.js?v=20261003s"></script>
-<script src="assets/js/notes.js?v=20261003s"></script>
-<script src="assets/js/transactions.js?v=20261003s"></script>
-<script src="assets/js/calc.js?v=20261003s"></script>
-<script src="assets/js/mascim-local.js?v=20261003s"></script>
-<script src="assets/js/mascim.js?v=20261003s"></script>
-<script src="assets/js/nava-trader-core.js?v=20261003s"></script>
-<script src="assets/js/nava-trader-bandar.js?v=20261003s"></script>
-<script src="assets/js/nava-trader-fund.js?v=20261003s"></script>
-<script src="assets/js/nava-trader-alert.js?v=20261003s"></script>
-<script src="assets/js/nava-kesegaran.js?v=20261003s"></script>
-<script src="assets/js/nava-trader-quote.js?v=20261003s"></script>
-<script src="assets/js/nava-trader.js?v=20261003s"></script>
-<script src="assets/js/backup.js?v=20261003s"></script>
-<script src="assets/js/app.js?v=20261003s"></script>
+<script src="assets/js/tg.js?v=20261003t"></script>
+<script src="assets/js/store.js?v=20261003t"></script>
+<script src="assets/js/nava-bank.js?v=20261003t"></script>
+<script src="assets/js/scan.js?v=20261003t"></script>
+<script src="assets/js/voice.js?v=20261003t"></script>
+<script src="assets/js/notes.js?v=20261003t"></script>
+<script src="assets/js/transactions.js?v=20261003t"></script>
+<script src="assets/js/calc.js?v=20261003t"></script>
+<script src="assets/js/mascim-local.js?v=20261003t"></script>
+<script src="assets/js/mascim.js?v=20261003t"></script>
+<script src="assets/js/nava-trader-core.js?v=20261003t"></script>
+<script src="assets/js/nava-trader-bandar.js?v=20261003t"></script>
+<script src="assets/js/nava-trader-fund.js?v=20261003t"></script>
+<script src="assets/js/nava-trader-alert.js?v=20261003t"></script>
+<script src="assets/js/nava-kesegaran.js?v=20261003t"></script>
+<script src="assets/js/nava-trader-quote.js?v=20261003t"></script>
+<script src="assets/js/nava-trader.js?v=20261003t"></script>
+<script src="assets/js/backup.js?v=20261003t"></script>
+<script src="assets/js/app.js?v=20261003t"></script>
 </body>
 </html>
