@@ -411,6 +411,11 @@
       paymentStatus: paymentStatus,
       receivedAt: o.receivedAt,
       completedAt: o.completedAt,
+      // Tanpa baris ini, computeOrder tidak pernah membawa tanggal
+      // pengambilan ke objek nota, sehingga publicNoteFrom membaca
+      // undefined dan halaman nota menulis "Belum diambil" untuk nota
+      // yang sebenarnya sudah diambil.
+      takenAt: o.takenAt || null,
       createdAt: o.createdAt,
       updatedAt: o.updatedAt,
       parts: parts.map(function (p) {
@@ -1514,6 +1519,11 @@
     var now = nowIso();
     row.serviceStatus = 'Done Diambil';
     row.completedAt = now;
+    // Tanggal pengambilan harus ikut terisi. Jalur ini mengatur status
+    // langsung, bukan lewat setServiceStatus, sehingga takenAt yang
+    // di-stamp di sana tidak pernah tersentuh. Akibatnya halaman nota
+    // menulis "Belum diambil" padahal barangnya sudah diambil.
+    row.takenAt = row.takenAt || now;
     row.warranty = warranty;
     row.paymentMethod = payMethod;
     row.updatedAt = now;
