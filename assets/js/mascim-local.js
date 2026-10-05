@@ -724,6 +724,9 @@
       warrantyDays: wn.warrantyDays,
       warrantyUntil: wn.warrantyUntil,
       takenAt: order.takenAt || null,
+      // Metode pembayaran ikut ke nota sebagai bukti konkret untuk laporan
+      // admin, bukan sekadar catatan di aplikasi.
+      paymentMethod: order.paymentMethod || wn.paymentMethod || null,
       token: wn.token,
       revoked: !!wn.revokedAt,
       revokedAt: wn.revokedAt || null,
@@ -875,9 +878,11 @@
       b: note.totalCost || 0,
       a: note.paidAt || '',
       r: note.receivedAt || '',
-      // g = tanggal pengambilan. Kunci baru; link lama yang tidak punya g
-      // tetap terbaca dan hanya menampilkan "Belum diambil".
-      g: note.takenAt || ''
+      // g = tanggal pengambilan dan m = metode pembayaran. Dua kunci baru;
+      // tautan lama yang tidak punya keduanya tetap terbaca, hanya kolomnya
+      // yang kosong.
+      g: note.takenAt || '',
+      m: note.paymentMethod || ''
     };
     return b64urlEncode(JSON.stringify(ringkas));
   }
@@ -909,6 +914,9 @@
       warrantyDays: Number(o.w) || 0,
       warrantyUntil: teks_(o.u),
       takenAt: teks_(o.g),
+      // Kunci m = metode pembayaran. Tautan lama tidak punya kunci ini dan
+      // tetap terbaca; kolomnya hanya kosong.
+      paymentMethod: teks_(o.m),
       // Tautan mandiri tidak punya token dan tidak bisa dicabut.
       token: '',
       revoked: false,

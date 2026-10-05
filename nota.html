@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#517da2">
 <meta name="robots" content="noindex, nofollow">
 <title>Nota Service — Mas Cim Service HP</title>
-<link rel="stylesheet" href="assets/css/style.css?v=20261004f">
+<link rel="stylesheet" href="assets/css/style.css?v=20261004g">
 </head>
 <body>
 
@@ -107,6 +107,13 @@
 
       h += '<div class="mc-sec">Biaya &amp; Garansi</div>' +
         '<div class="mc-money big"><div><span>Total Biaya</span><b>' + rupiah(n.totalCost) + '</b></div></div>' +
+        // Metode pembayaran ikut ditampilkan sebagai bukti konkret untuk
+        // laporan admin. Nota lama yang belum punya metode tetap tampil
+        // lengkap; hanya baris ini yang kosong.
+        (n.paymentMethod
+          ? kv('Metode Pembayaran', n.paymentMethod) +
+            kv('Status Pembayaran', n.paidAt ? 'Lunas · ' + tgl(n.paidAt) : 'Belum lunas')
+          : '') +
         kv('Masa Garansi', n.warrantyDays + ' hari · berlaku sampai ' + tgl(n.warrantyUntil)) +
         kv('Tanggal Pengambilan', n.takenAt ? tgl(n.takenAt) : 'Belum diambil');
 
