@@ -286,7 +286,7 @@ button.item .item-sub{ margin-top:3px; }
      75 .sheet-wrap  sheet / dialog  ← selalu DI ATAS semua overlay modul
      80 .toast
   sheet sebelumnya z-index:60, sama dengan .tx-page (60) dan lebih rendah dari
-   #mc (70), jadi sheet yang dibuka dari dalam Mas Cim muncul DI BAWAH layar
+   .mc (70), jadi sheet yang dibuka dari dalam Mas Cim muncul DI BAWAH layar
    Mas Cim: form terlihat "keluar di layer berbeda" dan tidak bisa disentuh.
    Karena itu sheet dinaikkan ke 75, tepat di atas kedua overlay modul. */
 .sheet-wrap{ position:fixed; inset:0; z-index:75; display:flex; align-items:flex-end; justify-content:center; }
@@ -762,14 +762,19 @@ button.item .item-sub{ margin-top:3px; }
    Semua ukuran dibuat untuk satu tangan di layar ponsel: target
    sentuh minimal 44px, form satu kolom, tombol Simpan besar.
    ========================================================= */
-#mc{
+/* Penataan overlay modul dipakai bersama oleh Mas Cim Service HP dan
+   Kalkulator Ronce. Semula aturan ini menempel pada #mc sehingga modul
+   lain yang memakai kelas mc tidak mendapat tata letak sama sekali:
+   overlay-nya tampil sebagai blok biasa di akhir halaman dan tidak
+   pernah terlihat. */
+.mc{
 
   position:fixed; inset:0; z-index:70;
   background:var(--mc-bg); color:var(--mc-txt);
   display:flex; flex-direction:column;
   font-size:15px; line-height:1.45;
 }
-#mc[hidden],#mc.hidden{ display:none !important; }
+.mc[hidden],.mc.hidden{ display:none !important; }
 body.mc-open{ overflow:hidden; }
 
 /* ---- bar atas ---- */

@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261005f">
+<link rel="stylesheet" href="assets/css/style.css?v=20261005g">
 </head>
 <body>
 
@@ -258,17 +258,21 @@
     <div class="card" style="margin:0 14px 14px;padding:12px">
       <div class="row-b" style="gap:10px;align-items:flex-start">
         <div class="grow">
-          <div class="item-title">Tersimpan di perangkat ini</div>
-          <div class="item-sub">Semua transaksi, akun, dan catatan ada di HP ini
-            (localStorage) — bukan di server. Tidak ada Chat ID atau isi percakapan
-            yang tersimpan.</div>
+          <div class="item-title">Tersimpan di perangkat &amp; dicadangkan ke server</div>
+          <div class="item-sub">Transaksi, akun, dan catatan tetap ada di HP ini
+            (localStorage) supaya aplikasi tetap jalan tanpa internet. Setiap
+            perubahan juga dikirim ke Supabase sebagai cadangan terpusat, lalu
+            dikembalikan lagi saat DEVICE_ID berbeda.
+            Tidak ada Chat ID atau isi percakapan yang tersimpan.</div>
         </div>
+        <span class="rec-dot" id="sb-kartu-titik" aria-hidden="true"></span>
       </div>
       <p class="muted xs" style="margin:10px 0 0">
         <b>Pindah ke HP lain:</b> pakai <b>Export JSON</b> di HP lama, lalu
         <b>Import JSON</b> di HP tujuan.
         <b>Cadangan otomatis</b> ada di bawah dan menyimpan 8 salinan terakhir.
       </p>
+      <p class="muted xs" id="sb-kartu-status" style="margin:8px 0 0">Memeriksa koneksi...</p>
     </div>
 
     <div class="list-head"><strong>Akun</strong></div>
@@ -546,7 +550,7 @@
 </div>
 
 <!-- ============ MODUL: MAS CIM SERVICE HP ============
-     Berisi lengkap di assets/js/mascim.js?v=20261005f; di sini hanya kerangkanya.
+     Berisi lengkap di assets/js/mascim.js?v=20261005g; di sini hanya kerangkanya.
      Satu pemilik, satu teknisi — sengaja tanpa kasir/cabang/multi-role. -->
 <!-- ============ MODUL: KALKULATOR RONCE ============
      Logika di assets/js/ronce.js; di sini hanya kerangkanya. -->
@@ -592,26 +596,26 @@
   <div id="ntScreen" class="nt-screen"></div>
 </div>
 
-<script src="assets/js/tg.js?v=20261005f"></script>
-<script src="assets/js/store.js?v=20261005f"></script>
-<script src="assets/js/nava-bank.js?v=20261005f"></script>
-<script src="assets/js/scan.js?v=20261005f"></script>
-<script src="assets/js/voice.js?v=20261005f"></script>
-<script src="assets/js/notes.js?v=20261005f"></script>
-<script src="assets/js/transactions.js?v=20261005f"></script>
-<script src="assets/js/ronce.js?v=20261005f"></script>
-<script src="assets/js/calc.js?v=20261005f"></script>
-<script src="assets/js/supabase.js?v=20261005f"></script>
-<script src="assets/js/mascim-local.js?v=20261005f"></script>
-<script src="assets/js/mascim.js?v=20261005f"></script>
-<script src="assets/js/nava-trader-core.js?v=20261005f"></script>
-<script src="assets/js/nava-trader-bandar.js?v=20261005f"></script>
-<script src="assets/js/nava-trader-fund.js?v=20261005f"></script>
-<script src="assets/js/nava-trader-alert.js?v=20261005f"></script>
-<script src="assets/js/nava-kesegaran.js?v=20261005f"></script>
-<script src="assets/js/nava-trader-quote.js?v=20261005f"></script>
-<script src="assets/js/nava-trader.js?v=20261005f"></script>
-<script src="assets/js/backup.js?v=20261005f"></script>
-<script src="assets/js/app.js?v=20261005f"></script>
+<script src="assets/js/tg.js?v=20261005g"></script>
+<script src="assets/js/store.js?v=20261005g"></script>
+<script src="assets/js/nava-bank.js?v=20261005g"></script>
+<script src="assets/js/scan.js?v=20261005g"></script>
+<script src="assets/js/voice.js?v=20261005g"></script>
+<script src="assets/js/notes.js?v=20261005g"></script>
+<script src="assets/js/transactions.js?v=20261005g"></script>
+<script src="assets/js/ronce.js?v=20261005g"></script>
+<script src="assets/js/calc.js?v=20261005g"></script>
+<script src="assets/js/supabase.js?v=20261005g"></script>
+<script src="assets/js/mascim-local.js?v=20261005g"></script>
+<script src="assets/js/mascim.js?v=20261005g"></script>
+<script src="assets/js/nava-trader-core.js?v=20261005g"></script>
+<script src="assets/js/nava-trader-bandar.js?v=20261005g"></script>
+<script src="assets/js/nava-trader-fund.js?v=20261005g"></script>
+<script src="assets/js/nava-trader-alert.js?v=20261005g"></script>
+<script src="assets/js/nava-kesegaran.js?v=20261005g"></script>
+<script src="assets/js/nava-trader-quote.js?v=20261005g"></script>
+<script src="assets/js/nava-trader.js?v=20261005g"></script>
+<script src="assets/js/backup.js?v=20261005g"></script>
+<script src="assets/js/app.js?v=20261005g"></script>
 </body>
 </html>

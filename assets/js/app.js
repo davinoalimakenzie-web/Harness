@@ -768,6 +768,11 @@
       }
     });
 
+    // ---- Penyimpanan terpusat ----
+    // initSyncUI() keluar lebih awal karena kendalanya sudah tidak
+    // ada di halaman, jadi status Supabase disambung terpisah.
+    renderSyncStatus();
+    w.setInterval(function () { renderSyncStatus(); }, 15000);
     // ---- Sinkronisasi dengan bot ----
     initSyncUI();
     if (w.Sync) {
@@ -845,48 +850,38 @@
   }
 
   /* ---------------- UI Sinkronisasi ---------------- */
+  // Status penyimpanan terpusat. Dulu kartu ini menampilkan "Tersimpan
+  // di perangkat ini saja". Sekarang data juga dicadangkan ke Supabase,
+  // jadi yang ditampilkan adalah keadaan sebenarnya: masih di antrean,
+  // gagal, atau sudah sampai di server.
   function renderSyncStatus() {
-    var t = $('#syncTitle'), sub = $('#syncSub'), dot = $('#syncDot');
-    if (!t) return;
-    if (!w.Sync) { t.textContent = 'Sinkronisasi tidak tersedia'; return; }
-    var cfg = w.Sync.getConfig();
-    var st = w.Sync.getStatus();
-    var urlIn = $('#syncUrl');
-    if (urlIn && urlIn.value !== cfg.baseUrl && document.activeElement !== urlIn) {
-      urlIn.value = cfg.baseUrl || '';
-    }
-    if (!cfg.baseUrl) {
-      t.textContent = 'Belum menemukan server bot';
-      sub.textContent = 'Mencari server bot secara otomatis… Kalau tetap kosong, isi alamatnya di bawah lalu tekan Simpan & sinkron.';
-      dot.className = 'sync-dot';
+    var teks = $('#sb-kartu-status');
+    var titik = $('#sb-kartu-titik');
+    if (!teks) return;
+    if (!w.Supa) {
+      teks.textContent = 'Cadangan ke server belum tersedia di versi ini.';
       return;
     }
-    if (!w.Sync.hasInitData()) {
-      t.textContent = 'Server ditemukan, tetapi di luar Telegram';
-      sub.textContent = 'Sinkronisasi hanya jalan di dalam Telegram (butuh initData).';
-      dot.className = 'sync-dot warn';
+    var s = w.Supa.status();
+    var warna = function (k) {
+      return titik ? 'background:' + k : '';
+    };
+    if (s.status === 'selesai' && !s.antrean) {
+      teks.textContent = 'Semua data sudah sampai di server. '
+        + 'Cadangan terakhir: ' + (s.cadangan || 'belum ada') + '.';
+      if (titik) titik.style.cssText = warna('var(--ok)');
       return;
     }
-    if (st.online) {
-      t.textContent = 'Terhubung ke bot';
-      sub.textContent = (cfg.lastSync ? 'Sinkron ' + new Date(cfg.lastSync).toLocaleTimeString('id-ID') + ' · ' : '') +
-        'Transaksi dari chat bot masuk ke dashboard sebagai "menunggu disimpan".' +
-        (w.Store.Pool.count() ? ' (' + w.Store.Pool.count() + ' menunggu disimpan)' : '') +
-        (cfg.manual ? '' : ' (server ditemukan otomatis)');
-      dot.className = 'sync-dot on';
-    } else {
-      // Bedakan "sedang diaring" dari "rusak". Tunnel sering berganti
-      // beberapa detik saat supervisor mencari hostname yang terjangkau,
-      // dan itu kondisi normal, bukan kerusakan. Kasih tahu kapan coba lagi.
-      var retrySec = Math.max(1, Math.round(((st._fails || 0) * 15) + 15));
-      t.textContent = 'Menyambung ke server…';
-      sub.textContent = 'Server bot sedang dialihkan ke alamat baru. Coba lagi dalam ±' +
-        retrySec + ' detik.' +
-        (st.lastError ? ' (' + st.lastError + ')' : '') +
-        ' Aplikasi tetap jalan lokal; transaksi tetap aman dan akan terkirim nanti.';
-      dot.className = 'sync-dot warn';
+    if (s.antrean) {
+      teks.textContent = s.antrean + ' perubahan menunggu dikirim. '
+        + 'Aplikasi tetap bisa dipakai seperti biasa; pengiriman diulang otomatis.';
+      if (titik) titik.style.cssText = warna('var(--warn)');
+      return;
     }
+    teks.textContent = 'Menyiapkan cadangan ke server...';
+    if (titik) titik.style.cssText = warna('var(--warn)');
   }
+
 
   function initSyncUI() {
     var now = $('#syncNow'), save = $('#syncSave'), url = $('#syncUrl');

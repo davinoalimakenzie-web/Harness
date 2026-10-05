@@ -1202,6 +1202,11 @@
     var id = 'tpl_' + key;
     var stamp = new Date().toISOString();
 
+    // Semula penanda ini ditulis tanpa deklarasi. Di peramban itu
+    // kebetulan membuat variabel global sehingga tidak langsung rusak,
+    // tetapi di mode ketat become ReferenceError dan template tidak
+    // pernah tersimpan.
+    var replaced = false;
     var found = null;
     for (var i = 0; i < list.length; i++) {
       if (list[i].id === id || templateKey(list[i].payload || {}) === key) {
