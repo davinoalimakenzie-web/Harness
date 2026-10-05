@@ -356,6 +356,67 @@
     hapus: hapus,
     kosongkan: kosongkan,
     render: function (el) { host = el; bacaDraf(); render(); },
+
+    /* ----------------------------------------------------------------
+       Overlay penuh, mengikuti pola modul Mas Cim: satu panel yang
+       menutupi layar dan punya tombol kembali sendiri.
+       ---------------------------------------------------------------- */
+    open: function () {
+      var m = w.document.getElementById('ronce');
+      if (!m) return;
+      host = w.document.getElementById('ronceBody');
+      m.classList.remove('hidden');
+      m.setAttribute('aria-hidden', 'false');
+      if (w.document.body && w.document.body.classList) {
+        w.document.body.classList.add('mc-open');
+      }
+      bacaDraf();
+      render();
+    },
+
+    close: function () {
+      var m = w.document.getElementById('ronce');
+      if (!m) return;
+      m.classList.add('hidden');
+      m.setAttribute('aria-hidden', 'true');
+      if (w.document.body && w.document.body.classList) {
+        w.document.body.classList.remove('mc-open');
+      }
+    },
+
+    init: function () {
+      // Tombol di tab Lainnya. Pakai data-ronce-open supaya tidak ikut
+      // ditangani router App.go() yang hanya untuk view utama.
+      var tool = w.document.querySelector('[data-ronce-open]');
+      if (tool && !tool.dataset.ronceBound) {
+        tool.dataset.ronceBound = '1';
+        tool.addEventListener('click', function (e) {
+          e.preventDefault();
+          w.Ronce.open();
+        });
+      }
+      var back = w.document.getElementById('ronceBack');
+      if (back && !back.dataset.ronceBound) {
+        back.dataset.ronceBound = '1';
+        back.addEventListener('click', function () {
+          w.Ronce.close();
+          if (w.TG) w.TG.haptic('select');
+        });
+      }
+      var reset = w.document.getElementById('ronceReset');
+      if (reset && !reset.dataset.ronceBound) {
+        reset.dataset.ronceBound = '1';
+        reset.addEventListener('click', function () {
+          var ok = true;
+          if (w.confirm) ok = w.confirm('Hapus semua rekap gaji mitra?');
+          if (!ok) return;
+          kosongkan();
+          render();
+          if (w.TG) w.TG.haptic('warning');
+        });
+      }
+    },
+
     JENIS: JENIS
   };
 })(window);

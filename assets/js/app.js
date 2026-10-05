@@ -528,6 +528,7 @@
     w.TxUI.init();
     w.CalcUI.init();
     if (w.MascimUI && w.MascimUI.init) w.MascimUI.init();
+    if (w.Ronce && w.Ronce.init) w.Ronce.init();
     if (w.NavaTraderUI && w.NavaTraderUI.init) w.NavaTraderUI.init();
     if (w.NavaTraderQuote && w.NavaTraderQuote.init) w.NavaTraderQuote.init();
     if (w.NavaTraderAlert && w.NavaTraderAlert.init) w.NavaTraderAlert.init();

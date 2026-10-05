@@ -304,8 +304,6 @@
     el.kBrand = $('#kBrand');
     el.kSeries = $('#kSeries');
     el.kRules = $('#kRules');
-    el.kRonce = $('#kRonce');
-    el.kRonceHost = $('#kRonceHost');
     el.kEst = $('#kEst');
     el.kFormulaOut = $('#kFormulaOut');
     el.tpl = $('#tplList');
@@ -359,24 +357,6 @@
       renderOut();
       TG.haptic('select');
     });
-
-    // Panel Kalkulator Ronce. Tombolnya hanya membuka dan menutup, jadi
-    // tidak menyentuh apa pun yang sudah ada di Kalkulator.
-    if (el.kRonce && el.kRonceHost) {
-      el.kRonce.addEventListener('click', function () {
-        var buka = el.kRonceHost.classList.contains('hidden');
-        if (buka) {
-          el.kRonceHost.classList.remove('hidden');
-          el.kRonce.textContent = 'Tutup Kalkulator Ronce';
-          if (w.Ronce) w.Ronce.render(el.kRonceHost);
-          if (w.scrollTo) w.scrollTo({ top: el.kRonceHost.offsetTop - 60, behavior: 'smooth' });
-        } else {
-          el.kRonceHost.classList.add('hidden');
-          el.kRonce.textContent = 'Kalkulator Ronce';
-        }
-        TG.haptic('select');
-      });
-    }
 
     el.tpl.addEventListener('click', function (e) {
       var use = e.target.closest('[data-tpluse]');

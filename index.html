@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261005e">
+<link rel="stylesheet" href="assets/css/style.css?v=20261005f">
 </head>
 <body>
 
@@ -236,6 +236,11 @@
         <span class="tool-ico out">K</span>
         <span class="tool-body"><b>Kalkulator Servis HP</b><span>Hitung harga estimasi LCD &amp; baterai</span></span>
         <span class="tool-go">›</span>
+      </button>
+      <button class="tool" data-ronce-open="1">
+        <span class="tool-ico svc">R</span>
+        <span class="tool-body"><b>Kalkulator Ronce</b><span>Rekap komisi &amp; kasbon mitra</span></span>
+        <span class="tool-go">&rsaquo;</span>
       </button>
       <button class="tool" data-mascim-open="1">
         <span class="tool-ico svc">C</span>
@@ -489,15 +494,6 @@
 
     <div class="card">
       <div class="list-head tight">
-        <strong>Lainnya</strong>
-      </div>
-      <p class="hint xs" style="margin:0 0 10px">Kalkulator lain di luar estimasi biaya part.</p>
-      <button type="button" id="kRonce" class="btn block" style="margin-bottom:10px">Kalkulator Ronce</button>
-      <div id="kRonceHost" class="hidden"></div>
-    </div>
-
-    <div class="card">
-      <div class="list-head tight">
         <strong>Harga tersimpan</strong>
       </div>
       <p class="hint xs" style="margin:0 0 10px">Disimpan dari kombinasi brand, seri, dan estimasi biaya.</p>
@@ -550,8 +546,22 @@
 </div>
 
 <!-- ============ MODUL: MAS CIM SERVICE HP ============
-     Berisi lengkap di assets/js/mascim.js?v=20261005e; di sini hanya kerangkanya.
+     Berisi lengkap di assets/js/mascim.js?v=20261005f; di sini hanya kerangkanya.
      Satu pemilik, satu teknisi — sengaja tanpa kasir/cabang/multi-role. -->
+<!-- ============ MODUL: KALKULATOR RONCE ============
+     Logika di assets/js/ronce.js; di sini hanya kerangkanya. -->
+<div id="ronce" class="mc hidden" aria-hidden="true">
+  <div class="mc-bar">
+    <button class="mc-back" id="ronceBack" aria-label="Kembali">&lsaquo;</button>
+    <div class="mc-bar-title">
+      <b>Kalkulator Ronce</b>
+      <span id="ronceSub">Rekap komisi mitra</span>
+    </div>
+    <button class="mc-act" id="ronceReset" aria-label="Hapus semua">&times;</button>
+  </div>
+  <div id="ronceBody" class="mc-screen"></div>
+</div>
+
 <div id="mc" class="mc hidden" aria-hidden="true">
   <!-- Bar navigasi internal modul -->
   <div class="mc-bar">
@@ -582,26 +592,26 @@
   <div id="ntScreen" class="nt-screen"></div>
 </div>
 
-<script src="assets/js/tg.js?v=20261005e"></script>
-<script src="assets/js/store.js?v=20261005e"></script>
-<script src="assets/js/nava-bank.js?v=20261005e"></script>
-<script src="assets/js/scan.js?v=20261005e"></script>
-<script src="assets/js/voice.js?v=20261005e"></script>
-<script src="assets/js/notes.js?v=20261005e"></script>
-<script src="assets/js/transactions.js?v=20261005e"></script>
-<script src="assets/js/ronce.js?v=20261005e"></script>
-<script src="assets/js/calc.js?v=20261005e"></script>
-<script src="assets/js/supabase.js?v=20261005e"></script>
-<script src="assets/js/mascim-local.js?v=20261005e"></script>
-<script src="assets/js/mascim.js?v=20261005e"></script>
-<script src="assets/js/nava-trader-core.js?v=20261005e"></script>
-<script src="assets/js/nava-trader-bandar.js?v=20261005e"></script>
-<script src="assets/js/nava-trader-fund.js?v=20261005e"></script>
-<script src="assets/js/nava-trader-alert.js?v=20261005e"></script>
-<script src="assets/js/nava-kesegaran.js?v=20261005e"></script>
-<script src="assets/js/nava-trader-quote.js?v=20261005e"></script>
-<script src="assets/js/nava-trader.js?v=20261005e"></script>
-<script src="assets/js/backup.js?v=20261005e"></script>
-<script src="assets/js/app.js?v=20261005e"></script>
+<script src="assets/js/tg.js?v=20261005f"></script>
+<script src="assets/js/store.js?v=20261005f"></script>
+<script src="assets/js/nava-bank.js?v=20261005f"></script>
+<script src="assets/js/scan.js?v=20261005f"></script>
+<script src="assets/js/voice.js?v=20261005f"></script>
+<script src="assets/js/notes.js?v=20261005f"></script>
+<script src="assets/js/transactions.js?v=20261005f"></script>
+<script src="assets/js/ronce.js?v=20261005f"></script>
+<script src="assets/js/calc.js?v=20261005f"></script>
+<script src="assets/js/supabase.js?v=20261005f"></script>
+<script src="assets/js/mascim-local.js?v=20261005f"></script>
+<script src="assets/js/mascim.js?v=20261005f"></script>
+<script src="assets/js/nava-trader-core.js?v=20261005f"></script>
+<script src="assets/js/nava-trader-bandar.js?v=20261005f"></script>
+<script src="assets/js/nava-trader-fund.js?v=20261005f"></script>
+<script src="assets/js/nava-trader-alert.js?v=20261005f"></script>
+<script src="assets/js/nava-kesegaran.js?v=20261005f"></script>
+<script src="assets/js/nava-trader-quote.js?v=20261005f"></script>
+<script src="assets/js/nava-trader.js?v=20261005f"></script>
+<script src="assets/js/backup.js?v=20261005f"></script>
+<script src="assets/js/app.js?v=20261005f"></script>
 </body>
 </html>
