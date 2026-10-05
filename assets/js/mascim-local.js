@@ -1474,9 +1474,9 @@
       throw bad('Konfirmasi hanya bisa saat status Done. Status nota sekarang: ' +
         order.serviceStatus + '.');
     }
-    if (order.remaining > 0) {
-      throw bad('Pembayaran belum lunas. Sisa tagihan: ' + order.remaining + '.');
-    }
+    // Pembayaran tidak lagi jadi syarat terpisah: saat nota diambil, sisa
+    // tagihan dilunasi otomatis memakai metode yang dipilih di sheet. Ada
+    // satu langkah, bukan dua, dan tidak ada jalan buntu "belum lunas".
     // Pengaman lapis kedua: antarmuka sudah menahan lebih dulu, tapi aturan ini
     // berlaku untuk jalur mana pun yang mencapai pengambilan nota.
     if (!((order.handling || '') + '').trim()) {
@@ -1489,6 +1489,26 @@
       p.payment_method != null ? p.payment_method : p.paymentMethod,
       PAYMENT_METHODS, 'Metode pembayaran');
     if (!payMethod) throw bad('Pilih metode pembayaran lebih dulu (Cash, QRIS, atau Transfer Bank).');
+
+    // Lunasi sisa tagihan dengan metode yang sama dengan saat note Customers
+    // diambil. Idempoten lewat idem_key, jadi menekan dua kali tidak
+    // menghasilkan pembayaran ganda.
+    if (order.remaining > 0) {
+      try {
+        addPayment(orderId, {
+          amount: order.remaining,
+          method: payMethod,
+          payment_type: order.paid > 0 ? 'Pelunasan' : 'Pembayaran',
+          idem_key: 'taken-lunas-' + orderId,
+          allow_overpay: false
+        });
+        order = getOrder(orderId);
+      } catch (e) {
+        // Jangan sampai pembayaran gagal menutup nota dengan status setengah.
+        throw bad('Gagal melunasi sisa tagihan Rp' + order.remaining.toLocaleString('id-ID') +
+          ': ' + (e && e.message || e));
+      }
+    }
 
     var row = db.orders.filter(function (x) { return x.id === orderId; })[0];
     var now = nowIso();

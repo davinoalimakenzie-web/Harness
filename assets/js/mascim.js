@@ -2635,13 +2635,14 @@
     // menulis "lunas" apa pun keadaannya, padahal lapisan data menolak
     // nota yang belum lunas — jadi user menekan tombol lalu mendapat
     // kesalahan yang tidak dijelaskan sebelumnya.
+    // Satu langkah, bukan dua. Sisa tagihan dilunasi otomatis memakai
+    // metode yang dipilih, jadi tidak ada lagi jalan buntu "belum lunas"
+    // yang membuat nota tertahan di status Done.
     var kurang = Math.max(0, Number(o.remaining) || 0);
     var banner = kurang > 0
-      ? '<p class="mc-hint">Pembayaran <b class="neg">belum lunas</b> — sisa tagihan ' +
-          '<b>Rp' + kurang.toLocaleString('id-ID') + '</b>. ' +
-          (kurang <= Number(o.bankUsed) || o.bankUsed > 0
-            ? 'Dana Bank akan otomatis melunasi saat nota ditutup.'
-            : 'Lunasi dulu di menu Dana Bank, atau ubah Total Biaya.') + '</p>'
+      ? '<p class="mc-hint">Sisa tagihan <b class="neg">Rp' + kurang.toLocaleString('id-ID') +
+        '</b> akan dilunasi otomatis dengan metode yang kamu pilih di bawah. ' +
+        'Belum perlu mencatat pembayaran terpisah.</p>'
       : '<p class="mc-hint">Pembayaran <b class="pos">lunas</b>. Pilih garansi &amp; metode pembayaran untuk menutup nota.</p>';
 
     sheetOrWarn('Konfirmasi Pelunasan',
@@ -2657,7 +2658,9 @@
         var b = document.createElement('button');
         b.className = 'mc-primary';
         b.style.marginTop = '12px';
-        b.textContent = 'Selesaikan & Tandai Diambil';
+        b.textContent = kurang > 0
+          ? 'Lunasi Rp' + kurang.toLocaleString('id-ID') + ' & Tandai Diambil'
+          : 'Selesaikan & Tandai Diambil';
         b.addEventListener('click', function () {
           var war = $('#cfWarranty') ? $('#cfWarranty').value : '';
           var met = $('#cfMethod') ? $('#cfMethod').value : '';
