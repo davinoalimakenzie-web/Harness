@@ -4,6 +4,16 @@
    ========================================================= */
 
 :root{
+  --mc-bg:#0b0f0d;
+  --mc-card:#141a17;
+  --mc-card2:#1b231f;
+  --mc-line:#26302b;
+  --mc-txt:#e8f0ec;
+  --mc-txt2:#8fa39a;
+  --mc-grn:#1fbf6b;
+  --mc-grn-d:#0e8f4b;
+  --mc-red:#e5484d;
+  --mc-org:#f08c35;
   --bg:            #f2f3f7;
   --bg-elev:       #ffffff;
   --text:          #0f0f0f;
@@ -295,8 +305,13 @@ button.item .item-sub{ margin-top:3px; }
 .toast{
   position:fixed; left:50%; bottom:calc(var(--nav-h) + var(--sab) + 18px);
   transform:translateX(-50%); z-index:80;
-  background:var(--text); color:var(--bg); padding:11px 18px; border-radius:12px;
-  font-size:13.5px; font-weight:550; box-shadow:var(--shadow);
+  /* Warna ditulis langsung, bukan lewat variabel tema. Toast muncul di
+     atas apa pun, termasuk tombol hijau yang sedang underneath, jadi
+    background dan teksnya tidak boleh ikut berubahikut tema. */
+  background:#f2f3f7; color:#0f0f0f;
+  padding:11px 18px; border-radius:12px;
+  border:1px solid rgba(255,255,255,.25);
+  font-size:13.5px; font-weight:600; box-shadow:0 6px 20px rgba(0,0,0,.35);
   max-width:90vw; text-align:center; animation:up .2s;
 }
 @media (prefers-reduced-motion: reduce){
@@ -748,16 +763,6 @@ button.item .item-sub{ margin-top:3px; }
    sentuh minimal 44px, form satu kolom, tombol Simpan besar.
    ========================================================= */
 #mc{
-  --mc-bg:#0b0f0d;
-  --mc-card:#141a17;
-  --mc-card2:#1b231f;
-  --mc-line:#26302b;
-  --mc-txt:#e8f0ec;
-  --mc-txt2:#8fa39a;
-  --mc-grn:#1fbf6b;
-  --mc-grn-d:#0e8f4b;
-  --mc-red:#e5484d;
-  --mc-org:#f08c35;
 
   position:fixed; inset:0; z-index:70;
   background:var(--mc-bg); color:var(--mc-txt);
@@ -829,7 +834,7 @@ body.mc-open{ overflow:hidden; }
 .mc-primary{
   display:block; width:100%; min-height:50px; margin:8px 0;
   border:none; border-radius:12px; cursor:pointer;
-  background:var(--mc-grn); color:#04140b;
+  background:var(--mc-grn, #1fbf6b); color:#04140b;
   font-size:16px; font-weight:700;
   position:sticky; bottom:8px; z-index:5;
   box-shadow:0 4px 14px rgba(31,191,107,.25);
@@ -842,6 +847,17 @@ body.mc-open{ overflow:hidden; }
   background:var(--mc-card2); color:var(--mc-txt); font-size:14px; font-weight:600;
 }
 .mc-ghost-btn:active{ background:#24302a; }
+/* Sheet bisa dirender di luar #mc. Setiap warna yang dipakai di sana
+   diberi nilai cadangan supaya tidak pernah jadi gelap di atas gelap. */
+.mc-sheet .mc-ghost-btn, .mc-primary, .mc-ghost-btn{
+  background-color:var(--mc-card2, #1b231f);
+  color:var(--mc-txt, #e8f0ec);
+  border-color:var(--mc-line, #26302b);
+}
+.mc-primary{
+  background:var(--mc-grn, #1fbf6b); color:#04140b;
+  border-color:transparent;
+}
 .mc-ghost-btn.danger{ color:var(--mc-red); border-color:#4a2325; }
 /* Tanda sudah tersimpan: tombol "Simpan & Buka Detail" berubah kuning setelah
    sukses, jadi progresnya kelihatan tanpa tombol tambahan. */

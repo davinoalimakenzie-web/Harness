@@ -2631,8 +2631,21 @@
       return '<option value="' + esc(m) + '"' + (m === metNow ? ' selected' : '') + '>' + esc(m) + '</option>';
     }).join('');
 
+    // Status pembayaran harus jujur. Sebelumnya sheet selalu
+    // menulis "lunas" apa pun keadaannya, padahal lapisan data menolak
+    // nota yang belum lunas — jadi user menekan tombol lalu mendapat
+    // kesalahan yang tidak dijelaskan sebelumnya.
+    var kurang = Math.max(0, Number(o.remaining) || 0);
+    var banner = kurang > 0
+      ? '<p class="mc-hint">Pembayaran <b class="neg">belum lunas</b> — sisa tagihan ' +
+          '<b>Rp' + kurang.toLocaleString('id-ID') + '</b>. ' +
+          (kurang <= Number(o.bankUsed) || o.bankUsed > 0
+            ? 'Dana Bank akan otomatis melunasi saat nota ditutup.'
+            : 'Lunasi dulu di menu Dana Bank, atau ubah Total Biaya.') + '</p>'
+      : '<p class="mc-hint">Pembayaran <b class="pos">lunas</b>. Pilih garansi &amp; metode pembayaran untuk menutup nota.</p>';
+
     sheetOrWarn('Konfirmasi Pelunasan',
-      '<p class="mc-hint">Pembayaran <b class="pos">lunas</b>. Pilih garansi &amp; metode pembayaran untuk menutup nota.</p>' +
+      banner +
       '<div class="mc-row2">' +
         '<label class="mc-field"><span class="mc-lbl">Garansi *</span>' +
           '<select class="mc-inp" id="cfWarranty">' + garansiOpts + '</select></label>' +
