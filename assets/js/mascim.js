@@ -72,8 +72,10 @@
      dipakai daftar cadangan yang sama persis.
   */
   var L = w.MascimLocal || {};
+  // "Return": unit sudah diambil pelanggan lalu kembali karena trouble
+  // dalam masa garansi. Status ini aktif, bukan final.
   var SERVICE_STATUSES = L.SERVICE_STATUSES ||
-    ['Progress', 'Done', 'Done Diambil', 'Cancel', 'Cancel Diambil', 'Nggandul'];
+    ['Progress', 'Done', 'Done Diambil', 'Cancel', 'Cancel Diambil', 'Nggandul', 'Return'];
   var PAYMENT_STATUSES = ['Belum Bayar', 'DP', 'Lunas'];
   // "Pola" sengaja tidak ada: underpin garis/coratnya tidak berfungsi,
   // jadi jenis kunci itu dihapus supaya tidak dipilih.
@@ -87,9 +89,13 @@
     'Progress': ['Done', 'Cancel'],
     'Done': ['Done Diambil'],
     'Cancel': ['Cancel Diambil'],
-    'Done Diambil': [],
+    // Dari "Done Diambil" masih ada dua jalan keluar nyata: Cancel bila
+    // pelanggan batal setelah membayar, dan Return bila trouble dalam masa
+    // garansi. Tanpa ini nota yang sudah diambil tidak punya jalan keluar.
+    'Done Diambil': ['Cancel', 'Return'],
     'Cancel Diambil': [],
-    'Nggandul': ['Progress', 'Done', 'Cancel', 'Done Diambil', 'Cancel Diambil']
+    'Return': ['Done', 'Cancel', 'Done Diambil'],
+    'Nggandul': ['Progress', 'Done', 'Cancel', 'Done Diambil', 'Cancel Diambil', 'Return']
   };
   // Garansi & metode pembayaran juga ikut dari mesin data.
   var WARRANTY_OPTIONS = L.WARRANTY_OPTIONS || ['30 Hari', '60 Hari', 'Non Garansi'];
@@ -370,7 +376,9 @@
 
   // Ringkas nama status supaya muat di kartu sempit tanpa terpotong.
   function pendekStatus(s) {
-    return s === 'Done Diambil' ? 'Diambil' : (s === 'Cancel Diambil' ? 'C. Diambil' : s);
+    return s === 'Done Diambil' ? 'Diambil'
+      : (s === 'Cancel Diambil' ? 'C. Diambil'
+        : (s === 'Return' ? 'Retur' : s));
   }
 
   /*
@@ -435,7 +443,10 @@
     // hubungannya dengan status.
     var TONE = {
       'Progress': 'st-prog', 'Done': 'st-done', 'Done Diambil': 'st-ambil',
-      'Cancel': 'st-cancel', 'Cancel Diambil': 'st-cambil', 'Nggandul': 'st-ngg'
+      'Cancel': 'st-cancel', 'Cancel Diambil': 'st-cambil', 'Nggandul': 'st-ngg',
+      // Return: unit kembali karena trouble dalam masa garansi. Warnanya
+      // jingga supaya terlihat berbeda dari Cancel yang merah.
+      'Return': 'st-return'
     };
     return '<span class="mc-badge ' + (TONE[s] || 'info') + '">' + esc(s) + '</span>';
   }
@@ -1779,12 +1790,23 @@
       '<button class="mc-ghost-btn mc-save-side" id="dSaveSide">Simpan</button>' +
       '<div class="mc-drop mc-grow" id="dStatusDrop">' +
         '<button class="mc-ghost-btn" id="dStatusBtn">Ubah Status \u25be</button>' +
+        // Dropdown tetap muncul saat status final, karena status "Done Diambil"
+        // punya tiga jalan keluar: Cancel, Return, dan Hapus.
         (statusOpts.length
           ? '<div class="mc-dropmenu" id="dStatusMenu">' +
             statusOpts.map(function (st) {
               return '<button class="mc-pick" data-st="' + esc(st) + '">' + esc(st) + '</button>';
-            }).join('') + '</div>'
-          : '<div class="mc-dropmenu"><span class="mc-hint sm">Status sudah final.</span></div>') +
+            }).join('') +
+            (o.serviceStatus === 'Done Diambil'
+              ? '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">'
+                + 'Hapus garapan ini</button>'
+              : '') +
+            '</div>'
+          : (o.serviceStatus === 'Done Diambil'
+            ? '<div class="mc-dropmenu" id="dStatusMenu">'
+              + '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">'
+              + 'Hapus garapan ini</button></div>'
+            : '<div class="mc-dropmenu"><span class="mc-hint sm">Status sudah final.</span></div>')) +
       '</div>' +
     '</div>';
 
@@ -1928,6 +1950,34 @@
         menu.style.display = '';
       });
     }
+    // Tombol Hapus. Berdampingan dengan pilihan Cancel dan Return di
+    // dropdown yang sama, hanya hidup saat nota sudah Done Diambil.
+    // Nota dihapus dengan soft-delete sehingga riwayat pembayaran tetap
+    // utuh, dan nota garansinya dicabut supaya tautan pelanggan mati.
+    var hapusNotaBtn = $('#dHapusNota');
+    if (hapusNotaBtn) hapusNotaBtn.addEventListener('click', function () {
+      var menuH = $('#dStatusMenu');
+      if (menuH) menuH.style.display = '';
+      var idH = idNota();
+      if (!idH) { alertErr('Nota ini belum punya identitas. Muat ulang halamannya.'); return; }
+      var tanya = 'Hapus nota ini dari daftar?\n\n'
+        + 'Tautan nota garansi ikut dicabut, jadi pelanggan tidak bisa membuka lagi.\n'
+        + 'Riwayat pembayaran dan Dana Bank tetap tersimpan.\n\n'
+        + 'Lanjut hapus?';
+      if (!window.confirm(tanya)) return;
+      api('DELETE', '/api/mascim/services/' + encodeURIComponent(idH), { fromFinal: true })
+        .then(function () {
+          M.current = null;
+          M.id = '';
+          renderList();
+          markTersimpan('\u2713 Nota dihapus');
+        })
+        .catch(function (err) {
+          alertErr('Gagal menghapus: '
+            + (err && err.message ? err.message : 'tidak diketahui'));
+        });
+    });
+
     var statusMenu = $('#dStatusMenu');
     // Status final tidak punya pilihan berikutnya, jadi menu-nya memang tidak
     // ada. Jangan pernah dereference langsung — kalau tidak, error ini

@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#517da2">
 <meta name="robots" content="noindex, nofollow">
 <title>Nota Service — Mas Cim Service HP</title>
-<link rel="stylesheet" href="assets/css/style.css?v=20261006a">
+<link rel="stylesheet" href="assets/css/style.css?v=20261006b">
 </head>
 <body>
 
@@ -135,9 +135,27 @@
         kv('Masa Garansi', n.warrantyDays + ' hari · berlaku sampai ' + tgl(n.warrantyUntil)) +
         kv('Tanggal Pengambilan', n.takenAt ? tgl(n.takenAt) : 'Belum diambil');
 
+      // Nomor pusat pengirim. Pelanggan menghubungi nomor usaha yang
+      // tetap, bukan nomor admin yang kebetulan mengirim tautan.
+      if (n.pusatTelp) {
+        h += '<div class="mc-sec">Kontak</div>' +
+          kv('Pengirim nota', (n.usahaNama || 'Mas Cim Service HP')) +
+          kv('Nomor pusat', n.pusatTelp);
+      }
+
       h += '</div>';
       return h;
     }
+
+  // Nomor tujuan WhatsApp adalah nomor pusat, bukan nomor pelanggan.
+  function waPusat(n) {
+    var nomor = String(n.pusatTelp || '').replace(/[^0-9]/g, '');
+    if (nomor.charAt(0) === '0') nomor = '62' + nomor.slice(1);
+    var teks = 'Halo ' + (n.usahaNama || 'Mas Cim Service HP') +
+      ', saya pelanggan Nota Service #' + n.numberLabel +
+      (n.device ? ' (' + n.device + ')' : '') + '.';
+    return 'https://wa.me/' + nomor + '?text=' + encodeURIComponent(teks);
+  }
 
   function tampil(n) {
     if (n.revoked) {
@@ -153,10 +171,18 @@
     }
     var h = '<div class="mc-pad">' + htmlNota(n) + '</div>';
     h += '<div class="mc-public-actions">' +
+      (n.pusatTelp
+        ? '<a class="mc-primary mc-publik-wa" href="' + waPusat(n) + '" '
+          + 'target="_blank" rel="noopener">Hubungi via WhatsApp</a>'
+        : '') +
       '<button class="mc-primary" id="pPrint">Cetak / PDF</button>' +
     '</div>';
+    // Masa berlaku tautan dinyatakan terbuka supaya pelanggan tidak
+    // bingung mengira nota sudah hilang.
     h += '<p class="mc-public-foot">Nota ini bersifat baca saja. ' +
-      'Masa garansi berlaku ' + n.warrantyDays + ' hari sejak tanggal terbit.</p>';
+      'Masa garansi berlaku ' + n.warrantyDays + ' hari sejak tanggal terbit.' +
+      (n.linkUntil ? ' Tautan ini berlaku sampai ' + tgl(n.linkUntil) + '.' : '') +
+      '</p>';
     body().innerHTML = h;
     var b = document.getElementById('pPrint');
     if (b) b.addEventListener('click', function () { window.print(); });
@@ -249,7 +275,15 @@
       warrantyUntil: b.warranty_until || '',
       takenAt: b.taken_at || '',
       revoked: !!b.dicabut,
-      expired: !!(b.expires_at && new Date(b.expires_at).getTime() < Date.now())
+      expired: !!(b.expires_at && new Date(b.expires_at).getTime() < Date.now()),
+      // Nomor pusat dan nama usaha ikut memakai bawaan supaya halaman nota
+      // yang dilayani server juga punya tombol menghubungi.
+      pusatTelp: window.MascimLocal
+        ? window.MascimLocal.NOTA_TELP_PUSAT : '08976990006',
+      usahaNama: window.MascimLocal
+        ? window.MascimLocal.NOTA_NAMA_USAHA : 'Mas Cim Service HP',
+      // Masa berlaku tautan mengikuti masa garansi yang tersimpan di server.
+      linkUntil: b.expires_at || b.warranty_until || ''
     };
   }
 

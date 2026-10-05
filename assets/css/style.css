@@ -2080,3 +2080,16 @@ select.mc-inp{ appearance:none; }
 .rn-terang .rn-filter-btn{ color:#64748b; }
 .rn-terang .rn-filter-on{ background:#4f46e5; color:#fff; }
 .rn-terang .rn-garapan{ border-color:#dbe2ef; }
+
+/* Status Return: unit kembali ke meja karena trouble dalam masa garansi.
+   Jingga supaya berbeda dari Cancel yang merah dan dari Nggandul yang
+   ungu, dan jelas berbeda dari hijau "sudah lunas". */
+.st-return{ color:#f0a028; border-color:#7a5320; background:#2a1e0b; }
+
+/* Tombol hapus di dropdown status. Merah dan berjauh dari pilihan status
+   supaya tidak tertukar dengan Cancel. */
+.mc-pick-bahaya{ color:#ff8a8a; border-top:1px solid var(--mc-line); margin-top:4px; }
+.mc-pick-bahaya:active{ background:rgba(220,38,38,.16); }
+
+/* Tombol WhatsApp di halaman nota publik. */
+.mc-publik-wa{ display:block; text-align:center; text-decoration:none; margin-bottom:8px; }

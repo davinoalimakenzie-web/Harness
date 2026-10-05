@@ -34,7 +34,10 @@
                              sehingga status sebenarnya belum pasti dan WAJIB
                              dikonfirmasi ulang oleh pemilik.
   */
-  var SERVICE_STATUSES = ['Progress', 'Done', 'Done Diambil', 'Cancel', 'Cancel Diambil', 'Nggandul'];
+  // "Return" dipakai ketika unit sudah diambil pelanggan lalu kembali ke
+  // meja karena trouble dalam masa garansi. Status ini masih aktif: unit
+  // sedang dikerjakan ulang, jadi bukan status final.
+  var SERVICE_STATUSES = ['Progress', 'Done', 'Done Diambil', 'Cancel', 'Cancel Diambil', 'Nggandul', 'Return'];
 
   // Status saat nota pertama kali masuk — selalu Progress, tidak ada pilihan lain.
   var INITIAL_STATUS = 'Progress';
@@ -45,6 +48,9 @@
   var DONE_STATUSES = ['Done', 'Done Diambil'];
   var CANCEL_STATUSES = ['Cancel', 'Cancel Diambil'];
   var CLOSED_STATUSES = DONE_STATUSES.concat(CANCEL_STATUSES);
+  // Return TIDAK ikut CLOSED: unitnya masih di meja kerja.
+  var RETURN_STATUS = 'Return';
+  function isReturnStatus(s) { return s === RETURN_STATUS; }
   var NGGANDUL = 'Nggandul';
 
   /*
@@ -66,9 +72,17 @@
     // Dari "Cancel" hanya boleh ke "Cancel Diambil": barang tetap keluar
     // meski dibatalkan, jadi tanggal pengambilan tetap harus tercatat.
     'Cancel': ['Cancel Diambil'],
-    'Done Diambil': [],
+    // Dari "Done Diambil" masih ada dua jalan keluar nyata:
+    //   Cancel  -> pelanggan batal SETELAH-unit diambil dan sudah membayar
+    //   Return  -> trouble dalam masa garansi, unit kembali diperbaiki
+    // Tanpa ini, nota yang sudah diambil tidak punya jalan keluar selain
+    // dibiarkan menggantung selamanya.
+    'Done Diambil': ['Cancel', 'Return'],
     'Cancel Diambil': [],
-    'Nggandul': ['Progress', 'Done', 'Cancel', 'Done Diambil', 'Cancel Diambil']
+    // Unit yang sedang dikerjakan ulang boleh diselesaikan, dibatalkan,
+    // atau diambil tanpa lewat Done.
+    'Return': ['Done', 'Cancel', 'Done Diambil'],
+    'Nggandul': ['Progress', 'Done', 'Cancel', 'Done Diambil', 'Cancel Diambil', 'Return']
   };
 
   var PAYMENT_STATUSES = ['Belum Bayar', 'DP', 'Lunas'];
@@ -882,7 +896,16 @@
       // tautan lama yang tidak punya keduanya tetap terbaca, hanya kolomnya
       // yang kosong.
       g: note.takenAt || '',
-      m: note.paymentMethod || ''
+      m: note.paymentMethod || '',
+      // x = nomor pusat pengirim, y = nama usaha. Dua kunci baru supaya
+      // pelanggan menghubungi nomor usaha yang tetap, bukan nomor admin
+      // yang kebetulan mengirim tautan.
+      x: NOTA_TELP_PUSAT,
+      y: NOTA_NAMA_USAHA,
+      // z = masa berlaku tautan. Tautan mengikuti masa garansi: lewat
+      // tanggal ini halaman nota menolak dibuka. Non Garansi punya nilai
+      // kosong sehingga tautan tidak pernah kedaluwarsa.
+      z: note.warrantyUntil || ''
     };
     return b64urlEncode(JSON.stringify(ringkas));
   }
@@ -917,6 +940,18 @@
       // Kunci m = metode pembayaran. Tautan lama tidak punya kunci ini dan
       // tetap terbaca; kolomnya hanya kosong.
       paymentMethod: teks_(o.m),
+      // x = nomor pusat, y = nama usaha, z = masa berlaku tautan.
+      // Tautan lama tidak punya ketiganya. Nomor pusat memakai bawaan
+      // supaya halaman lama tetap punya nomor untuk dihubungi.
+      pusatTelp: teks_(o.x) || NOTA_TELP_PUSAT,
+      usahaNama: teks_(o.y) || NOTA_NAMA_USAHA,
+      linkUntil: teks_(o.z),
+      // Tautan mandiri ikut menolak tampil setelah masa garansi habis.
+      // CATATAN: ini hanya pagar di sisi perangkat. Nilainya ikut di dalam
+      // tautan, jadi orang yang cerebro bisa mengubahnya. Penegakan
+      // sesungguhnya ada di server: tautan bertoken dibaca dari Supabase
+      // yang memeriksa expires_at dan tidak bisa direkayasa.
+      expired: !!teks_(o.z) && new Date(teks_(o.z)).getTime() < Date.now(),
       // Tautan mandiri tidak punya token dan tidak bisa dicabut.
       token: '',
       revoked: false,
@@ -1303,14 +1338,37 @@
     };
   }
 
-  function deleteOrder(id) {
+  /*
+     Hapus nota dari tombol "Hapus" di dropdown status.
+
+     Jalur ini hanya hidup dari status "Done Diambil" dan memakai opts
+     fromFinal. Alasannya: canDelete sengaja menolak nota yang sudah punya
+     pembayaran supaya tidak ada uang hilang karena salah tekan. Nota
+     yang sudah diambil selalu punya pembayaran, jadi hapus biasa akan
+     selalu ditolak dan tombolnya jadi tidak berguna.
+
+     Karena itu penghapusan dari sini tidak menghapus baris pembayaran:
+     nota ditandai soft-delete sehingga tersembunyi dari daftar tetapi
+     riwayat uang tetap utuh, dan nota garansinya dicabut lebih dulu
+     supaya tautan pelanggan berhenti berlaku.
+  */
+  function deleteOrder(id, opts) {
+    opts = opts || {};
     var chk = canDelete(id);
-    if (!chk.allowed) throw bad(chk.reason);
+    if (!chk.allowed && !opts.fromFinal) throw bad(chk.reason);
     var o = load().orders.filter(function (x) { return x.id === id; })[0];
+    // Cabut nota garansi dulu supaya tautan pelanggan tidak hidup lagi
+    // walau nota ini ternyata-CEpat dikembalikan.
+    var dicabut = false;
+    if (o.warrantyNote && !o.warrantyNote.revokedAt) {
+      o.warrantyNote.revokedAt = nowIso();
+      dicabut = true;
+    }
     o.deletedAt = nowIso();
     o.updatedAt = o.deletedAt;
     save();
-    return { ok: true };
+    return { ok: true, dicatat: dicabut, dipayments: chk.payments,
+      bankEntries: chk.bankEntries };
   }
 
   /* ------------------------------------------------------------
@@ -1881,6 +1939,14 @@
     };
   }
 
+  /*
+     Nomor pusat untuk pengirim nota. Dipakai di halaman nota publik
+     supaya pelanggan punya satu nomor tetap untuk menghubungi usaha,
+     bukan nomor admin yang kebetulan mengirim tautan.
+  */
+  var NOTA_TELP_PUSAT = '08976990006';
+  var NOTA_NAMA_USAHA = 'Mas Cim Service HP';
+
   function getSettings() {
     var st = load().settings;
     return { bankFundInitial: st.bankFundInitial || 0, noteCounter: st.noteCounter || 0, updatedAt: st.updatedAt || null };
@@ -1960,7 +2026,7 @@
     if (len === 2 && r[0] === 'services') {
       if (method === 'GET') return out({ service: getOrder(id) });
       if (method === 'PATCH' || method === 'PUT') return out({ service: updateOrder(id, body) });
-      if (method === 'DELETE') return out({ deleted: deleteOrder(id) });
+      if (method === 'DELETE') return out({ deleted: deleteOrder(id, body) });
     }
     if (len === 3 && r[0] === 'services' && sub === 'issue-note' && method === 'POST') {
       var iss = issueWarrantyNote(id, body && body.warranty);
@@ -2041,6 +2107,11 @@
     getOrder: getOrder,
     confirmTaken: confirmTaken,
     isCancelStatus: isCancelStatus,
+    isReturnStatus: isReturnStatus,
+    canDelete: canDelete,
+    deleteOrder: deleteOrder,
+    NOTA_TELP_PUSAT: NOTA_TELP_PUSAT,
+    NOTA_NAMA_USAHA: NOTA_NAMA_USAHA,
     isClosedStatus: isClosedStatus,
     isPayLocked: isPayLocked,
     syncJasaToNava: syncJasaToNava,
