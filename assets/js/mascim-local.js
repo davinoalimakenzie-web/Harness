@@ -2059,8 +2059,15 @@
       return new Promise(function (resolve, reject) {
         // Jalankan sinkron lalu bungkus, supaya pemanggil tetap memakai
         // Promise seperti versi server.
-        try { resolve(handler(method, path, body)); }
-        catch (e) { reject(e); }
+        var hasil;
+        try { hasil = handler(method, path, body); }
+        catch (e) { reject(e); return; }
+        // Salinan ke Supabase. Sel asynchronous dan tidak pernah
+        // menggagalkan hasil di atas: local tetap sumber kebenaran.
+        try {
+          if (w.Supa && w.Supa.antar) w.Supa.antar(method, path, body, hasil);
+        } catch (e) { /* abaikan */ }
+        resolve(hasil);
       });
     },
     isEmpty: function () {

@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#517da2">
 <meta name="robots" content="noindex, nofollow">
 <title>Nota Service — Mas Cim Service HP</title>
-<link rel="stylesheet" href="assets/css/style.css?v=20261005a">
+<link rel="stylesheet" href="assets/css/style.css?v=20261005b">
 </head>
 <body>
 
@@ -40,6 +40,7 @@
 </div>
 
 <script src="assets/js/mascim-local.js"></script>
+<script src="assets/js/supabase.js"></script></script>
 <script>
 (function () {
   'use strict';
@@ -143,6 +144,13 @@
       gagal('Link nota ini sudah dicabut oleh Mas Cim Service HP, jadi isinya tidak lagi ditampilkan.');
       return;
     }
+    // Kedaluwarsa checked server, jadi tidak bisa dilewati dengan
+    // Memoctor. Non Garansi punya expires_at kosong dan tidak pernah
+    // masuk ke sini.
+    if (n.expired) {
+      gagal('Masa berlaku nota ini sudah habis. Hubungi Mas Cim Service HP bila masih ada yang perlu ditanyakan.');
+      return;
+    }
     var h = '<div class="mc-pad">' + htmlNota(n) + '</div>';
     h += '<div class="mc-public-actions">' +
       '<button class="mc-primary" id="pPrint">Cetak / PDF</button>' +
@@ -190,12 +198,71 @@
       gagal('Tautan nota tidak lengkap. Buka link persis seperti yang dikirim Mas Cim Service HP.');
       return;
     }
+
+    // Sumber pertama: Supabase. Berisi nota lengkap dan tidak bergantung
+    // pada perangkat mana pun, jadi pelanggan cukup punya tautannya.
+    if (window.Supa && window.Supa.ambilNota) {
+      tampilWait();
+      window.Supa.ambilNota(token).then(function (b) {
+        tampil(dariBaris(b));
+      }).catch(function (e) {
+        // Server tidak bisa dihubungi, atau nota memang tidak ada di
+        // sana. Coba perangkat ini sebagai cadangan, supaya nota lama
+        // yang baru saja terbit tetap bisa dibuka di HP Mas Cim.
+        if (window.MascimLocal) {
+          try {
+            tampil(window.MascimLocal.getPublicNoteByToken(token));
+            return;
+          } catch (e2) { /* lanjut ke pesan gagal */ }
+        }
+        gagal(e && e.message ? e.message : 'Nota tidak ditemukan.');
+      });
+      return;
+    }
+
     if (!window.MascimLocal) { gagal('Mesin data tidak termuat.'); return; }
     try {
       tampil(window.MascimLocal.getPublicNoteByToken(token));
     } catch (e) {
       gagal(e && e.message ? e.message : 'Nota tidak ditemukan.');
     }
+  }
+
+  // Bentuk nota dari baris Supabase. Hanya kolom putih yang dipakai,
+  // jadi tidak ada harga part atau modal yang bisa bocor.
+  function dariBaris(b) {
+    var hari = Number(b.warranty_days || 0);
+    return {
+      numberLabel: nomer(b.no_nota),
+      token: b.token,
+      customerName: b.customer_name || '',
+      whatsapp: b.whatsapp || '',
+      device: b.device || '',
+      complaint: b.complaint || '',
+      intakeCondition: b.intake_condition || '',
+      handling: b.handling || '',
+      totalCost: Number(b.total_cost || 0),
+      paymentMethod: b.payment_method || '',
+      paidAt: b.paid_at || '',
+      warrantyLabel: b.warranty || 'Non Garansi',
+      warrantyDays: hari,
+      warrantyUntil: b.warranty_until || '',
+      takenAt: b.taken_at || '',
+      revoked: !!b.dicabut,
+      expired: !!(b.expires_at && new Date(b.expires_at).getTime() < Date.now())
+    };
+  }
+
+  function nomer(v) {
+    var n = String(Number(v || 0));
+    while (n.length < 4) n = '0' + n;
+    return n;
+  }
+
+  function tampilWait() {
+    var d = body();
+    if (!d) return;
+    d.innerHTML = '<p class="mc-empty">Memuat nota dari server...</p>';
   }
 
   if (document.readyState === 'loading') {
