@@ -1895,68 +1895,7 @@ select.mc-inp{ appearance:none; }
 #dSavedHint { min-height: 16px; color: #3fb950; font-weight: 600; }
 #dSavedHint:empty { min-height: 0; }
 
-/* ------------------------------------------------------------------
-   Kalkulator Ronce
 
-   Hanya layar pilih akun, layar PIN, dan wadah isi tab yang perlu
-   gaya baru. Sisanya memakai kelas mc- yang sudah ada. Semua ukuran
-   memakai px dan tidak bergantung pada fungsi CSS modern supaya tetap
-   benar di WebView lama.
-   ------------------------------------------------------------------ */
-.rn-isi{ flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;
-  padding:12px 14px 28px; }
-.rn-aksen{ font-size:20px; font-weight:800; color:var(--mc-txt); }
-.rn-sub{ font-size:13px; color:var(--mc-txt2); margin-top:2px; }
-.rn-aksen2{ font-size:15px; font-weight:700; color:var(--mc-txt);
-  margin:18px 0 10px; }
-.rn-atas{ display:flex; gap:8px; margin:12px 0 4px; }
-.rn-atas .mc-ghost-btn{ flex:1; }
-
-.rn-akun{ display:flex; align-items:center; gap:12px; width:100%;
-  padding:12px; margin-bottom:8px; border-radius:14px;
-  border:1px solid var(--mc-line); background:var(--mc-card);
-  color:var(--mc-txt); font-size:15px; text-align:left; }
-.rn-akun:active{ background:var(--mc-card2); }
-.rn-akun-teks{ display:block; min-width:0; }
-.rn-akun-nama{ display:block; font-weight:700; font-size:15px;
-  color:var(--mc-txt); overflow-wrap:break-word; word-break:break-word; }
-.rn-akun-peran{ display:block; font-size:12px; color:var(--mc-txt2);
-  margin-top:1px; }
-.rn-panah{ flex:0 0 auto; font-size:20px; color:var(--mc-txt2);
-  line-height:1; }
-
-.rn-avatar{ flex:0 0 auto; width:40px; height:40px; border-radius:12px;
-  display:flex; align-items:center; justify-content:center;
-  font-size:14px; font-weight:800; color:#04140b;
-  background:var(--mc-grn, #1fbf6b); }
-.rn-avatar-besar{ width:72px; height:72px; border-radius:20px;
-  font-size:24px; margin:14px auto 0; }
-
-.rn-nama{ text-align:center; font-size:17px; font-weight:800;
-  color:var(--mc-txt); margin-top:10px; }
-.rn-peran{ text-align:center; font-size:13px; color:var(--mc-txt2);
-  margin-top:2px; }
-.rn-judul{ text-align:center; font-size:16px; font-weight:700;
-  color:var(--mc-txt); margin-top:20px; }
-.rn-ket{ text-align:center; font-size:13px; color:var(--mc-txt2);
-  margin-top:4px; }
-.rn-salah{ text-align:center; font-size:13px; font-weight:700;
-  color:var(--mc-red, #ff5a5a); margin-top:10px; }
-
-.rn-kolom{ display:grid; grid-template-columns:repeat(3,1fr);
-  gap:10px; margin:16px auto 0; max-width:320px; }
-.rn-key{ padding:14px 0; border-radius:14px; font-size:19px;
-  font-weight:700; color:var(--mc-txt);
-  background:var(--mc-card); border:1px solid var(--mc-line); }
-.rn-key:active{ background:var(--mc-card2); }
-.rn-key-ket{ font-size:12px; font-weight:600; color:var(--mc-txt2); }
-
-.rn-mitra{ font-size:12px; color:var(--mc-txt2); overflow-wrap:break-word;
-  word-break:break-word; }
-.rn-log-teks{ font-size:14px; color:var(--mc-txt); line-height:1.4; }
-.rn-hak{ color:var(--mc-grn, #1fbf6b); font-size:16px; }
-.rn-kaki{ text-align:center; font-size:11px; color:var(--mc-txt2);
-  margin-top:22px; }
 
 /* Tab Ronce. Lima tab tidak muat satu baris di layar sempit sehingga
    digeser mendatar. Tab aktif ditandai warna, bukan hanya posisi, agar
@@ -1974,3 +1913,170 @@ select.mc-inp{ appearance:none; }
 /* Lencana sisa komisi. Lencana sisa kasbon memakai .mc-warn yang sudah
    ada, jadi hanya sisi positif yang perlu tambahan. */
 .mc-badge-grn{ background:rgba(31,191,107,.16); color:var(--mc-grn, #1fbf6b); }
+
+/* ------------------------------------------------------------------
+   Kalkulator Ronce
+
+   Warna mengikuti aplikasi asal: latar sangat gelap kebiruan, aksen
+   indigo, teks terang. Mode terang dibalik lewat kelas .rn-terang
+   pada wadah isi. Semua ukuran px, tanpa fungsi CSS modern, supaya
+   tetap benar di WebView lama.
+   ------------------------------------------------------------------ */
+.rn-isi{ flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding:12px 12px 30px; background:#0b0f1a; }
+.rn-terang{ background:#f4f6fb; color:#0f172a; }
+
+.rn-aksen{ font-size:19px; font-weight:800; color:#e2e8f0; }
+.rn-sub{ font-size:12px; color:#64748b; margin-top:2px; }
+.rn-aksen2{ font-size:14px; font-weight:700; color:#cbd5e1; margin:16px 0 8px; }
+.rn-nama{ text-align:center; font-size:16px; font-weight:800; color:#e2e8f0;
+  margin-top:8px; }
+.rn-peran{ text-align:center; font-size:12px; color:#64748b; margin-top:2px; }
+.rn-judul{ text-align:center; font-size:15px; font-weight:700; color:#e2e8f0;
+  margin-top:16px; }
+.rn-ket{ text-align:center; font-size:12px; color:#64748b; margin-top:4px; }
+.rn-salah{ text-align:center; font-size:12px; font-weight:700; color:#f87171;
+  margin-top:8px; }
+.rn-kaki{ text-align:center; font-size:11px; color:#475569; margin-top:18px; }
+.rn-judul-atas{ color:#e2e8f0; font-size:16px; }
+.rn-mitra{ font-size:11px; color:#64748b; }
+
+/* Layar akun */
+.rn-atas{ display:flex; gap:8px; margin:10px 0 4px; }
+.rn-tombol{ flex:1; padding:8px 0; border-radius:10px; font-size:12px;
+  font-weight:600; background:#1e293b; border:1px solid #334155; color:#cbd5e1; }
+.rn-akun{ display:flex; align-items:center; gap:11px; width:100%; padding:11px;
+  margin-bottom:8px; border-radius:12px; background:#131a2a;
+  border:1px solid #1f2a3d; color:#e2e8f0; font-size:14px; text-align:left; }
+.rn-akun:active{ background:#1a2336; }
+.rn-akun-teks{ display:block; min-width:0; }
+.rn-akun-nama{ display:block; font-weight:700; font-size:14px; color:#e2e8f0;
+  overflow-wrap:break-word; }
+.rn-akun-peran{ display:block; font-size:11px; color:#64748b; margin-top:1px; }
+.rn-panah{ font-size:18px; color:#475569; }
+.rn-avatar{ width:38px; height:38px; border-radius:11px; display:flex;
+  align-items:center; justify-content:center; font-size:13px; font-weight:800;
+  color:#fff; background:#4f46e5; flex:0 0 auto; }
+.rn-avatar-besar{ width:68px; height:68px; border-radius:18px; font-size:22px;
+  margin:12px auto 0; }
+.rn-kolom{ display:grid; grid-template-columns:repeat(3,1fr); gap:9px;
+  margin:14px auto 0; max-width:300px; }
+.rn-key{ padding:13px 0; border-radius:11px; font-size:18px; font-weight:700;
+  color:#e2e8f0; background:#131a2a; border:1px solid #1f2a3d; }
+.rn-key-ket{ font-size:11px; font-weight:600; color:#64748b; }
+
+/* Tab */
+.rn-tabs{ overflow-x:auto; -webkit-overflow-scrolling:touch; padding:0 10px 9px;
+  background:#0b0f1a; }
+.rn-tabs-dalam{ display:flex; gap:5px; }
+.rn-tab{ flex:1 0 auto; min-width:56px; padding:7px 12px; border-radius:9px;
+  white-space:nowrap; font-size:12px; font-weight:600; color:#94a3b8;
+  background:transparent; border:1px solid transparent; }
+.rn-tab-on{ background:#4f46e5; color:#fff; font-weight:700; }
+.rn-keluar{ padding:6px 10px; border-radius:8px; font-size:11px; font-weight:600;
+  color:#94a3b8; background:#131a2a; border:1px solid #1f2a3d; }
+
+/* Kartu */
+.rn-kartu{ background:#131a2a; border:1px solid #1f2a3d; border-radius:12px;
+  padding:12px; margin-bottom:12px; }
+.rn-kartu-tipis{ padding:10px 12px; }
+.rn-kartu-bahaya{ border-color:#7f1d1d; background:#1a0f14; }
+.rn-kartu-judul{ font-size:14px; font-weight:800; color:#e2e8f0; margin:0 0 2px; }
+.rn-subkecil{ font-size:11px; color:#64748b; margin:0; line-height:1.4; }
+.rn-sec{ font-size:13px; font-weight:700; color:#cbd5e1; margin:16px 0 8px; }
+.rn-kanan{ display:flex; align-items:flex-start; gap:10px; justify-content:space-between; }
+.rn-kanan-kanan{ display:flex; flex-direction:column; align-items:flex-end; gap:3px;
+  flex:0 0 auto; }
+.rn-judul2{ font-size:13px; font-weight:700; color:#e2e8f0; }
+.rn-uang{ font-size:13px; font-weight:800; color:#4f46e5; }
+
+/* Form */
+.rn-field{ margin-bottom:10px; }
+.rn-field label{ display:block; font-size:11px; font-weight:700; color:#94a3b8;
+  margin-bottom:4px; }
+.rn-field input, .rn-field select, .rn-dua input, .rn-item, .rn-bulan{
+  width:100%; box-sizing:border-box; }
+.rn-field input, .rn-field select{ padding:9px 10px; border-radius:9px;
+  font-size:13px; color:#e2e8f0; background:#0b0f1a; border:1px solid #1f2a3d; }
+.rn-field input:focus, .rn-field select:focus{ outline:none; border-color:#4f46e5; }
+.rn-dua{ display:flex; gap:8px; }
+.rn-dua input{ flex:1; min-width:0; padding:9px 10px; border-radius:9px;
+  font-size:13px; color:#e2e8f0; background:#0b0f1a; border:1px solid #1f2a3d; }
+.rn-label-garapan{ font-size:11px; font-weight:800; color:#94a3b8;
+  text-transform:uppercase; margin:12px 0 6px; letter-spacing:.4px; }
+.rn-label-atas{ display:flex; justify-content:space-between; align-items:center;
+  font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase;
+  margin:14px 0 8px; letter-spacing:.4px; }
+.rn-total-komi{ font-size:11px; font-weight:700; color:#4f46e5; text-transform:none;
+  letter-spacing:0; }
+
+/* Item tugas */
+.rn-item{ display:flex; gap:6px; margin-bottom:6px; }
+.rn-item select, .rn-item input{ padding:8px; border-radius:8px; font-size:12px;
+  color:#e2e8f0; background:#0b0f1a; border:1px solid #1f2a3d; }
+.rn-item-sv{ flex:2; min-width:0; }
+.rn-item-qty{ flex:0 0 56px; width:56px; }
+.rn-item-note{ flex:1 1 auto; min-width:0; }
+.rn-item-aksi{ display:flex; align-items:center; gap:8px; margin-top:8px; }
+.rn-tambah{ width:36px; height:36px; border-radius:9px; font-size:18px; font-weight:700;
+  color:#cbd5e1; background:#1e293b; border:1px solid #334155; flex:0 0 auto; }
+
+/* Tombol aksi */
+.rn-aksi-utama{ flex:1; padding:10px 0; border-radius:10px; font-size:13px;
+  font-weight:700; color:#fff; background:#4f46e5; border:1px solid #4f46e5; }
+.rn-aksi-utama:active{ background:#4338ca; }
+.rn-aksi-bahaya{ width:100%; padding:10px 0; border-radius:10px; font-size:13px;
+  font-weight:700; color:#fff; background:#dc2626; border:1px solid #dc2626; }
+.rn-bayar{ padding:8px 0; border-radius:9px; font-size:12px; font-weight:700;
+  color:#fff; background:#4f46e5; border:1px solid #4f46e5; flex:1; }
+.rn-bayar-sekunder{ background:transparent; color:#94a3b8; border-color:#334155; }
+.rn-pil-bayar{ display:flex; gap:8px; margin-top:10px; }
+
+/* Pil status */
+.rn-pil{ font-size:10px; font-weight:700; padding:2px 8px; border-radius:6px; }
+.rn-pil-hijau{ background:rgba(34,197,94,.16); color:#4ade80; }
+.rn-pil-kuning{ background:rgba(234,179,8,.16); color:#facc15; }
+.rn-hapus{ font-size:10px; font-weight:600; color:#94a3b8; background:#1e293b;
+  border:1px solid #334155; border-radius:6px; padding:2px 7px; }
+
+/* Rekap */
+.rn-filter{ display:flex; gap:3px; padding:3px; border-radius:9px;
+  background:#0b0f1a; border:1px solid #1f2a3d; margin-top:10px; }
+.rn-filter-btn{ flex:1; padding:6px 0; border-radius:7px; font-size:11px;
+  font-weight:600; color:#94a3b8; background:transparent; }
+.rn-filter-on{ background:#4f46e5; color:#fff; font-weight:700; }
+.rn-bulan{ margin-top:8px; padding:8px 10px; border-radius:9px; font-size:12px;
+  color:#e2e8f0; background:#0b0f1a; border:1px solid #1f2a3d; }
+
+/* Kosong & log */
+.rn-kosong, .rn-kosong-garis{ padding:20px 14px; margin-bottom:12px; text-align:center;
+  font-size:12px; color:#64748b; background:#131a2a; border:1px solid #1f2a3d;
+  border-radius:12px; }
+.rn-kosong-garis{ border-style:dashed; }
+.rn-kv{ display:flex; justify-content:space-between; padding:10px 12px;
+  background:#131a2a; border:1px solid #1f2a3d; border-radius:10px; margin-bottom:12px;
+  font-size:12px; color:#94a3b8; }
+.rn-kv b{ color:#e2e8f0; font-size:13px; }
+.rn-log{ display:flex; gap:10px; padding:9px 11px; background:#131a2a;
+  border:1px solid #1f2a3d; border-radius:9px; margin-bottom:6px; }
+.rn-log-jam{ font-size:11px; color:#4f46e5; font-weight:700; flex:0 0 auto; }
+.rn-log-teks{ font-size:12px; color:#cbd5e1; line-height:1.4; }
+.rn-garapan{ display:flex; align-items:center; justify-content:space-between;
+  padding:9px 0; border-top:1px solid #1f2a3d; }
+.rn-daftar-bahaya{ margin:8px 0; padding-left:18px; }
+.rn-daftar-bahaya li{ font-size:11px; color:#94a3b8; margin-bottom:3px; }
+
+/* Mode terang: hanya Executor isi yang dibalik, nav tetap gelap. */
+.rn-terang .rn-kartu, .rn-terang .rn-log, .rn-terang .rn-kv,
+.rn-terang .rn-kosong, .rn-terang .rn-kosong-garis{ background:#fff;
+  border-color:#dbe2ef; }
+.rn-terang .rn-field input, .rn-terang .rn-field select,
+.rn-terang .rn-item select, .rn-terang .rn-item input,
+.rn-terang .rn-dua input, .rn-terang .rn-filter, .rn-terang .rn-bulan{
+  background:#fff; border-color:#dbe2ef; color:#0f172a; }
+.rn-terang .rn-judul2, .rn-terang .rn-kartu-judul, .rn-terang .rn-sec,
+.rn-terang .rn-kv b, .rn-terang .rn-aksen{ color:#0f172a; }
+.rn-terang .rn-subkecil, .rn-terang .rn-log-teks{ color:#64748b; }
+.rn-terang .rn-filter-btn{ color:#64748b; }
+.rn-terang .rn-filter-on{ background:#4f46e5; color:#fff; }
+.rn-terang .rn-garapan{ border-color:#dbe2ef; }
