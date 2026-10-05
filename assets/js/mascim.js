@@ -2208,36 +2208,40 @@
 
   // Pesan WhatsApp. Isinya ringkas: identitas, penanganan, biaya, garansi,
   // dan link. Tidak ada PIN, tidak ada modal part, tidak ada Dana Bank.
+    // Nama usaha dan nomor WhatsApp usaha. Bisa diubah dari pengaturan,
+  // tapi ada nilai bawaan agar pesan tetap rapi tanpa konfigurasi.
+  var NOTA_NAMA_USAHA = 'Mas Cim Service HP';
+  var NOTA_TELP_USAHA = '08976990006';
+
   function pesanWhatsapp(wn) {
     if (!wn || wn.revoked) return null;
-    var lines = [];
-    lines.push('*NOTA SERVICE — MAS CIM SERVICE HP*');
-    lines.push('No. Nota: #' + wn.numberLabel);
-    lines.push('Diterbitkan: ' + tglJam(wn.issuedAt));
-    lines.push('');
-    lines.push('Pelanggan: ' + wn.customerName);
-    lines.push('Unit: ' + wn.device);
-    lines.push('Keluhan: ' + wn.complaint);
-    if (wn.intakeCondition) lines.push('Kondisi saat diterima: ' + wn.intakeCondition);
-    if (wn.parts && wn.parts.length) lines.push('Sparepart: ' + wn.parts.join(', '));
-    lines.push('Penanganan: ' + (wn.handling || '-'));
-    lines.push('');
-    lines.push('Total biaya: ' + rupiah(wn.totalCost));
-    if (wn.paidAt) lines.push('Tanggal lunas: ' + tglJam(wn.paidAt));
-    if (wn.warrantyDays > 0) {
-      lines.push('Masa garansi: ' + wn.warrantyDays + ' hari (sampai ' + tglJam(wn.warrantyUntil) + ')');
-    } else {
-      // Non garansi berarti link tanpa batas waktu. Menuliskan "0 hari"
-      // akan disalahartikan sebagai kedaluwarsa.
-      lines.push('Masa garansi: tanpa batas waktu (non garansi)');
-    }
-    lines.push('');
-    lines.push('Lihat nota (baca saja):');
-    // Ke pelanggan dikirim link mandiri, karena hanya itu yang bisa dibuka
-    // dari HP dia. Isinya sudah disaring sejak dibuat.
     var link = noteLink(wn, 'mandiri') || noteLink(wn, 'lokal');
-    if (link) lines.push(link);
-    return lines.join('\n');
+    var hari = Number(wn.warrantyDays) || 0;
+
+    // Format pesan mengikuti contoh yang diminta: sapaan, ucapan terima
+    // kasih, tautan bukti transaksi, masa berlaku tautan, lalu nama usaha
+    // dan nomor telepon. Ringkasan nota tetap ada di halaman tautannya,
+    // bukan di dalam pesan, supaya pesan tetap ringkas.
+    var L = [];
+    L.push('*Hai, Pelanggan Setia!*');
+    L.push('');
+    L.push('Terima kasih atas kepercayaan Anda,');
+    L.push('kejujuran dan kepuasan Anda adalah prioritas kami.');
+    L.push('');
+    L.push('Silahkan download bukti transaksi Anda melalui tautan di bawah ini.');
+    if (link) {
+      L.push(link);
+      L.push('');
+      L.push(hari > 0
+        ? '_Tautan akan kadaluarsa dalam waktu ' + hari + 'x24 jam._'
+        : '_Tautan berlaku selamanya._');
+    } else {
+      L.push('_Tautan nota belum tersedia._');
+    }
+    L.push('');
+    L.push('*' + (NOTA_NAMA_USAHA || 'Mas Cim Service HP') + '*  ' +
+      (NOTA_TELP_USAHA || '08976990006'));
+    return L.join('\n');
   }
 
   /* Salin teks ke papan klip. navigator.clipboard sering tidak ada di
