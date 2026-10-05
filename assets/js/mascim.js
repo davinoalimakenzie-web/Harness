@@ -2679,11 +2679,18 @@
               toast('Nota selesai — Done Diambil');
               loadDetail(M.current.id);
               reload();
-              // Nota langsung dikirim ke WhatsApp pelanggan. Submit menjadi
-              // satu-satunya jalan, jadi tidak ada lagi langkah "kirim nota"
-              // yang bisa terlupa.
-              if (svc.note) bagikanWhatsapp(svc.note);
-              else alertErr('Nota ditutup, tapi nota garansi gagal terbit');
+              // TIDAK dikirim otomatis. Pengiriman ke pelanggan
+              // menjadi keputusan admin: dia yang tahu pelanggan mana yang
+              // mau dikabari dan lewat aplikasi apa. Membuka WhatsApp
+              // otomatis dari dalam app justru sering gagal di
+              // WebView tanpa pesan apa pun, dan admin bisa
+              // menganggap nota sudah terkirim padahal belum.
+              if (svc.note) {
+                toast('Nota #' + svc.note.numberLabel +
+                  ' terbit — kirim linknya ke pelanggan dari tombol "Bagikan WhatsApp".');
+              } else {
+                alertErr('Nota ditutup, tapi nota garansi gagal terbit');
+              }
             })
             .catch(function (e) { alertErr(e.message); });
         });
