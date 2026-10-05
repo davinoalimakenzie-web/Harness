@@ -61,11 +61,20 @@
     } catch (e) { return undefined; }
   }
 
-  function acak(n) {
-    var s = '';
-    var huruf = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    for (var i = 0; i < n; i++) s += huruf.charAt(Math.floor(Math.random() * huruf.length));
-    return s;
+  // Token nota harus berbentuk UUIDv4, bukan string acak sembarang.
+  // Kolom token bertipe UUID di PostgreSQL, dan string acak akan ditolak
+  // dengan "invalid input syntax for type uuid" sehingga tidak ada nota
+  // yang tersimpan sama sekali.
+  function tokenBaru() {
+    var h = '0123456789abcdef';
+    var out = '';
+    for (var i = 0; i < 36; i++) {
+      if (i === 8 || i === 13 || i === 18 || i === 23) { out += '-'; continue; }
+      if (i === 14) { out += '4'; continue; }
+      if (i === 19) { out += h[(Math.floor(Math.random() * 4) + 8) % 16]; continue; }
+      out += h.charAt(Math.floor(Math.random() * 16));
+    }
+    return out;
   }
 
   /* ------------------------------------------------------------------
@@ -118,6 +127,16 @@
      ------------------------------------------------------------------ */
   var GARANSI_HARI = { '7 Hari': 7, '30 Hari': 30, '60 Hari': 60 };
 
+  function nomorNota(o) {
+    var sumber = [o && o.number, o && o.noteNumberRaw, o && o.noteNumber];
+    for (var i = 0; i < sumber.length; i++) {
+      if (sumber[i] === undefined || sumber[i] === null || sumber[i] === '') continue;
+      var n = parseInt(sumber[i], 10);
+      if (!isNaN(n) && n > 0) return n;
+    }
+    return 0;
+  }
+
   function keNota(o, note) {
     note = note || {};
     var hari = GARANSI_HARI[o.warranty || note.warrantyLabel] || 0;
@@ -126,8 +145,13 @@
     var sampai = tanpaGaransi ? null : new Date(new Date(terbit).getTime() + hari * 86400000).toISOString();
     return {
       local_id: o.id,
-      no_nota: o.number || o.noteNumber || 0,
-      token: note.token || acak(24),
+      // Nomor nota datang dalam beberapa bentuk: o.number dari nota
+      // garansi, o.noteNumberRaw berupa angka, dan o.noteNumber berupa
+      // teks yang sudah dipadding misalnya "0007". Semua harus
+      // diturnipkan jadi angka supaya kolom integer di server tidak
+      // menerima teks dan nomor nota tidak ikut menjadi nol.
+      no_nota: nomorNota(o),
+      token: note.token || tokenBaru(),
       customer_name: o.customerName || o.customer_name || '',
       whatsapp: o.whatsapp || '',
       device: o.device || '',
