@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#517da2">
 <meta name="robots" content="noindex, nofollow">
 <title>Nota Service — Mas Cim Service HP</title>
-<link rel="stylesheet" href="assets/css/style.css?v=20261004g">
+<link rel="stylesheet" href="assets/css/style.css?v=20261005a">
 </head>
 <body>
 
@@ -72,11 +72,28 @@
   function body() { return document.querySelector('.mc-public-box-body'); }
 
   function gagal(pesan) {
+    // Bedakan sebab gagalnya supaya laporan dari pelanggan langsung
+    // mengarah ke masalahnya, bukan sekadar "link rusak".
+    var alamat = String(window.location.href || '');
+    var p1 = alamat.split('#')[0];
+    var tanya = p1.indexOf('?') >= 0 ? p1.slice(p1.indexOf('?') + 1) : '';
+    var keterangan;
+    if (!tanya) {
+      keterangan = 'Tautan ini tidak membawa isi nota sama sekali.';
+    } else {
+      var nama = tanya.split('=')[0];
+      var nilai = tanya.split('=').slice(1).join('=');
+      keterangan = 'Bagian "' + nama + '" berisi ' + nilai.length +
+        ' karakter' + (nilai.length < 20 ? ', seharusnya jauh lebih panjang.' : '.');
+    }
     body().innerHTML =
       '<div class="mc-noterevoked" style="margin-top:8px">' +
         '<b>Nota tidak bisa ditampilkan</b>' +
-        '<span>' + esc(pesan) + '</span></div>' +
-      '<p class="mc-public-foot">Bila ini keliru, hubungi Mas Cim Service HP.</p>';
+        '<span>' + esc(pesan) + '</span>' +
+        '<span style="display:block;margin-top:10px;font-size:12px;opacity:.75">' +
+          esc(keterangan) + '</span></div>' +
+      '<p class="mc-public-foot">Bila ini keliru, hubungi Mas Cim Service HP. ' +
+        'Sebutkan keterangan di atas supaya bisa ditelusuri.</p>';
   }
 
   // Isi nota. Sengaja dibangun ulang di sini (bukan memakai modul UI) supaya

@@ -2075,12 +2075,17 @@
       var muatan = '';
       try { muatan = (L && L.encodePublicNote) ? L.encodePublicNote(wn) : ''; } catch (e) { muatan = ''; }
       if (!muatan) return '';
-      return dir + 'nota.html#/s/' + muatan;
+      // Pakai tanda tanya, bukan pagar. Fragment (#) sering dipangkas
+      // WhatsApp maupun keyboard Android saat tautan dipindah dari chat ke
+      // peramban, dan yang tertinggal hanyalah alamat halaman tanpa isi
+      // nota. Query string lolos utuh. Halaman nota menerima keduanya,
+      // jadi tautan lama versi pagar tidak jadi rusak.
+      return dir + 'nota.html?s=' + muatan;
     }
     if (!wn.token) return '';
     // Link lokal berbasis token: bisa dicabut, tapi hanya berlaku di
     // perangkat ini.
-    return dir + 'nota.html#/nota/' + wn.token;
+    return dir + 'nota.html?t=' + wn.token;
   }
 
   // Satu-satunya sumber isi nota. Dipakai LIHAT, SALIN, WHATSAPP, dan CETAK
