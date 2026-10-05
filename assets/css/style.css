@@ -1894,3 +1894,83 @@ select.mc-inp{ appearance:none; }
 .mc-save-side:disabled { opacity: .6; }
 #dSavedHint { min-height: 16px; color: #3fb950; font-weight: 600; }
 #dSavedHint:empty { min-height: 0; }
+
+/* ------------------------------------------------------------------
+   Kalkulator Ronce
+
+   Hanya layar pilih akun, layar PIN, dan wadah isi tab yang perlu
+   gaya baru. Sisanya memakai kelas mc- yang sudah ada. Semua ukuran
+   memakai px dan tidak bergantung pada fungsi CSS modern supaya tetap
+   benar di WebView lama.
+   ------------------------------------------------------------------ */
+.rn-isi{ flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding:12px 14px 28px; }
+.rn-aksen{ font-size:20px; font-weight:800; color:var(--mc-txt); }
+.rn-sub{ font-size:13px; color:var(--mc-txt2); margin-top:2px; }
+.rn-aksen2{ font-size:15px; font-weight:700; color:var(--mc-txt);
+  margin:18px 0 10px; }
+.rn-atas{ display:flex; gap:8px; margin:12px 0 4px; }
+.rn-atas .mc-ghost-btn{ flex:1; }
+
+.rn-akun{ display:flex; align-items:center; gap:12px; width:100%;
+  padding:12px; margin-bottom:8px; border-radius:14px;
+  border:1px solid var(--mc-line); background:var(--mc-card);
+  color:var(--mc-txt); font-size:15px; text-align:left; }
+.rn-akun:active{ background:var(--mc-card2); }
+.rn-akun-teks{ display:block; min-width:0; }
+.rn-akun-nama{ display:block; font-weight:700; font-size:15px;
+  color:var(--mc-txt); overflow-wrap:break-word; word-break:break-word; }
+.rn-akun-peran{ display:block; font-size:12px; color:var(--mc-txt2);
+  margin-top:1px; }
+.rn-panah{ flex:0 0 auto; font-size:20px; color:var(--mc-txt2);
+  line-height:1; }
+
+.rn-avatar{ flex:0 0 auto; width:40px; height:40px; border-radius:12px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; font-weight:800; color:#04140b;
+  background:var(--mc-grn, #1fbf6b); }
+.rn-avatar-besar{ width:72px; height:72px; border-radius:20px;
+  font-size:24px; margin:14px auto 0; }
+
+.rn-nama{ text-align:center; font-size:17px; font-weight:800;
+  color:var(--mc-txt); margin-top:10px; }
+.rn-peran{ text-align:center; font-size:13px; color:var(--mc-txt2);
+  margin-top:2px; }
+.rn-judul{ text-align:center; font-size:16px; font-weight:700;
+  color:var(--mc-txt); margin-top:20px; }
+.rn-ket{ text-align:center; font-size:13px; color:var(--mc-txt2);
+  margin-top:4px; }
+.rn-salah{ text-align:center; font-size:13px; font-weight:700;
+  color:var(--mc-red, #ff5a5a); margin-top:10px; }
+
+.rn-kolom{ display:grid; grid-template-columns:repeat(3,1fr);
+  gap:10px; margin:16px auto 0; max-width:320px; }
+.rn-key{ padding:14px 0; border-radius:14px; font-size:19px;
+  font-weight:700; color:var(--mc-txt);
+  background:var(--mc-card); border:1px solid var(--mc-line); }
+.rn-key:active{ background:var(--mc-card2); }
+.rn-key-ket{ font-size:12px; font-weight:600; color:var(--mc-txt2); }
+
+.rn-mitra{ font-size:12px; color:var(--mc-txt2); overflow-wrap:break-word;
+  word-break:break-word; }
+.rn-log-teks{ font-size:14px; color:var(--mc-txt); line-height:1.4; }
+.rn-hak{ color:var(--mc-grn, #1fbf6b); font-size:16px; }
+.rn-kaki{ text-align:center; font-size:11px; color:var(--mc-txt2);
+  margin-top:22px; }
+
+/* Tab Ronce. Lima tab tidak muat satu baris di layar sempit sehingga
+   digeser mendatar. Tab aktif ditandai warna, bukan hanya posisi, agar
+   tetap terbaca saat digeser. */
+.rn-tabs{ overflow-x:auto; -webkit-overflow-scrolling:touch;
+  padding:0 12px 10px; }
+.rn-tabs-dalam{ display:flex; gap:6px; min-width:max-content; }
+.rn-tab{ flex:0 0 auto; min-height:38px; padding:0 14px;
+  border-radius:11px; white-space:nowrap; font-size:13px; font-weight:600;
+  background:var(--mc-card2); border:1px solid var(--mc-line);
+  color:var(--mc-txt2); }
+.rn-tab-on{ background:var(--mc-grn, #1fbf6b); border-color:transparent;
+  color:#04140b; font-weight:700; }
+
+/* Lencana sisa komisi. Lencana sisa kasbon memakai .mc-warn yang sudah
+   ada, jadi hanya sisi positif yang perlu tambahan. */
+.mc-badge-grn{ background:rgba(31,191,107,.16); color:var(--mc-grn, #1fbf6b); }

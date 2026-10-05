@@ -1,422 +1,575 @@
 /* ===================================================================
-   ronce.js - Kalkulator Komisi Mitra ("Kalkulator Ronce").
+   ronce.js - Kalkulator Ronce untuk miniapps NAVA.
 
-   Diambil dari aplikasi kalkulator-garapan. Yang dibawa ke sini hanya
-   inti perhitungannya, tanpa Firebase, tanpa login, tanpa gaji karyawan.
-   Yang dipindah:
+   Struktur mengikuti aplikasi aslinya di kalkulator-garapan.ai.studio:
 
-     salary      = jumlah ongkir dari seluruh kerjaan mitra
-     saldo       = salary - (pelunasan + penarikan)
-     transaksi bertipe "titip" tidak mengurangi saldo, karena uangnya
-                   ditahan di kas dan baru jadi milik mitra saat
-                   dilunaskan.
+     Pilih Akun Mitra
+        -> Masukkan PIN (4 digit)
+             -> Lima tab: Setting, Input Pekerjaan, Tugas Mitra,
+                           Rekap Gaji, Log Semua Aktivitas
 
-  Sisa komisi positif berarti mitra masih punya hak. Saldo negatif
-   berarti mitra masih punya kasbon, jadi owe-nya balik ke mitra.
+   Perhitungan memakai rumus yang sama persis dengan aplikasi asal:
 
-   Rumus ini disalin apa adanya dari RekapGaji.tsx:
+     saldo = jumlah ongkir setiap pekerjaan
+             - jumlah pelunasan - jumlah penarikan
 
-     jobs.forEach(job => {
-       const earning = job.deliveryFee || 0;
-       balances[job.employeeId] = (balances[job.employeeId] || 0) + earning;
-     });
-     transactions.forEach(tx => {
-       if (tx.type === 'pelunasan' || tx.type === 'penarikan') {
-         balances[tx.employeeId] = (balances[tx.employeeId] || 0) - tx.amount;
-       }
-     });
+   Saldo positif berarti mitra punya sisa komisi. Saldo negatif berarti
+   mitra masih punya kasbon. Transaksi bertipe titip tidak mengurangi
+   saldo karena uangnya ditahan di kas, bukan dibayarkan ke mitra.
+
+   Semua kelas tampilan memakai kelas mc- yang sudah ada di style.css.
+   Kelas khusus layar akun dan keypad PIN ada di blok rn- pada
+   style.css.
    =================================================================== */
 (function (w) {
   'use strict';
 
-  var JENIS = ['pelunasan', 'penarikan', 'titip'];
-
-  /* ------------------------------------------------------------------
-     Perhitungan inti. Murni, tanpa DOM, supaya bisa diuji langsung.
-     ------------------------------------------------------------------ */
-  function saldo(jobs, transaksi) {
-    var out = {};
-    function tambah(kunci, angka) {
-      out[kunci] = (out[kunci] || 0) + angka;
-    }
-    (jobs || []).forEach(function (j) {
-      // Kunci mitra memakai id, dan nama hanya sebagai cadangan untuk
-      // data lama yang belum punya id.
-      var k = j.employeeId || j.employeeName || 'Tanpa Nama';
-      tambah(k, Number(j.deliveryFee) || 0);
-    });
-    (transaksi || []).forEach(function (t) {
-      // Titip tidak mengurangi: uangnya masih di kas.
-      if (t.type !== 'pelunasan' && t.type !== 'penarikan') return;
-      var k = t.employeeId || t.employeeName || 'Tanpa Nama';
-      tambah(k, -(Number(t.amount) || 0));
-    });
-    return out;
-  }
-
-  /* Rekap satu mitra: total kerjaan, komisi, sudah dibayar, sisa. */
-  function rekap(jobs, transaksi, employeeId) {
-    var milik = (jobs || []).filter(function (j) {
-      return (j.employeeId || j.employeeName) === employeeId;
-    });
-    var jumlahKerjaan = milik.reduce(function (n, j) { return n + (Number(j.quantity) || 0); }, 0);
-    var komisi = milik.reduce(function (n, j) { return n + (Number(j.deliveryFee) || 0); }, 0);
-    var sudah = (transaksi || []).filter(function (t) {
-      return (t.employeeId || t.employeeName) === employeeId &&
-        (t.type === 'pelunasan' || t.type === 'penarikan');
-    }).reduce(function (n, t) { return n + (Number(t.amount) || 0); }, 0);
-    var titip = (transaksi || []).filter(function (t) {
-      return (t.employeeId || t.employeeName) === employeeId && t.type === 'titip';
-    }).reduce(function (n, t) { return n + (Number(t.amount) || 0); }, 0);
-    var sisa = komisi - sudah;
-    return {
-      employeeId: employeeId,
-      totalKerjaan: jumlahKerjaan,
-      komisi: komisi,
-      sudahDibayar: sudah,
-      titip: titip,
-      sisa: sisa,
-      kasbon: sisa < 0 ? -sisa : 0,
-      punyaHak: sisa > 0 ? sisa : 0
-    };
-  }
-
-  /* Urutan baris rekap: yang paling besar komisinya dulu. */
-  function semuaMitra(jobs, transaksi) {
-    var ids = {};
-    (jobs || []).forEach(function (j) {
-      var k = j.employeeId || j.employeeName;
-      if (k) ids[k] = j.employeeName || k;
-    });
-    (transaksi || []).forEach(function (t) {
-      var k = t.employeeId || t.employeeName;
-      if (k) ids[k] = t.employeeName || ids[k] || k;
-    });
-    var semua = saldo(jobs, transaksi);
-    var hasil = [];
-    for (var k in semua) {
-      if (!Object.prototype.hasOwnProperty.call(semua, k)) continue;
-      var r = rekap(jobs, transaksi, k);
-      r.nama = ids[k] || k;
-      hasil.push(r);
-    }
-    hasil.sort(function (a, b) { return b.komisi - a.komisi; });
-    return hasil;
-  }
-
-  /* ------------------------------------------------------------------
-     Penyimpanan lokal, terpisah dari data nota supaya tidak bercampur.
-     ------------------------------------------------------------------ */
   var KUNCI = 'mascim_ronce_v1';
+  var KUNCI_AKUN = 'mascim_ronce_akun_v1';
+
+  var AKUN_AWAL = [
+    { id: 'davino', nama: 'Davino Alima kenzie', peran: 'Owner', pin: '1234' },
+    { id: 'hima', nama: 'HIMA', peran: 'Admin', pin: '1234' },
+    { id: 'umi', nama: 'UMI', peran: 'Admin', pin: '1234' }
+  ];
+
+  var el = {};
+  var layar = 'pilih';        // pilih | pin | app
+  var akunTerpilih = null;
+  var tabAktif = 'masuk';
+  var pesanPin = '';
+  var pinTempu = '';
+
+  var TABS = [
+    { id: 'setting', label: 'Setting' },
+    { id: 'masuk', label: 'Input Pekerjaan' },
+    { id: 'tugas', label: 'Tugas Mitra' },
+    { id: 'rekap', label: 'Rekap Gaji' },
+    { id: 'log', label: 'Log Aktivitas' }
+  ];
+
+  function $(s) { return w.document.querySelector(s); }
+  function esc(t) {
+    return String(t === undefined || t === null ? '' : t)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+  function num(v) {
+    var n = parseInt(String(v === undefined || v === null ? '' : v)
+      .replace(/[^0-9-]/g, ''), 10);
+    return isNaN(n) ? 0 : n;
+  }
+  function rp(n) { return 'Rp' + num(n).toLocaleString('id-ID'); }
+
+  /* ------------------------------------------------------------------
+     Penyimpanan
+     ------------------------------------------------------------------ */
+
+  function akun() {
+    try {
+      var a = JSON.parse(w.localStorage.getItem(KUNCI_AKUN) || 'null');
+      if (Array.isArray(a) && a.length) return a;
+    } catch (e) {}
+    return AKUN_AWAL.slice();
+  }
+
+  function simpanAkun(a) {
+    try { w.localStorage.setItem(KUNCI_AKUN, JSON.stringify(a)); } catch (e) {}
+  }
+
+  var data = { pekerjaan: [], transaksi: [], tugas: [], log: [] };
 
   function muat() {
     try {
-      var mentah = w.localStorage.getItem(KUNCI);
-      var d = mentah ? JSON.parse(mentah) : null;
-      if (!d || typeof d !== 'object') d = {};
-      if (!Array.isArray(d.jobs)) d.jobs = [];
-      if (!Array.isArray(d.transaksi)) d.transaksi = [];
-      return d;
-    } catch (e) { return { jobs: [], transaksi: [] }; }
+      var d = JSON.parse(w.localStorage.getItem(KUNCI) || 'null');
+      if (d && typeof d === 'object') data = d;
+    } catch (e) {}
+    if (!Array.isArray(data.pekerjaan)) data.pekerjaan = [];
+    if (!Array.isArray(data.transaksi)) data.transaksi = [];
+    if (!Array.isArray(data.tugas)) data.tugas = [];
+    if (!Array.isArray(data.log)) data.log = [];
   }
 
-  function simpan(d) {
-    try { w.localStorage.setItem(KUNCI, JSON.stringify(d)); } catch (e) {}
-    return d;
+  function simpan() {
+    try { w.localStorage.setItem(KUNCI, JSON.stringify(data)); } catch (e) {}
+  }
+
+  function catat(teks) {
+    data.log.unshift({ waktu: new Date().toISOString(), teks: teks });
+    if (data.log.length > 200) data.log.length = 200;
+  }
+
+  function uid() {
+    return 'x' + Math.random().toString(36).slice(2, 9)
+      + Date.now().toString(36).slice(-4);
   }
 
   /* ------------------------------------------------------------------
-     Antarmuka. Ditaruh di panel "Lainnya" pada Kalkulator.
+     Perhitungan - sama dengan allTimeEmployeeBalances di aplikasi asal
      ------------------------------------------------------------------ */
-  var host = null;
-  var draf = null;
 
-  function esc(t) {
-    return String(t == null ? '' : t)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  function saldoMitra(id) {
+    var komisi = 0, keluar = 0, i;
+    for (i = 0; i < data.pekerjaan.length; i++) {
+      if (data.pekerjaan[i].mitra === id) komisi += num(data.pekerjaan[i].ongkir);
+    }
+    for (i = 0; i < data.transaksi.length; i++) {
+      var t = data.transaksi[i];
+      if (t.mitra !== id) continue;
+      // titip hanya ditahan di kas, jadi tidak mengurangi saldo.
+      if (t.jenis === 'pelunasan' || t.jenis === 'penarikan') {
+        keluar += num(t.nominal);
+      }
+    }
+    return komisi - keluar;
   }
 
-  function angka(v) {
-    var n = Math.round(Number(v) || 0);
-    if (isNaN(n)) n = 0;
-    return 'Rp' + n.toLocaleString('id-ID');
+  function namaMitra(id) {
+    var a = akun();
+    for (var i = 0; i < a.length; i++) if (a[i].id === id) return a[i].nama;
+    return id;
   }
 
-  function rupiah(v) {
-    return String(v == null ? '' : v).replace(/\D/g, '');
+  function rekapMitra() {
+    var peta = {}, urutan = [], i, k;
+    var sumber = [data.pekerjaan, data.transaksi, data.tugas];
+    for (i = 0; i < sumber.length; i++) {
+      for (k = 0; k < sumber[i].length; k++) {
+        var m = sumber[i][k].mitra;
+        if (m && !peta[m]) { peta[m] = 1; urutan.push(m); }
+      }
+    }
+    var hasil = [];
+    for (i = 0; i < urutan.length; i++) {
+      var id = urutan[i], kerjaan = 0, komisi = 0;
+      for (k = 0; k < data.pekerjaan.length; k++) {
+        if (data.pekerjaan[k].mitra === id) {
+          kerjaan++;
+          komisi += num(data.pekerjaan[k].ongkir);
+        }
+      }
+      hasil.push({
+        id: id, nama: namaMitra(id), kerjaan: kerjaan,
+        komisi: komisi, saldo: saldoMitra(id)
+      });
+    }
+    hasil.sort(function (a, b) { return b.saldo - a.saldo; });
+    return hasil;
   }
 
-  function tambahJob(nama, layanan, jumlah, ongkir, tanggal) {
-    var d = muat();
-    d.jobs.push({
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      employeeId: nama, employeeName: nama,
-      serviceId: layanan || '', quantity: Math.max(1, Number(jumlah) || 1),
-      deliveryFee: Math.max(0, Math.round(Number(ongkir) || 0)),
-      date: tanggal || new Date().toISOString().slice(0, 10),
-      status: 'pending'
+  function totalHak() {
+    var r = rekapMitra(), t = 0, i;
+    for (i = 0; i < r.length; i++) if (r[i].saldo > 0) t += r[i].saldo;
+    return t;
+  }
+
+  /* ------------------------------------------------------------------
+     Layar 1 - Pilih Akun Mitra
+     ------------------------------------------------------------------ */
+
+  function layarPilih() {
+    var a = akun(), html = '', i;
+    html += '<div class="rn-aksen">Kalkulator Ronce</div>';
+    html += '<div class="rn-sub">Sistem Pencatatan Finansial &amp; Gaji Mitra</div>';
+    html += '<div class="rn-aksen2">Pilih Akun Mitra</div>';
+    if (!a.length) html += '<div class="mc-empty">Belum ada akun mitra.</div>';
+    for (i = 0; i < a.length; i++) {
+      html += '<button class="rn-akun" data-rn-pilih="' + esc(a[i].id) + '">'
+        + '<span class="rn-avatar">'
+        + esc(a[i].nama.slice(0, 2).toUpperCase()) + '</span>'
+        + '<span class="mc-grow rn-akun-teks"><span class="rn-akun-nama">'
+        + esc(a[i].nama) + '</span>'
+        + '<span class="rn-akun-peran">' + esc(a[i].peran) + '</span></span>'
+        + '<span class="rn-panah">›</span></button>';
+    }
+    el.ronceBody.innerHTML = html + '<div class="rn-kaki">© 2026 Kalkulator Ronce</div>';
+  }
+
+  /* ------------------------------------------------------------------
+     Layar 2 - Masukkan PIN
+     ------------------------------------------------------------------ */
+
+  function layarPin() {
+    var pin = akunTerpilih || {};
+    var html = '';
+    html += '<div class="rn-aksen">Kalkulator Ronce</div>';
+    html += '<div class="rn-sub">Sistem Pencatatan Finansial &amp; Gaji Mitra</div>';
+    html += '<div class="rn-atas"><button class="mc-ghost-btn" data-rn-pin="Kembali">'
+      + 'Kembali</button><button class="mc-ghost-btn" data-rn-pin="Ganti">'
+      + 'Ubah PIN Login</button></div>';
+    html += '<div class="rn-avatar rn-avatar-besar">'
+      + esc(String(pin.nama || '?').slice(0, 2).toUpperCase()) + '</div>';
+    html += '<div class="rn-nama">' + esc(pin.nama || '') + '</div>';
+    html += '<div class="rn-peran">' + esc(pin.peran || '') + '</div>';
+    html += '<div class="rn-judul">Masukkan PIN</div>';
+    html += '<div class="rn-ket">Masukkan 4 digit PIN Anda untuk masuk</div>';
+    if (pesanPin) html += '<div class="rn-salah">' + esc(pesanPin) + '</div>';
+    html += '<div class="rn-kolom">';
+    var tombol = '1 2 3 4 5 6 7 8 9 Clear 0 Delete'.split(' ');
+    for (var i = 0; i < tombol.length; i++) {
+      html += '<button class="rn-key'
+        + (tombol[i].length > 1 ? ' rn-key-ket' : '')
+        + '" data-rn-pin="' + esc(tombol[i]) + '">' + esc(tombol[i]) + '</button>';
+    }
+    html += '</div>';
+    html += '<div class="rn-kaki">© 2026 Kalkulator Ronce • PIN Auth Protocol</div>';
+    el.ronceBody.innerHTML = html;
+  }
+
+  /* ------------------------------------------------------------------
+     Layar 3 - Lima tab
+     ------------------------------------------------------------------ */
+
+  function kerangka() {
+    var html = '';
+    html += '<div class="mc-nav">'
+      + '<button class="mc-back" data-rn-keluar="1" aria-label="Kembali">‹</button>'
+      + '<div class="mc-grow"><div class="mc-bar-title">Kalkulator Ronce</div>'
+      + '<div class="rn-mitra">' + esc(akunTerpilih.nama) + '</div></div>'
+      + '<button class="mc-back" data-rn-tutup="1" aria-label="Tutup">×</button>'
+      + '</div>';
+    // Lima tab tidak muat dalam satu baris di layar sempit, jadi tabnya
+    // digeser mendatar dan hanya tab aktif yang terlihat penuh.
+    html += '<div class="rn-tabs"><div class="rn-tabs-dalam">';
+    for (var i = 0; i < TABS.length; i++) {
+      html += '<button class="rn-tab'
+        + (TABS[i].id === tabAktif ? ' rn-tab-on' : '')
+        + '" data-rn-tab="' + TABS[i].id + '">' + esc(TABS[i].label) + '</button>';
+    }
+    html += '</div></div>';
+    html += '</div><div class="rn-isi" id="rnIsi"></div>';
+    el.ronceBody.innerHTML = html;
+    el.rnIsi = $('#rnIsi');
+  }
+
+  function opsiMitra() {
+    var r = rekapMitra(), html = '', i;
+    for (i = 0; i < r.length; i++) {
+      html += '<option value="' + esc(r[i].id) + '">' + esc(r[i].nama) + '</option>';
+    }
+    if (!html) html = '<option value="">- belum ada mitra -</option>';
+    return html;
+  }
+
+  function tabSetting() {
+    var a = akun(), html = '', i;
+    html += '<div class="mc-sec">Akun Mitra</div>';
+    for (i = 0; i < a.length; i++) {
+      html += '<div class="mc-card mc-prow"><div class="mc-grow">'
+        + '<div class="rn-akun-nama">' + esc(a[i].nama) + '</div>'
+        + '<div class="rn-akun-peran">' + esc(a[i].peran) + '</div></div>'
+        + '<button class="mc-ghost-btn" data-rn-hapusakun="' + esc(a[i].id)
+        + '">Hapus</button></div>';
+    }
+    html += '<div class="mc-row2"><input class="mc-inp" id="rnAkunNama" '
+      + 'placeholder="Nama mitra">'
+      + '<button class="mc-ghost-btn" id="rnAkunTambah">Tambah</button></div>';
+    html += '<div class="mc-sec">Perhitungan</div>';
+    html += '<div class="mc-note">Komisi mitra dihitung dari ongkir setiap pekerjaan. '
+      + 'Pelunasan dan penarikan mengurangi saldo; titip hanya ditahan di kas.</div>';
+    html += '<div class="mc-sec">Data</div>';
+    html += '<button class="mc-ghost-btn mc-submit" id="rnHapusSemua">'
+      + 'Hapus Semua Data</button>';
+    return html;
+  }
+
+  function tabMasuk() {
+    var html = '';
+    html += '<div class="mc-sec">Tambah Pekerjaan</div>';
+    html += '<div class="mc-card">';
+    html += '<div class="mc-field"><div class="mc-lbl">Mitra</div>'
+      + '<select class="mc-inp" id="rnMitra">' + opsiMitra() + '</select></div>';
+    html += '<div class="mc-field"><div class="mc-lbl">Jenis Pekerjaan</div>'
+      + '<input class="mc-inp" id="rnJenis" placeholder="contoh: Ganti LCD"></div>';
+    html += '<div class="mc-row2">'
+      + '<div class="mc-field mc-grow"><div class="mc-lbl">Jumlah</div>'
+      + '<input class="mc-inp" id="rnJumlah" type="number" inputmode="numeric" '
+      + 'value="1"></div>'
+      + '<div class="mc-field mc-grow"><div class="mc-lbl">Ongkir / japan</div>'
+      + '<input class="mc-inp" id="rnOngkir" inputmode="numeric" '
+      + 'placeholder="20000"></div></div>';
+    html += '<button class="mc-primary mc-submit" id="rnSimpan">Tambah</button>';
+    html += '</div>';
+
+    html += '<div class="mc-sec">Catat Transaksi Mitra</div>';
+    html += '<div class="mc-card">';
+    html += '<div class="mc-row2">'
+      + '<div class="mc-field mc-grow"><div class="mc-lbl">Mitra</div>'
+      + '<select class="mc-inp" id="rnTrxMitra">' + opsiMitra() + '</select></div>'
+      + '<div class="mc-field mc-grow"><div class="mc-lbl">Jenis</div>'
+      + '<select class="mc-inp" id="rnTrxJenis">'
+      + '<option>Pelunasan</option><option>Penarikan</option><option>Titip</option>'
+      + '</select></div></div>';
+    html += '<div class="mc-field"><div class="mc-lbl">Nominal</div>'
+      + '<input class="mc-inp" id="rnNominal" inputmode="numeric" '
+      + 'placeholder="50000"></div>';
+    html += '<button class="mc-primary mc-submit" id="rnCatat">'
+      + 'Catat Transaksi</button>';
+    html += '</div>';
+    return html;
+  }
+
+  function tabTugas() {
+    var html = '', i;
+    html += '<div class="mc-sec">Tugas Mitra</div>';
+    if (!data.tugas.length) {
+      html += '<div class="mc-empty">Belum ada tugas mitra.</div>';
+      return html;
+    }
+    for (i = 0; i < data.tugas.length; i++) {
+      var g = data.tugas[i];
+      html += '<div class="mc-card mc-prow"><div class="mc-grow">'
+        + '<div class="rn-akun-nama">' + esc(g.judul) + '</div>'
+        + '<div class="rn-akun-peran">' + esc(g.mitraNama || g.mitra)
+        + '</div></div><button class="mc-ghost-btn" data-rn-hapustugas="'
+        + esc(g.id) + '">Selesai</button></div>';
+    }
+    return html;
+  }
+
+  function tabRekap() {
+    var r = rekapMitra(), html = '', i;
+    var totalKerjaan = 0, totalKomisi = 0;
+    for (i = 0; i < r.length; i++) {
+      totalKerjaan += r[i].kerjaan;
+      totalKomisi += r[i].komisi;
+    }
+    html += '<div class="mc-sec">Rekap Gaji Mitra</div>';
+    html += '<div class="mc-kpi"><div class="mc-kpi-i"><div class="mc-lbl">'
+      + 'Total kerjaan</div><div class="mc-money">' + totalKerjaan + '</div></div>'
+      + '<div class="mc-kpi-i"><div class="mc-lbl">Total komisi</div>'
+      + '<div class="mc-money">' + rp(totalKomisi) + '</div></div></div>';
+    html += '<div class="mc-kv"><span>Total hak</span><b class="rn-hak">'
+      + rp(totalHak()) + '</b></div>';
+    if (!r.length) {
+      html += '<div class="mc-empty">Belum ada kerjaan mitra.</div>';
+      return html;
+    }
+    for (i = 0; i < r.length; i++) {
+      var m = r[i], positif = m.saldo >= 0;
+      html += '<div class="mc-card mc-prow"><div class="mc-grow">'
+        + '<div class="rn-akun-nama">' + esc(m.nama) + '</div>'
+        + '<div class="rn-akun-peran">' + m.kerjaan + ' kerjaan · komisi '
+        + rp(m.komisi) + '</div></div><div class="mc-row-r">'
+        + '<div class="mc-money">' + rp(Math.abs(m.saldo)) + '</div>'
+        + '<div class="mc-badge' + (positif ? ' mc-badge-grn' : ' mc-warn')
+        + '">' + (positif ? 'Sisa Komisi' : 'Sisa Kasbon') + '</div></div></div>';
+    }
+    return html;
+  }
+
+  function tabLog() {
+    var html = '', i;
+    html += '<div class="mc-sec">Log Semua Aktivitas</div>';
+    if (!data.log.length) {
+      html += '<div class="mc-empty">Belum ada aktivitas.</div>';
+      return html;
+    }
+    for (i = 0; i < data.log.length; i++) {
+      var l = data.log[i];
+      html += '<div class="mc-card mc-prow"><div class="mc-grow">'
+        + '<div class="rn-log-teks">' + esc(l.teks) + '</div>'
+        + '<div class="rn-akun-peran">' + esc(waktuSingkat(l.waktu))
+        + '</div></div></div>';
+    }
+    return html;
+  }
+
+  function waktuSingkat(iso) {
+    try {
+      return new Date(iso).toLocaleString('id-ID', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    } catch (e) { return iso; }
+  }
+
+  function gambarIsi() {
+    if (!el.rnIsi) return;
+    var html = '';
+    if (tabAktif === 'setting') html = tabSetting();
+    else if (tabAktif === 'masuk') html = tabMasuk();
+    else if (tabAktif === 'tugas') html = tabTugas();
+    else if (tabAktif === 'rekap') html = tabRekap();
+    else html = tabLog();
+    el.rnIsi.innerHTML = html;
+  }
+
+  function gambar() {
+    if (layar === 'pilih') { layarPilih(); return; }
+    if (layar === 'pin') { layarPin(); return; }
+    kerangka();
+    gambarIsi();
+  }
+
+  /* ------------------------------------------------------------------
+     Aksi
+     ------------------------------------------------------------------ */
+
+  function tambahPekerjaan() {
+    var mitra = (($('#rnMitra') || {}).value) || '';
+    var jenis = ((($('#rnJenis') || {}).value) || '').trim();
+    var jumlah = Math.max(1, num(($('#rnJumlah') || {}).value) || 1);
+    var ongkir = num(($('#rnOngkir') || {}).value);
+    if (!mitra) { w.App && w.App.toast('Pilih mitra dulu'); return; }
+    if (!jenis) { w.App && w.App.toast('Isi jenis pekerjaan'); return; }
+    if (ongkir <= 0) { w.App && w.App.toast('Ongkir harus lebih dari 0'); return; }
+    data.pekerjaan.push({
+      id: uid(), mitra: mitra, jenis: jenis, jumlah: jumlah,
+      ongkir: ongkir, waktu: new Date().toISOString()
     });
-    simpan(d);
+    catat(jenis + ' oleh ' + namaMitra(mitra) + ' - ongkir ' + rp(ongkir));
+    simpan();
+    gambar();
+    w.App && w.App.toast('Pekerjaan ditambahkan');
   }
 
-  function tambahTransaksi(nama, tipe, jumlah, tanggal) {
-    var d = muat();
-    d.transaksi.push({
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      employeeId: nama, employeeName: nama,
-      type: JENIS.indexOf(tipe) >= 0 ? tipe : 'pelunasan',
-      amount: Math.max(0, Math.round(Number(jumlah) || 0)),
-      date: tanggal || new Date().toISOString().slice(0, 10),
-      createdAt: Date.now()
+  function catatTransaksi() {
+    var mitra = (($('#rnTrxMitra') || {}).value) || '';
+    var jenis = (($('#rnTrxJenis') || {}).value) || 'Pelunasan';
+    var nominal = num(($('#rnNominal') || {}).value);
+    if (!mitra) { w.App && w.App.toast('Pilih mitra dulu'); return; }
+    if (nominal <= 0) { w.App && w.App.toast('Nominal harus lebih dari 0'); return; }
+    var kunci = jenis.toLowerCase();
+    if (kunci !== 'penarikan' && kunci !== 'titip') kunci = 'pelunasan';
+    data.transaksi.push({
+      id: uid(), mitra: mitra, jenis: kunci, nominal: nominal,
+      waktu: new Date().toISOString()
     });
-    simpan(d);
+    catat(jenis + ' ' + rp(nominal) + ' untuk ' + namaMitra(mitra));
+    simpan();
+    gambar();
+    w.App && w.App.toast('Transaksi dicatat');
   }
 
-  function hapus(id) {
-    var d = muat();
-    d.jobs = d.jobs.filter(function (x) { return x.id !== id; });
-    d.transaksi = d.transaksi.filter(function (x) { return x.id !== id; });
-    simpan(d);
+  function tambahAkun() {
+    var n = ((($('#rnAkunNama') || {}).value) || '').trim();
+    if (!n) { w.App && w.App.toast('Isi nama mitra'); return; }
+    var a = akun();
+    a.push({ id: uid(), nama: n, peran: 'Mitra', pin: '1234' });
+    simpanAkun(a);
+    gambar();
+    w.App && w.App.toast('Mitra ditambahkan');
   }
 
-  function kosongkan() {
-    simpan({ jobs: [], transaksi: [] });
-  }
-
-  function ringkas() {
-    var d = muat();
-    var list = semuaMitra(d.jobs, d.transaksi);
-    var totalKomisi = list.reduce(function (n, r) { return n + r.komisi; }, 0);
-    var totalHak = list.reduce(function (n, r) { return n + r.punyaHak; }, 0);
-    var totalKasbon = list.reduce(function (n, r) { return n + r.kasbon; }, 0);
-    var totalTitip = list.reduce(function (n, r) { return n + r.titip; }, 0);
-    return {
-      list: list, totalKomisi: totalKomisi, totalHak: totalHak,
-      totalKasbon: totalKasbon, totalTitip: totalTitip,
-      totalKerjaan: d.jobs.reduce(function (n, j) { return n + (Number(j.quantity) || 0); }, 0)
-    };
-  }
-
-  /* ------------------------------------------------------------------
-     Render. Sengaja memakai kelas yang sudah ada supaya tidak perlu CSS
-     baru dan tidak risiko merusak tampilan Kalkulator.
-     ------------------------------------------------------------------ */
-  function render() {
-    if (!host) return;
-    var r = ringkas();
-
-    var baris = r.list.map(function (x) {
-      var ket = x.sisa < 0
-        ? '<span style="color:#e05a5a">Sisa Kasbon ' + angka(x.kasbon) + '</span>'
-        : '<span style="color:#35d07f">Sisa Komisi ' + angka(x.punyaHak) + '</span>';
-      return '<tr>' +
-        '<td style="padding:6px 4px">' + esc(x.nama) + '</td>' +
-        '<td style="padding:6px 4px;text-align:right">' + x.totalKerjaan + '</td>' +
-        '<td style="padding:6px 4px;text-align:right">' + angka(x.komisi) + '</td>' +
-        '<td style="padding:6px 4px;text-align:right">' + angka(x.sudahDibayar) + '</td>' +
-        '<td style="padding:6px 4px;text-align:right">' + ket + '</td>' +
-        '</tr>';
-    }).join('');
-
-    host.innerHTML =
-      '<div class="mc-sec" style="margin-bottom:8px">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' +
-          '<span>Kalkulator Ronce</span>' +
-          '<button type="button" class="mc-ghost-btn" data-ronce-reset>Hapus Semua</button>' +
-        '</div>' +
-        '<div class="mc-hint sm" style="margin-top:6px">' +
-          'Komisi mitra dihitung dari ongkir setiap kerjaan. Pelunasan dan ' +
-          'penarikan mengurangi saldo; titip hanya ditahan di kas.' +
-        '</div>' +
-      '</div>' +
-
-      '<div class="k-card" style="margin-bottom:8px">' +
-        '<div class="k-label">Nama Mitra</div>' +
-        '<input id="rNama" class="k-input" value="' + esc(draf.nama) + '" placeholder="contoh: Budi">' +
-        '<div class="k-label" style="margin-top:8px">Jenis Pekerjaan</div>' +
-        '<input id="rLayanan" class="k-input" value="' + esc(draf.layanan) + '" placeholder="contoh: Ganti LCD">' +
-        '<div style="display:flex;gap:8px;margin-top:8px">' +
-          '<div style="flex:1">' +
-            '<div class="k-label">Jumlah</div>' +
-            '<input id="rJumlah" class="k-input" type="number" inputmode="numeric" value="' + esc(draf.jumlah) + '">' +
-          '</div>' +
-          '<div style="flex:1">' +
-            '<div class="k-label">Ongkir / japan</div>' +
-            '<input id="rOngkir" class="k-input" inputmode="numeric" value="' + esc(draf.ongkir) + '" placeholder="20000">' +
-          '</div>' +
-        '</div>' +
-        '<button type="button" class="mc-primary-btn" data-ronce-add style="margin-top:10px;width:100%">' +
-          'Tambah Kerjaan' +
-        '</button>' +
-      '</div>' +
-
-      '<div class="k-card" style="margin-bottom:8px">' +
-        '<div class="k-label">Catat Transaksi Mitra</div>' +
-        '<div style="display:flex;gap:8px;margin-top:4px">' +
-          '<div style="flex:1">' +
-            '<div class="k-label">Jenis</div>' +
-            '<select id="rTipe" class="k-input">' +
-              '<option value="pelunasan"' + (draf.tipe === 'pelunasan' ? ' selected' : '') + '>Pelunasan</option>' +
-              '<option value="penarikan"' + (draf.tipe === 'penarikan' ? ' selected' : '') + '>Penarikan</option>' +
-              '<option value="titip"' + (draf.tipe === 'titip' ? ' selected' : '') + '>Titip (kas)</option>' +
-            '</select>' +
-          '</div>' +
-          '<div style="flex:1">' +
-            '<div class="k-label">Nominal</div>' +
-            '<input id="rNominal" class="k-input" inputmode="numeric" value="' + esc(draf.nominal) + '" placeholder="50000">' +
-          '</div>' +
-        '</div>' +
-        '<button type="button" class="mc-ghost-btn" data-ronce-trx style="margin-top:10px;width:100%">' +
-          'Catat Transaksi' +
-        '</button>' +
-      '</div>' +
-
-      '<div class="k-card">' +
-        '<div class="k-label">Rekap Gaji Mitra</div>' +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px;font-size:12px">' +
-          '<span>Total kerjaan: <b>' + r.totalKerjaan + '</b></span>' +
-          '<span>Total komisi: <b>' + angka(r.totalKomisi) + '</b></span>' +
-        '</div>' +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;font-size:12px">' +
-          '<span style="color:#35d07f">Total hak: <b>' + angka(r.totalHak) + '</b></span>' +
-          (r.totalKasbon > 0 ? '<span style="color:#e05a5a">Total kasbon: <b>' + angka(r.totalKasbon) + '</b></span>' : '') +
-          (r.totalTitip > 0 ? '<span style="color:#e0b400">Total titip: <b>' + angka(r.totalTitip) + '</b></span>' : '') +
-        '</div>' +
-        (baris
-          ? '<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse">' +
-            '<thead><tr style="opacity:.7;text-align:left">' +
-              '<th style="padding:4px">Mitra</th><th style="text-align:right">Qty</th>' +
-              '<th style="text-align:right">Komisi</th><th style="text-align:right">Dibayar</th>' +
-              '<th style="text-align:right">Sisa</th></tr></thead>' +
-            '<tbody>' + baris + '</tbody></table></div>'
-          : '<div class="mc-empty">Belum ada kerjaan mitra.</div>') +
-      '</div>';
-
-    ikat();
+  function ketikPin(tombol) {
+    var pin = akunTerpilih || {};
+    if (tombol === 'Kembali') {
+      layar = 'pilih'; pesanPin = ''; pinTempu = ''; gambar(); return;
+    }
+    if (tombol === 'Ganti') {
+      w.App && w.App.toast('Ubah PIN dilakukan dari tab Setting setelah masuk');
+      return;
+    }
+    if (tombol === 'Clear') { pinTempu = ''; pesanPin = ''; gambar(); return; }
+    if (tombol === 'Delete') { pinTempu = pinTempu.slice(0, -1); return; }
+    pinTempu += tombol;
+    if (pinTempu.length > 4) pinTempu = pinTempu.slice(-4);
+    if (pinTempu.length === 4) {
+      if (pinTempu === String(pin.pin)) {
+        pinTempu = '';
+        layar = 'app';
+        tabAktif = 'masuk';
+        catat('Masuk sebagai ' + pin.nama);
+        simpan();
+      } else {
+        pinTempu = '';
+        pesanPin = 'PIN yang Anda masukkan salah. Silakan coba lagi.';
+      }
+    }
+    gambar();
   }
 
   /* ------------------------------------------------------------------
-     Pembaruan draf dan penangan peristiwa. Dipisah dari render supaya
-     ketikan tidak membangun ulang seluruh panel.
+     Peristiwa
      ------------------------------------------------------------------ */
-  function bacaDraf() {
-    if (!draf) draf = { nama: '', layanan: '', jumlah: 1, ongkir: '', tipe: 'pelunasan', nominal: '' };
-    return draf;
+
+  function padaKlik(e) {
+    var t = e.target;
+    var ambil = function (attr) {
+      var n = (t.closest) ? t.closest('[' + attr + ']') : null;
+      return n ? n.getAttribute(attr) : null;
+    };
+
+    if (el.ronceBody.contains && !el.ronceBody.contains(t)) return;
+
+    var buka = ambil('data-rn-pilih');
+    if (buka) {
+      var a = akun(), i;
+      for (i = 0; i < a.length; i++) {
+        if (a[i].id === buka) { akunTerpilih = a[i]; break; }
+      }
+      pesanPin = ''; pinTempu = '';
+      layar = 'pin';
+      gambar();
+      return;
+    }
+
+    if (ambil('data-rn-pin') !== null) { ketikPin(ambil('data-rn-pin')); return; }
+
+    if (ambil('data-rn-keluar')) {
+      layar = 'pilih'; pesanPin = ''; pinTempu = ''; akunTerpilih = null;
+      gambar(); return;
+    }
+    if (ambil('data-rn-tutup')) { close(); return; }
+
+    var tab = ambil('data-rn-tab');
+    if (tab) { tabAktif = tab; kerangka(); gambarIsi(); return; }
+
+    var ha = ambil('data-rn-hapusakun');
+    if (ha) { simpanAkun(akun().filter(function (x) { return x.id !== ha; })); gambar(); return; }
+
+    var ht = ambil('data-rn-hapustugas');
+    if (ht) {
+      data.tugas = data.tugas.filter(function (x) { return x.id !== ht; });
+      simpan(); gambar(); return;
+    }
+
+    if (t.id === 'rnSimpan') { tambahPekerjaan(); return; }
+    if (t.id === 'rnCatat') { catatTransaksi(); return; }
+    if (t.id === 'rnAkunTambah') { tambahAkun(); return; }
+    if (t.id === 'rnHapusSemua') {
+      if (w.confirm('Hapus semua pekerjaan, transaksi, tugas, dan log?')) {
+        data = { pekerjaan: [], transaksi: [], tugas: [], log: [] };
+        simpan(); gambar();
+        w.App && w.App.toast('Semua data dihapus');
+      }
+    }
   }
 
-  function ikat() {
-    var n = host.querySelector('#rNama'); if (n) n.oninput = function () { bacaDraf().nama = this.value; };
-    var l = host.querySelector('#rLayanan'); if (l) l.oninput = function () { bacaDraf().layanan = this.value; };
-    var j = host.querySelector('#rJumlah'); if (j) j.oninput = function () { bacaDraf().jumlah = this.value; };
-    var o = host.querySelector('#rOngkir'); if (o) o.oninput = function () { bacaDraf().ongkir = rupiah(this.value); };
-    var t = host.querySelector('#rTipe'); if (t) t.onchange = function () { bacaDraf().tipe = this.value; };
-    var m = host.querySelector('#rNominal'); if (m) m.oninput = function () { bacaDraf().nominal = rupiah(this.value); };
+  /* ------------------------------------------------------------------
+     Pembuka
+     ------------------------------------------------------------------ */
 
-    var add = host.querySelector('[data-ronce-add]');
-    if (add) add.onclick = function () {
-      var d = bacaDraf();
-      if (!d.nama.trim()) { w.App && w.App.toast('Nama mitra wajib diisi'); return; }
-      if (!(Number(d.ongkir) > 0)) { w.App && w.App.toast('Ongkir / japan harus lebih dari nol'); return; }
-      tambahJob(d.nama.trim(), d.layanan.trim(), d.jumlah, d.ongkir);
-      d.layanan = ''; d.jumlah = 1; d.ongkir = '';
-      render();
-      if (w.TG) w.TG.haptic('success');
-    };
+  function open() {
+    // init() biasanya sudah berjalan dari app.js, tetapi open() tidak
+    // boleh melempar galat bila dipanggil lebih dulu.
+    if (!el.ronce || !el.ronceBody) init();
+    if (!el.ronce || !el.ronceBody) return;
+    muat();
+    el.ronce.classList.remove('hidden');
+    el.ronce.setAttribute('aria-hidden', 'false');
+    el.ronceBody.scrollTop = 0;
+    gambar();
+  }
 
-    var trx = host.querySelector('[data-ronce-trx]');
-    if (trx) trx.onclick = function () {
-      var d = bacaDraf();
-      if (!d.nama.trim()) { w.App && w.App.toast('Nama mitra wajib diisi'); return; }
-      if (!(Number(d.nominal) > 0)) { w.App && w.App.toast('Nominal harus lebih dari nol'); return; }
-      tambahTransaksi(d.nama.trim(), d.tipe, d.nominal);
-      d.nominal = '';
-      render();
-      if (w.TG) w.TG.haptic('success');
-    };
+  function close() {
+    if (!el.ronce) return;
+    el.ronce.classList.add('hidden');
+    el.ronce.setAttribute('aria-hidden', 'true');
+  }
 
-    var reset = host.querySelector('[data-ronce-reset]');
-    if (reset) reset.onclick = function () {
-      if (w.confirm) w.confirm('Hapus semua rekap gaji mitra?');
-      kosongkan();
-      render();
-    };
+  function init() {
+    el.ronce = $('#ronce');
+    el.ronceBody = $('#ronceBody');
+    if (!el.ronce || !el.ronceBody) return;
+    el.ronceBody.addEventListener('click', padaKlik);
+    var tombol = w.document.querySelector('[data-ronce-open]');
+    if (tombol) tombol.addEventListener('click', open);
   }
 
   w.Ronce = {
-    // Logika murni, bisa dipakai dan diuji tanpa peramban.
-    saldo: saldo,
-    rekap: rekap,
-    semuaMitra: semuaMitra,
-    ringkas: ringkas,
-    muat: muat,
-    simpan: simpan,
-    tambahJob: tambahJob,
-    tambahTransaksi: tambahTransaksi,
-    hapus: hapus,
-    kosongkan: kosongkan,
-    render: function (el) { host = el; bacaDraf(); render(); },
-
-    /* ----------------------------------------------------------------
-       Overlay penuh, mengikuti pola modul Mas Cim: satu panel yang
-       menutupi layar dan punya tombol kembali sendiri.
-       ---------------------------------------------------------------- */
-    open: function () {
-      var m = w.document.getElementById('ronce');
-      if (!m) return;
-      host = w.document.getElementById('ronceBody');
-      m.classList.remove('hidden');
-      m.setAttribute('aria-hidden', 'false');
-      if (w.document.body && w.document.body.classList) {
-        w.document.body.classList.add('mc-open');
-      }
-      bacaDraf();
-      render();
-    },
-
-    close: function () {
-      var m = w.document.getElementById('ronce');
-      if (!m) return;
-      m.classList.add('hidden');
-      m.setAttribute('aria-hidden', 'true');
-      if (w.document.body && w.document.body.classList) {
-        w.document.body.classList.remove('mc-open');
-      }
-    },
-
-    init: function () {
-      // Tombol di tab Lainnya. Pakai data-ronce-open supaya tidak ikut
-      // ditangani router App.go() yang hanya untuk view utama.
-      var tool = w.document.querySelector('[data-ronce-open]');
-      if (tool && !tool.dataset.ronceBound) {
-        tool.dataset.ronceBound = '1';
-        tool.addEventListener('click', function (e) {
-          e.preventDefault();
-          w.Ronce.open();
-        });
-      }
-      var back = w.document.getElementById('ronceBack');
-      if (back && !back.dataset.ronceBound) {
-        back.dataset.ronceBound = '1';
-        back.addEventListener('click', function () {
-          w.Ronce.close();
-          if (w.TG) w.TG.haptic('select');
-        });
-      }
-      var reset = w.document.getElementById('ronceReset');
-      if (reset && !reset.dataset.ronceBound) {
-        reset.dataset.ronceBound = '1';
-        reset.addEventListener('click', function () {
-          var ok = true;
-          if (w.confirm) ok = w.confirm('Hapus semua rekap gaji mitra?');
-          if (!ok) return;
-          kosongkan();
-          render();
-          if (w.TG) w.TG.haptic('warning');
-        });
-      }
-    },
-
-    JENIS: JENIS
+    init: init, open: open, close: close,
+    hitung: saldoMitra, rekap: rekapMitra, totalHak: totalHak
   };
 })(window);
