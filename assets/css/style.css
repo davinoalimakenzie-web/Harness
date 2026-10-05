@@ -1,5 +1,5 @@
 /* =========================================================
-   Project Nava — Telegram Mini App (Cashflow MVP)
+   Project Nava  Telegram Mini App (Cashflow MVP)
    Tema mengikuti Telegram (themeParams), fallback untuk browser biasa
    ========================================================= */
 
@@ -33,7 +33,7 @@
   --sab:           env(safe-area-inset-bottom, 0px);
 }
 
-/* Dark theme — otomatis saat sistem gelap ATAU variabel Telegram gelap */
+/* Dark theme  otomatis saat sistem gelap ATAU variabel Telegram gelap */
 @media (prefers-color-scheme: dark){
   :root:not(.light){ --bg:#0f1114; --bg-elev:#1a1d21; --text:#f2f3f7; --text-2:#9aa0a6;
     --hint:#8e8e93; --line:rgba(255,255,255,.09); --tap:rgba(255,255,255,.06);
@@ -280,10 +280,10 @@ button.item .item-sub{ margin-top:3px; }
 
 /* ---------------- Sheet ----------------
    Skala z-index (WAJIB dipakai berurutan, jangan menebak angka):
-     30 header · 40 tabbar · 50 popover
+     30 header  40 tabbar  50 popover
      60 .tx-page   halaman input transaksi (full-screen)
      70 #mc        overlay modul Mas Cim (layar penuh)
-     75 .sheet-wrap  sheet / dialog  ← selalu DI ATAS semua overlay modul
+     75 .sheet-wrap  sheet / dialog   selalu DI ATAS semua overlay modul
      80 .toast
   sheet sebelumnya z-index:60, sama dengan .tx-page (60) dan lebih rendah dari
    .mc (70), jadi sheet yang dibuka dari dalam Mas Cim muncul DI BAWAH layar
@@ -319,7 +319,7 @@ button.item .item-sub{ margin-top:3px; }
 }
 
 /* =========================================================
-   Cashflow — komponen baru (PRD 6)
+   Cashflow  komponen baru (PRD 6)
    ========================================================= */
 
 /* Kartu saldo di Beranda */
@@ -429,7 +429,7 @@ button.item .item-sub{ margin-top:3px; }
 .ce-sub{ font-size:11.5px; padding:4px 9px; border-radius:8px; background:var(--tap); color:var(--text-2); }
 
 /* =========================================================
-   PROJECT NAVA v3 — Cashflow (gaya Money Lover)
+   PROJECT NAVA v3  Cashflow (gaya Money Lover)
    Halaman input transaksi full-screen + keypad numerik
    ========================================================= */
 
@@ -602,7 +602,7 @@ button.item .item-sub{ margin-top:3px; }
 .tx-cats-head{ display:flex; align-items:center; justify-content:space-between; padding:0 14px 4px; }
 
 /* =========================================================
-   FORMULIR TRANSAKSI (dropdown) — revisi
+   FORMULIR TRANSAKSI (dropdown)  revisi
    ========================================================= */
 .tx-form{
   padding:4px 14px 10px;
@@ -616,7 +616,7 @@ button.item .item-sub{ margin-top:3px; }
 }
 .sel-wrap{ position:relative; display:block; }
 .sel-wrap::after{
-  content:'▾'; position:absolute; right:12px; top:50%;
+  content:''; position:absolute; right:12px; top:50%;
   transform:translateY(-50%); pointer-events:none;
   color:var(--text-3); font-size:13px;
 }
@@ -708,7 +708,7 @@ button.item .item-sub{ margin-top:3px; }
 }
 
 /* =========================================================
-   POOL — transaksi dari chat bot yang menunggu "Simpan"
+   POOL  transaksi dari chat bot yang menunggu "Simpan"
    ========================================================= */
 .pool-card{
   border:1px solid color-mix(in srgb, var(--warn) 42%, transparent);
@@ -895,7 +895,7 @@ body.mc-open{ overflow:hidden; }
    harga terisi otomatis atau perlu diisi manual. */
 .mc-hint{ font-size:12px; color:var(--mc-txt2); line-height:1.45; margin:2px 0 10px; }
 /* Pemilih harga sparepart dari Kalkulator, inline di form tambah service.
-   .mc-none dipakai sebagai utility "sembunyikan" — scoped ke kelas ini saja
+   .mc-none dipakai sebagai utility "sembunyikan"  scoped ke kelas ini saja
    supaya tidak ikut memengaruhi komponen lain yang mungkin pakai .hide. */
 .mc-harga{
   border:1px dashed var(--mc-line); border-radius:12px; padding:10px;
@@ -918,7 +918,7 @@ body.mc-open{ overflow:hidden; }
 .mc-nav button b{ display:block; font-size:15px; }
 .mc-nav button span{ font-size:11px; color:var(--mc-txt2); }
 /* .mc-acts (baris tombol aksi) diatur penuh di blok "Baris aksi" sekitar
-   baris 1218 — di sini sengaja tidak dideklarasikan ulang agar tidak
+   baris 1218  di sini sengaja tidak dideklarasikan ulang agar tidak
    saling menimpa. */
 
 /* ---- form ---- */
@@ -1114,7 +1114,7 @@ select.mc-inp{ appearance:none; }
   position: relative;
   /* Tinggi ditulis langsung, bukan hanya lewat aspect-ratio. WebView
      Telegram di sebagian Android lama tidak mengenal aspect-ratio, dan
-     karena itu div ini jadi berlebar tanpa tinggi — anak-anaknya yang
+     karena itu div ini jadi berlebar tanpa tinggi  anak-anaknya yang
      memakai height:100% ikut jadi nol dan area pola tidak terlihat sama
      sekali. Tinggi eksplisit membuat tampilan tidak bergantung pada
      dukungan aspect-ratio. */
@@ -1177,18 +1177,18 @@ select.mc-inp{ appearance:none; }
 .mc-stat b { font-size: 20px; line-height: 1.1; font-weight: 700; color: var(--mc-tone, inherit); }
 /* Label kartu SELALU putih. Semula `color: inherit`, sehingga kartu Cancel
    ikut kena aturan global `.neg{ color:var(--mc-red) }` yang dibuat untuk
-   nilai uang — hasilnya hanya label "Cancel" yang merah, sedangkan empat
+   nilai uang  hasilnya hanya label "Cancel" yang merah, sedangkan empat
    kartu lain tetap putih. Warna status sudah tampil lewat angka (--mc-tone)
    di atas, jadi label tidak perlu berwarna. */
 .mc-stat span { font-size: 9px; font-weight: 600; opacity: .75; letter-spacing: .2px; color: #fff; }
 
 /* Tiap status punya warna kartunya sendiri */
-.mc-stat.warn  { --mc-tone: #d29922; --mc-tone-bg: rgba(210,153,34,.16); }  /* Progress — kuning */
-.mc-stat.ok    { --mc-tone: #2ea043; --mc-tone-bg: rgba(46,160,67,.16); }   /* Done — hijau */
-.mc-stat.ok2   { --mc-tone: #2f81f7; --mc-tone-bg: rgba(47,129,247,.16); }  /* Done Diambil — biru */
-.mc-stat.neg   { --mc-tone: #f0883e; --mc-tone-bg: rgba(240,136,62,.16); }  /* Cancel — orange */
-.mc-stat.neg2  { --mc-tone: #e5534b; --mc-tone-bg: rgba(229,83,75,.16); }   /* Cancel Diambil — merah */
-.mc-stat.ngg   { --mc-tone: #a371f7; --mc-tone-bg: rgba(163,113,247,.16); }  /* Nggantung — ungu */
+.mc-stat.warn  { --mc-tone: #d29922; --mc-tone-bg: rgba(210,153,34,.16); }  /* Progress  kuning */
+.mc-stat.ok    { --mc-tone: #2ea043; --mc-tone-bg: rgba(46,160,67,.16); }   /* Done  hijau */
+.mc-stat.ok2   { --mc-tone: #2f81f7; --mc-tone-bg: rgba(47,129,247,.16); }  /* Done Diambil  biru */
+.mc-stat.neg   { --mc-tone: #f0883e; --mc-tone-bg: rgba(240,136,62,.16); }  /* Cancel  orange */
+.mc-stat.neg2  { --mc-tone: #e5534b; --mc-tone-bg: rgba(229,83,75,.16); }   /* Cancel Diambil  merah */
+.mc-stat.ngg   { --mc-tone: #a371f7; --mc-tone-bg: rgba(163,113,247,.16); }  /* Nggantung  ungu */
 .mc-stat:active { transform: scale(.97); }
 
 /* ---------- Kartu Nggantung (ungu) ---------- */
@@ -1266,7 +1266,7 @@ select.mc-inp{ appearance:none; }
 .result.card.is-empty{ opacity:.55; }
 
 /* =========================================================
-   k-in-row / k-est — Kalkulator Service HP (layout ringkas)
+   k-in-row / k-est  Kalkulator Service HP (layout ringkas)
    Harga part dan harga estimasi ditampilkan sebaris supaya
    tidak makan tempat; brand dan seri HP juga sebaris.
    ========================================================= */
@@ -1286,7 +1286,7 @@ select.mc-inp{ appearance:none; }
   border:1.5px solid var(--line); border-radius:12px;
   overflow-wrap:anywhere;
 }
-/* Kolom seri manual (dipakai saat seri dipilih "Lainnya…"). */
+/* Kolom seri manual (dipakai saat seri dipilih "Lainnya"). */
 .k-custom-series{ margin-top:10px; }
 
 /* =========================================================
@@ -1673,7 +1673,7 @@ select.mc-inp{ appearance:none; }
 .nt-mod .nt-kv b{word-break:break-word}
 
 /* =====================================================================
-   NAVATRADER — NOTIFIKASI TELEGRAM (alert)
+   NAVATRADER  NOTIFIKASI TELEGRAM (alert)
    ===================================================================== */
 
 .nt-alrow{
@@ -2093,3 +2093,21 @@ select.mc-inp{ appearance:none; }
 
 /* Tombol WhatsApp di halaman nota publik. */
 .mc-publik-wa{ display:block; text-align:center; text-decoration:none; margin-bottom:8px; }
+
+/* Tombol "Semua" pada baris kartu status: satu-satunya jalan melepas
+   penyaringan status. Tanpa tombol ini, sekali penyaringan menyala tidak
+   ada caraIonyxbacksauf menutup lalu membuka modul lagi. */
+.mc-semua{ color:#9aa6a0; border-color:var(--mc-line); background:#161b19; }
+.mc-semua.on{ color:#eafff4; border-color:#2f8f5b; background:#123020; }
+
+/* Baris penyaringan status yang aktif di layar daftar, beserta tombol
+   melepasnya. Tanpa ini pengguna hanya melihat daftar kosong tanpa tahu
+   sedang disaring status apa. */
+.mc-statusbar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  margin:10px 0 4px; padding:8px 10px; border-radius:12px;
+  background:#1a1207; border:1px solid #7a5320; }
+.mc-statusbar-lbl{ font-size:12px; color:#c8a86a; font-weight:700;
+  text-transform:uppercase; letter-spacing:.4px; }
+.mc-clearst{ background:#2a1e0b; border-color:#7a5320; color:#f0c088;
+  font-weight:700; }
+.mc-clearst:active{ background:#3a2a10; }

@@ -52,6 +52,14 @@
   var RETURN_STATUS = 'Return';
   function isReturnStatus(s) { return s === RETURN_STATUS; }
   var NGGANDUL = 'Nggandul';
+  // Status yang dihitung sebagai "nggantung": masih ada di meja, belum
+  // keluar sebagai unit final. Hanya SATU predikat ini yang dipakai, baik
+  // untuk angka di Beranda maupun untuk isi daftarnya.
+  // Sebelumnya angka memakai Progress+Done+Cancel sementara daftarnya
+  // menyaring status bernama "Nggandul" yang tak pernah ada pada nota —
+  // akibatnya kartu bisa menunjuk angka 1 sementara daftarnya kosong.
+  var NGGANDUL_STATUSES = ['Progress', 'Done', 'Cancel', RETURN_STATUS];
+  function isNggandulStatus(s) { return NGGANDUL_STATUSES.indexOf(s) >= 0; }
 
   /*
      Transisi status yang valid. Ini satu-satunya sumber kebenaran: UI dropdown
@@ -1866,7 +1874,15 @@
     if (f.from || f.to) {
       rows = rows.filter(function (o) { return inRange(o.receivedAt, f.from, f.to); });
     }
-    if (f.status) rows = rows.filter(function (o) { return o.serviceStatus === f.status; });
+    if (f.status) {
+      // "Nggandul" bukan status nota, melainkan kelompok status. Saring di
+      // sini harus memakai predikat yang sama dengan angka di Beranda.
+      if (f.status === NGGANDUL) {
+        rows = rows.filter(function (o) { return isNggandulStatus(o.serviceStatus); });
+      } else {
+        rows = rows.filter(function (o) { return o.serviceStatus === f.status; });
+      }
+    }
     if (f.payment_status) {
       rows = rows.filter(function (o) { return computeOrder(o).paymentStatus === f.payment_status; });
     }
@@ -1903,7 +1919,7 @@
     // sebelumnya masih memakai isCancelStatus() yang ikut menghitungnya —
     // bug yang sama seperti kartu Done.
     var cancel = orders.filter(function (o) { return o.serviceStatus === 'Cancel'; }).length;
-    var nggandul = orders.filter(function (o) { return o.serviceStatus === NGGANDUL; }).length;
+    var nggandul = orders.filter(function (o) { return isNggandulStatus(o.serviceStatus); }).length;
 
     var cf = cashflowSummary({ from: monthStart });
     var bank = bankSummary();
@@ -1922,9 +1938,7 @@
     // Cancel (dibatalkan belum diambil). Yang benar-benar sudah keluar
     // (Done Diambil & Cancel Diambil) tidak dihitung.
     var nggantungNilai = orders.filter(function (o) {
-      return o.serviceStatus === ACTIVE_STATUS
-        || o.serviceStatus === 'Done'
-        || o.serviceStatus === 'Cancel';
+      return isNggandulStatus(o.serviceStatus);
     }).length;
 
     return {
@@ -2108,6 +2122,9 @@
     confirmTaken: confirmTaken,
     isCancelStatus: isCancelStatus,
     isReturnStatus: isReturnStatus,
+    NGGANDUL: NGGANDUL,
+    NGGANDUL_STATUSES: NGGANDUL_STATUSES,
+    isNggandulStatus: isNggandulStatus,
     canDelete: canDelete,
     deleteOrder: deleteOrder,
     NOTA_TELP_PUSAT: NOTA_TELP_PUSAT,

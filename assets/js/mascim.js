@@ -187,7 +187,7 @@
           '<div class="mc-hero-sub">Dana Bank ada di Beranda Nava: ' + rupiah(d.saldoBank) + '</div>' +
         '</div>' +
 
-        '<div class="mc-stats">' + statusCards(d) + '</div>' +
+        '<div class="mc-stats">' + semuaStatusBtn() + statusCards(d) + '</div>' +
 
         '<div class="mc-nggwrap">' + nggantungCard(d) + '</div>' +
 
@@ -355,6 +355,19 @@
      Kartu status servis (6 status sesuai permintaan) + "Nggantung".
      Setiap kartu bisa diketuk untuk menyaring daftar servis.
   */
+  // Tombol untuk MELEPAS filter status. Sebelumnya tidak ada sama sekali:
+  // sekali menekan kartu Progress atau Nggandul, M.status terkunci dan
+  // daftar selalu terfilter status itu. Menekan kartu lain tidak
+  // menyelesaikannya, jadi satu-satunya jalan adalah menutup lalu
+  // membuka ulang modul.
+  function semuaStatusBtn() {
+    var aktif = !M.status;
+    return '<button class="mc-stat mc-semua' + (aktif ? ' on' : '') + '"' +
+      ' data-mv="list" data-status="" aria-pressed="' + (aktif ? 'true' : 'false') +
+      '" title="Tampilkan semua status, lepas penyaringan">' +
+      '<b>&#8734;</b><span>Semua</span></button>';
+  }
+
   function statusCards(d) {
     // Satu baris sejajar dari kiri: Progress, Done, Done Diambil, Cancel,
     // Cancel Diambil. Tiap kartu hanya menampilkan ANGKA, warna membedakan
@@ -513,6 +526,18 @@
       '</div>';
     }
     html += '<button class="mc-chip range' + (M.filter === 'range' ? ' on' : '') + '" data-filter="range">Rentang tanggal</button>';
+
+    // Penyaringan status yang sedang aktif. Tanpa penanda ini dan tanpa
+    // jalan melepasnya, pengguna terjebak melihat daftar kosong tanpa
+    // tahu sedang disaring apa.
+    if (M.status) {
+      html += '<div class="mc-statusbar">' +
+        '<span class="mc-statusbar-lbl">Status</span>' +
+        '<span class="mc-chip on">' + esc(pendekStatus(M.status)) + '</span>' +
+        '<button class="mc-chip mc-clearst" data-clearstatus="1"' +
+        ' aria-label="Lepas penyaringan status">Lepas filter</button>' +
+      '</div>';
+    }
 
     var items = M.list;
     html += '<div class="mc-count">' + items.length + ' servis' + (f ? ' untuk "' + esc(f) + '"' : '') + '</div>';
@@ -2989,7 +3014,11 @@
         M.view = v;
         // Kartu status juga menentukan tab atau filter tujuan.
         if (t.dataset.mtab) M.tab = t.dataset.mtab;
-        if (t.dataset.status) M.status = t.dataset.status;
+        // dicek dengan 'in', bukan nilai nonempty: tombol "Semua" mengirim
+        // data-status="" supaya filter justru DILEPAS. Versi lama memakai
+        // if (t.dataset.status) yang kosong berarti tidak dijalankan, jadi
+        // filter lama tidak pernah bisa dilepas dari layar.
+        if ('status' in t.dataset) M.status = t.dataset.status || '';
         if (v === 'form') { M.draft = blankDraft(); M.editing = null; render(); }
         else if (v === 'list') loadList();
         else if (v === 'money') loadMoney();
@@ -3004,9 +3033,21 @@
       }
       // filter daftar
       if ((t = e.target.closest('[data-filter]'))) {
-        M.filter = t.dataset.filter;
+        var f = t.dataset.filter;
+        // Chip "Nggandul" bukan rentang tanggal, melainkan penyaringan
+        // kelompok status. Sebelumnya hanya menulis M.filter = 'ngg' yang
+        // tidak punya cabang di listFilter(), jadi chip itu kelihatan
+        // seperti menyaring padahal tidak berpengaruh apa pun.
+        if (f === 'ngg') { M.status = L.NGGANDUL || 'Nggandul'; loadList(); return; }
+        M.filter = f;
         if (M.filter === 'range' && !M.from) M.from = bulanIni();
         if (M.filter === 'range' && !M.to) M.to = hariIni();
+        loadList();
+        return;
+      }
+      // Lepas penyaringan status, tomography langsung dari daftar.
+      if ((t = e.target.closest('[data-clearstatus]'))) {
+        M.status = '';
         loadList();
         return;
       }
