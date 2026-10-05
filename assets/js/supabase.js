@@ -375,56 +375,138 @@
      letak layar yang sekarang.
      ------------------------------------------------------------------ */
   var lencana = null;
+  var posI = 'mascim_sb_pos';
+
+  function loadPosisi() {
+    try { return JSON.parse(w.localStorage.getItem(posI) || 'null'); }
+    catch (e) { return null; }
+  }
+
+  function simpanPosisi(x, y) {
+    try { w.localStorage.setItem(posI, JSON.stringify({ x: x, y: y })); } catch (e) {}
+  }
 
   function buatLencana() {
     if (lencana || !w.document || !w.document.body) return;
+
+    // Bentuk kecil: cuma titik 26px yang tidak menutupi tombol lain.
+    // Disentuh untuk membuka, dan bisa diseret ke mana saja. Posisi
+    // terakhir diingat supaya tidak muncul di tempat yang sama tiap kali.
     var b = w.document.createElement('div');
     b.id = 'mascim-sb';
-    b.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9999;' +
-      'display:flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;' +
-      'font:600 11px/1.2 system-ui,sans-serif;color:#d7ffe4;' +
-      'background:#0d3b1c;border:1px solid #1f6b39;opacity:.92;max-width:64vw';
+
     var titik = w.document.createElement('span');
-    titik.style.cssText = 'width:7px;height:7px;border-radius:50%;background:#35d07f;flex:0 0 auto';
+    titik.id = 'mascim-sb-titik';
+    titik.style.cssText = 'width:9px;height:9px;border-radius:50%;background:#35d07f;' +
+      'display:block;flex:0 0 auto';
+
     var teks = w.document.createElement('span');
     teks.id = 'mascim-sb-teks';
     teks.textContent = 'Tersambung';
+    teks.style.cssText = 'display:none;white-space:nowrap';
+
     var tombol = w.document.createElement('button');
     tombol.textContent = 'Sinkron';
-    tombol.style.cssText = 'border:0;border-radius:999px;padding:3px 8px;cursor:pointer;' +
-      'font:700 11px/1.2 system-ui,sans-serif;background:#35d07f;color:#06240f';
-    tombol.addEventListener('click', function () {
+    tombol.style.cssText = 'display:none;border:0;border-radius:999px;padding:4px 10px;' +
+      'cursor:pointer;font:700 11px/1.2 system-ui,sans-serif;background:#35d07f;color:#06240f';
+
+    b.appendChild(titik); b.appendChild(teks); b.appendChild(tombol);
+    b.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:9999;' +
+      'display:flex;align-items:center;gap:7px;padding:8px;border-radius:999px;' +
+      'font:600 11px/1.2 system-ui,sans-serif;color:#d7ffe4;background:#0d3b1c;' +
+      'border:1px solid #1f6b39;opacity:.75;box-shadow:0 2px 8px rgba(0,0,0,.35);' +
+      'touch-action:none;user-select:none;-webkit-user-select:none';
+
+    // Pulihkan posisi tersimpan.
+    var pos = loadPosisi();
+    if (pos && typeof pos.x === 'number') {
+      b.style.left = pos.x + 'px';
+      b.style.top = pos.y + 'px';
+      b.style.bottom = 'auto';
+    }
+
+    var buka = false;
+    function setBuka(nilai) {
+      buka = nilai;
+      teks.style.display = nilai ? 'inline' : 'none';
+      tombol.style.display = nilai ? 'inline-block' : 'none';
+      b.style.opacity = nilai ? '1' : '.55';
+    }
+
+    // Seret: pakai Pointer Event, tersedia di WebView modern. Bila tidak
+    // ada, lencana tetap bisa disentuh untuk membuka.
+    var seret = null;
+    function mulaiSeret(x, y) {
+      var kotak = b.getBoundingClientRect ? b.getBoundingClientRect() : { left: 10, top: 10 };
+      seret = { dx: x - (kotak.left || 0), dy: y - (kotak.top || 0), geser: false };
+    }
+    function jalanSeret(x, y) {
+      if (!seret) return;
+      var nx = x - seret.dx, ny = y - seret.dy;
+      if (Math.abs(nx - (seret.x0 || nx)) > 3 || seret.geser) seret.geser = true;
+      b.style.left = nx + 'px';
+      b.style.top = ny + 'px';
+      b.style.bottom = 'auto';
+      b.style.right = 'auto';
+    }
+    function selesaiSeret() {
+      if (!seret) return;
+      var l = parseInt(b.style.left, 10), t = parseInt(b.style.top, 10);
+      if (!isNaN(l) && !isNaN(t)) simpanPosisi(l, t);
+      var cumaGeser = seret.geser;
+      seret = null;
+      // Lepas tanpa gerak berarti menyentuh: buka atau tutup.
+      if (!cumaGeser) setBuka(!buka);
+    }
+
+    if (w.PointerEvent) {
+      b.addEventListener('pointerdown', function (e) {
+        if (e.target === tombol) return;
+        mulaiSeret(e.clientX, e.clientY);
+      });
+      b.addEventListener('pointermove', function (e) {
+        if (seret) { jalanSeret(e.clientX, e.clientY); e.preventDefault(); }
+      });
+      b.addEventListener('pointerup', selesaiSeret);
+      b.addEventListener('pointercancel', selesaiSeret);
+    } else {
+      // Peramban lama: ketuk untuk buka atau tutup.
+      b.addEventListener('click', function (e) {
+        if (e.target === tombol) return;
+        setBuka(!buka);
+      });
+    }
+
+    tombol.addEventListener('click', function (e) {
+      e.stopPropagation();
       teks.textContent = 'Mengirim...';
       if (w.Supa.cadangan) w.Supa.cadangan();
       w.Supa.kuras();
       w.setTimeout(tampilStatus, 900);
+      setBuka(false);
     });
-    b.appendChild(titik); b.appendChild(teks); b.appendChild(tombol);
+
     w.document.body.appendChild(b);
     lencana = b;
+    setBuka(false);
     tampilStatus();
   }
 
   function tampilStatus() {
     if (!lencana) return;
-    var t = w.document.getElementById('mascim-sb-teks');
-    if (!t) return;
-    var dot = lencana.firstChild;
     var s2 = w.Supa.status();
+    var t = w.document.getElementById('mascim-sb-teks');
+    var dot = w.document.getElementById('mascim-sb-titik');
+    if (!t || !dot) return;
     var label, warna;
     if (!s2.ada) { label = 'Tanpa server'; warna = '#8a8a8a'; }
-    else if (s2.antrean > 0) {
-      label = 'Menunggu ' + s2.antrean;
-      warna = '#e0b400';
-    } else if (s2.status === 'gagal') {
-      label = 'Server belum bisa';
-      warna = '#e05a5a';
-    } else {
-      label = 'Tersambung';
-      warna = '#35d07f';
-    }
+    else if (s2.antrean > 0) { label = 'Menunggu ' + s2.antrean; warna = '#e0b400'; }
+    else if (s2.status === 'gagal') { label = 'Server belum bisa'; warna = '#e05a5a'; }
+    else { label = 'Tersambung'; warna = '#35d07f'; }
     t.textContent = label;
-    if (dot) dot.style.background = warna;
+    dot.style.background = warna;
+    // Kalau ada antrean, pancing supaya pengguna melihat.
+    if (s2.antrean > 0 && lencana.style.opacity === '.55') lencana.style.opacity = '.8';
     w.setTimeout(tampilStatus, 6000);
   }
 
