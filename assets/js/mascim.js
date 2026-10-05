@@ -1761,16 +1761,23 @@
         '<textarea class="mc-inp" id="dHandling" rows="2" placeholder="Contoh: ganti LCD, ganti baterai, bersihkan bagian dalam">' +
           esc(o.handling || '') + '</textarea>' +
       '</label>' +
+      '<p class="mc-hint sm" id="dSavedHint"></p>' +
       '<p class="mc-hint sm">Tersimpan otomatis saat kursor berpindah. ' +
-        'Tekan tombol Segarkan di bawah untuk memuat ulang tampilan.</p>';
+        'Atau tekan <b>Simpan</b> di sebelah tombol Ubah Status — ' +
+        'lalu ubah status ke Done Diambil.</p>';
 
     // Tombol aksi besar ("Selesaikan Garapan", "Catat Pembayaran") dan tombol
     // Hapus sudah dihapus di SEMUA status. Status hanya berubah lewat dropdown
     // "Ubah Status" di bawah, supaya tidak ada lagi dua jalan mengubah status
     // yang bisa berbeda satu sama lain.
     html += '<div class="mc-sec">Ubah Status</div>';
-    html += '<div class="mc-acts">' +
-      '<div class="mc-drop" id="dStatusDrop">' +
+    html += '<div class="mc-acts mc-side">' +
+      // Simpan dan Ubah Status berdampingan. kejelasan tombol simpan
+      // khusus: penanganan harus benar-benar tersimpan sebelum status diubah, dan
+      // sekarang bisa dipastikan tanpa menebak-nebak apakah blur sempat
+      // terjadi.
+      '<button class="mc-ghost-btn mc-save-side" id="dSaveSide">Simpan</button>' +
+      '<div class="mc-drop mc-grow" id="dStatusDrop">' +
         '<button class="mc-ghost-btn" id="dStatusBtn">Ubah Status \u25be</button>' +
         (statusOpts.length
           ? '<div class="mc-dropmenu" id="dStatusMenu">' +
@@ -1808,14 +1815,24 @@
     // bukan lewat tombol. Dua kolom memakai satu jalur supaya tidak ada
     // permintaan yang saling menimpa ketika keduanya berubah berdekatan.
     var sedangSimpan = false;
+    // Penanda kecil di bawah kolom: memberi tahu penanganan sudah benar-benar
+    // tersimpan, jadi tidak perlu menebak apakah tombol status bisa dipakai.
+    function markTersimpan(pesan) {
+      var el = $('#dSavedHint');
+      if (el) el.textContent = pesan || '\u2713 Tersimpan';
+    }
+
     function simpanOtomatis(bidang, nilai, label) {
       if (sedangSimpan) return;
+      var id = idNota();
+      if (!id) { alertErr('Nota ini belum punya identitas. Muat ulang halamannya.'); return; }
       sedangSimpan = true;
-      api('PATCH', '/api/mascim/services/' + encodeURIComponent(M.id), bidang)
+      api('PATCH', '/api/mascim/services/' + encodeURIComponent(id), bidang)
         .then(function (r) {
           sedangSimpan = false;
-          if (r.service && M.current) M.current = r.service;
+          if (r.service) { M.current = r.service; M.id = r.service.id; }
           toast(label + ' tersimpan');
+          markTersimpan('\u2713 ' + label + ' tersimpan');
           reload();
         })
         .catch(function (err) {
@@ -1823,6 +1840,53 @@
           alertErr('Gagal menyimpan ' + label.toLowerCase() + ': ' + (err && err.message || err));
         });
     }
+    // Id nota selalu diambil dari nota yang sedang tampil, bukan dari
+    // penanda yang bisa saja tertinggal.
+    function idNota() {
+      return (M.current && M.current.id) || M.id;
+    }
+
+    // Tombol Simpan di sebelah Ubah Status: menyimpan penanganan DAN total
+    // biaya sekaligus, dengan umpan balik yang jelas.
+    var sideSave = $('#dSaveSide');
+    if (sideSave) {
+      sideSave.addEventListener('click', function () {
+        if (sedangSimpan || M.lock) return;
+        var id = idNota();
+        if (!id) { alertErr('Nota ini belum punya identitas. Muat ulang halamannya.'); return; }
+        var tEl = $('#dTotal'), hEl = $('#dHandling');
+        var biaya = tEl ? (parseInt(String(tEl.value || '').replace(/\D/g, ''), 10) || 0) : null;
+        var handling = hEl ? hEl.value.trim() : '';
+        sedangSimpan = true;
+        sideSave.disabled = true;
+        var isi = {};
+        if (biaya !== null && (!M.current || biaya !== M.current.totalCost)) isi.total_cost = biaya;
+        if (handling !== (M.current ? (M.current.handling || '') : '')) isi.handling = handling;
+        if (!Object.keys(isi).length) {
+          sedangSimpan = false;
+          sideSave.disabled = false;
+          sideSave.textContent = '\u2713 Sudah tersimpan';
+          setTimeout(function () { sideSave.textContent = 'Simpan'; }, 1400);
+          return;
+        }
+        api('PATCH', '/api/mascim/services/' + encodeURIComponent(id), isi)
+          .then(function (r) {
+            sedangSimpan = false;
+            if (r.service) { M.current = r.service; M.id = r.service.id; }
+            sideSave.textContent = '\u2713 Tersimpan';
+            setTimeout(function () { sideSave.textContent = 'Simpan'; }, 1400);
+            markTersimpan();
+            loadDetail(id);
+          })
+          .catch(function (err) {
+            sedangSimpan = false;
+            sideSave.disabled = false;
+            sideSave.textContent = 'Simpan';
+            alertErr('Gagal menyimpan: ' + (err && err.message || err));
+          });
+      });
+    }
+
     var dTotal = $('#dTotal');
     if (dTotal) {
       dTotal.addEventListener('blur', function () {
@@ -1904,9 +1968,12 @@
         // penanganan ikut tersimpan.
         if (ketik && ketik !== tersimpan) {
           statusMenu.style.display = 'none';
-          api('PATCH', '/api/mascim/services/' + encodeURIComponent(M.id), { handling: ketik })
+          var idGuard = idNota();
+          if (!idGuard) { alertErr('Nota ini belum punya identitas. Muat ulang halamannya.'); return; }
+          api('PATCH', '/api/mascim/services/' + encodeURIComponent(idGuard), { handling: ketik })
             .then(function () {
-              return loadDetail(M.id).catch(function () { return null; });
+              markTersimpan('\u2713 Penanganan tersimpan');
+              return loadDetail(idGuard).catch(function () { return null; });
             })
             .then(function () { openConfirmSheet(); })
             .catch(function (err) {
@@ -2765,8 +2832,14 @@
   }
 
   function loadDetail(id) {
+    // Id nota disetel di sini, bukan di tiap pemanggil. Sebelumnya hanya
+    // jalur "Simpan & buka detail" yang menyetelnya; membuka nota dari
+    // daftar hanya memanggil loadDetail, sehingga M.id tetap kosong dan
+    // setiap PATCH dari layar detail tertuju ke /services/undefined yang
+    // dijawab "Nota tidak ditemukan".
+    M.id = id;
     return api('GET', '/api/mascim/services/' + encodeURIComponent(id))
-      .then(function (r) { M.current = r.service; render(); })
+      .then(function (r) { M.id = r.service.id; M.current = r.service; render(); })
       .catch(function (e) { alertErr(e.message); M.view = 'home'; reload(); });
   }
 

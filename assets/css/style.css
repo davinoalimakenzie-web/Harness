@@ -1857,3 +1857,19 @@ select.mc-inp{ appearance:none; }
   font-family: inherit;
 }
 .mc-locktoggle:active { background: #1a1f27; }
+
+/* Baris tombol bawah detail: Simpan dan Ubah Status berdampingan.
+   Dua kolom seragam supaya tidak ada tombol yang terlihat lebih kecil
+   dan mudah tersentuh. */
+.mc-side {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: start;
+}
+.mc-side .mc-grow { min-width: 0; }
+.mc-side .mc-ghost-btn { width: 100%; text-align: center; }
+.mc-save-side { font-weight: 700; }
+.mc-save-side:disabled { opacity: .6; }
+#dSavedHint { min-height: 16px; color: #3fb950; font-weight: 600; }
+#dSavedHint:empty { min-height: 0; }
