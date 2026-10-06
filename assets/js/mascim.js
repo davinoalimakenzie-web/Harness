@@ -1707,7 +1707,7 @@
     //   Progress -> Done -> Catat Pembayaran -> (lunas) Konfirmasi -> Diambil
     if (payIsLocked) {
       html += '<p class="mc-hint sm">Pembayaran dicatat setelah garapan ditandai <b>Done</b>.' +
-        (o.serviceStatus === 'Done Diambil'
+        (o.serviceStatus.trim() === 'Done Diambil'
           ? ' Nota ini sudah diambil dan pembayaran sudah lunas.'
           : ' Status saat ini: <b>' + esc(o.serviceStatus) + '</b>.') + '</p>';
     }
@@ -1822,12 +1822,12 @@
             statusOpts.map(function (st) {
               return '<button class="mc-pick" data-st="' + esc(st) + '">' + esc(st) + '</button>';
             }).join('') +
-            (o.serviceStatus === 'Done Diambil'
+            (o.serviceStatus.trim() === 'Done Diambil'
               ? '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">'
                 + 'Hapus garapan ini</button>'
               : '') +
             '</div>'
-          : (o.serviceStatus === 'Done Diambil'
+          : (o.serviceStatus.trim() === 'Done Diambil'
             ? '<div class="mc-dropmenu" id="dStatusMenu">'
               + '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">'
               + 'Hapus garapan ini</button></div>'
