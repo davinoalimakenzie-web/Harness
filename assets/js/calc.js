@@ -147,7 +147,14 @@
   }
 
   function renderSeries() {
-    var list = SERIES[brandId] || [];
+    var saved = {};
+    (w.Store.state.templates || []).forEach(function (t) {
+      if (t && t.brandId === brandId && t.series) saved[t.series] = true;
+    });
+    var list = Object.keys(saved);
+    if (seriesId && seriesId !== CUSTOM_SERIES && list.indexOf(seriesId) === -1) {
+      list.push(seriesId);
+    }
     var opts = list.map(function (s) {
       return '<option value="' + esc(s) + '"' + (s === seriesId ? ' selected' : '') +
         '>' + esc(s) + '</option>';
