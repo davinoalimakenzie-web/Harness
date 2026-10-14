@@ -1983,7 +1983,7 @@
         + 'Riwayat pembayaran dan Dana Bank tetap tersimpan.\n\n'
         + 'Lanjut hapus?';
       if (!window.confirm(tanya)) return;
-      api('DELETE', '/api/mascim/services/' + encodeURIComponent(idH), { fromFinal: true })
+      api('DELETE', '/api/mascim/services/' + encodeURIComponent(idH), { fromFinal: true, hard: true })
         .then(function () {
           M.current = null;
           M.id = '';

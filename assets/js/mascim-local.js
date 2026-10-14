@@ -1364,19 +1364,28 @@
     opts = opts || {};
     var chk = canDelete(id);
     if (!chk.allowed && !opts.fromFinal) throw bad(chk.reason);
-    var o = load().orders.filter(function (x) { return x.id === id; })[0];
+    var hard = !!opts.hard;
+    var db = load();
+    var o = db.orders.filter(function (x) { return x.id === id; })[0];
+    if (!o) throw notFound('Nota tidak ditemukan');
     // Cabut nota garansi dulu supaya tautan pelanggan tidak hidup lagi
-    // walau nota ini ternyata-CEpat dikembalikan.
-    var dicabut = false;
     if (o.warrantyNote && !o.warrantyNote.revokedAt) {
       o.warrantyNote.revokedAt = nowIso();
-      dicabut = true;
     }
-    o.deletedAt = nowIso();
-    o.updatedAt = o.deletedAt;
-    save();
-    return { ok: true, dicatat: dicabut, dipayments: chk.payments,
-      bankEntries: chk.bankEntries };
+    if (hard) {
+      dborders_remove: {
+        db.orders = db.orders.filter(function (x) { return x.id !== id; });
+      }
+      db.payments = db.payments.filter(function (p) { return p.orderId !== id; });
+      db.bank = db.bank.filter(function (b) { return b.orderId !== id; });
+      db.parts = db.parts.filter(function (p) { return p.orderId !== id; });
+      save();
+    } else {
+      o.deletedAt = nowIso();
+      o.updatedAt = o.deletedAt;
+      save();
+    }
+    return { ok: true, hard: hard, payments: chk.payments, bankEntries: chk.bankEntries };
   }
 
   /* ------------------------------------------------------------
