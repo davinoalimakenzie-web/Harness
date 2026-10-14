@@ -149,7 +149,8 @@
   function renderSeries() {
     var saved = {};
     (w.Store.state.templates || []).forEach(function (t) {
-      if (t && t.brandId === brandId && t.series) saved[t.series] = true;
+      var p = t && t.payload;
+      if (p && p.brandId === brandId && p.series) saved[p.series] = true;
     });
     var list = Object.keys(saved);
     if (seriesId && seriesId !== CUSTOM_SERIES && list.indexOf(seriesId) === -1) {
