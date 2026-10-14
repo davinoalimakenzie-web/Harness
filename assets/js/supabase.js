@@ -269,7 +269,14 @@
         st('status', 'gagal');
         st('kesalahan', r && r.err ? r.err : 'tidak diketahui');
         st('coba_lagi', (st('coba_lagi') || 0) + 1);
-        w.setTimeout(function(){ kuras(true); }, 5000);
+        // Setelah beberapa kali gagal yang sama persis, lepaskan agar
+        // antrean tidak membesar terus dan item valid di belakang bisa
+        // dikirim. Catatan: kesalahan tetap disimpan untuk dicari.
+        if ((st('coba_lagi') || 0) >= 3) {
+          var b2 = baca(); b2.shift(); antrean = b2; tulis();
+          st('coba_lagi', 0); st('kesalahan', st('kesalahan')); st('status', 'gagal');
+        }
+        w.setTimeout(function(){ kuras(true); }, 2000);
         return Promise.resolve();
       }).catch(function () {
         berjalan = false; st('status', 'gagal');

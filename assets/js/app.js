@@ -824,6 +824,7 @@
     if (s.antrean) {
       teks.textContent = s.antrean + ' perubahan menunggu dikirim. '
         + 'Aplikasi tetap bisa dipakai seperti biasa; pengiriman diulang otomatis.';
+      if (s.kesalahan) teks.textContent += ' Kesalahan terakhir: ' + s.kesalahan;
       if (titik) titik.style.cssText = warna('var(--warn)');
       return;
     }
