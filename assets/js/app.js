@@ -636,7 +636,8 @@
       if (e.target.files[0]) importJSON(e.target.files[0]);
       e.target.value = '';
     });
-    $('#dDemo').addEventListener('click', seedDemo);
+    var dDemo = $('#dDemo');
+    if (dDemo) dDemo.addEventListener('click', seedDemo);
     $('#dClear').addEventListener('click', clearAll);
 
     // ---------------- Cadangan otomatis ----------------
