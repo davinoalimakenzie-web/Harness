@@ -25,7 +25,7 @@
 
   var ANTARE = 'mascim_sb_queue';
   var KUNCI_VAULT = 'mascim_sb_status';
-  var KADAR_MS = 20000;           // jeda minimum antar pengiriman
+  var KADAR_MS = 2000;           // jeda minimum antar pengiriman
   var BAWAAN = 400;               // timeout satu permintaan
 
   var antrean = null;
@@ -233,7 +233,7 @@
      Kirim antrean satu per satu. Berhenti saat gagal supaya urutan
      perubahan tetap terjaga.
      ------------------------------------------------------------------ */
-  function kuras() {
+  function kuras(paksa) {
     if (berjalan) return Promise.resolve();
     if (typeof w.fetch !== 'function') { st('status', 'offline'); return Promise.resolve(); }
     var a = baca();
@@ -241,9 +241,10 @@
     // Cooldown hanya menahan pengiriman yang sukses. Kalau percobaan
     // tadi gagal, percobaan berikutnya boleh langsung jalan supaya
     // data tidak tertahan lama saat jaringan baru saja kembali.
-    if (st('status') !== 'gagal' && Date.now() - terakhirKirim < KADAR_MS) {
+    if (!paksa && st('status') !== 'gagal' && Date.now() - terakhirKirim < KADAR_MS) {
       return Promise.resolve();
     }
+    if (paksa && st('status') === 'gagal') st('status', 'belum');
 
     berjalan = true;
     st('status', 'mengirim');
@@ -268,9 +269,11 @@
         st('status', 'gagal');
         st('kesalahan', r && r.err ? r.err : 'tidak diketahui');
         st('coba_lagi', (st('coba_lagi') || 0) + 1);
+        w.setTimeout(function(){ kuras(true); }, 5000);
         return Promise.resolve();
       }).catch(function () {
         berjalan = false; st('status', 'gagal');
+        w.setTimeout(function(){ kuras(true); }, 5000);
       });
     }
     return langkah();

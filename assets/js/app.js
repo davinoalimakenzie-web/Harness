@@ -867,6 +867,7 @@
       if (!w.Sync.isConfigured()) { App.toast('Isi alamat server bot dulu'); return; }
       now.disabled = true;
       App.toast('Menyinkronkan…');
+      if (w.Supa && typeof w.Supa.kuras === 'function') w.Supa.kuras(true);
       w.Sync.sync().then(function (r) {
         now.disabled = false;
         if (r && r.error) App.toast('Gagal: ' + r.error);
