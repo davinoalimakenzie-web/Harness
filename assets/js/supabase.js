@@ -203,7 +203,13 @@
         'taken_at', 'dicabut', 'dibuat'
       ].join(',');
       return req('POST', '/rest/v1/notas', kerja.baris, true).then(function (r) {
-        return r.ok ? { ok: true } : { ok: false, err: r.err };
+        if (r.ok) return { ok: true };
+        // Duplikat berdasarkan local_id: data itu sendiri sudah tersimpan.
+        // Anggap sukses agar antrean tidak macet; tidak perlu kirim ulang.
+        if (r.code === '23505' || String(r.err || '').toLowerCase().indexOf('duplicate key') >= 0) {
+          return { ok: true, duplikat: true };
+        }
+        return { ok: false, err: r.err };
       });
     }
     if (kerja.tipe === 'nota-patch') {
