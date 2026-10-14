@@ -187,7 +187,7 @@
           '<div class="mc-hero-sub">Dana Bank ada di Beranda Nava: ' + rupiah(d.saldoBank) + '</div>' +
         '</div>' +
 
-        '<div class="mc-stats">' + semuaStatusBtn() + statusCards(d) + '</div>' +
+        '<div class="mc-stats">' + statusCards(d) + '</div>' +
 
         '<div class="mc-nggwrap">' + nggantungCard(d) + '</div>' +
 
@@ -402,8 +402,8 @@
   function nggantungCard(d) {
     var total = d.nggantung || 0;
     return '<button class="mc-nggcnt' + (total ? ' on' : '') + '" data-mv="list" data-status="Nggandul"' +
-      ' aria-label="Nggantung: ' + total + ' nota">' +
-      '<div class="mc-nggcnt-l"><b>' + total + '</b><span>Nggantung</span>' +
+      ' aria-label="Nggandul: ' + total + ' nota">' +
+      '<div class="mc-nggcnt-l"><b>' + total + '</b><span>Nggandul</span>' +
         '<em>Total garapan yang masih Progress, Cancel, atau Done</em></div>' +
       '<div class="mc-nggcnt-r">' +
         '<span>Progress ' + (d.proses || 0) + '</span>' +
