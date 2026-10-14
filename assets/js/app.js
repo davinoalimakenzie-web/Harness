@@ -717,6 +717,18 @@
       }
     });
 
+    // Saat koneksi kembali, dorong pending data yang tertahan offline.
+    w.addEventListener('online', function () {
+      try {
+        if (w.Supa && typeof w.Supa.kuras === 'function') w.Supa.kuras(true);
+        if (w.Sync && typeof w.Sync.sync === 'function') {
+          w.Sync.sync().then(function () { try { renderSyncStatus(); } catch (e) {} });
+        } else { renderSyncStatus(); }
+      } catch (e) {}
+    });
+
+
+
     // ---- Penyimpanan terpusat ----
     // initSyncUI() keluar lebih awal karena kendalanya sudah tidak
     // ada di halaman, jadi status Supabase disambung terpisah.
