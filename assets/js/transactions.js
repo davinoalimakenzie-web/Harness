@@ -1051,13 +1051,15 @@
     el.fGroup.addEventListener('change', function () { filter.group = this.value; renderHistory(); });
     el.fFrom.addEventListener('change', function () { filter.from = this.value; renderHistory(); });
     el.fTo.addEventListener('change', function () { filter.to = this.value; renderHistory(); });
-    $('#fClear').addEventListener('click', function () {
-      filter = { type: 'all', group: '', from: '', to: '', q: '' };
+    var clearBtn = $('#fClear');
+    if (clearBtn) clearBtn.addEventListener('click', function () {
       el.fQ.value = ''; el.fType.value = 'all'; el.fGroup.value = '';
       el.fFrom.value = ''; el.fTo.value = '';
+      filter.q = ''; filter.type = 'all'; filter.group = ''; filter.from = ''; filter.to = '';
       renderHistory();
     });
-    $('#btnExportCsv').addEventListener('click', exportCSV);
+    var expBtn = $('#btnExportCsv');
+    if (expBtn) expBtn.addEventListener('click', exportCSV);
 
     // Chips filter gaya Mas Cim: ringan dan minimalis.
     (document.querySelectorAll('[data-hchip]') || []).forEach(function (btn) {
