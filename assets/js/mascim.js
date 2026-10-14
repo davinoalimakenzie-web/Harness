@@ -189,7 +189,6 @@
 
         '<div class="mc-stats">' + statusCards(d) + '</div>' +
 
-        '<div class="mc-nggwrap">' + nggantungCard(d) + '</div>' +
 
         (d.nggandul > 0
           ? '<button class="mc-ngg" data-mv="list" data-ngg="1">' +
