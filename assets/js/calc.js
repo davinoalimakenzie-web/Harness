@@ -149,7 +149,7 @@
   function renderSeries() {
     var saved = {};
     (w.Store.state.templates || []).forEach(function (t) {
-      var p = t && t.payload;
+      var p = (t && (t.payload || t));
       if (p && p.brandId === brandId && p.series) saved[p.series] = true;
     });
     var list = Object.keys(saved);
