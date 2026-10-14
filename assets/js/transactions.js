@@ -243,7 +243,6 @@
     var acts =
       '<div class="field-row" style="margin-top:12px">' +
         '<button class="btn ghost" data-bk="out">Out / Bon</button>' +
-        '<button class="btn ghost" data-bk="setor">Setor</button>' +
       '</div>' +
       '<button class="btn ghost block" data-bk="initial" style="margin-top:8px">Atur Saldo Awal</button>' +
       '<div style="margin-top:14px"><p class="nb-hint"><b>Riwayat</b></p><div id="nbHist"></div></div>';
@@ -266,7 +265,6 @@
         if (!b) return;
         var k = b.dataset.bk;
         if (k === 'out') { sheetOutBon(); }
-        else if (k === 'setor') { sheetSetor(due, done, ym); }
         else if (k === 'initial') { sheetInitial(g.initial); }
       });
     });
