@@ -278,6 +278,7 @@
       return;
     }
     renderTpl();
+    renderSeries();
     TG.haptic('success');
     w.App.toast(hasil.replaced
       ? 'Harga lama untuk kombinasi ini diganti'
