@@ -33,7 +33,8 @@
     return {
       initial: 0,      // saldo awal / total setoran masuk
       entries: [],     // riwayat: { id, description, moneyIn, moneyOut, date, note, kind }
-      wajibBulanan: {} // { '2025-03': { amount, at, id } } -> penanda sudah disetor
+      wajibBulanan: {}, // { '2025-03': { amount, at, id } } -> penanda sudah disetor
+      pelunasanBulanan: {} // { '2025-03': { amount, at, id } } -> penanda settlement monthly ke Project Nava
     };
   }
 
@@ -294,6 +295,58 @@
     save();
   }
 
+  /* ---------------- Pelunasan otomatis ke Project Nava ---------------- */
+  function autoSettlePelunasanToNava() {
+    var today = todayStr();
+    var ym = today.slice(0, 7);
+    var day = parseInt(today.slice(8, 10), 10) || 0;
+    if (day < 5) return { inserted: false, reason: 'belum tanggal 5', amount: 0 };
+
+    var d = load();
+    var already = d.pelunasanBulanan[ym];
+    if (already) return { inserted: false, reason: 'sudah dicatat', amount: already.amount };
+
+    var totalManualOut = d.entries.reduce(function (a, e) {
+      if (e.kind === 'wajib') return a;
+      return a + (Number(e.moneyOut) || 0);
+    }, 0);
+    var totalSettled = Object.keys(d.pelunasanBulanan || {}).reduce(function (a, k) {
+      return a + ((d.pelunasanBulanan[k] && Number(d.pelunasanBulanan[k].amount)) || 0);
+    }, 0);
+    var due = Math.max(0, totalManualOut - totalSettled);
+    if (due <= 0) {
+      d.pelunasanBulanan[ym] = { amount: 0, at: today };
+      save();
+      return { inserted: false, reason: 'tidak ada nominal', amount: 0 };
+    }
+
+    var S = w.Store;
+    if (!S || !S.Tx || typeof S.Tx.create !== 'function') {
+      return { inserted: false, reason: 'Project Nava belum siap', amount: due };
+    }
+
+    var detail = d.entries.filter(function (e) {
+      return e.kind !== 'wajib' && e.moneyOut > 0;
+    }).map(function (e) {
+      return e.description || ('Rp ' + fmtIDR(e.moneyOut));
+    }).slice(0, 5).join('; ');
+
+    var payload = {
+      type: 'out',
+      group: 'Tak Terduga',
+      sub: 'Pelunasan DanaBank',
+      amount: due,
+      date: today,
+      note: 'Pelunasan DanaBank ' + ym +
+        ' — Settlement nominal Rp ' + fmtIDR(due) + (detail ? ' — ' + detail : '')
+    };
+    var r = S.Tx.create(payload, 'dana-bank-settle:' + ym);
+    d.pelunasanBulanan[ym] = { amount: due, at: today };
+    save();
+    return { inserted: true, reason: '', amount: due, id: r && r.tx && r.tx.id };
+  }
+  try { w.setTimeout(autoSettlePelunasanToNava, 3000); } catch (e) {}
+
   w.NavaBank = {
     KEY: KEY,
     RASIO_WAJIB: RASIO_WAJIB,
@@ -312,6 +365,7 @@
     tambahSetoranWajib: tambahSetoranWajib,
     sudahWajib: sudahWajib,
     applyOtomatis: applyOtomatis,
+    autoSettlePelunasanToNava: autoSettlePelunasanToNava,
     persenTerpenuhi: persenTerpenuhi,
     exportJSON: exportJSON,
     importJSON: importJSON,
