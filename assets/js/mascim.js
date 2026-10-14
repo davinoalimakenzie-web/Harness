@@ -191,15 +191,6 @@
 
         '<div class="mc-nggwrap">' + nggantungCard(d) + '</div>' +
 
-        '<div class="mc-nggwrap">' + nggantungCard(d) + '</div>' +
-
-        (d.nggandul > 0
-          ? '<button class="mc-ngg" data-mv="list" data-ngg="1">' +
-              '<b>' + d.nggandul + ' nota Nggandul</b>' +
-              '<span>Data nota berubah — status perlu dikonfirmasi. Ketuk untuk lihat.</span>' +
-            '</button>'
-          : '') +
-
         '<div class="mc-nav">' +
           '<button data-mv="list"><b>Servis</b><span>Daftar &amp; pencarian</span></button>' +
           '<button data-mv="money"><b>Keuangan</b><span>Cashflow servis</span></button>' +
