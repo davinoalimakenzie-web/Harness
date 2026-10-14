@@ -900,6 +900,77 @@
     toast('CSV diunduh');
   }
 
+  /* Impor CSV dari format Ekspor CSV sebelumnya. */
+  function importCSV() {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'text/csv';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.onchange = function (e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) { if (input.parentNode) input.parentNode.removeChild(input); return; }
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var rows = String(reader.result || '').trim().split(/\r?\n/);
+          var parsed = [];
+          rows.forEach(function (line) {
+            if (!line.trim()) return;
+            var f = [], cur = '', inq = false;
+            for (var i = 0; i < line.length; i++) {
+              var ch = line.charAt(i);
+              if (ch === '"') { inq = !inq; }
+              else if (ch === ';' && !inq) { f.push(cur); cur = ''; }
+              else { cur += ch; }
+            }
+            f.push(cur);
+            for (var k = 0; k < f.length; k++) f[k] = f[k].trim();
+            if (/tanggal/i.test(f[0] || '')) return; // header
+            parsed.push(f);
+          });
+          var added = 0;
+          parsed.forEach(function (r) {
+            var tgl = (r[0] || '').trim();
+            var jenis = (r[1] || '').trim().toLowerCase();
+            var group = (r[2] || '').trim() || 'Lainnya';
+            var sub = (r[3] || '').trim();
+            var amount = Math.abs(parseInt(String(r[4] || '').replace(/[^0-9]/g, ''), 10) || 0);
+            var akun = (r[5] || '').trim();
+            var note = (r[6] || '').trim();
+            if (!(amount > 0)) return;
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(tgl)) tgl = S.todayStr();
+            var accId = null;
+            (S.Accounts.all() || []).forEach(function (a) {
+              if (!accId && a && a.name === akun) accId = a.id;
+            });
+            if (!accId && S.Accounts.all && S.Accounts.all().length) accId = S.Accounts.all()[0].id;
+            if (!accId) accId = 'acc-cash';
+            S.Tx.create({
+              account_id: accId,
+              type: (/pemasuk|income|^in$/.test(jenis)) ? 'in' : 'out',
+              group: group,
+              sub: sub || null,
+              amount: amount,
+              date: tgl,
+              note: note
+            }, 'csv-import-' + Date.now() + '-' + added);
+            added++;
+          });
+          render();
+          TG.haptic('success');
+          App.toast('Impor CSV: ' + added + ' transaksi masuk');
+        } catch (err) {
+          App.toast('Gagal impor CSV: ' + ((err && err.message) ? err.message : err));
+        }
+      };
+      reader.readAsText(file, 'UTF-8');
+    };
+    input.onchange = input.onchange;
+    input.click();
+    setTimeout(function () { if (input.parentNode) input.parentNode.removeChild(input); }, 5000);
+  }
+
   /* =========================================================
      INIT
      ========================================================= */
@@ -1105,6 +1176,7 @@
 
   w.TxUI = {
     init: init, render: render, money: money,
+    exportCSV: exportCSV, importCSV: importCSV,
     openAdd: openAdd, openEdit: openEdit, openDetail: openDetail,
     closeTxPage: closeTxPage, closeDetail: closeDetail,
     press: press, paintAmount: paintAmount,

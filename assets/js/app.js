@@ -480,6 +480,15 @@
     if (w.MascimUI && w.MascimUI.init) w.MascimUI.init();
     if (w.Ronce && w.Ronce.init) w.Ronce.init();
     if (w.NavaTraderUI && w.NavaTraderUI.init) w.NavaTraderUI.init();
+
+    var dExpCsv = $('#dExportCsv');
+    if (dExpCsv) dExpCsv.addEventListener('click', function () {
+      if (w.TxUI && typeof w.TxUI.exportCSV === 'function') w.TxUI.exportCSV();
+    });
+    var dImpCsv = $('#dImportCsv');
+    if (dImpCsv) dImpCsv.addEventListener('click', function () {
+      if (w.TxUI && typeof w.TxUI.importCSV === 'function') w.TxUI.importCSV();
+    });
     if (w.NavaTraderQuote && w.NavaTraderQuote.init) w.NavaTraderQuote.init();
     if (w.NavaTraderAlert && w.NavaTraderAlert.init) w.NavaTraderAlert.init();
     refreshMore();
