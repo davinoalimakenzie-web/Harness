@@ -1059,6 +1059,36 @@
     });
     $('#btnExportCsv').addEventListener('click', exportCSV);
 
+    // Chips filter gaya Mas Cim: ringan dan minimalis.
+    (document.querySelectorAll('[data-hchip]') || []).forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var kind = btn.dataset.hchip;
+        filter.type = 'all'; el.fType.value = 'all';
+        filter.group = el.fGroup.value || '';
+        var today = S.todayStr();
+        var dateRow = $('#fDateRow');
+        if (kind === 'all') {
+          filter.from = ''; filter.to = ''; el.fFrom.value = ''; el.fTo.value = '';
+          if (dateRow) dateRow.style.display = 'none';
+        } else if (kind === 'today') {
+          filter.from = today; filter.to = today; el.fFrom.value = today; el.fTo.value = today;
+          if (dateRow) dateRow.style.display = 'none';
+        } else if (kind === 'month') {
+          var first = today.slice(0, 8) + '01';
+          var d = new Date(today + 'T00:00:00');
+          var last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+          var lastStr = last.getFullYear() + '-' +
+            String(last.getMonth() + 1).padStart(2, '0') + '-' +
+            String(last.getDate()).padStart(2, '0');
+          filter.from = first; filter.to = lastStr; el.fFrom.value = first; el.fTo.value = lastStr;
+          if (dateRow) dateRow.style.display = 'none';
+        } else {
+          if (dateRow) dateRow.style.display = '';
+        }
+        renderHistory();
+      });
+    });
+
     /* --- Rekap --- */
     $('#rPrev').addEventListener('click', function () {
       recapYM = S.shiftMonth(recapYM, -1); renderRecap(); TG.haptic('select');
