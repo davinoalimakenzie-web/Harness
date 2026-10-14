@@ -21,11 +21,11 @@
 
   var STORE_KEY = 'nava.autobackup.v1';
   var LIST_KEY = 'nava.autobackup.list.v1';
-  var APP_SNAP_EVERY_MS = 30 * 60 * 1000; // tiap 30 menit
+  var APP_SNAP_EVERY_MS = 60 * 60 * 1000; // tiap 1 jam
   // Salinan terpusat dikirim lebih jarang dari snapshot lokal karena
   // memakai jaringan dan kuota.
   var VAULT_EVERY_MS = 5 * 60 * 1000;
-  var MAX_SNAPSHOTS = 5;                  // simpan 5 snapshot terakhir
+  var MAX_SNAPSHOTS = 3;                  // simpan 3 snapshot terakhir
   // Batas total byte. localStorage di WebView Telegram kecil; kalau
   // penuh, penulisan bisa gagal dan destabilkan aplikasi.
   var MAX_TOTAL_BYTES = 2 * 1024 * 1024;  // 2 MB

@@ -637,7 +637,7 @@
       if (!info || !list) return;
       var snaps = w.AutoBackup.list();
       if (!snaps.length) {
-        info.textContent = 'Belum ada cadangan. App akan menyimpan sendiri setiap 30 menit.';
+        info.textContent = 'Belum ada cadangan. App akan menyimpan sendiri setiap 1 jam.';
         list.innerHTML = '';
         return;
       }
