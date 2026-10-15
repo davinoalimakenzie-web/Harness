@@ -480,6 +480,12 @@
     if (w.MascimUI && w.MascimUI.init) w.MascimUI.init();
     if (w.Ronce && w.Ronce.init) w.Ronce.init();
     if (w.NavaTraderUI && w.NavaTraderUI.init) w.NavaTraderUI.init();
+    // Auto refresh harga IHSG berkala, jangan user bukan klik tombol lagi.
+    if (w.NavaTraderQuote && typeof w.NavaTraderQuote.muat === 'function') {
+      w.setInterval(function () {
+        try { w.NavaTraderQuote.muat(['IHSG'], true); } catch (e) {}
+      }, 60000);
+    }
 
     var dExpCsv = $('#dExportCsv');
     if (dExpCsv) dExpCsv.addEventListener('click', function () {
