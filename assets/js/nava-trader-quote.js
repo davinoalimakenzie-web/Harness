@@ -63,15 +63,15 @@
       encodeURIComponent(symbol) + '?interval=1m&range=1d';
 
     var proxies = [
-      'https://cors-anywhere.herokuapp.com/',
-      'https://proxy.cors.sh/'
+      'https://proxy.cors.dev/?url=',
+      'https://api.allorigins.win/raw?url='
     ];
 
     function tryProxy(index) {
       if (index >= proxies.length) {
         return Promise.reject(new Error('Semua CORS proxy gagal'));
       }
-      var url = proxies[index] + baseUrl;
+      var url = proxies[index] + encodeURIComponent(baseUrl);
       return fetch(url)
         .then(function (resp) {
           if (!resp.ok) throw new Error('Yahoo Finance HTTP ' + resp.status);
