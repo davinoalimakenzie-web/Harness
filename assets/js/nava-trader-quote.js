@@ -47,6 +47,135 @@
     return S.mascimApi(method, path);
   }
 
+  /* ---------------------------------------------------------
+     FALLBACK: Yahoo Finance (dipakai saat sumber utama gagal)
+     --------------------------------------------------------- */
+
+  /**
+   * Ambil data satu simbol dari Yahoo Finance chart API.
+   * IDX stocks pakai ekstensi .JK, IHSG pakai ^JKSE.
+   */
+  function fetchYahooSymbol(symbol) {
+    var url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(symbol);
+    return fetch(url)
+      .then(function (resp) {
+        if (!resp.ok) throw new Error('Yahoo Finance HTTP ' + resp.status);
+        return resp.json();
+      })
+      .then(function (data) {
+        var r = (data && data.chart && data.chart.result && data.chart.result[0]) || {};
+        var meta = r.meta || {};
+
+        var price = meta.regularMarketPrice;
+        var prevClose = meta.chartPreviousClose || meta.previousClose;
+        var change = null;
+        if (price != null && prevClose != null && prevClose !== 0) {
+          change = ((price - prevClose) / prevClose) * 100;
+        }
+
+        var volume = 0;
+        if (r.indicators && r.indicators.quote && r.indicators.quote[0]) {
+          var q = r.indicators.quote[0];
+          if (q.volume && q.volume.length) {
+            volume = q.volume[q.volume.length - 1] || 0;
+          }
+        }
+
+        var time = meta.regularMarketTime;
+        var waktuWIB = '';
+        if (time) {
+          try {
+            waktuWIB = new Date(time * 1000).toLocaleString('id-ID', {
+              timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short',
+              hour: '2-digit', minute: '2-digit'
+            }) + ' WIB';
+          } catch (e) {
+            waktuWIB = new Date(time * 1000).toISOString();
+          }
+        }
+
+        return {
+          kode: meta.symbol || symbol,
+          harga: price,
+          perubahan: change,
+          volume: volume,
+          waktuDataWIB: waktuWIB
+        };
+      });
+  }
+
+  /**
+   * Fallback: ambil kutipan dari Yahoo Finance untuk daftar kode.
+   * Mengembalikan respons dalam format yang sama dengan API utama.
+   */
+  function fetchYahooFallback(codes, denganIHSG) {
+    var cs = (codes || []).slice(0, 20);
+    var symbols = cs.map(function (code) {
+      return String(code).toUpperCase().replace(/\.JK$/, '') + '.JK';
+    });
+    if (denganIHSG) {
+      symbols.push('%5EJKSE');
+    }
+    if (!symbols.length) return Promise.resolve(null);
+
+    var promises = symbols.map(function (sym) {
+      return fetchYahooSymbol(sym).catch(function () {
+        return null;
+      });
+    });
+
+    return Promise.all(promises).then(function (results) {
+      var saham = [];
+      var ihsg = null;
+      var berhasil = 0;
+
+      results.forEach(function (r) {
+        if (!r) return;
+        berhasil++;
+        var code = String(r.kode || '').toUpperCase();
+        var isIHSG = code === '^JKSE' || code === '%5EJKSE';
+
+        var qd = {
+          ok: true,
+          kode: isIHSG ? 'IHSG' : code.replace('.JK', ''),
+          harga: r.harga,
+          perubahan: r.perubahan,
+          volume: r.volume,
+          volumeSesi: r.volume,
+          labelData: 'Yahoo Finance (delayed)',
+          keyakinan: 'sedang',
+          keteranganData: 'Sumber cadangan: Yahoo Finance',
+          waktuDataWIB: r.waktuDataWIB,
+          sumber: 'Yahoo Finance (fallback)',
+          dariCacheBasi: false,
+          alasanLabel: 'Fallback - sumber utama gagal'
+        };
+
+        if (isIHSG) {
+          ihsg = qd;
+        } else {
+          saham.push(qd);
+        }
+      });
+
+      if (!berhasil) return null;
+
+      return {
+        ok: true,
+        saham: saham,
+        ihsg: ihsg,
+        ringkasan: {
+          jumlahBerhasil: berhasil,
+          jumlahDiminta: symbols.length,
+          labelDataIHSG: ihsg ? 'Yahoo Finance (delayed)' : 'Yahoo Finance (delayed)'
+        },
+        sumber: 'Yahoo Finance (fallback)',
+        dariCache: false,
+        catatan: 'Data dari sumber cadangan (Yahoo Finance) - sumber utama tidak tersedia.'
+      };
+    });
+  }
+
   function toast(p) {
     if (w.App && w.App.toast) w.App.toast(p);
   }
@@ -148,13 +277,30 @@
           toast((r.dariCache ? 'Data (cache) ' : 'Data ') + label + ' - ' +
                 (ring.jumlahBerhasil || 0) + '/' + (ring.jumlahDiminta || 0) + ' simbol');
         } else {
-          M.gagalSeq++;
-          M.galat = (r && r.error) || 'Gagal mengambil data real-time';
+          // Primary source returned non-ok — trigger fallback via catch
+          throw new Error((r && r.error) || 'Gagal mengambil data real-time');
         }
       })
       .catch(function (e) {
-        M.gagalSeq++;
-        M.galat = (e && e.message) || 'Gagal menghubungi server';
+        // Primary source failed — try Yahoo Finance fallback
+        return fetchYahooFallback(cs, denganIHSG)
+          .then(function (fr) {
+            if (fr && fr.ok) {
+              M.gagalSeq = 0; // reset error counter on fallback success
+              M.quote = gabungQuote(M.quote, fr);
+              M.waktuAmbil = Date.now();
+              var ring = fr.ringkasan || {};
+              toast('Data dari Yahoo Finance (fallback) - ' +
+                    (ring.jumlahBerhasil || 0) + '/' + (ring.jumlahDiminta || 0) + ' simbol');
+            } else {
+              M.gagalSeq++;
+              M.galat = (fr && fr.error) || 'Gagal mengambil data dari sumber cadangan';
+            }
+          })
+          .catch(function (e2) {
+            M.gagalSeq++;
+            M.galat = (e2 && e2.message) || 'Gagal mengambil data dari semua sumber';
+          });
       })
       .then(function () {
         M.sibuk = false;
@@ -328,7 +474,7 @@
     h += '<div class="nt-rowbtns">';
     h += '<button class="nt-b nt-b-primary" data-nv-quote-refresh' +
          (M.sibuk ? ' disabled' : '') + '>' +
-         (M.sibuk ? 'Mengambil...' : 'Refresh Harga Real-time') + '</button>';
+         (M.sibuk ? 'Memuat...' : 'Refresh Harga Real-time') + '</button>';
     h += '</div>';
     h += '<div class="nt-note">Label Real-time hanya tampil bila data intraday ' +
          'benar-benar ada di dalam jam bursa. Selain itu ditandai Delayed; ' +
@@ -364,7 +510,7 @@
     h += '<button class="nt-b nt-b-primary" data-nv-quote-refresh ' +
          'data-nv-quote-codes="' + esc(kode) + '"' +
          (M.sibuk ? ' disabled' : '') + '>' +
-         (M.sibuk ? 'Mengambil...' : 'Refresh Harga ' + esc(kode)) + '</button>';
+         (M.sibuk ? 'Memuat...' : 'Refresh Harga ' + esc(kode)) + '</button>';
     h += '</div>';
     h += '</div>';
     return h;
