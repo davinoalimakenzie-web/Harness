@@ -309,6 +309,7 @@
           .then(function (fr) {
             if (fr && fr.ok) {
               M.gagalSeq = 0; // reset error counter on fallback success
+              M.galat = ''; // clear error message on fallback success
               M.quote = gabungQuote(M.quote, fr);
               M.waktuAmbil = Date.now();
               var ring = fr.ringkasan || {};
