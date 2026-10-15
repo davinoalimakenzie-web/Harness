@@ -289,20 +289,25 @@
     M.galat = '';
     M.terakhirCoba = Date.now();
 
-    return api('GET', q)
-      .then(function (r) {
-        if (r && r.ok) {
-          M.quote = gabungQuote(M.quote, r);
-          M.waktuAmbil = Date.now();
-          var ring = M.quote.ringkasan || {};
-          var label = ring.labelDataIHSG || 'Delayed';
-          toast((r.dariCache ? 'Data (cache) ' : 'Data ') + label + ' - ' +
-                (ring.jumlahBerhasil || 0) + '/' + (ring.jumlahDiminta || 0) + ' simbol');
-        } else {
-          // Primary source returned non-ok — trigger fallback via catch
-          throw new Error((r && r.error) || 'Gagal mengambil data real-time');
-        }
-      })
+    var hasApi = !!Sync().mascimApi;
+
+    var primaryPromise = hasApi
+      ? api('GET', q)
+          .then(function (r) {
+            if (r && r.ok) {
+              M.quote = gabungQuote(M.quote, r);
+              M.waktuAmbil = Date.now();
+              var ring = M.quote.ringkasan || {};
+              var label = ring.labelDataIHSG || 'Delayed';
+              toast((r.dariCache ? 'Data (cache) ' : 'Data ') + label + ' - ' +
+                    (ring.jumlahBerhasil || 0) + '/' + (ring.jumlahDiminta || 0) + ' simbol');
+            } else {
+              throw new Error((r && r.error) || 'Gagal mengambil data real-time');
+            }
+          })
+      : Promise.reject(new Error('Sinkronisasi belum siap'));
+
+    return primaryPromise
       .catch(function (e) {
         // Primary source failed — try Yahoo Finance fallback
         return fetchYahooFallback(cs, denganIHSG)
