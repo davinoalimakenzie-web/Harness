@@ -457,7 +457,7 @@
           '<iframe src="/Harness/kalkulator-garapan/" style="width:100%;height:100%;border:0;display:block;" allowfullscreen></iframe>' +
           '<button data-close style="position:fixed;bottom:20px;right:20px;z-index:999;background:#6366f1;color:#fff;border:none;border-radius:12px;padding:12px 20px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(99,102,241,.4)">Tutup ✕</button>' +
           '</div>';
-        openSheet(body);
+        openSheet('Kalkulator Garapan', body);
       });
     }
 
