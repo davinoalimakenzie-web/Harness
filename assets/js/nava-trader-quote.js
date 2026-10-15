@@ -52,16 +52,38 @@
      --------------------------------------------------------- */
 
   /**
-   * Ambil data satu simbol dari Yahoo Finance chart API.
+   * Ambil data satu simbol dari Yahoo Finance chart API via CORS proxy.
    * IDX stocks pakai ekstensi .JK, IHSG pakai ^JKSE.
+   *
+   * Mencoba beberapa proxy secara sekuensial — kalau satu gagal,
+   * lanjut ke proxy berikutnya.
    */
   function fetchYahooSymbol(symbol) {
-    var url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(symbol);
-    return fetch(url)
-      .then(function (resp) {
-        if (!resp.ok) throw new Error('Yahoo Finance HTTP ' + resp.status);
-        return resp.json();
-      })
+    var baseUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' +
+      encodeURIComponent(symbol) + '?interval=1m&range=1d';
+
+    var proxies = [
+      'https://cors-anywhere.herokuapp.com/',
+      'https://proxy.cors.sh/'
+    ];
+
+    function tryProxy(index) {
+      if (index >= proxies.length) {
+        return Promise.reject(new Error('Semua CORS proxy gagal'));
+      }
+      var url = proxies[index] + baseUrl;
+      return fetch(url)
+        .then(function (resp) {
+          if (!resp.ok) throw new Error('Yahoo Finance HTTP ' + resp.status);
+          return resp.json();
+        })
+        .catch(function () {
+          // Proxy ini gagal — coba proxy berikutnya
+          return tryProxy(index + 1);
+        });
+    }
+
+    return tryProxy(0)
       .then(function (data) {
         var r = (data && data.chart && data.chart.result && data.chart.result[0]) || {};
         var meta = r.meta || {};
