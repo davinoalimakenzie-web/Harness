@@ -65,10 +65,10 @@
     <div class="card">
       <input type="text" id="fQ" placeholder="Cari kategori atau catatan…">
       <div class="field-row mt">
-        <button class="btn ghost" data-hchip="all" type="button">Semua</button>
-        <button class="btn ghost" data-hchip="today" type="button">Hari ini</button>
-        <button class="btn ghost" data-hchip="month" type="button">Bulan ini</button>
-        <button class="btn ghost" data-hchip="range" type="button">Rentang tanggal</button>
+        <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="all" type="button">Semua</button>
+        <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="today" type="button">Hari ini</button>
+        <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="month" type="button">Bulan ini</button>
+        <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="range" type="button">Rentang tanggal</button>
       </div>
       <div class="field-row mt" id="fDateRow" style="display:none">
         <label class="field grow"><span class="lbl">Dari</span><input type="date" id="fFrom"></label>
@@ -81,9 +81,6 @@
           <option value="out">Pengeluaran</option>
         </select>
         <select id="fGroup" class="grow" style="display:none"></select>
-      </div>
-      <div class="row-2 mt">
-        <button class="btn" id="btnExportCsv">Ekspor CSV</button>
       </div>
     </div>
     <div id="hList" class="list"></div>
