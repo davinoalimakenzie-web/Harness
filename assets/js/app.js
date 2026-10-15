@@ -16,6 +16,7 @@
     more:    ['Lainnya', 'Alat, kategori, akun & data'],
     notes:   ['Catatan', 'Pengingat voice'],
     calc:    ['Kalkulator Servis HP', 'Harga estimasi LCD & baterai dari harga part'],
+    ronce:   ['Kalkulator Ronce', 'Rekap komisi & kasbon mitra'],
     mascim:  ['Mas Cim Service HP', 'Servis, kas & Dana Bank']
   };
 
@@ -64,6 +65,7 @@
       $('#pageSub').textContent = t[1];
       w.scrollTo(0, 0);
       TG.haptic('select');
+      if (v === 'ronce' && w.Ronce && w.Ronce.onShow) w.Ronce.onShow();
     },
 
     home: function () { App.go('home'); }
@@ -449,17 +451,7 @@
     });
     $('#btnMore').addEventListener('click', function () { App.go('more'); });
 
-    // Tombol Kalkulator Garapan di tab Lainnya — buka sheet berisi iframe
-    var btnKg = $('#btnKalkulatorGarapan');
-    if (btnKg) {
-      btnKg.addEventListener('click', function () {
-        var body = '<div style="padding:0;margin:0;height:calc(100vh - 120px);min-height:500px;position:relative;background:#0f172a;">' +
-          '<iframe src="/Harness/kalkulator-garapan/" style="width:100%;height:100%;border:0;display:block;" allowfullscreen></iframe>' +
-          '<button data-close style="position:fixed;bottom:20px;right:20px;z-index:999;background:#6366f1;color:#fff;border:none;border-radius:12px;padding:12px 20px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(99,102,241,.4)">Tutup ✕</button>' +
-          '</div>';
-        openSheet('Kalkulator Garapan', body);
-      });
-    }
+
 
     $('#sheet').addEventListener('click', function (e) {
       if (e.target.closest('[data-close]')) closeSheet();

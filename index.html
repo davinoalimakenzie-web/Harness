@@ -239,10 +239,10 @@
         <span class="tool-body"><b>Kalkulator Servis HP</b><span>Hitung harga estimasi LCD &amp; baterai</span></span>
         <span class="tool-go">›</span>
       </button>
-      <button class="tool" data-ronce-open="1">
+      <button class="tool" data-goto="ronce">
         <span class="tool-ico svc">R</span>
         <span class="tool-body"><b>Kalkulator Ronce</b><span>Rekap komisi &amp; kasbon mitra</span></span>
-        <span class="tool-go">&rsaquo;</span>
+        <span class="tool-go">›</span>
       </button>
       <button class="tool" data-mascim-open="1">
         <span class="tool-ico svc">C</span>
@@ -254,11 +254,7 @@
         <span class="tool-body"><b>Nava Trader</b><span id="hTraderInfo">IHSG, watchlist &amp; analisa saham BEI</span></span>
         <span class="tool-go">›</span>
       </button>
-      <button class="tool" id="btnKalkulatorGarapan">
-        <span class="tool-ico svc">G</span>
-        <span class="tool-body"><b>Kalkulator Garapan</b><span>Input garapan, tugas mitra, rekap gaji &amp; log aktivitas</span></span>
-        <span class="tool-go">›</span>
-      </button>
+
     </div>
 
     <div class="list-head"><strong>Penyimpanan Data</strong></div>
@@ -489,6 +485,189 @@
 
   </section>
 
+  <!-- ============ TAB: KALKULATOR RONCE ============ -->
+  <section id="view-ronce" class="view">
+
+    <!-- Login Screen -->
+    <div id="ronceLogin">
+      <div class="card" style="text-align:center;padding:28px 20px">
+        <div style="font-size:40px;margin-bottom:8px">🔐</div>
+        <h2 style="margin-bottom:4px">Kalkulator Ronce</h2>
+        <p class="muted" style="margin:0 0 18px">Sistem Pencatatan Finansial &amp; Gaji Mitra</p>
+        <p class="lbl" style="text-align:left;margin-bottom:8px">Pilih Akun</p>
+        <div id="ronceUserList" class="list"></div>
+      </div>
+      <div id="roncePinPad" class="card" style="text-align:center;padding:28px 20px" hidden>
+        <div id="roncePinAvatar" style="width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:700;margin:0 auto 10px">?</div>
+        <div id="roncePinName" style="font-weight:650;font-size:17px"></div>
+        <div id="roncePinRole" class="muted" style="font-size:13px;margin-bottom:14px"></div>
+        <p class="lbl">Masukkan 4 digit PIN</p>
+        <div id="roncePinDots" style="display:flex;justify-content:center;gap:12px;margin:14px 0 20px">
+          <span class="ronce-pin-dot"></span><span class="ronce-pin-dot"></span><span class="ronce-pin-dot"></span><span class="ronce-pin-dot"></span>
+        </div>
+        <div id="roncePinError" class="err" style="color:var(--danger);font-size:13px;min-height:18px;margin-bottom:8px"></div>
+        <div class="ronce-keypad">
+          <button class="rn-key" data-pin="1">1</button>
+          <button class="rn-key" data-pin="2">2</button>
+          <button class="rn-key" data-pin="3">3</button>
+          <button class="rn-key" data-pin="4">4</button>
+          <button class="rn-key" data-pin="5">5</button>
+          <button class="rn-key" data-pin="6">6</button>
+          <button class="rn-key" data-pin="7">7</button>
+          <button class="rn-key" data-pin="8">8</button>
+          <button class="rn-key" data-pin="9">9</button>
+          <button class="rn-key rn-key-alt" data-pin="clear">Clear</button>
+          <button class="rn-key" data-pin="0">0</button>
+          <button class="rn-key rn-key-alt" data-pin="del">⌫</button>
+        </div>
+        <button class="btn ghost block" id="roncePinBack" style="margin-top:14px">Kembali</button>
+      </div>
+    </div>
+
+    <!-- App Screen (after login) -->
+    <div id="ronceApp" hidden>
+      <!-- Tab bar -->
+      <div class="seg" id="ronceTabs">
+        <button class="seg-btn active" data-rtab="input">Input</button>
+        <button class="seg-btn" data-rtab="tugas">Tugas</button>
+        <button class="seg-btn" data-rtab="rekap">Rekap</button>
+        <button class="seg-btn" data-rtab="log">Log</button>
+        <button class="seg-btn" data-rtab="setting">Setting</button>
+      </div>
+
+      <!-- Tab: Input Garapan -->
+      <div id="ronceTab-input" class="ronce-tab">
+        <div class="card">
+          <div class="list-head tight"><strong>Input Pekerjaan</strong></div>
+          <div class="field">
+            <label class="lbl" for="rjMitra">Mitra</label>
+            <select id="rjMitra"></select>
+          </div>
+          <div class="field">
+            <label class="lbl" for="rjGarapan">Jenis Garapan</label>
+            <select id="rjGarapan"></select>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label class="lbl" for="rjQty">Jumlah</label>
+              <input type="number" id="rjQty" inputmode="numeric" min="1" placeholder="1">
+            </div>
+            <div class="field">
+              <label class="lbl" for="rjTanggal">Tanggal</label>
+              <input type="date" id="rjTanggal">
+            </div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="rjFee">Jasa (Rp)</label>
+            <input type="text" id="rjFee" inputmode="numeric" placeholder="otomatis">
+          </div>
+          <button class="btn primary block" id="rjSimpan">Simpan Pekerjaan</button>
+        </div>
+
+        <div class="card">
+          <div class="list-head tight"><strong>Ringkasan</strong></div>
+          <div class="item">
+            <div class="item-body">
+              <div class="item-title">Total Pending</div>
+              <div class="item-sub"><span id="rjPendingCount">0 pekerjaan</span></div>
+            </div>
+            <div class="item-amt" id="rjPendingTotal">Rp0</div>
+          </div>
+        </div>
+
+        <div class="list-head"><strong>Riwayat Pekerjaan</strong></div>
+        <div id="rjHistory" class="list"></div>
+      </div>
+
+      <!-- Tab: Tugas Mitra -->
+      <div id="ronceTab-tugas" class="ronce-tab" hidden>
+        <div class="card">
+          <div class="list-head tight"><strong>Formulir Penugasan Baru</strong></div>
+          <div class="field-row">
+            <div class="field">
+              <label class="lbl" for="rtMitra">Mitra Tujuan</label>
+              <select id="rtMitra"></select>
+            </div>
+            <div class="field">
+              <label class="lbl" for="rtTanggal">Tanggal</label>
+              <input type="date" id="rtTanggal">
+            </div>
+          </div>
+          <div class="lbl" style="margin-bottom:6px">Daftar Garapan</div>
+          <div id="rtItems"></div>
+          <div class="row-2 mt">
+            <button class="btn ghost" id="rtTambah">+ Tambah Item</button>
+            <button class="btn primary" id="rtKirim">Serahkan Tugas</button>
+          </div>
+        </div>
+
+        <div class="list-head"><strong>Tugas Belum Selesai</strong></div>
+        <div id="rtPending" class="list"></div>
+      </div>
+
+      <!-- Tab: Rekap Gaji -->
+      <div id="ronceTab-rekap" class="ronce-tab" hidden>
+        <div class="card">
+          <div class="list-head tight"><strong>Pelunasan Komisi Mitra</strong></div>
+          <div class="chips" id="ronceFilters">
+            <button class="chip" data-rfilter="today">Hari Ini</button>
+            <button class="chip" data-rfilter="week">Minggu Ini</button>
+            <button class="chip on" data-rfilter="month">Bulan Ini</button>
+            <button class="chip" data-rfilter="year">Tahun Ini</button>
+            <button class="chip" data-rfilter="all">Semua</button>
+          </div>
+          <div id="ronceMonthWrap" style="display:none;margin-bottom:10px">
+            <select id="rreBulan" class="grow"></select>
+          </div>
+          <div class="item">
+            <div class="item-body">
+              <div class="item-title">Total Komisi</div>
+              <div class="item-sub"><span id="ronceTotalKomisi">Rp0</span></div>
+            </div>
+          </div>
+        </div>
+        <div id="ronceRekapList" class="list"></div>
+      </div>
+
+      <!-- Tab: Log Aktivitas -->
+      <div id="ronceTab-log" class="ronce-tab" hidden>
+        <div class="list-head tight"><strong>Log Semua Aktivitas</strong></div>
+        <div id="ronceLogList" class="list"></div>
+      </div>
+
+      <!-- Tab: Settings -->
+      <div id="ronceTab-setting" class="ronce-tab" hidden>
+        <div class="card">
+          <div class="list-head tight"><strong>Tema Aplikasi</strong></div>
+          <button class="btn block" id="rsTema">Mode Terang</button>
+        </div>
+
+        <div class="card">
+          <div class="list-head tight"><strong>Komisi Garapan</strong></div>
+          <div id="rsServiceList" class="list"></div>
+          <div class="field-row mt">
+            <input type="text" id="rsNama" class="grow" placeholder="Nama garapan">
+            <input type="text" id="rsHarga" class="grow" placeholder="Harga" inputmode="numeric">
+            <button class="btn" id="rsTambah">Tambah</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="list-head tight"><strong>Akses Mitra</strong></div>
+          <div id="rsUserList" class="list"></div>
+        </div>
+
+        <div class="card" style="border-color:var(--danger)">
+          <div class="list-head tight"><strong style="color:var(--danger)">Pembersih Data</strong></div>
+          <p class="hint">Membersihkan semua data riwayat, saldo, dan log aktivitas.</p>
+          <button class="btn danger block" id="rsBersihkan">Bersihkan Semua Data</button>
+        </div>
+
+        <button class="btn ghost block" id="ronceLogout">Keluar</button>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ BOTTOM NAV ============ -->
   <nav class="tabbar">
     <button class="tab active" data-view="home">
@@ -535,20 +714,7 @@
 <!-- ============ MODUL: MAS CIM SERVICE HP ============
      Berisi lengkap di assets/js/mascim.js?v=20261014l; di sini hanya kerangkanya.
      Satu pemilik, satu teknisi — sengaja tanpa kasir/cabang/multi-role. -->
-<!-- ============ MODUL: KALKULATOR RONCE ============
-     Logika di assets/js/ronce.js; di sini hanya kerangkanya. -->
-<div id="ronce" class="mc hidden" aria-hidden="true">
-  <div class="mc-bar">
-    <button class="mc-back" id="ronceBack" aria-label="Kembali">&lsaquo;</button>
-    <div class="mc-bar-title">
-      <b>Kalkulator Ronce</b>
-      <span id="ronceSub">Rekap komisi mitra</span>
-    </div>
-    <button class="mc-act" id="ronceReset" aria-label="Hapus semua">&times;</button>
-  </div>
-  <div id="ronceBody" class="mc-screen"></div>
-</div>
-
+<!-- ============ MODUL: MAS CIM SERVICE HP ============ -->
 <div id="mc" class="mc hidden" aria-hidden="true">
   <!-- Bar navigasi internal modul -->
   <div class="mc-bar">

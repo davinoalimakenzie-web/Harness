@@ -2111,3 +2111,20 @@ select.mc-inp{ appearance:none; }
 .mc-clearst{ background:#2a1e0b; border-color:#7a5320; color:#f0c088;
   font-weight:700; }
 .mc-clearst:active{ background:#3a2a10; }
+
+/* ---------------- Kalkulator Ronce ---------------- */
+.ronce-pin-dot{
+  width:14px; height:14px; border-radius:50%;
+  background:var(--line); display:inline-block;
+}
+.ronce-keypad{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:8px;
+  max-width:260px; margin:0 auto;
+}
+.rn-key{
+  border:1px solid var(--line); border-radius:12px; padding:14px 0;
+  font-size:18px; font-weight:600; background:var(--tap); cursor:pointer;
+  color:var(--text); text-align:center;
+}
+.rn-key:active{ transform:scale(.95); }
+.rn-key-alt{ background:transparent; color:var(--text-2); }
