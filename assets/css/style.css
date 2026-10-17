@@ -2181,3 +2181,63 @@ select.mc-inp{ appearance:none; }
 }
 .rn-key:active{ transform:scale(.95); }
 .rn-key-alt{ background:transparent; color:var(--text-2); }
+
+/* =========================================================
+   KALKULATOR SERVICE HP — PANEL RINGKAS (revisi layout)
+   Perhitungan estimasi biaya ditaruh paling atas. Empat isian
+   (harga part, harga estimasi, brand, seri) disusun seperti grid
+   tombol jenis pekerjaan, dengan tombol simpan bulat tepat di
+   tengah keempatnya. Jarak antar kartu dirapatkan supaya compact.
+   ========================================================= */
+#view-calc, #view-service{ padding:10px 10px 6px; }
+#view-calc .card, #view-service .card{ margin-bottom:8px; padding:11px; }
+#view-calc .list-head.tight, #view-service .list-head.tight{ margin:0 0 7px; }
+#view-calc .k-rules, #view-service .k-rules{ gap:6px; }
+#view-calc .k-rule, #view-service .k-rule{ min-height:54px; padding:8px 10px; }
+#view-calc #kFormulaOut, #view-service #kFormulaOut{ margin:7px 0 0; }
+
+.k-quad{
+  display:grid; grid-template-columns:1fr auto 1fr;
+  grid-template-areas:"part save est" "brand save series";
+  gap:6px; align-items:stretch;
+}
+.q-part{ grid-area:part; }
+.q-est{ grid-area:est; }
+.q-brand{ grid-area:brand; }
+.q-series{ grid-area:series; }
+
+.q-tile{
+  display:flex; flex-direction:column; justify-content:center; gap:2px;
+  min-width:0; min-height:60px; padding:7px 9px;
+  background:var(--bg-elev); border:1.5px solid var(--line);
+  border-radius:12px;
+}
+.q-lbl{
+  font-size:9.5px; font-weight:800; letter-spacing:.03em; text-transform:uppercase;
+  color:var(--hint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.q-val{ font-size:16px; font-weight:800; line-height:1.15; overflow-wrap:anywhere; }
+.q-tile input[type=text]{
+  flex:1; width:100%; min-width:0; min-height:0; padding:0; border:0; border-radius:0;
+  background:transparent; font-size:16px; font-weight:700; line-height:1.2;
+}
+.q-tile input[type=text]:focus{ outline:none; border-color:transparent; }
+.q-tile input[type=text]::placeholder{ font-weight:600; color:var(--hint); }
+.q-tile .sel-wrap{ display:flex; align-items:stretch; flex:1; min-height:0; }
+.q-tile .sel-wrap::after{ display:none; }
+.q-tile .sel-wrap select{
+  flex:1; width:100%; min-width:0; min-height:0; height:auto; padding:0;
+  border:0 !important; border-radius:0;
+  background:transparent !important; font-size:16px; font-weight:700; line-height:1.2;
+}
+.q-tile .sel-wrap select:focus{ outline:none; border-color:transparent; }
+
+.q-save{
+  grid-area:save; align-self:center; justify-self:center;
+  width:52px; height:52px; padding:0; border:0; border-radius:50%;
+  display:grid; place-items:center; cursor:pointer;
+  background:var(--accent); color:var(--accent-text);
+  font-size:20px; line-height:1; box-shadow:0 3px 10px rgba(0,0,0,.18);
+  transition:transform .12s ease;
+}
+.q-save:active{ transform:scale(.94); }

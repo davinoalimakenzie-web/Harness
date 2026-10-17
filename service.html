@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#517da2">
 <title>Kalkulator Service HP — Project Nava</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261015a">
+<link rel="stylesheet" href="assets/css/style.css?v=20261017c">
 <style>
 /* Fallback CSS variables untuk halaman standalone */
 :root {
@@ -57,38 +57,46 @@
 
   <!-- ============ KALKULATOR SERVICE HP (only view) ============ -->
   <section id="view-service" class="view active">
-
-    <!-- Harga part + Estimasi, sebaris -->
+    <!-- ===== Perhitungan estimasi biaya — posisi paling atas ===== -->
     <div class="card">
-      <div class="k-in-row">
-        <label class="field k-in-half">
-          <span class="lbl">Harga part</span>
-          <input type="text" id="kPart" inputmode="numeric" placeholder="150000">
-        </label>
-        <div class="field k-in-half">
-          <span class="lbl">Harga estimasi</span>
-          <div class="k-est" id="kEst">Rp0</div>
-        </div>
+      <div class="list-head tight">
+        <strong>Perhitungan estimasi biaya</strong>
       </div>
-      <p class="hint xs" id="kFormulaOut" style="margin:10px 0 0">Isi harga part, lalu pilih perhitungan estimasi biaya.</p>
+      <div id="kRules" class="k-rules"></div>
     </div>
 
-    <!-- Brand + Seri, sebaris -->
+    <!-- ===== Panel ringkas: 4 tombol isian + tombol simpan bulat di tengah ===== -->
     <div class="card">
-      <div class="k-in-row">
-        <label class="field k-in-half">
-          <span class="lbl">Brand HP</span>
+      <div class="k-quad">
+        <div class="q-tile q-part">
+          <span class="q-lbl">Harga part</span>
+          <input type="text" id="kPart" inputmode="numeric" placeholder="150000">
+        </div>
+
+        <div class="q-tile q-est">
+          <span class="q-lbl">Harga estimasi</span>
+          <div class="q-val" id="kEst">Rp0</div>
+        </div>
+
+        <div class="q-tile q-brand">
+          <span class="q-lbl">Brand HP</span>
           <div class="sel-wrap">
             <select id="kBrand" aria-label="Brand HP"></select>
           </div>
-        </label>
-        <label class="field k-in-half">
-          <span class="lbl">Seri HP</span>
+        </div>
+
+        <div class="q-tile q-series">
+          <span class="q-lbl">Seri HP</span>
           <div class="sel-wrap">
             <select id="kSeries" aria-label="Seri HP"></select>
           </div>
-        </label>
+        </div>
+
+        <button id="kSaveTpl" class="q-save" type="button" title="Simpan harga" aria-label="Simpan harga">💾</button>
       </div>
+
+      <p class="hint xs" id="kFormulaOut">Isi harga part, lalu pilih perhitungan estimasi biaya.</p>
+
       <!-- Input manual: muncul saat pilih "Lainnya…" -->
       <div class="k-in-row hidden" id="kBrandName" aria-hidden="true" tabindex="-1">
         <label class="field k-in-half">
@@ -103,22 +111,12 @@
       <input type="text" id="kName" class="hidden" aria-hidden="true" tabindex="-1" placeholder="Ketik seri HP di sini…">
     </div>
 
-    <div class="card">
-      <div class="list-head tight">
-        <strong>Perhitungan estimasi biaya</strong>
-      </div>
-      <div id="kRules" class="k-rules"></div>
-    </div>
-
-    <div class="row-2">
-      <button id="kSaveTpl" class="btn block">Simpan harga</button>
-    </div>
-
+    <!-- ===== Harga tersimpan ===== -->
     <div class="card">
       <div class="list-head tight">
         <strong>Harga tersimpan</strong>
       </div>
-      <p class="hint xs" style="margin:0 0 10px">Disimpan dari kombinasi brand, seri, dan estimasi biaya.</p>
+      <p class="hint xs">Disimpan dari kombinasi brand, seri, dan estimasi biaya.</p>
       <div id="tplList" class="list"></div>
     </div>
 
