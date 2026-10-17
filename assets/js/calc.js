@@ -165,7 +165,12 @@
     }).join('');
     opts += '<option value="' + CUSTOM_SERIES + '"' +
       (seriesId === CUSTOM_SERIES ? ' selected' : '') + '>Lainnya…</option>';
-    el.kSeries.innerHTML = opts;
+
+    /* Jangan replace innerHTML kalau seriesId sudah CUSTOM_SERIES —
+       browser mobile bisa "reset" select yang cuma punya 1 opsi. */
+    if (seriesId !== CUSTOM_SERIES) {
+      el.kSeries.innerHTML = opts;
+    }
 
     /* Saat brand custom: tampilkan 2 input sejajar (kiri brand, kanan seri).
        Saat seri "Lainnya…": tampilkan kolom input seri manual. */
