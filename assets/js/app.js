@@ -458,6 +458,8 @@
       var v = hashView();
       if (v) App.go(v);
     });
+    var initialHashView = hashView();
+    if (initialHashView) App.go(initialHashView);
     document.addEventListener('click', function (e) {
       var g = e.target.closest('[data-goto]');
       if (g) App.go(g.dataset.goto);
