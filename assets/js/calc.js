@@ -368,6 +368,15 @@
       renderOut();
       TG.haptic('select');
     });
+    // Fallback: juga listen 'input' untuk browser yang tidak fire 'change' pada select
+    el.kSeries.addEventListener('input', function () {
+      if (seriesId !== el.kSeries.value) {
+        seriesId = el.kSeries.value;
+        if (seriesId === CUSTOM_SERIES) el.kName.value = '';
+        renderSeries();
+        renderOut();
+      }
+    });
 
     el.kBrandNameInput.addEventListener('input', function () {
       if (brandId === CUSTOM_BRAND) renderOut();
