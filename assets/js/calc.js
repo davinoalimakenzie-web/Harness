@@ -184,10 +184,13 @@
     el.kBrand.innerHTML = opts;
 
     /* Tempelkan id brand ke select dan ke kotak pembungkusnya supaya CSS
-       bisa mewarnai sesuai brand (Samsung biru, Xiaomi orange, dst). */
+       bisa mewarnai sesuai brand (Samsung biru, Xiaomi orange, dst).
+       Kotak Seri HP ikut warna brand yang sedang dipilih. */
     el.kBrand.setAttribute('data-brand', brandId);
     var tileBrand = el.kBrand.closest ? el.kBrand.closest('.q-brand') : null;
     if (tileBrand) tileBrand.setAttribute('data-brand', brandId);
+    var tileSeries = el.kSeries && el.kSeries.closest ? el.kSeries.closest('.q-series') : null;
+    if (tileSeries) tileSeries.setAttribute('data-brand', brandId);
   }
 
   function renderSeries() {
