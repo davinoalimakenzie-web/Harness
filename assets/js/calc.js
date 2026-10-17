@@ -94,24 +94,29 @@
 
   /* --- Seed data: 1 seri per brand dengan harga part awal --- */
   var SEED_DATA = [
-    { brandId: 'oppo',    brandName: 'OPPO',    series: 'A5s',     ruleId: 'lcd-biasa', part: 105000 },
-    { brandId: 'vivo',    brandName: 'Vivo',    series: 'Y91',     ruleId: 'lcd-biasa', part: 105000 },
-    { brandId: 'realme',  brandName: 'Realme',  series: 'C3',      ruleId: 'lcd-biasa', part: 105000 },
-    { brandId: 'infinix', brandName: 'Infinix', series: 'Smart 5', ruleId: 'lcd-biasa', part: 105000 }
+    { brandId: 'samsung', brandName: 'Samsung', series: 'Galaxy A05', ruleId: 'lcd-biasa', part: 105000 },
+    { brandId: 'oppo',    brandName: 'OPPO',    series: 'A5s',       ruleId: 'lcd-biasa', part: 105000 },
+    { brandId: 'vivo',    brandName: 'Vivo',    series: 'Y91',       ruleId: 'lcd-biasa', part: 105000 },
+    { brandId: 'realme',  brandName: 'Realme',  series: 'C3',        ruleId: 'lcd-biasa', part: 105000 },
+    { brandId: 'xiaomi',  brandName: 'Xiaomi',  series: 'Redmi 10',   ruleId: 'lcd-biasa', part: 105000 },
+    { brandId: 'infinix', brandName: 'Infinix', series: 'Smart 5',   ruleId: 'lcd-biasa', part: 105000 }
   ];
 
   function seedIfNeeded() {
     var t = S.state.templates || [];
-    if (t.length > 0) return; // sudah ada data, jangan seed lagi
     SEED_DATA.forEach(function (s) {
-      var rule = ruleById(s.ruleId);
-      S.state.templates.push({
-        id: 'seed-' + s.brandId,
-        payload: {
-          brandId: s.brandId, brandName: s.brandName, series: s.series,
-          ruleId: s.ruleId, part: s.part, est: s.part * 2 + Math.round(s.part * 2 * rule.pct / 100)
-        }
-      });
+      // Paksa seed: tambah kalau brand ini belum punya data
+      var exists = t.some(function (x) { return (x.payload || {}).brandId === s.brandId; });
+      if (!exists) {
+        var rule = ruleById(s.ruleId);
+        t.push({
+          id: 'seed-' + s.brandId,
+          payload: {
+            brandId: s.brandId, brandName: s.brandName, series: s.series,
+            ruleId: s.ruleId, part: s.part, est: s.part * 2 + Math.round(s.part * 2 * rule.pct / 100)
+          }
+        });
+      }
     });
     S.save();
   }
@@ -293,32 +298,33 @@
       var btns = pair.map(function (bid) {
         var b = brandById(bid);
         var count = t.filter(function (x) { return (x.payload || {}).brandId === bid; }).length;
-        return '<button class="tpl-brand-btn' + (bid === filterBrand ? ' on' : '') + '" data-tplbrand="' + esc(bid) + '" data-tpltoggle="' + esc(bid) + '">' +
+        return '<button class="tpl-brand-btn' + (bid === filterBrand ? ' on' : '') + '" data-tplbrand="' + esc(bid) + '">' +
           esc(b.name) + (count ? ' <span class="tpl-count">' + count + '</span>' : '') + '</button>';
       }).join('');
       return '<div class="tpl-brand-pair">' + btns + '</div>';
     }).join('');
 
-    var list = t.filter(function (x) { return (x.payload || {}).brandId === filterBrand; });
-
     var html = '<div class="tpl-brand-row">' + brandBtns + '</div>';
 
-    if (!list.length) {
-      html += '<p class="hint xs">Belum ada harga tersimpan untuk brand ini.</p>';
-    } else {
-      html += list.map(function (x) {
-        var p = x.payload || {};
-        var locked = isLockedSeries(p.brandId, p.series);
-        var delBtn = locked
-          ? '<button class="icon-btn sm" disabled title="Seri terkunci">🔒</button>'
-          : '<button class="icon-btn sm" data-tpldel="' + esc(x.id) + '">🗑</button>';
-        return '<div class="item" data-tpl="' + esc(x.id) + '">' +
-          '<div class="item-body"><div class="item-title">' + esc(labelTpl(p)) + '</div>' +
-          '<div class="item-sub"><span class="tag">part ' + money(p.part) + '</span>' +
-          '<span>estimasi ' + money(p.est) + '</span></div></div>' +
-          '<div class="item-actions"><button class="icon-btn sm" data-tpluse="' + esc(x.id) + '">↺</button>' +
-          delBtn + '</div></div>';
-      }).join('');
+    if (filterBrand) {
+      var list = t.filter(function (x) { return (x.payload || {}).brandId === filterBrand; });
+      if (!list.length) {
+        html += '<p class="hint xs">Belum ada harga tersimpan untuk brand ini.</p>';
+      } else {
+        html += list.map(function (x) {
+          var p = x.payload || {};
+          var locked = isLockedSeries(p.brandId, p.series);
+          var delBtn = locked
+            ? '<button class="icon-btn sm" disabled title="Seri terkunci">🔒</button>'
+            : '<button class="icon-btn sm" data-tpldel="' + esc(x.id) + '">🗑</button>';
+          return '<div class="item" data-tpl="' + esc(x.id) + '">' +
+            '<div class="item-body"><div class="item-title">' + esc(labelTpl(p)) + '</div>' +
+            '<div class="item-sub"><span class="tag">part ' + money(p.part) + '</span>' +
+            '<span>estimasi ' + money(p.est) + '</span></div></div>' +
+            '<div class="item-actions"><button class="icon-btn sm" data-tpluse="' + esc(x.id) + '">↺</button>' +
+            delBtn + '</div></div>';
+        }).join('');
+      }
     }
 
     el.tpl.innerHTML = html;
