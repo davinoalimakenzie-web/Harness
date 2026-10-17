@@ -946,4 +946,17 @@
   } else {
     init();
   }
+
+  // Apply initial hash after ALL scripts loaded and DOM ready.
+  // Must stay INSIDE the IIFE — TITLES is not global.
+  function applyInitialHash() {
+    var h = String(w.location.hash || '');
+    var m = h.match(/^(?:#|#view=)([a-z]+)$/);
+    if (m && TITLES[m[1]]) App.go(m[1]);
+  }
+  if (document.readyState === 'complete') {
+    applyInitialHash();
+  } else {
+    w.addEventListener('load', applyInitialHash);
+  }
 })(window);
