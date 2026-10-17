@@ -12,8 +12,6 @@
       LCD bagus      = part x 2 + 20%
       LCD OLED       = part x 2 + 10%
       Baterai        = part x 2 + 10%
-      LCD iPhone     = part x 2 + 20%
-      Baterai iPhone = part x 2 + 20%
 
    Brand dan seri HP diisi lewat dropdown. Daftar seri memakai
    model yang umum beredar di Indonesia; seri juga bisa diisi
@@ -30,15 +28,14 @@
   var ruleId = 'lcd-biasa';
   var brandId = 'samsung';
   var seriesId = '';
+  var filterBrand = 'samsung'; // brand filter untuk daftar harga tersimpan
 
   /* Aturan harga. `pct` adalah persen yang ditambahkan ke (part x 2). */
   var RULES = [
     { id: 'lcd-biasa', name: 'LCD Biasa', pct: 20, icon: '📱', note: 'LCD biasa' },
     { id: 'lcd-bagus', name: 'LCD Bagus', pct: 20, icon: '📱', note: 'LCD bagus' },
     { id: 'lcd-oled', name: 'LCD OLED', pct: 10, icon: '✨', note: 'LCD OLED' },
-    { id: 'baterai', name: 'Baterai', pct: 10, icon: '🔋', note: 'Baterai' },
-    { id: 'lcd-iphone', name: 'LCD iPhone', pct: 20, icon: '🍎', note: 'LCD iPhone' },
-    { id: 'baterai-iphone', name: 'Baterai iPhone', pct: 20, icon: '🍎', note: 'Baterai iPhone' }
+    { id: 'baterai', name: 'Baterai', pct: 10, icon: '🔋', note: 'Baterai' }
   ];
 
   /* Brand HP yang dipakai. */
@@ -239,21 +236,6 @@
     return lines.join('\n');
   }
 
-  function copySummary() {
-    var txt = summary();
-    var done = function () { TG.haptic('success'); w.App.toast('Ringkasan disalin'); };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(txt).then(done).catch(function () { fallback(txt, done); });
-    } else fallback(txt, done);
-
-    function fallback(t, cb) {
-      var ta = document.createElement('textarea');
-      ta.value = t; document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); cb(); } catch (e) { w.App.toast('Gagal menyalin'); }
-      ta.remove();
-    }
-  }
-
   /* ---------------- Harga tersimpan ----------------
      Disimpan dari kombinasi brand HP, seri HP, dan estimasi biaya. */
   function labelTpl(p) {
@@ -265,16 +247,33 @@
 
   function renderTpl() {
     var t = S.state.templates || [];
-    if (!t.length) { el.tpl.innerHTML = '<p class="hint xs">Belum ada harga tersimpan.</p>'; return; }
-    el.tpl.innerHTML = t.map(function (x) {
-      var p = x.payload || {};
-      return '<div class="item" data-tpl="' + esc(x.id) + '">' +
-        '<div class="item-body"><div class="item-title">' + esc(labelTpl(p)) + '</div>' +
-        '<div class="item-sub"><span class="tag">part ' + money(p.part) + '</span>' +
-        '<span>estimasi ' + money(p.est) + '</span></div></div>' +
-        '<div class="item-actions"><button class="icon-btn sm" data-tpluse="' + esc(x.id) + '">↺</button>' +
-        '<button class="icon-btn sm" data-tpldel="' + esc(x.id) + '">🗑</button></div></div>';
+
+    // Brand filter row — semua brand, horizontal scroll
+    var brandBtns = BRANDS.map(function (b) {
+      var count = t.filter(function (x) { return (x.payload || {}).brandId === b.id; }).length;
+      return '<button class="tpl-brand-btn' + (b.id === filterBrand ? ' on' : '') + '" data-tplbrand="' + esc(b.id) + '">' +
+        esc(b.name) + (count ? ' <span class="tpl-count">' + count + '</span>' : '') + '</button>';
     }).join('');
+
+    var list = t.filter(function (x) { return (x.payload || {}).brandId === filterBrand; });
+
+    var html = '<div class="tpl-brand-row">' + brandBtns + '</div>';
+
+    if (!list.length) {
+      html += '<p class="hint xs">Belum ada harga tersimpan untuk brand ini.</p>';
+    } else {
+      html += list.map(function (x) {
+        var p = x.payload || {};
+        return '<div class="item" data-tpl="' + esc(x.id) + '">' +
+          '<div class="item-body"><div class="item-title">' + esc(labelTpl(p)) + '</div>' +
+          '<div class="item-sub"><span class="tag">part ' + money(p.part) + '</span>' +
+          '<span>estimasi ' + money(p.est) + '</span></div></div>' +
+          '<div class="item-actions"><button class="icon-btn sm" data-tpluse="' + esc(x.id) + '">↺</button>' +
+          '<button class="icon-btn sm" data-tpldel="' + esc(x.id) + '">🗑</button></div></div>';
+      }).join('');
+    }
+
+    el.tpl.innerHTML = html;
   }
 
   function saveTpl() {
@@ -394,24 +393,18 @@
       TG.haptic('select');
     });
 
-    $('#kCopy').addEventListener('click', copySummary);
     $('#kSaveTpl').addEventListener('click', saveTpl);
-    $('#kReset').addEventListener('click', function () {
-      el.kPart.value = '';
-      el.kName.value = '';
-      brandId = 'samsung';
-      seriesId = '';
-      ruleId = 'lcd-biasa';
-      renderBrands();
-      renderSeries();
-      renderRules();
-      renderOut();
-      TG.haptic('select');
-    });
 
     el.tpl.addEventListener('click', function (e) {
+      var brandBtn = e.target.closest('[data-tplbrand]');
       var use = e.target.closest('[data-tpluse]');
       var del = e.target.closest('[data-tpldel]');
+      if (brandBtn) {
+        filterBrand = brandBtn.dataset.tplbrand;
+        renderTpl();
+        TG.haptic('select');
+        return;
+      }
       if (use) {
         var x = (S.state.templates || []).filter(function (t) { return t.id === use.dataset.tpluse; })[0];
         if (x) {
