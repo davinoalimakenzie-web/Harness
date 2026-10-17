@@ -7,6 +7,42 @@
 <title>Kalkulator Service HP — Project Nava</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="stylesheet" href="assets/css/style.css?v=20261015a">
+<style>
+/* Fallback CSS variables untuk halaman standalone */
+:root {
+  --text: #1a1a2e;
+  --text-2: #4a4a68;
+  --text-3: #8a8aa3;
+  --bg: #f0f2f5;
+  --bg-2: #ffffff;
+  --bg-3: #e8eaf0;
+  --line: #d0d3dd;
+  --accent: #517da2;
+  --accent-2: #3a5f7d;
+  --danger: #e74c3c;
+  --success: #27ae60;
+  --tap: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #e8eaf0;
+    --text-2: #b0b3c0;
+    --text-3: #7a7d8a;
+    --bg: #12121e;
+    --bg-2: #1e1e2e;
+    --bg-3: #2a2a3e;
+    --line: #3a3a4e;
+    --accent: #6ba3d6;
+    --accent-2: #4a8ab5;
+    --tap: #1e1e2e;
+  }
+}
+/* Fix dropdown putih */
+.sel-wrap select {
+  color: var(--text) !important;
+  background: var(--bg-2, var(--tap)) !important;
+}
+</style>
 </head>
 <body>
 
