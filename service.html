@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#517da2">
+<title>Kalkulator Service HP — Project Nava</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="assets/css/style.css?v=20261015a">
+</head>
+<body>
+
+<div id="app">
+  <!-- ============ HEADER ============ -->
+  <header class="topbar">
+    <div class="topbar-title">
+      <h1 id="pageTitle">Kalkulator Service HP</h1>
+      <span id="pageSub" class="muted">MAS CIM SERVICE HP</span>
+    </div>
+  </header>
+
+  <!-- ============ KALKULATOR SERVICE HP (only view) ============ -->
+  <section id="view-service" class="view active">
+
+    <!-- Harga part + Estimasi, sebaris -->
+    <div class="card">
+      <div class="k-in-row">
+        <label class="field k-in-half">
+          <span class="lbl">Harga part</span>
+          <input type="text" id="kPart" inputmode="numeric" placeholder="150000">
+        </label>
+        <div class="field k-in-half">
+          <span class="lbl">Harga estimasi</span>
+          <div class="k-est" id="kEst">Rp0</div>
+        </div>
+      </div>
+      <p class="hint xs" id="kFormulaOut" style="margin:10px 0 0">Isi harga part, lalu pilih perhitungan estimasi biaya.</p>
+    </div>
+
+    <!-- Brand + Seri, sebaris -->
+    <div class="card">
+      <div class="k-in-row">
+        <label class="field k-in-half">
+          <span class="lbl">Brand HP</span>
+          <div class="sel-wrap">
+            <select id="kBrand" aria-label="Brand HP"></select>
+          </div>
+        </label>
+        <label class="field k-in-half">
+          <span class="lbl">Seri HP</span>
+          <div class="sel-wrap">
+            <select id="kSeries" aria-label="Seri HP"></select>
+          </div>
+        </label>
+      </div>
+      <!-- Input manual: muncul saat pilih "Lainnya…" -->
+      <div class="k-in-row hidden" id="kBrandName" aria-hidden="true" tabindex="-1">
+        <label class="field k-in-half">
+          <span class="lbl">Brand manual</span>
+          <input type="text" id="kBrandNameInput" placeholder="Contoh: Advan, Evercoss, dll">
+        </label>
+        <label class="field k-in-half">
+          <span class="lbl">Seri manual</span>
+          <input type="text" id="kSeriesNameInput" placeholder="Contoh: S50, A57, dll">
+        </label>
+      </div>
+      <input type="text" id="kName" class="hidden" aria-hidden="true" tabindex="-1">
+    </div>
+
+    <div class="card">
+      <div class="list-head tight">
+        <strong>Perhitungan estimasi biaya</strong>
+      </div>
+      <div id="kRules" class="k-rules"></div>
+    </div>
+
+    <div class="row-2">
+      <button id="kSaveTpl" class="btn">Simpan harga</button>
+      <button id="kCopy" class="btn ghost">Salin</button>
+    </div>
+
+    <button id="kReset" class="btn ghost block">Reset</button>
+
+    <div class="card">
+      <div class="list-head tight">
+        <strong>Harga tersimpan</strong>
+      </div>
+      <p class="hint xs" style="margin:0 0 10px">Disimpan dari kombinasi brand, seri, dan estimasi biaya.</p>
+      <div id="tplList" class="list"></div>
+    </div>
+
+  </section>
+</div>
+
+<!-- Dependencies: calc.js butuh Store, TG, App dulu -->
+<script src="assets/js/store.js"></script>
+<script src="assets/js/tg.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/calc.js"></script>
+
+<script>
+// Auto-init kalkulator service HP
+window.addEventListener('DOMContentLoaded', function() {
+  if (window.CalcUI) {
+    window.CalcUI.init();
+  }
+  // Telegram: expand to full height
+  if (window.Telegram && window.Telegram.WebApp) {
+    window.Telegram.WebApp.ready();
+    window.Telegram.WebApp.expand();
+  }
+});
+</script>
+</body>
+</html>
