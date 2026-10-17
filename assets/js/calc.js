@@ -170,15 +170,23 @@
       (seriesId === CUSTOM_SERIES ? ' selected' : '') + '>Lainnya…</option>';
     el.kSeries.innerHTML = opts;
 
-    /* Saat brand custom: tampilkan 2 input sejajar (kiri brand, kanan seri). */
+    /* Saat brand custom: tampilkan 2 input sejajar (kiri brand, kanan seri).
+       Saat seri "Lainnya…": tampilkan kolom input seri manual. */
     var isCustomBrand = brandId === CUSTOM_BRAND;
     var isCustomSeries = seriesId === CUSTOM_SERIES;
+
+    // Brand custom: show dual input (brand + seri)
     el.kBrandName.classList.toggle('hidden', !isCustomBrand);
     el.kBrandName.classList.toggle('k-custom-brand', isCustomBrand);
     el.kBrandName.setAttribute('aria-hidden', isCustomBrand ? 'false' : 'true');
-    el.kName.classList.toggle('hidden', !isCustomSeries && !isCustomBrand);
-    el.kName.classList.toggle('k-custom-series', isCustomSeries && !isCustomBrand);
-    el.kName.setAttribute('aria-hidden', (isCustomSeries || isCustomBrand) ? 'false' : 'true');
+    el.kBrandName.style.display = isCustomBrand ? '' : 'none';
+
+    // Seri "Lainnya…": show manual input (only if brand is NOT custom)
+    var showSeriesInput = isCustomSeries && !isCustomBrand;
+    el.kName.classList.toggle('hidden', !showSeriesInput);
+    el.kName.classList.toggle('k-custom-series', showSeriesInput);
+    el.kName.setAttribute('aria-hidden', showSeriesInput ? 'false' : 'true');
+    el.kName.style.display = showSeriesInput ? '' : 'none';
   }
 
   function readSeries() {
