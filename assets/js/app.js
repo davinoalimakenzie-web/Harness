@@ -447,6 +447,7 @@
     });
 
     // Deep-link via hash: #calc, #view=calc, #mascim, dll.
+    // Defined here but APPLIED after all UI inits below.
     function hashView() {
       var h = String(w.location.hash || '');
       var m = h.match(/^(?:#|#view=)([a-z]+)$/);
@@ -457,8 +458,6 @@
       var v = hashView();
       if (v) App.go(v);
     });
-    var initial = hashView();
-    if (initial) App.go(initial);
     document.addEventListener('click', function (e) {
       var g = e.target.closest('[data-goto]');
       if (g) App.go(g.dataset.goto);
