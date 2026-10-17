@@ -172,23 +172,14 @@
       el.kSeries.innerHTML = opts;
     }
 
-    /* Saat brand custom: tampilkan 2 input sejajar (kiri brand, kanan seri).
-       Saat seri "Lainnya…": tampilkan kolom input seri manual. */
+    // Brand custom: tampilkan 2 input sejajar (kiri brand, kanan seri).
     var isCustomBrand = brandId === CUSTOM_BRAND;
-    var isCustomSeries = seriesId === CUSTOM_SERIES;
-
-    // Brand custom: show dual input (brand + seri)
     el.kBrandName.classList.toggle('hidden', !isCustomBrand);
     el.kBrandName.classList.toggle('k-custom-brand', isCustomBrand);
     el.kBrandName.setAttribute('aria-hidden', isCustomBrand ? 'false' : 'true');
     el.kBrandName.style.display = isCustomBrand ? '' : 'none';
-
-    // Seri "Lainnya…": show manual input (only if brand is NOT custom)
-    var showSeriesInput = isCustomSeries && !isCustomBrand;
-    el.kName.classList.toggle('hidden', !showSeriesInput);
-    el.kName.classList.toggle('k-custom-series', showSeriesInput);
-    el.kName.setAttribute('aria-hidden', showSeriesInput ? 'false' : 'true');
-    el.kName.style.display = showSeriesInput ? '' : 'none';
+    // Saat brand custom, seri manual pakai kSeriesNameInput — kName tidak dipakai.
+    if (isCustomBrand) el.kName.style.display = 'none';
   }
 
   function readSeries() {
@@ -374,28 +365,14 @@
       TG.haptic('select');
     });
 
-    function onSeriesChange() {
+    // SIMPLE: klik "Lainnya…" → muncul input. Klik seri lain → hilang.
+    el.kSeries.addEventListener('change', function () {
       seriesId = el.kSeries.value;
-
-      // Saat "Lainnya…" dipilih — langsung tampilkan input di bawah
-      if (seriesId === CUSTOM_SERIES && brandId !== CUSTOM_BRAND) {
-        el.kName.value = '';
-        el.kName.classList.remove('hidden');
-        el.kName.style.display = '';
-        renderOut();
-        TG.haptic('select');
-        return;
-      }
-
-      // Seri lain dipilih — sembunyikan input
-      el.kName.classList.add('hidden');
-      el.kName.style.display = 'none';
-      renderSeries();
+      var show = seriesId === '__custom__' && brandId !== '__custom_brand__';
+      el.kName.style.display = show ? '' : 'none';
+      if (show) el.kName.value = '';
       renderOut();
-      TG.haptic('select');
-    }
-    el.kSeries.addEventListener('change', onSeriesChange);
-    el.kSeries.addEventListener('input', onSeriesChange);
+    });
 
     el.kBrandNameInput.addEventListener('input', function () {
       if (brandId === CUSTOM_BRAND) renderOut();
