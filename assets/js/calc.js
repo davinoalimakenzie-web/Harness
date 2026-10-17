@@ -182,6 +182,12 @@
     opts += '<option value="' + CUSTOM_BRAND + '"' +
       (brandId === CUSTOM_BRAND ? ' selected' : '') + '>Lainnya…</option>';
     el.kBrand.innerHTML = opts;
+
+    /* Tempelkan id brand ke select dan ke kotak pembungkusnya supaya CSS
+       bisa mewarnai sesuai brand (Samsung biru, Xiaomi orange, dst). */
+    el.kBrand.setAttribute('data-brand', brandId);
+    var tileBrand = el.kBrand.closest ? el.kBrand.closest('.q-brand') : null;
+    if (tileBrand) tileBrand.setAttribute('data-brand', brandId);
   }
 
   function renderSeries() {
@@ -410,6 +416,7 @@
         el.kBrandNameInput.value = '';
         el.kSeriesNameInput.value = '';
       }
+      renderBrands();          // perbarui warna brand di kotak Brand HP
       renderSeries();
       renderOut();
       TG.haptic('select');
