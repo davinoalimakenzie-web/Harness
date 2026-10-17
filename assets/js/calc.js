@@ -375,32 +375,27 @@
     });
 
     function onSeriesChange() {
-      var newVal = el.kSeries.value;
-      if (newVal === seriesId && seriesId === CUSTOM_SERIES) {
-        // Sudah "Lainnya…" dan input mungkin tidak muncul — paksa tampilkan
-        showSeriesInput();
+      seriesId = el.kSeries.value;
+
+      // Saat "Lainnya…" dipilih — langsung tampilkan input di bawah
+      if (seriesId === CUSTOM_SERIES && brandId !== CUSTOM_BRAND) {
+        el.kName.value = '';
+        el.kName.classList.remove('hidden');
+        el.kName.style.display = '';
         renderOut();
+        TG.haptic('select');
         return;
       }
-      seriesId = newVal;
-      if (seriesId === CUSTOM_SERIES) el.kName.value = '';
+
+      // Seri lain dipilih — sembunyikan input
+      el.kName.classList.add('hidden');
+      el.kName.style.display = 'none';
       renderSeries();
       renderOut();
       TG.haptic('select');
     }
     el.kSeries.addEventListener('change', onSeriesChange);
-    // Fallback: juga listen 'input' untuk browser yang tidak fire 'change' pada select
-    el.kSeries.addEventListener('input', function () {
-      if (seriesId !== el.kSeries.value) onSeriesChange();
-    });
-
-    function showSeriesInput() {
-      var isCustomBrand = brandId === CUSTOM_BRAND;
-      el.kBrandName.classList.toggle('hidden', !isCustomBrand);
-      el.kBrandName.style.display = isCustomBrand ? '' : 'none';
-      el.kName.classList.remove('hidden');
-      el.kName.style.display = '';
-    }
+    el.kSeries.addEventListener('input', onSeriesChange);
 
     el.kBrandNameInput.addEventListener('input', function () {
       if (brandId === CUSTOM_BRAND) renderOut();
