@@ -445,6 +445,20 @@
     $$('.tab').forEach(function (b) {
       if (b.dataset.view) b.addEventListener('click', function () { App.go(b.dataset.view); });
     });
+
+    // Deep-link via hash: #calc, #view=calc, #mascim, dll.
+    function hashView() {
+      var h = String(w.location.hash || '');
+      var m = h.match(/^(?:#|#view=)([a-z]+)$/);
+      if (m && TITLES[m[1]]) return m[1];
+      return null;
+    }
+    w.addEventListener('hashchange', function () {
+      var v = hashView();
+      if (v) App.go(v);
+    });
+    var initial = hashView();
+    if (initial) App.go(initial);
     document.addEventListener('click', function (e) {
       var g = e.target.closest('[data-goto]');
       if (g) App.go(g.dataset.goto);
