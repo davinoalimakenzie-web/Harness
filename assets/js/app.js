@@ -487,7 +487,16 @@
     // Auto refresh harga IHSG berkala, jangan user bukan klik tombol lagi.
     if (w.NavaTraderQuote && typeof w.NavaTraderQuote.muat === 'function') {
       w.setInterval(function () {
-        try { w.NavaTraderQuote.muat(['IHSG'], true); } catch (e) {}
+        try {
+          var codes = [];
+          if (w.NavaTraderUI) {
+            if (w.NavaTraderUI.codesWatchlist) codes = w.NavaTraderUI.codesWatchlist() || [];
+            if (!codes.length && w.NavaTraderUI._state && w.NavaTraderUI._state.pasar && w.NavaTraderUI._state.pasar.saham) {
+              codes = w.NavaTraderUI._state.pasar.saham.map(function (s) { return s.kode; });
+            }
+          }
+          w.NavaTraderQuote.muat(codes, true);
+        } catch (e) {}
       }, 60000);
     }
 
