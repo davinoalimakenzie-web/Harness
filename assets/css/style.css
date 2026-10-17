@@ -2249,55 +2249,72 @@ select.mc-inp{ appearance:none; }
    dan Seri — tidak ada lagi celah di sisi kiri-kanan tombol. */
 .q-save::after{
   content:'💾'; display:grid; place-items:center;
-  width:56px; height:56px; border-radius:50%;
-  background:var(--accent); color:var(--accent-text);
-  font-size:21px; line-height:1;
-  box-shadow:0 3px 10px rgba(0,0,0,.18);
+  width:62px; height:62px; border-radius:50%;
+  background:#fff; color:#1a1a2e;
+  border:1.5px solid var(--line);
+  font-size:23px; line-height:1;
+  box-shadow:0 2px 8px rgba(0,0,0,.16);
   transition:transform .12s ease;
 }
 .q-save:active::after{ transform:scale(.94); }
 
 /* =========================================================
    WARNA BRAND — kotak Brand HP + tombol brand daftar harga tersimpan
-   Tiap brand punya warna sendiri supaya cepat dikenali saat berpindah:
+   Versi PEKAT: latar terisi penuh warna brand, semua tulisan putih
+   (meniru gaya tombol Samsung). Dipakai di dua tempat sekaligus:
+   kotak Brand HP pada panel ringkas dan tombol brand di daftar harga.
    Samsung biru gelap · Xiaomi orange · OPPO hijau · Vivo biru muda ·
-   Realme kuning · Infinix cokelat.
-   --bc      : warna dasar brand
-   --bc-ink  : warna teks di atas latar tipis (versi lebih gelap untuk warna terang)
-   --bc-on   : warna teks saat tombol aktif (latar penuh warna brand)
-   --bc-tint : seberapa kuat warna brand di latar
+   Realme kuning · Infinix merah.
+   --bc = warna dasar brand, sekaligus warna latar penuh tombolnya.
+   Warna terang (Vivo, Realme) dipilih varian lebih pekat supaya
+   tulisan putih tetap terbaca.
    ========================================================= */
 .tpl-brand-btn,
-.k-quad .q-brand{ --bc:var(--line); --bc-ink:var(--text); --bc-on:#fff; --bc-tint:0%; }
+.k-quad .q-brand{ --bc:var(--text-2); }
 
-.tpl-brand-btn[data-tplbrand="samsung"],  .k-quad .q-brand[data-brand="samsung"] { --bc:#1e3a8a; --bc-ink:#1e3a8a; --bc-on:#fff;    --bc-tint:12%; }
-.tpl-brand-btn[data-tplbrand="xiaomi"],   .k-quad .q-brand[data-brand="xiaomi"]  { --bc:#f97316; --bc-ink:#c2410c; --bc-on:#fff;    --bc-tint:15%; }
-.tpl-brand-btn[data-tplbrand="oppo"],     .k-quad .q-brand[data-brand="oppo"]    { --bc:#16a34a; --bc-ink:#15803d; --bc-on:#fff;    --bc-tint:12%; }
-.tpl-brand-btn[data-tplbrand="vivo"],     .k-quad .q-brand[data-brand="vivo"]    { --bc:#38bdf8; --bc-ink:#0369a1; --bc-on:#082f49; --bc-tint:17%; }
-.tpl-brand-btn[data-tplbrand="realme"],   .k-quad .q-brand[data-brand="realme"]  { --bc:#facc15; --bc-ink:#854d0e; --bc-on:#3f3000; --bc-tint:20%; }
-.tpl-brand-btn[data-tplbrand="infinix"],  .k-quad .q-brand[data-brand="infinix"] { --bc:#92400e; --bc-ink:#92400e; --bc-on:#fff;    --bc-tint:12%; }
+.tpl-brand-btn[data-tplbrand="samsung"],  .k-quad .q-brand[data-brand="samsung"] { --bc:#1e3a8a; }
+.tpl-brand-btn[data-tplbrand="xiaomi"],   .k-quad .q-brand[data-brand="xiaomi"]  { --bc:#ea580c; }
+.tpl-brand-btn[data-tplbrand="oppo"],     .k-quad .q-brand[data-brand="oppo"]    { --bc:#15803d; }
+.tpl-brand-btn[data-tplbrand="vivo"],     .k-quad .q-brand[data-brand="vivo"]    { --bc:#0284c7; }
+.tpl-brand-btn[data-tplbrand="realme"],   .k-quad .q-brand[data-brand="realme"]  { --bc:#ca8a04; }
+.tpl-brand-btn[data-tplbrand="infinix"],  .k-quad .q-brand[data-brand="infinix"] { --bc:#dc2626; }
 
-/* Tombol brand di daftar harga tersimpan */
+/* Tombol brand di daftar harga tersimpan — terisi penuh, tulisan putih */
 .tpl-brand-btn{
   border:1.5px solid var(--bc);
-  background:color-mix(in srgb, var(--bc) var(--bc-tint), var(--bg-elev));
-  color:var(--bc-ink);
+  background:var(--bc);
+  color:#fff;
 }
 .tpl-brand-btn .tpl-count{
-  background:color-mix(in srgb, var(--bc) 20%, transparent);
-  color:var(--bc-ink);
+  background:rgba(255,255,255,.28);
+  color:#fff;
 }
+/* Tombol yang sedang aktif ditandai cincin, warnanya tetap pekat */
 .tpl-brand-btn.on{
-  background:var(--bc); border-color:var(--bc); color:var(--bc-on);
+  background:var(--bc);
+  border-color:var(--bc);
+  color:#fff;
+  box-shadow:0 0 0 2px var(--bg-elev), 0 0 0 4px var(--bc);
 }
 .tpl-brand-btn.on .tpl-count{
-  background:color-mix(in srgb, var(--bc-on) 28%, transparent);
-  color:var(--bc-on);
+  background:rgba(255,255,255,.34);
+  color:#fff;
 }
 
-/* Kotak Brand HP di panel ringkas */
-.k-quad .q-brand[data-brand]{
-  background:color-mix(in srgb, var(--bc) var(--bc-tint), var(--bg-elev));
-}
-.k-quad .q-brand[data-brand] .q-lbl{ color:var(--bc-ink); }
-.k-quad .q-brand[data-brand] select{ color:var(--bc-ink) !important; font-weight:800; }
+/* Kotak Brand HP di panel ringkas — terisi penuh, tulisan putih */
+.k-quad .q-brand[data-brand]{ background:var(--bc); }
+.k-quad .q-brand[data-brand] .q-lbl{ color:#fff; opacity:.92; }
+.k-quad .q-brand[data-brand] select{ color:#fff !important; }
+
+/* Brand manual ("Lainnya…") tetap netral supaya tulisan tetap terbaca */
+.k-quad .q-brand[data-brand="__custom_brand__"]{ background:var(--bg-elev); }
+.k-quad .q-brand[data-brand="__custom_brand__"] .q-lbl{ color:var(--hint); opacity:1; }
+.k-quad .q-brand[data-brand="__custom_brand__"] select{ color:var(--text) !important; }
+
+/* =========================================================
+   KALKULATOR SERVICE HP — penyesuaian terakhir
+   ========================================================= */
+/* Tombol kolom kanan pada Perhitungan estimasi biaya (LCD Bagus, Baterai)
+   dibuat rata kanan supaya seimbang dengan kolom kanan panel ringkas. */
+#view-calc .k-rules .k-rule:nth-child(even),
+#view-service .k-rules .k-rule:nth-child(even){ align-items:flex-end; text-align:right; }
