@@ -876,6 +876,59 @@ body.mc-open{ overflow:hidden; }
    tombol Chat harus boleh menyusut agar tidak meluber di layar sempit. */
 .mc-pelanggan .mc-wa{ min-width:0; }
 .mc-pelanggan .mc-wa .mc-inp{ min-width:0; flex:1 1 auto; }
+/* === TPL BRAND FILTER (daftar harga tersimpan) === */
+.tpl-brand-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.tpl-brand-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.tpl-brand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg-2, var(--tap));
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s ease;
+  min-height: 44px;
+}
+.tpl-brand-btn:active { transform: scale(.97); }
+.tpl-brand-btn.on {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.tpl-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--bg-3);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+}
+.tpl-brand-btn.on .tpl-count {
+  background: rgba(255,255,255,.25);
+  color: #fff;
+}
+
 /* Kunci layar: daftar centang, bukan dropdown, supaya teknisi tidak perlu
    membuka menu. Kolom isian muncul hanya setelah ada yang dicentang dan
    disembunyikan lagi begitu terisi, supaya tidak makan tempat di layar HP. */

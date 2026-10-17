@@ -248,11 +248,20 @@
   function renderTpl() {
     var t = S.state.templates || [];
 
-    // Brand filter row — semua brand, horizontal scroll
-    var brandBtns = BRANDS.map(function (b) {
-      var count = t.filter(function (x) { return (x.payload || {}).brandId === b.id; }).length;
-      return '<button class="tpl-brand-btn' + (b.id === filterBrand ? ' on' : '') + '" data-tplbrand="' + esc(b.id) + '">' +
-        esc(b.name) + (count ? ' <span class="tpl-count">' + count + '</span>' : '') + '</button>';
+    // Brand filter — grid 2 kolom: Samsung-Xiaomi / Oppo-Vivo / Realme-Infinix
+    var brandPairs = [
+      ['samsung', 'xiaomi'],
+      ['oppo', 'vivo'],
+      ['realme', 'infinix']
+    ];
+    var brandBtns = brandPairs.map(function (pair) {
+      var btns = pair.map(function (bid) {
+        var b = brandById(bid);
+        var count = t.filter(function (x) { return (x.payload || {}).brandId === bid; }).length;
+        return '<button class="tpl-brand-btn' + (bid === filterBrand ? ' on' : '') + '" data-tplbrand="' + esc(bid) + '">' +
+          esc(b.name) + (count ? ' <span class="tpl-count">' + count + '</span>' : '') + '</button>';
+      }).join('');
+      return '<div class="tpl-brand-pair">' + btns + '</div>';
     }).join('');
 
     var list = t.filter(function (x) { return (x.payload || {}).brandId === filterBrand; });
@@ -360,22 +369,33 @@
       TG.haptic('select');
     });
 
-    el.kSeries.addEventListener('change', function () {
-      seriesId = el.kSeries.value;
+    function onSeriesChange() {
+      var newVal = el.kSeries.value;
+      if (newVal === seriesId && seriesId === CUSTOM_SERIES) {
+        // Sudah "Lainnya…" dan input mungkin tidak muncul — paksa tampilkan
+        showSeriesInput();
+        renderOut();
+        return;
+      }
+      seriesId = newVal;
       if (seriesId === CUSTOM_SERIES) el.kName.value = '';
       renderSeries();
       renderOut();
       TG.haptic('select');
-    });
+    }
+    el.kSeries.addEventListener('change', onSeriesChange);
     // Fallback: juga listen 'input' untuk browser yang tidak fire 'change' pada select
     el.kSeries.addEventListener('input', function () {
-      if (seriesId !== el.kSeries.value) {
-        seriesId = el.kSeries.value;
-        if (seriesId === CUSTOM_SERIES) el.kName.value = '';
-        renderSeries();
-        renderOut();
-      }
+      if (seriesId !== el.kSeries.value) onSeriesChange();
     });
+
+    function showSeriesInput() {
+      var isCustomBrand = brandId === CUSTOM_BRAND;
+      el.kBrandName.classList.toggle('hidden', !isCustomBrand);
+      el.kBrandName.style.display = isCustomBrand ? '' : 'none';
+      el.kName.classList.remove('hidden');
+      el.kName.style.display = '';
+    }
 
     el.kBrandNameInput.addEventListener('input', function () {
       if (brandId === CUSTOM_BRAND) renderOut();
