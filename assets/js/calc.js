@@ -51,6 +51,8 @@
     { id: 'infinix', name: 'Infinix' }
   ];
 
+  var CUSTOM_BRAND = '__custom_brand__';
+
   /* Seri HP per brand. Daftar ini model yang lazim dijumpai di
      layanan servis HP harian; kolom ini bisa ditambah bebas. */
   var SERIES = {
@@ -107,6 +109,7 @@
     return RULES[0];
   }
   function brandById(id) {
+    if (id === CUSTOM_BRAND) return { id: CUSTOM_BRAND, name: el.kBrandName.value.trim() || 'Lainnya' };
     for (var i = 0; i < BRANDS.length; i++) if (BRANDS[i].id === id) return BRANDS[i];
     return BRANDS[0];
   }
@@ -140,10 +143,13 @@
 
   /* ---------------- Brand & Seri ---------------- */
   function renderBrands() {
-    el.kBrand.innerHTML = BRANDS.map(function (b) {
+    var opts = BRANDS.map(function (b) {
       return '<option value="' + esc(b.id) + '"' + (b.id === brandId ? ' selected' : '') +
         '>' + esc(b.name) + '</option>';
     }).join('');
+    opts += '<option value="' + CUSTOM_BRAND + '"' +
+      (brandId === CUSTOM_BRAND ? ' selected' : '') + '>Lainnya…</option>';
+    el.kBrand.innerHTML = opts;
   }
 
   function renderSeries() {
@@ -164,14 +170,21 @@
       (seriesId === CUSTOM_SERIES ? ' selected' : '') + '>Lainnya…</option>';
     el.kSeries.innerHTML = opts;
 
-    /* Kolom input muncul hanya kalau seri dipilih "Lainnya…". */
-    var isCustom = seriesId === CUSTOM_SERIES;
-    el.kName.classList.toggle('hidden', !isCustom);
-    el.kName.classList.toggle('k-custom-series', isCustom);
-    el.kName.setAttribute('aria-hidden', isCustom ? 'false' : 'true');
+    /* Saat brand custom: tampilkan 2 input sejajar (kiri brand, kanan seri). */
+    var isCustomBrand = brandId === CUSTOM_BRAND;
+    var isCustomSeries = seriesId === CUSTOM_SERIES;
+    el.kBrandName.classList.toggle('hidden', !isCustomBrand);
+    el.kBrandName.classList.toggle('k-custom-brand', isCustomBrand);
+    el.kBrandName.setAttribute('aria-hidden', isCustomBrand ? 'false' : 'true');
+    el.kName.classList.toggle('hidden', !isCustomSeries && !isCustomBrand);
+    el.kName.classList.toggle('k-custom-series', isCustomSeries && !isCustomBrand);
+    el.kName.setAttribute('aria-hidden', (isCustomSeries || isCustomBrand) ? 'false' : 'true');
   }
 
   function readSeries() {
+    if (brandId === CUSTOM_BRAND) {
+      return el.kSeriesNameInput.value.trim();
+    }
     if (seriesId === CUSTOM_SERIES) {
       return el.kName.value.trim();
     }
@@ -262,15 +275,11 @@
     var rule = ruleById(ruleId);
     var seri = readSeries();
     if (!seri) { w.App.toast('Pilih seri HP dulu'); return; }
+    var brandName = brandById(brandId).name;
+    if (brandId === CUSTOM_BRAND && !brandName) { w.App.toast('Isi brand manual dulu'); return; }
 
-    /* Penyimpanan harga ditangani satu fungsi di store.js, sama yang dipakai
-       form Tambah Sparepart. Sebelumnya logika duplikatnya ditulis ulang di
-       sini, sehingga aturannya bisa berbeda dan ID acak (S.uid()) membuat
-       kombinasi kembar lolos dedup lalu menumpuk. Fungsi di store.js memakai
-       kunci brand|seri|rule yang deterministik dan memverifikasi hasilnya
-       benar-benar masuk localStorage. */
     var hasil = S.upsertTemplate({
-      brandId: brandId, brandName: brandById(brandId).name,
+      brandId: brandId, brandName: brandName,
       series: seri, ruleId: rule.id, part: part,
       est: hitung(part, rule).est
     });
@@ -291,8 +300,10 @@
     brandId = p.brandId || 'samsung';
     seriesId = p.series || '';
     ruleId = p.ruleId || 'lcd-biasa';
-    if (seriesId && (SERIES[brandId] || []).indexOf(seriesId) === -1) {
-      /* Seri manual tidak ada di daftar brand tsb → pakai mode "Lainnya". */
+    if (brandId === CUSTOM_BRAND) {
+      el.kBrandNameInput.value = p.brandName || '';
+      el.kSeriesNameInput.value = p.series || '';
+    } else if (seriesId && (SERIES[brandId] || []).indexOf(seriesId) === -1) {
       el.kName.value = p.series || '';
       seriesId = CUSTOM_SERIES;
     }
@@ -312,6 +323,9 @@
     el.kName = $('#kName');
     el.kBrand = $('#kBrand');
     el.kSeries = $('#kSeries');
+    el.kBrandName = $('#kBrandName');
+    el.kBrandNameInput = $('#kBrandNameInput');
+    el.kSeriesNameInput = $('#kSeriesNameInput');
     el.kRules = $('#kRules');
     el.kEst = $('#kEst');
     el.kFormulaOut = $('#kFormulaOut');
@@ -330,6 +344,10 @@
       brandId = el.kBrand.value;
       seriesId = '';
       el.kName.value = '';
+      if (brandId === CUSTOM_BRAND) {
+        el.kBrandNameInput.value = '';
+        el.kSeriesNameInput.value = '';
+      }
       renderSeries();
       renderOut();
       TG.haptic('select');
@@ -341,6 +359,13 @@
       renderSeries();
       renderOut();
       TG.haptic('select');
+    });
+
+    el.kBrandNameInput.addEventListener('input', function () {
+      if (brandId === CUSTOM_BRAND) renderOut();
+    });
+    el.kSeriesNameInput.addEventListener('input', function () {
+      if (brandId === CUSTOM_BRAND) renderOut();
     });
 
     el.kRules.addEventListener('click', function (e) {
