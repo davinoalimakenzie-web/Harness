@@ -30,13 +30,24 @@
   function cap() { return new Date().toISOString(); }
 
   function gambarUlang() {
-    try { if (w.CalcUI && w.CalcUI.renderList) w.CalcUI.renderList(); } catch (e) {}
+    try {
+      var f = w.CalcUI && (w.CalcUI.renderList || w.CalcUI.renderTpl);
+      if (f) f();
+    } catch (e) {}
   }
 
-  /* Kirim daftar harga lokal ke cloud (lewat antrean Supa). */
+  /* Kirim daftar harga lokal ke cloud (lewat antrean Supa).
+     Kalau kiriman sebelumnya belum lewat jeda, kiriman ini DITUNDA —
+     jangan dibuang, karena data terbaru bisa tidak pernah sampai. */
   function kirim() {
     if (!w.Supa || typeof w.Supa.vaultPut !== 'function') return;
-    if (sedangKirim || (Date.now() - terakhirKirim) < PUSH_GAP) return;
+    if (sedangKirim) return;
+    var tunggu = PUSH_GAP - (Date.now() - terakhirKirim);
+    if (tunggu > 0) {
+      w.clearTimeout(kirim._t);
+      kirim._t = w.setTimeout(function () { sedangKirim = false; kirim(); }, tunggu + 50);
+      return;
+    }
     sedangKirim = true;
     terakhirKirim = Date.now();
     w.Supa.vaultPut(KEY, { rev: rev(), templates: daftar() });
@@ -76,9 +87,22 @@
     return w.Supa.vaultGet(KEY).then(function (baris) {
       sedangTarik = false;
       var isi = baris && baris.isi;
-      if (!isi || !Array.isArray(isi.templates)) return false;
-      var revCloud = isi.rev || '';
-      if (!revCloud) return false;
+      var revCloud = (isi && isi.rev) || '';
+
+      /* Server masih kosong (atau belum punya rev) sedangkan perangkat ini
+         BELUM PERNAH sinkron: kirim data lokal sekarang — kalau tidak,
+         data yang sudah ada di perangkat ini tidak pernah sampai ke server
+         dan perangkat lain selamanya tidak melihatnya. */
+      if (!revCloud || !isi || !Array.isArray(isi.templates)) {
+        if (rev()) return false;
+        w.Store.state.templatesRev = cap();
+        try { w.Store.save(); } catch (e) {}
+        kirim();
+        if (!diam && w.App && w.App.toast) {
+          w.App.toast('Data harga dikirim ke server', 2600, 'ok');
+        }
+        return true;
+      }
 
       /* Belum pernah sinkron (rev lokal kosong): GABUNG, jangan timpa —
          perangkat lama bisa saja sudah punya data sendiri. */

@@ -210,12 +210,17 @@
     if (seriesId && seriesId !== CUSTOM_SERIES && list.indexOf(seriesId) === -1) {
       list.push(seriesId);
     }
-    var opts = list.map(function (s) {
-      return '<option value="' + esc(s) + '"' + (s === seriesId ? ' selected' : '') +
+    /* "Lainnya…" ditaruh PALING ATAS supaya tidak tenggelam di bawah daftar
+       harga yang makin panjang. Kalau belum ada pilihan, yang terpilih
+       tetap seri tersimpan pertama (bukan "Lainnya…"). */
+    var terpilih = (seriesId && seriesId !== CUSTOM_SERIES) ? seriesId : (list[0] || '');
+    var opts = '<option value="' + CUSTOM_SERIES + '"' +
+      (seriesId === CUSTOM_SERIES ? ' selected' : '') + '>Lainnya…</option>';
+    opts += list.map(function (s) {
+      return '<option value="' + esc(s) + '"' +
+        ((s === seriesId || (!seriesId && s === terpilih)) ? ' selected' : '') +
         '>' + esc(s) + '</option>';
     }).join('');
-    opts += '<option value="' + CUSTOM_SERIES + '"' +
-      (seriesId === CUSTOM_SERIES ? ' selected' : '') + '>Lainnya…</option>';
 
     /* Jangan replace innerHTML kalau seriesId sudah CUSTOM_SERIES —
        browser mobile bisa "reset" select yang cuma punya 1 opsi. */
@@ -536,6 +541,8 @@
 
   function renderTpl() {
     var t = S.state.templates || [];
+    /* Total entri tersimpan ditampilkan di sebelah judul. */
+    if (el.kTotalTpl) el.kTotalTpl.textContent = t.length;
     // Brand filter — grid 2 kolom: Samsung-Xiaomi / Oppo-Vivo / Realme-Infinix
     var brandPairs = [
       ['samsung', 'xiaomi'],
@@ -669,6 +676,7 @@
     el.kEditName = $('#kEditName');
     el.kSeriesEdit = $('#kSeriesEdit');
     el.kSuggest = $('#kSeriesSuggest');
+    el.kTotalTpl = $('#kTotalTpl');
     el.kPickList = $('#kPickList');
     el.kBrandPick = $('#kBrandPick');
     el.kBrandVal = $('#kBrandVal');
@@ -862,6 +870,7 @@
     /* Dipakai modul sinkronisasi untuk menggambar ulang daftar + dropdown
        setelah data dari perangkat lain masuk. */
     renderList: function () { renderSeries(); renderTpl(); },
+    renderTpl: function () { renderSeries(); renderTpl(); },
     RULES: RULES,
     BRANDS: BRANDS,
     SERIES: SERIES,
