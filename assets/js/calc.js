@@ -253,7 +253,6 @@
     /* Mode edit selalu menang: kotak Seri HP tetap jadi kolom isian. */
     syncEditMode();
   }
-
   function readSeries() {
     /* Mode edit: nama seri dibaca langsung dari kolom isian di kotak Seri HP. */
     if (editingKey && el.kSeriesEdit && el.kSeriesEdit.value.trim()) {
@@ -345,7 +344,7 @@
       selWrap.style.display = on ? 'none' : '';
     }
     /* Kolom seri manual di bawah kotak tidak dipakai saat mode edit. */
-    if (on && el.kName) { el.kName.classList.add('hidden'); el.kName.style.display = 'none'; }
+    if (on) setNameInput(false);
   }
 
   function renderEditNote() {
@@ -368,6 +367,84 @@
     el.kSaveTpl.classList.add('ok');
     clearTimeout(flashSaved._t);
     flashSaved._t = setTimeout(function () { el.kSaveTpl.classList.remove('ok'); }, 1700);
+  }
+
+  /* ---------------- Pencarian seri (pencarian lokal) ----------------
+     Kolom "Lainnya…" pada Seri HP berlaku seperti mesin pencari: begitu
+     diketik, harga tersimpan yang cocok muncul sebagai daftar saran.
+     Memilih saran = memuat entri itu ke form dalam mode edit, jadi seri
+     yang sama tidak dibuat dua kali dan persamaan nama seri gampang
+     ditambahkan. */
+  var SUGGEST_MAX = 6;
+
+  function setNameInput(on) {
+    if (el.kName) {
+      el.kName.classList.toggle('hidden', !on);
+      el.kName.classList.toggle('k-custom-series', on);
+      el.kName.setAttribute('aria-hidden', on ? 'false' : 'true');
+      el.kName.style.display = on ? '' : 'none';
+    }
+    if (!on) hideSuggest();
+  }
+
+  function seriesSuggestions(q) {
+    q = String(q == null ? '' : q).trim().toLowerCase();
+    if (!q) return [];
+    var mine = [], other = [];
+    (S.state.templates || []).forEach(function (x) {
+      var p = x.payload || {};
+      if (!p.series) return;
+      var hay = (p.series + ' ' + (p.brandName || '')).toLowerCase();
+      if (hay.indexOf(q) === -1) return;
+      var it = {
+        brandId: p.brandId, brandName: p.brandName || brandById(p.brandId).name,
+        series: p.series, ruleId: p.ruleId, part: p.part, est: p.est
+      };
+      /* Seri dari brand yang sedang dipilih didahulukan. */
+      if (p.brandId === brandId) mine.push(it); else other.push(it);
+    });
+    return mine.concat(other).slice(0, SUGGEST_MAX);
+  }
+
+  function hideSuggest() {
+    if (!el.kSuggest) return;
+    el.kSuggest.classList.add('hidden');
+    el.kSuggest.style.display = 'none';
+    el.kSuggest.setAttribute('aria-hidden', 'true');
+  }
+
+  function renderSuggest(src) {
+    if (!el.kSuggest || !src) return;
+    var list = seriesSuggestions(src.value);
+    if (!list.length) { hideSuggest(); return; }
+    var card = el.kSuggest.parentElement;
+    var cr = card.getBoundingClientRect(), ir = src.getBoundingClientRect();
+    el.kSuggest.style.top = Math.round(ir.bottom - cr.top + 4) + 'px';
+    el.kSuggest.innerHTML =
+      '<div class="k-suggest-head">' + list.length + ' harga tersimpan cocok \u2014 ketuk untuk memuat</div>' +
+      list.map(function (it, i) {
+        return '<button type="button" class="k-suggest-item" data-suggest="' + i + '" role="option">' +
+          '<span class="k-suggest-name">' + esc(it.series) + '</span>' +
+          '<span class="k-suggest-meta">' + esc(it.brandName) + ' &middot; ' + esc(ruleById(it.ruleId).name) + ' &middot; ' + money(it.est) + '</span>' +
+          '</button>';
+      }).join('');
+    el.kSuggest._list = list;
+    el.kSuggest.classList.remove('hidden');
+    el.kSuggest.style.display = '';
+    el.kSuggest.setAttribute('aria-hidden', 'false');
+  }
+
+  function pickSuggest(i) {
+    var list = (el.kSuggest && el.kSuggest._list) || [];
+    var it = list[i];
+    if (!it) return;
+    hideSuggest();
+    applyTpl(it);
+    editingKey = S.templateKey ? S.templateKey(it) : null;
+    if (el.kSeriesEdit) el.kSeriesEdit.value = it.series || '';
+    renderEditNote();
+    TG.haptic('success');
+    w.App.toast('Ditemukan: ' + it.brandName + ' ' + it.series + ' \u2014 harga lama dimuat', 3000, 'ok');
   }
 
   function renderTpl() {
@@ -498,6 +575,7 @@
     el.kEditNote = $('#kEditNote');
     el.kEditName = $('#kEditName');
     el.kSeriesEdit = $('#kSeriesEdit');
+    el.kSuggest = $('#kSeriesSuggest');
 
     seedIfNeeded();
     renderBrands();
@@ -517,6 +595,26 @@
 
     el.kPart.addEventListener('input', renderOut);
     el.kName.addEventListener('input', function () { if (seriesId === CUSTOM_SERIES) renderOut(); });
+
+    /* Pencarian lokal: kolom seri manual ("Lainnya…") dan kolom edit seri
+       di kotak Seri HP sama-sama menampilkan saran dari harga tersimpan. */
+    [el.kName, el.kSeriesEdit].forEach(function (inp) {
+      if (!inp) return;
+      inp.addEventListener('input', function () { renderSuggest(inp); });
+      inp.addEventListener('focus', function () { if (inp.value) renderSuggest(inp); });
+      inp.addEventListener('blur', function () { setTimeout(hideSuggest, 240); });
+    });
+    if (el.kSuggest) {
+      /* mousedown dicegah supaya kolom isian tidak blur sebelum ketukan
+         saran diproses. */
+      el.kSuggest.addEventListener('mousedown', function (e) {
+        if (e.target.closest && e.target.closest('[data-suggest]')) e.preventDefault();
+      });
+      el.kSuggest.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-suggest]');
+        if (b) pickSuggest(parseInt(b.dataset.suggest, 10) || 0);
+      });
+    }
 
     el.kBrand.addEventListener('change', function () {
       brandId = el.kBrand.value;
@@ -549,16 +647,15 @@
            sudah ada jangan dihapus — dulu ini bikin seri hilang dan
            tombol simpan menolak ("Pilih seri HP dulu"). */
         if (!wasCustom) el.kName.value = '';
-        el.kName.classList.remove('hidden');
-        el.kName.style.display = '';
+        setNameInput(true);
+        renderSuggest(el.kName);
         renderOut();
         TG.haptic('select');
         return;
       }
 
       // Seri lain dipilih — sembunyikan input
-      el.kName.classList.add('hidden');
-      el.kName.style.display = 'none';
+      setNameInput(false);
       renderSeries();
       renderOut();
       TG.haptic('select');

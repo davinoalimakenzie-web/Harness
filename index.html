@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261017p">
+<link rel="stylesheet" href="assets/css/style.css?v=20261017q">
 </head>
 <body>
 
@@ -435,7 +435,7 @@
     </div>
 
     <!-- ===== Panel ringkas: 4 tombol isian + tombol simpan bulat di tengah ===== -->
-    <div class="card">
+    <div class="card k-panel-card">
       <!-- Penanda mode edit: muncul setelah tombol &#8634; di daftar harga dipakai -->
       <div class="k-edit-note hidden" id="kEditNote" aria-hidden="true">
         <span>Sedang mengedit: <b id="kEditName">&mdash;</b></span>
@@ -487,6 +487,8 @@
         </label>
       </div>
       <input type="text" id="kName" class="hidden" aria-hidden="true" tabindex="-1" placeholder="Ketik seri HP di sini…">
+      <!-- Hasil pencarian lokal dari harga tersimpan (muncul saat mengetik seri) -->
+      <div class="k-suggest hidden" id="kSeriesSuggest" aria-hidden="true" role="listbox"></div>
     </div>
 
     <!-- ===== Harga tersimpan ===== -->
@@ -768,7 +770,7 @@
 <script src="assets/js/notes.js?v=20261014l"></script>
 <script src="assets/js/transactions.js?v=20261014l"></script>
 <script src="assets/js/ronce.js?v=20261015a"></script>
-<script src="assets/js/calc.js?v=20261017p"></script>
+<script src="assets/js/calc.js?v=20261017q"></script>
 <script src="assets/js/supabase.js?v=20261014l"></script>
 <script src="assets/js/mascim-local.js?v=20261014l"></script>
 <script src="assets/js/mascim.js?v=20261014l"></script>
@@ -781,6 +783,6 @@
 <script src="assets/js/nava-trader-quote.js?v=20261015d"></script>
 <script src="assets/js/nava-trader.js?v=20261015a"></script>
 <script src="assets/js/backup.js?v=20261014l"></script>
-<script src="assets/js/app.js?v=20261017p"></script>
+<script src="assets/js/app.js?v=20261017q"></script>
 </body>
 </html>
