@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261018c">
+<link rel="stylesheet" href="assets/css/style.css?v=20261018e">
 </head>
 <body>
 
@@ -471,6 +471,15 @@
 
       <!-- Tab: Input Garapan -->
       <div id="ronceTab-input" class="ronce-tab">
+        <!-- Kartu akun mitra: ganti PIN default 0000 -> akun jadi Aktif -->
+        <div class="card" id="rsAkunCard" hidden>
+          <div class="list-head tight"><strong>Akun Saya</strong></div>
+          <div id="rsAkunStatus" class="mitra-meta" style="margin-bottom:9px"></div>
+          <div class="mitra-add">
+            <input type="text" id="rsPinBaru" inputmode="numeric" maxlength="4" placeholder="PIN baru (4 digit)" autocomplete="off">
+            <button class="btn primary" id="rsGantiPin" type="button">Ganti PIN</button>
+          </div>
+        </div>
         <div class="card">
           <div class="list-head tight"><strong>Input Pekerjaan</strong></div>
           <div class="field">
@@ -665,17 +674,13 @@
 
         <div class="card">
           <div class="list-head tight"><strong>Tambah Mitra</strong></div>
-          <div class="field">
-            <label class="lbl" for="rsNamaMitra">Nama Mitra</label>
-            <input type="text" id="rsNamaMitra" placeholder="Nama lengkap mitra" autocomplete="off">
+          <div class="mitra-add">
+            <input type="text" id="rsNamaMitra" placeholder="Nama" autocomplete="off">
+            <input type="tel" id="rsWaMitra" placeholder="No. WA" inputmode="tel" autocomplete="off">
+            <button class="btn primary" id="rsTambahMitra" type="button">Kirim Link</button>
           </div>
-          <div class="field">
-            <label class="lbl" for="rsPinMitra">PIN (4 Digit)</label>
-            <input type="text" id="rsPinMitra" inputmode="numeric" maxlength="4" placeholder="Contoh: 4321" autocomplete="off">
-          </div>
-          <button class="btn primary block" id="rsTambahMitra" type="button">&#65291; Tambah Mitra</button>
           <div id="rsUserList" class="list" style="margin-top:10px"></div>
-          <p class="hint" style="margin-top:8px">Setiap mitra punya <b>link akses sendiri</b> (lihat di daftar). Buka link itu, lalu masuk dengan <b>PIN</b> — aksesnya terbatas pada datanya sendiri.</p>
+          <p class="hint" style="margin-top:8px">Isi nama + No. WA, lalu <b>Kirim Link</b>. Mitra masuk dengan <b>PIN 0000</b> — begitu PIN-nya diganti, akun jadi <b>Aktif</b> &amp; siap terima tugas.</p>
         </div>
 
       </div>
@@ -766,7 +771,7 @@
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
 <script src="assets/js/transactions.js?v=20261014l"></script>
-<script src="assets/js/ronce.js?v=20261018c"></script>
+<script src="assets/js/ronce.js?v=20261018e"></script>
 <script src="assets/js/calc.js?v=20261017x"></script>
 <script src="assets/js/calc-sync.js?v=20261017u"></script>
 <script src="assets/js/supabase.js?v=20261017s"></script>

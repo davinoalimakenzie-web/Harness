@@ -123,7 +123,12 @@ input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0
 .btn.ghost{ background:transparent; border:1px solid var(--line); }
 .btn.danger{ color:var(--danger); }
 .btn.primary{ background:var(--accent); color:var(--accent-text); }
-.row-2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+/* Dua tombol berdampingan. Label panjang + .btn{white-space:nowrap} membuat
+   track grid meluber dari kartu (terukur scrollWidth 395px di layar 360px →
+   scroll horizontal). minmax(0,1fr) mengizinkan kolom menyusut & teks turun
+   baris supaya selalu pas selebar kartu. */
+.row-2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
+.row-2 .btn{ white-space:normal; font-size:13px; padding:12px 8px; line-height:1.2; }
 
 .chip{
   display:inline-flex; align-items:center; gap:6px; padding:10px 12px;
@@ -154,6 +159,35 @@ input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0
    Di layar 360px totalnya meluber ~17px dan memicu scroll horizontal —
    kecilkan font & padding khusus tab bar ini supaya muat pas selebar layar. */
 #ronceTabs .seg-btn{ font-size:11.5px; padding:9px 4px; }
+
+/* ---------------- Manajemen Mitra (Setting Ronce) ---------------- */
+/* Form Tambah Mitra: satu baris sejajar — Nama | No. WA | Kirim Link */
+.mitra-add{ display:flex; gap:6px; align-items:stretch; }
+.mitra-add input{ flex:1 1 0; min-width:0; }
+.mitra-add #rsWaMitra{ flex:0 0 86px; }
+.mitra-add .btn{ flex:0 0 auto; white-space:nowrap; padding:11px 10px; font-size:12px; }
+
+/* Kartu mitra: avatar + nama + meta + badge status, tombol di baris bawah.
+   (Dulu link panjang ikut di dalam flex-row .item sehingga teksnya terkompres
+   jadi satu karakter per baris — itulah "font vertikal" yang dikeluhkan.) */
+.mitra-item{
+  background:var(--bg-elev); border:1px solid var(--line);
+  border-radius:12px; padding:11px 12px; margin-bottom:8px;
+}
+.mitra-item.on{ border-color:rgba(34,197,94,.55); }
+.mitra-head{ display:flex; align-items:center; gap:10px; }
+.mitra-ava{
+  flex:0 0 auto; width:34px; height:34px; border-radius:50%;
+  background:var(--tap); display:grid; place-items:center;
+  font-weight:700; font-size:12.5px;
+}
+.mitra-id{ flex:1; min-width:0; }
+.mitra-nama{ font-weight:650; font-size:14px; overflow-wrap:anywhere; }
+.mitra-meta{ font-size:11.5px; color:var(--text-2); margin-top:2px; }
+.mitra-aksi{ display:flex; gap:6px; margin-top:9px; }
+.mitra-aksi .mini-btn{ flex:1; text-align:center; }
+.tag.ok{ background:rgba(34,197,94,.16); color:var(--success); }
+.tag.wait{ background:rgba(245,158,11,.16); color:var(--warn); }
 
 /* ---------------- Catatan ---------------- */
 .compose textarea{ min-height:52px; }

@@ -105,6 +105,13 @@
       if (!Array.isArray(data[k])) data[k] = [];
     });
     if (typeof data.centralBalance !== 'number') data.centralBalance = 0;
+    /* Migrasi: user lama belum punya field `aktif`/`wa`. Mitra yang sudah
+       punya PIN sendiri (bukan 0000) dianggap sudah aktif. */
+    data.users.forEach(function (u) {
+      if (u.wa === undefined) u.wa = '';
+      if (u.role === 'owner') { u.aktif = true; return; }
+      if (u.aktif === undefined) u.aktif = !!(u.pin && String(u.pin) !== '0000');
+    });
   }
 
   function simpan() {
@@ -163,6 +170,29 @@
   function linkMitra(u) {
     try { return w.location.origin + w.location.pathname + '?m=' + encodeURIComponent(u.id); }
     catch (e) { return '?m=' + u.id; }
+  }
+
+  /* Nomor WA Indonesia (08xx / 8xx) -> format internasional 62xx untuk wa.me */
+  function waInternasional(wa) {
+    var s = String(wa || '').replace(/\D/g, '');
+    if (!s) return '';
+    if (s.charAt(0) === '0') s = '62' + s.slice(1);
+    else if (s.charAt(0) === '8') s = '62' + s;
+    return s;
+  }
+
+  /* Buka WhatsApp berisi link akses mitra + instruksi ganti PIN. */
+  function kirimLinkWa(u) {
+    if (!u) return;
+    var link = linkMitra(u);
+    var pesan = 'Halo ' + u.name + '! Ini link akses Kalkulator Nava kamu:\n' + link +
+      '\n\nMasuk pakai PIN default 0000, lalu ganti PIN-mu. Setelah PIN diganti, akunmu AKTIF dan siap terima tugas.';
+    var wa = waInternasional(u.wa);
+    if (!wa) { w.App.toast('Isi No. WA dulu supaya link bisa dikirim'); return; }
+    try {
+      w.open('https://wa.me/' + wa + '?text=' + encodeURIComponent(pesan), '_blank');
+      w.App.toast('Membuka WhatsApp untuk ' + u.name);
+    } catch (e) { w.App.toast('Link: ' + link); }
   }
 
   function salinLink(id) {
@@ -286,9 +316,17 @@
 
   /* ---------------- Option builders ---------------- */
 
-  function optsMitra() {
+  /* hanyaAktif = true: hanya mitra yang sudah ganti PIN (aktif) yang muncul.
+     Dipakai di tab Tugas supaya mitra belum aktif tidak bisa diberi tugas. */
+  function optsMitra(hanyaAktif) {
     var h = '<option value="">-- Pilih Mitra --</option>', i;
-    for (i = 0; i < data.users.length; i++) h += '<option value="' + esc(data.users[i].id) + '">' + esc(data.users[i].name) + '</option>';
+    for (i = 0; i < data.users.length; i++) {
+      var u = data.users[i];
+      var owner = u.role === 'owner';
+      if (hanyaAktif && !owner && !u.aktif) continue;
+      h += '<option value="' + esc(u.id) + '">' + esc(u.name) +
+        (owner || u.aktif ? '' : ' (belum aktif)') + '</option>';
+    }
     return h;
   }
   function optsGarapan() {
@@ -434,6 +472,7 @@
   /* ---------------- Tab: Input ---------------- */
 
   function renderInput() {
+    renderAkun();
     var m = $('#rjMitra'), g = $('#rjGarapan'), t = $('#rjTanggal');
     if (m) m.innerHTML = optsMitra();
     if (g) g.innerHTML = optsGarapan();
@@ -465,7 +504,7 @@
 
   function renderTugas() {
     var m = $('#rtMitra'), t = $('#rtTanggal');
-    if (m) m.innerHTML = optsMitra();
+    if (m) m.innerHTML = optsMitra(true);
     if (t) t.value = hariIni();
 
     /* Formulir penugasan khusus owner; mitra hanya melihat tugasnya sendiri. */
@@ -551,15 +590,30 @@
 
     var ul = $('#rsUserList');
     if (ul) {
-      ul.innerHTML = data.users.map(function (u) {
-        return '<div class="item"><div class="item-body"><div class="item-title">' + esc(u.name) + '</div>'
-          + '<div class="item-sub"><span>' + esc(u.role) + '</span><span>PIN ' + esc(u.pin || '-') + '</span></div></div>'
-          + '<div style="display:flex;gap:6px"><button class="mini-btn" data-rlink="' + esc(u.id) + '">Link</button>'
-          + (u.role === 'owner'
-              ? ''
-              : '<button class="mini-btn danger" data-rdeluser="' + esc(u.id) + '">Hapus</button>')
+      /* Urut rapi: owner dulu, lalu mitra AKTIF, lalu yang belum aktif. */
+      var urut = data.users.slice().sort(function (a, b) {
+        var pa = a.role === 'owner' ? 0 : (a.aktif ? 1 : 2);
+        var pb = b.role === 'owner' ? 0 : (b.aktif ? 1 : 2);
+        return pa - pb;
+      });
+      ul.innerHTML = urut.map(function (u) {
+        var owner = u.role === 'owner';
+        var label = owner ? 'OWNER' : (u.aktif ? 'AKTIF' : 'BELUM AKTIF');
+        var badge = owner ? '' : (u.aktif ? ' ok' : ' wait');
+        return '<div class="mitra-item' + (u.aktif ? ' on' : '') + '">'
+          + '<div class="mitra-head">'
+          +   '<span class="mitra-ava">' + esc(String(u.name || '?').slice(0, 2).toUpperCase()) + '</span>'
+          +   '<div class="mitra-id">'
+          +     '<div class="mitra-nama">' + esc(u.name) + '</div>'
+          +     '<div class="mitra-meta">' + (u.wa ? 'WA ' + esc(u.wa) : 'No. WA belum diisi') + ' &middot; PIN ' + esc(u.pin || '-') + '</div>'
+          +   '</div>'
+          +   '<span class="tag' + badge + '">' + label + '</span>'
           + '</div>'
-          + '<div class="item-sub" style="margin-top:5px"><code style="font-size:11px;word-break:break-all;color:var(--muted)">' + esc(linkMitra(u)) + '</code></div>'
+          + (owner ? ''
+              : '<div class="mitra-aksi">'
+                + '<button class="mini-btn" data-rwa="' + esc(u.id) + '">' + (u.wa ? 'Kirim Link' : 'Salin Link') + '</button>'
+                + '<button class="mini-btn danger" data-rdeluser="' + esc(u.id) + '">Hapus</button>'
+                + '</div>')
           + '</div>';
       }).join('');
     }
@@ -652,17 +706,19 @@
   function tambahMitra() {
     if (!adalahOwner()) return;
     var name = (($('#rsNamaMitra') || {}).value || '').trim().toUpperCase();
-    var pin = (($('#rsPinMitra') || {}).value || '').replace(/\D/g, '').slice(0, 4);
+    var wa = (($('#rsWaMitra') || {}).value || '').replace(/\D/g, '');
     if (!name) { w.App.toast('Isi nama mitra!'); return; }
-    if (pin.length !== 4) { w.App.toast('PIN harus 4 digit angka!'); return; }
     var ada = data.users.some(function (u) { return u.name.toUpperCase() === name; });
     if (ada) { w.App.toast('Nama mitra sudah terdaftar!'); return; }
-    var u = { id: 'u_' + uid(), name: name, role: 'mitra', pin: pin };
+    /* PIN default 0000 — akun belum aktif sampai mitra mengganti PIN-nya. */
+    var u = { id: 'u_' + uid(), name: name, role: 'mitra', pin: '0000', wa: wa, aktif: false };
     data.users.push(u);
-    catat('Mitra ' + name + ' ditambahkan (PIN ' + pin + ')');
+    catat('Mitra ' + name + ' ditambahkan (PIN default 0000)');
     simpan();
-    w.App.toast('Mitra ditambahkan — salin linknya di daftar');
+    var nm = $('#rsNamaMitra'); if (nm) nm.value = '';
+    var wm = $('#rsWaMitra'); if (wm) wm.value = '';
     renderSetting();
+    kirimLinkWa(u);
   }
 
   function hapusMitra(id) {
@@ -674,6 +730,38 @@
     catat('Mitra ' + u.name + ' dihapus');
     simpan();
     renderSetting();
+  }
+
+  /* Mitra ganti PIN. Begitu PIN default (0000) diganti pertama kali,
+     akun otomatis jadi AKTIF dan siap menerima tugas dari tab Tugas. */
+  function gantiPin() {
+    if (!sesi || sesi.role === 'owner') return;
+    var pin = (($('#rsPinBaru') || {}).value || '').replace(/\D/g, '').slice(0, 4);
+    if (pin.length !== 4) { w.App.toast('PIN harus 4 digit angka!'); return; }
+    if (pin === '0000') { w.App.toast('PIN tidak boleh 0000 — pilih PIN lain'); return; }
+    var pertamaKali = !sesi.aktif;
+    sesi.pin = pin;
+    sesi.aktif = true;
+    catat('Mitra ' + sesi.name + (pertamaKali ? ' AKTIF (PIN diganti)' : ' ganti PIN'));
+    simpan();
+    var ip = $('#rsPinBaru'); if (ip) ip.value = '';
+    w.App.toast(pertamaKali ? 'PIN tersimpan — akunmu AKTIF!' : 'PIN berhasil diganti');
+    renderAkun();
+  }
+
+  /* Kartu "Akun Saya" — hanya untuk mitra, menampilkan status aktif/belum. */
+  function renderAkun() {
+    var card = $('#rsAkunCard');
+    if (!card) return;
+    var mitra = !!(sesi && sesi.role !== 'owner');
+    card.hidden = !mitra;
+    if (!mitra) return;
+    var st = $('#rsAkunStatus');
+    if (st) {
+      st.innerHTML = sesi.aktif
+        ? '<span class="tag ok">AKTIF</span> Akunmu aktif — siap terima tugas.'
+        : '<span class="tag wait">BELUM AKTIF</span> Ganti PIN default (0000) untuk mengaktifkan akun.';
+    }
   }
 
   function toggleSet(id) {
@@ -799,9 +887,17 @@
     if (ta) ta.addEventListener('click', tambahGarapan);
     var tm = $('#rsTambahMitra');
     if (tm) tm.addEventListener('click', tambahMitra);
+    var gp = $('#rsGantiPin');
+    if (gp) gp.addEventListener('click', gantiPin);
     document.addEventListener('click', function (e) {
       var rl = e.target.closest('[data-rlink]');
       if (rl) { salinLink(rl.dataset.rlink); return; }
+      var rw = e.target.closest('[data-rwa]');
+      if (rw) {
+        var mu = cariMitra(rw.dataset.rwa);
+        if (mu) { if (mu.wa) kirimLinkWa(mu); else salinLink(mu.id); }
+        return;
+      }
       var rd = e.target.closest('[data-rdeluser]');
       if (rd) { hapusMitra(rd.dataset.rdeluser); return; }
       var sg = e.target.closest('[data-rs-set]');
