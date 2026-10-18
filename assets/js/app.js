@@ -790,7 +790,20 @@
     // initSyncUI() keluar lebih awal karena kendalanya sudah tidak
     // ada di halaman, jadi status Supabase disambung terpisah.
     renderSyncStatus();
-    w.setInterval(function () { renderSyncStatus(); }, 15000);
+    w.setInterval(function () {
+      renderSyncStatus();
+      /* Tarik perubahan dari perangkat/bot lain tiap 15 detik supaya
+         transaksi & catatan juga terasa real-time — dulu hanya ditarik
+         saat aplikasi dibuka/dikembalikan ke depan. */
+      if (w.Sync && w.Sync.pull) {
+        w.Sync.pull().then(function (r) {
+          if (r && (r.added || r.updated)) {
+            try { w.TxUI.render(); w.NotesUI.render(); } catch (e) {}
+            renderSyncStatus();
+          }
+        }).catch(function () {});
+      }
+    }, 15000);
     // ---- Sinkronisasi dengan bot ----
     initSyncUI();
     if (w.Sync) {
