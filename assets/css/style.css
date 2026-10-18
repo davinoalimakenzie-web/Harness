@@ -2290,12 +2290,12 @@ select.mc-inp{ appearance:none; }
 .k-quad .q-brand,
 .k-quad .q-series{ --bc:var(--text-2); }
 
-.tpl-brand-btn[data-tplbrand="samsung"],  .k-quad .q-brand[data-brand="samsung"],  .k-quad .q-series[data-brand="samsung"] { --bc:#1e3a8a; }
-.tpl-brand-btn[data-tplbrand="xiaomi"],   .k-quad .q-brand[data-brand="xiaomi"],   .k-quad .q-series[data-brand="xiaomi"]  { --bc:#ea580c; }
-.tpl-brand-btn[data-tplbrand="oppo"],     .k-quad .q-brand[data-brand="oppo"],     .k-quad .q-series[data-brand="oppo"]    { --bc:#15803d; }
-.tpl-brand-btn[data-tplbrand="vivo"],     .k-quad .q-brand[data-brand="vivo"],     .k-quad .q-series[data-brand="vivo"]    { --bc:#0284c7; }
-.tpl-brand-btn[data-tplbrand="realme"],   .k-quad .q-brand[data-brand="realme"],   .k-quad .q-series[data-brand="realme"]  { --bc:#ca8a04; }
-.tpl-brand-btn[data-tplbrand="infinix"],  .k-quad .q-brand[data-brand="infinix"],  .k-quad .q-series[data-brand="infinix"] { --bc:#dc2626; }
+.tpl-brand-btn[data-tplbrand="samsung"],  .k-quad .q-brand[data-brand="samsung"],  .k-quad .q-series[data-brand="samsung"], .k-pick-brand[data-tplbrand="samsung"] { --bc:#1e3a8a; }
+.tpl-brand-btn[data-tplbrand="xiaomi"],   .k-quad .q-brand[data-brand="xiaomi"],   .k-quad .q-series[data-brand="xiaomi"], .k-pick-brand[data-tplbrand="xiaomi"]  { --bc:#ea580c; }
+.tpl-brand-btn[data-tplbrand="oppo"],     .k-quad .q-brand[data-brand="oppo"],     .k-quad .q-series[data-brand="oppo"], .k-pick-brand[data-tplbrand="oppo"]    { --bc:#15803d; }
+.tpl-brand-btn[data-tplbrand="vivo"],     .k-quad .q-brand[data-brand="vivo"],     .k-quad .q-series[data-brand="vivo"], .k-pick-brand[data-tplbrand="vivo"]    { --bc:#0284c7; }
+.tpl-brand-btn[data-tplbrand="realme"],   .k-quad .q-brand[data-brand="realme"],   .k-quad .q-series[data-brand="realme"], .k-pick-brand[data-tplbrand="realme"]  { --bc:#ca8a04; }
+.tpl-brand-btn[data-tplbrand="infinix"],  .k-quad .q-brand[data-brand="infinix"],  .k-quad .q-series[data-brand="infinix"], .k-pick-brand[data-tplbrand="infinix"] { --bc:#dc2626; }
 
 /* Tombol brand di daftar harga tersimpan — terisi penuh, tulisan putih */
 .tpl-brand-btn{
@@ -2445,3 +2445,43 @@ select.mc-inp{ appearance:none; }
 .k-suggest-item:active{ background:var(--tap); }
 .k-suggest-name{ font-size:14px; font-weight:700; }
 .k-suggest-meta{ font-size:11.5px; color:var(--text-2); }
+
+/* =========================================================
+   PEMILIH BRAND / SERI BUATAN SENDIRI
+   Menggantikan dropdown bawaan browser, yang warnanya tidak bisa diatur
+   di Android WebView sehingga muncul sebagai daftar putih dengan teks tak
+   terbaca (bug "dropdown putih"). <select> aslinya disembunyikan dan hanya
+   dipakai sebagai penyimpan state.
+   ========================================================= */
+.q-pick{
+  display:flex; align-items:center; gap:6px; width:100%; min-width:0;
+  padding:0; border:0; background:transparent; color:inherit;
+  font:inherit; font-size:16px; font-weight:700; line-height:1.2;
+  text-align:left; cursor:pointer;
+}
+.q-pick.q-pick-right{ justify-content:flex-end; text-align:right; }
+.q-pick > span:first-child{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.q-pick-caret{ flex:0 0 auto; font-size:10px; opacity:.8; }
+/* select asli: tak terlihat & tak bisa disentuh, hanya penyimpan state.
+   Warnanya dipaksa netral (teks gelap di latar terang) supaya tidak pernah
+   jadi "putih di atas putih" kalau suatu saat terlihat kembali. */
+.q-tile select.q-sr{
+  position:absolute; width:1px; height:1px; opacity:0;
+  pointer-events:none; border:0; padding:0; margin:0;
+  color:var(--text) !important; background:var(--bg-elev) !important;
+}
+/* Warna tulisan pemilih mengikuti kotaknya */
+.k-quad .q-brand[data-brand] .q-pick,
+.k-quad .q-series[data-brand] .q-pick{ color:#fff; }
+.k-quad .q-brand[data-brand="__custom_brand__"] .q-pick,
+.k-quad .q-series[data-brand="__custom_brand__"] .q-pick{ color:var(--text); }
+
+/* Item daftar pilihan brand/seri */
+.k-pick-item{ flex-direction:row; align-items:center; gap:8px; }
+.k-pick-item .k-suggest-name{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.k-pick-item .k-suggest-meta{ flex:0 0 auto; }
+.k-pick-item.on{ box-shadow:inset 0 0 0 2px var(--accent); }
+.k-pick-brand[data-tplbrand]{ background:var(--bc); border-color:var(--bc); }
+.k-pick-brand[data-tplbrand] .k-suggest-name{ color:#fff; }
+.k-pick-brand[data-tplbrand] .k-suggest-meta{ color:rgba(255,255,255,.85); }
+.k-pick-brand[data-tplbrand].on{ box-shadow:inset 0 0 0 2px #fff; }

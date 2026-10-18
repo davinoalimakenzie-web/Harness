@@ -197,6 +197,7 @@
     /* Tombol simpan juga diberi data-brand supaya latar kolom tengahnya
        ikut warna brand (menyatu dengan kotak Brand HP & Seri HP). */
     if (el.kSaveTpl) el.kSaveTpl.setAttribute('data-brand', brandId);
+    updatePickLabels();
   }
 
   function renderSeries() {
@@ -251,6 +252,7 @@
     el.kName.style.display = showSeriesInput ? '' : 'none';
 
     /* Mode edit selalu menang: kotak Seri HP tetap jadi kolom isian. */
+    updatePickLabels();
     syncEditMode();
   }
   function readSeries() {
@@ -338,10 +340,10 @@
       el.kSeriesEdit.style.display = on ? '' : 'none';
       el.kSeriesEdit.setAttribute('aria-hidden', on ? 'false' : 'true');
     }
-    var selWrap = el.kSeries && el.kSeries.closest ? el.kSeries.closest('.sel-wrap') : null;
-    if (selWrap) {
-      selWrap.classList.toggle('hidden', on);
-      selWrap.style.display = on ? 'none' : '';
+    /* Tombol pemilih seri disembunyikan saat mode edit (diganti kolom isian). */
+    if (el.kSeriesPick) {
+      el.kSeriesPick.classList.toggle('hidden', on);
+      el.kSeriesPick.style.display = on ? 'none' : '';
     }
     /* Kolom seri manual di bawah kotak tidak dipakai saat mode edit. */
     if (on) setNameInput(false);
@@ -445,6 +447,91 @@
     renderEditNote();
     TG.haptic('success');
     w.App.toast('Ditemukan: ' + it.brandName + ' ' + it.series + ' \u2014 harga lama dimuat', 3000, 'ok');
+  }
+
+  /* ---------------- Pemilih brand/seri (dropdown buatan sendiri) ----------------
+     Dropdown bawaan browser tidak bisa diatur warnanya di Android WebView —
+     muncul sebagai daftar putih dengan teks yang tak terbaca (bug "dropdown
+     putih"). Karena itu brand & seri dipilih lewat daftar buatan aplikasi;
+     elemen <select> aslinya tetap dipertahankan (disembunyikan) sebagai
+     penyimpan state supaya seluruh logika lama tidak perlu diubah. */
+  var pickWhich = null;
+
+  function updatePickLabels() {
+    if (el.kBrandVal && el.kBrand) {
+      var b = brandById(el.kBrand.value);
+      el.kBrandVal.textContent = (b && b.name) ? b.name : 'Pilih brand';
+    }
+    if (el.kSeriesVal && el.kSeries) {
+      var v = el.kSeries.value;
+      if (v === CUSTOM_SERIES) el.kSeriesVal.textContent = 'Lainnya\u2026';
+      else if (!v) el.kSeriesVal.textContent = '\u2014';
+      else el.kSeriesVal.textContent = v;
+    }
+  }
+
+  function hidePick() {
+    pickWhich = null;
+    if (el.kBrandPick) el.kBrandPick.setAttribute('aria-expanded', 'false');
+    if (el.kSeriesPick) el.kSeriesPick.setAttribute('aria-expanded', 'false');
+    if (!el.kPickList) return;
+    el.kPickList.classList.add('hidden');
+    el.kPickList.style.display = 'none';
+    el.kPickList.setAttribute('aria-hidden', 'true');
+  }
+
+  function openPick(which) {
+    if (!el.kPickList) return;
+    var src = which === 'brand' ? el.kBrand : el.kSeries;
+    var btn = which === 'brand' ? el.kBrandPick : el.kSeriesPick;
+    if (!src || !btn) return;
+    var html = '<div class="k-suggest-head">' + (which === 'brand' ? 'Pilih brand HP' : 'Pilih seri HP') + '</div>';
+    html += Array.prototype.map.call(src.options, function (o, i) {
+      var val = o.value;
+      var isCustom = (val === CUSTOM_SERIES || val === CUSTOM_BRAND);
+      var on = val === src.value;
+      var meta = '';
+      if (which === 'brand' && !isCustom) {
+        var n = (S.state.templates || []).filter(function (x) { return (x.payload || {}).brandId === val; }).length;
+        meta = '<span class="k-suggest-meta">' + n + ' harga tersimpan</span>';
+      } else if (which === 'series' && !isCustom) {
+        var t = (S.state.templates || []).filter(function (x) {
+          var p = x.payload || {};
+          return p.brandId === brandId && p.series === val;
+        })[0];
+        if (t) meta = '<span class="k-suggest-meta">' + esc(ruleById((t.payload || {}).ruleId).name) + ' &middot; ' + money((t.payload || {}).est) + '</span>';
+      }
+      var cls = 'k-suggest-item k-pick-item' + (which === 'brand' && !isCustom ? ' k-pick-brand' : '') + (on ? ' on' : '');
+      var attr = (which === 'brand' && !isCustom) ? ' data-tplbrand="' + esc(val) + '"' : '';
+      return '<button type="button" class="' + cls + '" data-pick="' + i + '"' + attr + ' role="option">' +
+        '<span class="k-suggest-name">' + esc(o.textContent) + '</span>' + meta + '</button>';
+    }).join('');
+    el.kPickList.innerHTML = html;
+    var card = el.kPickList.parentElement;
+    var cr = card.getBoundingClientRect(), br = btn.getBoundingClientRect();
+    el.kPickList.style.top = Math.round(br.bottom - cr.top + 4) + 'px';
+    el.kPickList.classList.remove('hidden');
+    el.kPickList.style.display = '';
+    el.kPickList.setAttribute('aria-hidden', 'false');
+    btn.setAttribute('aria-expanded', 'true');
+    pickWhich = which;
+    TG.haptic('select');
+  }
+
+  function choosePick(i) {
+    var which = pickWhich;
+    var src = which === 'brand' ? el.kBrand : el.kSeries;
+    if (!src || !src.options[i]) { hidePick(); return; }
+    var val = src.options[i].value;
+    hidePick();
+    if (src.value !== val) {
+      src.value = val;
+      /* Pakai handler 'change' yang sudah ada supaya semua logika lama
+         (warna brand, daftar seri, mode edit) tetap berjalan. */
+      src.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+      updatePickLabels();
+    }
   }
 
   function renderTpl() {
@@ -576,6 +663,11 @@
     el.kEditName = $('#kEditName');
     el.kSeriesEdit = $('#kSeriesEdit');
     el.kSuggest = $('#kSeriesSuggest');
+    el.kPickList = $('#kPickList');
+    el.kBrandPick = $('#kBrandPick');
+    el.kBrandVal = $('#kBrandVal');
+    el.kSeriesPick = $('#kSeriesPick');
+    el.kSeriesVal = $('#kSeriesVal');
 
     seedIfNeeded();
     renderBrands();
@@ -616,6 +708,36 @@
       });
     }
 
+    /* Pemilih brand/seri buatan sendiri (pengganti dropdown bawaan browser) */
+    if (el.kBrandPick) {
+      el.kBrandPick.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (pickWhich === 'brand') hidePick(); else openPick('brand');
+      });
+    }
+    if (el.kSeriesPick) {
+      el.kSeriesPick.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (pickWhich === 'series') hidePick(); else openPick('series');
+      });
+    }
+    if (el.kPickList) {
+      el.kPickList.addEventListener('mousedown', function (e) {
+        if (e.target.closest && e.target.closest('[data-pick]')) e.preventDefault();
+      });
+      el.kPickList.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-pick]');
+        if (b) choosePick(parseInt(b.dataset.pick, 10) || 0);
+      });
+    }
+    /* Ketuk di luar daftar = tutup */
+    document.addEventListener('click', function (e) {
+      if (!el.kPickList || el.kPickList.classList.contains('hidden')) return;
+      if (e.target.closest && (e.target.closest('#kPickList') || e.target.closest('#kBrandPick') || e.target.closest('#kSeriesPick'))) return;
+      hidePick();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hidePick(); });
+
     el.kBrand.addEventListener('change', function () {
       brandId = el.kBrand.value;
       seriesId = '';
@@ -649,6 +771,7 @@
         if (!wasCustom) el.kName.value = '';
         setNameInput(true);
         renderSuggest(el.kName);
+        updatePickLabels();
         renderOut();
         TG.haptic('select');
         return;

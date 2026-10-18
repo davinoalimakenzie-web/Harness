@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261017q">
+<link rel="stylesheet" href="assets/css/style.css?v=20261017r">
 </head>
 <body>
 
@@ -455,16 +455,22 @@
 
         <div class="q-tile q-brand">
           <span class="q-lbl">Brand HP</span>
-          <div class="sel-wrap">
-            <select id="kBrand" aria-label="Brand HP"></select>
-          </div>
+          <!-- Tombol pemilih sendiri (bukan dropdown bawaan browser) supaya
+               warnanya diatur aplikasi: bug "dropdown putih" tidak bisa muncul. -->
+          <button type="button" class="q-pick" id="kBrandPick" aria-haspopup="listbox" aria-expanded="false">
+            <span id="kBrandVal">Samsung</span>
+            <span class="q-pick-caret" aria-hidden="true">&#9662;</span>
+          </button>
+          <select id="kBrand" class="q-sr" aria-label="Brand HP" tabindex="-1"></select>
         </div>
 
         <div class="q-tile q-series">
           <span class="q-lbl">Seri HP</span>
-          <div class="sel-wrap">
-            <select id="kSeries" aria-label="Seri HP"></select>
-          </div>
+          <button type="button" class="q-pick q-pick-right" id="kSeriesPick" aria-haspopup="listbox" aria-expanded="false">
+            <span id="kSeriesVal">&mdash;</span>
+            <span class="q-pick-caret" aria-hidden="true">&#9662;</span>
+          </button>
+          <select id="kSeries" class="q-sr" aria-label="Seri HP" tabindex="-1"></select>
           <!-- Muncul saat mode edit: nama seri langsung diketik di kotak ini -->
           <input type="text" id="kSeriesEdit" class="hidden" aria-hidden="true"
                  placeholder="Nama seri HP" aria-label="Edit nama seri HP">
@@ -489,6 +495,8 @@
       <input type="text" id="kName" class="hidden" aria-hidden="true" tabindex="-1" placeholder="Ketik seri HP di sini…">
       <!-- Hasil pencarian lokal dari harga tersimpan (muncul saat mengetik seri) -->
       <div class="k-suggest hidden" id="kSeriesSuggest" aria-hidden="true" role="listbox"></div>
+      <!-- Daftar pilihan brand/seri (dropdown buatan sendiri) -->
+      <div class="k-suggest hidden" id="kPickList" aria-hidden="true" role="listbox"></div>
     </div>
 
     <!-- ===== Harga tersimpan ===== -->
@@ -770,7 +778,7 @@
 <script src="assets/js/notes.js?v=20261014l"></script>
 <script src="assets/js/transactions.js?v=20261014l"></script>
 <script src="assets/js/ronce.js?v=20261015a"></script>
-<script src="assets/js/calc.js?v=20261017q"></script>
+<script src="assets/js/calc.js?v=20261017r"></script>
 <script src="assets/js/supabase.js?v=20261014l"></script>
 <script src="assets/js/mascim-local.js?v=20261014l"></script>
 <script src="assets/js/mascim.js?v=20261014l"></script>
@@ -783,6 +791,6 @@
 <script src="assets/js/nava-trader-quote.js?v=20261015d"></script>
 <script src="assets/js/nava-trader.js?v=20261015a"></script>
 <script src="assets/js/backup.js?v=20261014l"></script>
-<script src="assets/js/app.js?v=20261017q"></script>
+<script src="assets/js/app.js?v=20261017r"></script>
 </body>
 </html>
