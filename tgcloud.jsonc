@@ -1,0 +1,7 @@
+{
+  // Folder output build Mini App yang di-host Telegram Serverless.
+  // Isinya = file statis aplikasi (index.html, service.html, assets/).
+  "static": {
+    "source": "dist"
+  }
+}

@@ -1,0 +1,8 @@
+# Token & state lokal Telegram Serverless (JANGAN pernah di-commit)
+.tgcloud/
+
+# Node
+node_modules/
+
+# Build output untuk Telegram Serverless
+dist/

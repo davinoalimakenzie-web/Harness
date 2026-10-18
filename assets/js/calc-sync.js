@@ -1,9 +1,16 @@
 /* ===================================================================
    calc-sync.js — Sinkronisasi harga tersimpan (Kalkulator Service HP)
 
-   Harga tersimpan disalin ke tabel `vault` di Supabase supaya isinya sama
-   di SEMUA tautan dan SEMUA perangkat: link lama (index.html) maupun link
-   baru (service.html), HP karyawan maupun HP pemilik.
+   Harga tersimpan disimpan di server supaya isinya sama di SEMUA tautan
+   dan SEMUA perangkat: link lama (index.html) maupun link baru
+   (service.html), HP karyawan maupun HP pemilik.
+
+   Transport (dua-duanya didukung, dipilih otomatis):
+   - Telegram Serverless: kalau Mini App dibuka dari host Telegram
+     Serverless (tgcloud.ai), pakai endpoint loadPrices/savePrices —
+     identitas pemanggil diverifikasi Telegram lewat initData.
+   - Supabase vault: untuk hosting lain (mis. GitHub Pages) selama
+     masa transisi.
 
    Aturan penting:
    - Data lokal tetap sumber kebenaran. Kalau jaringan mati, aplikasi jalan
@@ -12,13 +19,14 @@
    - Tarik otomatis: saat halaman siap, tiap 15 detik, saat aplikasi kembali
      aktif (visibilitychange/focus), dan saat tab/halaman lain di perangkat
      yang sama mengubah localStorage (`storage` event).
-   - Kalau versi cloud lebih baru, data cloud dipakai apa adanya (termasuk
+   - Kalau versi server lebih baru, data server dipakai apa adanya (termasuk
      penghapusan entri) lalu daftar digambar ulang + diberi notifikasi.
+   - Server kosong + perangkat punya data -> kirim (migrasi otomatis).
    =================================================================== */
 (function (w) {
   'use strict';
 
-  var KEY = 'calc_templates';   // nama baris di tabel vault
+  var KEY = 'calc_templates';   // nama baris di tabel vault / endpoint
   var PULL_MS = 15000;          // tarik tiap 15 detik (biar terasa real-time)
   var PUSH_GAP = 1200;          // jeda minimum antar kiriman
 
@@ -36,12 +44,36 @@
     } catch (e) {}
   }
 
-  /* Kirim daftar harga lokal ke cloud (lewat antrean Supa).
-     Kalau kiriman sebelumnya belum lewat jeda, kiriman ini DITUNDA —
-     jangan dibuang, karena data terbaru bisa tidak pernah sampai. */
+  /* ---------- Transport: Telegram Serverless (endpoint) ---------- */
+  function serverlessAktif() {
+    try {
+      return !!(w.Telegram && w.Telegram.WebApp && w.Telegram.WebApp.Serverless &&
+                typeof w.Telegram.WebApp.Serverless.call === 'function');
+    } catch (e) { return false; }
+  }
+
+  function panggil(nama, input) {
+    return new Promise(function (selesai, gagal) {
+      try {
+        w.Telegram.WebApp.Serverless.call(nama, input || {}, function (err, hasil) {
+          if (err) { gagal(err); return; }
+          selesai(hasil || {});
+        });
+      } catch (e) { gagal(e); }
+    });
+  }
+
+  /* ---------- Transport: Supabase vault ---------- */
   function kirim() {
-    if (!w.Supa || typeof w.Supa.vaultPut !== 'function') return;
     if (sedangKirim) return;
+
+    /* Lewat endpoint Serverless (tgcloud.ai). */
+    if (serverlessAktif()) {
+      panggil('savePrices', { rev: rev(), templates: daftar() }).catch(function () {});
+      return;
+    }
+
+    if (!w.Supa || typeof w.Supa.vaultPut !== 'function') return;
     var tunggu = PUSH_GAP - (Date.now() - terakhirKirim);
     if (tunggu > 0) {
       w.clearTimeout(kirim._t);
@@ -62,9 +94,9 @@
     kirim();
   }
 
-  /* Gabungkan data lokal & cloud per entri (yang lebih baru menang).
+  /* Gabungkan data lokal & server per entri (yang lebih baru menang).
      Dipakai saat sinkronisasi PERTAMA kali (belum ada rev) supaya data
-     lokal yang sudah ada tidak tertimpa data cloud. */
+     lokal yang sudah ada tidak tertimpa data server. */
   function gabung(lokal, jauh) {
     var peta = {};
     function kunci(t) {
@@ -79,55 +111,72 @@
     return Object.keys(peta).map(function (k) { return peta[k]; });
   }
 
-  /* Tarik data cloud; pakai kalau lebih baru dari versi lokal. */
-  function tarik(diam) {
-    if (!w.Supa || typeof w.Supa.vaultGet !== 'function') return Promise.resolve(false);
-    if (sedangTarik) return Promise.resolve(false);
-    sedangTarik = true;
-    return w.Supa.vaultGet(KEY).then(function (baris) {
-      sedangTarik = false;
-      var isi = baris && baris.isi;
-      var revCloud = (isi && isi.rev) || '';
+  /* Terima data dari server lalu terapkan ke perangkat ini.
+     Bentuk yang diterima: { rev, templates } (hasil endpoint langsung,
+     atau isi dari baris vault Supabase). */
+  function terapkan(isi, diam) {
+    var revCloud = (isi && isi.rev) || '';
+    var templatesCloud = isi && isi.templates;
 
-      /* Server masih kosong (atau belum punya rev) sedangkan perangkat ini
-         BELUM PERNAH sinkron: kirim data lokal sekarang — kalau tidak,
-         data yang sudah ada di perangkat ini tidak pernah sampai ke server
-         dan perangkat lain selamanya tidak melihatnya. */
-      if (!revCloud || !isi || !Array.isArray(isi.templates)) {
-        if (rev()) return false;
-        w.Store.state.templatesRev = cap();
-        try { w.Store.save(); } catch (e) {}
-        kirim();
-        if (!diam && w.App && w.App.toast) {
-          w.App.toast('Data harga dikirim ke server', 2600, 'ok');
-        }
-        return true;
-      }
-
-      /* Belum pernah sinkron (rev lokal kosong): GABUNG, jangan timpa —
-         perangkat lama bisa saja sudah punya data sendiri. */
-      if (!rev()) {
-        var gabungan = gabung(daftar(), isi.templates);
-        w.Store.state.templates = gabungan;
-        w.Store.state.templatesRev = cap();
-        try { w.Store.save(); } catch (e) {}
-        gambarUlang();
-        kirim();                      // kirim hasil gabungan ke cloud
-        if (!diam && w.App && w.App.toast) {
-          w.App.toast('Data harga digabung dengan yang ada di server', 2800, 'ok');
-        }
-        return true;
-      }
-
-      if (revCloud <= rev()) return false;   // lokal sama atau lebih baru
-      w.Store.state.templates = isi.templates;
-      w.Store.state.templatesRev = revCloud;
+    /* Server masih kosong / belum punya isi: kirim data lokal sekarang —
+       kalau tidak, data yang sudah ada di perangkat ini tidak pernah sampai
+       ke server dan perangkat lain selamanya tidak melihatnya. Ini juga
+       yang membuat migrasi ke server baru berjalan otomatis. */
+    if (!revCloud || !Array.isArray(templatesCloud)) {
+      if (!daftar().length && !rev()) return false;   // dua-duanya kosong
+      w.Store.state.templatesRev = cap();
       try { w.Store.save(); } catch (e) {}
-      gambarUlang();
+      kirim();
       if (!diam && w.App && w.App.toast) {
-        w.App.toast('Harga tersimpan disamakan dari perangkat lain', 2600, 'ok');
+        w.App.toast('Data harga dikirim ke server', 2600, 'ok');
       }
       return true;
+    }
+
+    /* Belum pernah sinkron (rev lokal kosong): GABUNG, jangan timpa —
+       perangkat lama bisa saja sudah punya data sendiri. */
+    if (!rev()) {
+      var gabungan = gabung(daftar(), templatesCloud);
+      w.Store.state.templates = gabungan;
+      w.Store.state.templatesRev = cap();
+      try { w.Store.save(); } catch (e) {}
+      gambarUlang();
+      kirim();                      // kirim hasil gabungan ke server
+      if (!diam && w.App && w.App.toast) {
+        w.App.toast('Data harga digabung dengan yang ada di server', 2800, 'ok');
+      }
+      return true;
+    }
+
+    if (revCloud <= rev()) return false;   // lokal sama atau lebih baru
+    w.Store.state.templates = templatesCloud;
+    w.Store.state.templatesRev = revCloud;
+    try { w.Store.save(); } catch (e) {}
+    gambarUlang();
+    if (!diam && w.App && w.App.toast) {
+      w.App.toast('Harga tersimpan disamakan dari perangkat lain', 2600, 'ok');
+    }
+    return true;
+  }
+
+  /* Tarik data server; pakai kalau lebih baru dari versi lokal. */
+  function tarik(diam) {
+    if (sedangTarik) return Promise.resolve(false);
+    sedangTarik = true;
+
+    if (serverlessAktif()) {
+      return panggil('loadPrices', {})
+        .then(function (hasil) {
+          sedangTarik = false;
+          return terapkan({ rev: hasil.rev || '', templates: hasil.templates }, diam);
+        })
+        .catch(function () { sedangTarik = false; return false; });
+    }
+
+    if (!w.Supa || typeof w.Supa.vaultGet !== 'function') return Promise.resolve(false);
+    return w.Supa.vaultGet(KEY).then(function (baris) {
+      sedangTarik = false;
+      return terapkan(baris && baris.isi, diam);
     }).catch(function () { sedangTarik = false; return false; });
   }
 
