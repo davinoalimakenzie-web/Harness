@@ -2371,3 +2371,33 @@ select.mc-inp{ appearance:none; }
    dibuat rata kanan supaya seimbang dengan kolom kanan panel ringkas. */
 #view-calc .k-rules .k-rule:nth-child(even),
 #view-service .k-rules .k-rule:nth-child(even){ align-items:flex-end; text-align:right; }
+
+/* =========================================================
+   KONFIRMASI SIMPAN + MODE EDIT SERI LAMA
+   ========================================================= */
+/* Tombol simpan: berubah hijau + centang sekejap setelah berhasil disimpan
+   supaya ada konfirmasi tepat di tombol yang baru diketuk. */
+.q-save.ok::after{
+  content:'\2713'; background:#12a150; color:#fff; border-color:#12a150;
+  box-shadow:0 0 0 7px rgba(18,161,80,.20), 0 2px 8px rgba(0,0,0,.18);
+}
+/* Toast sukses: hijau dan lebih tegas dari toast biasa */
+.toast.ok{ background:#12a150; color:#fff; border-color:rgba(255,255,255,.4); font-weight:700; }
+/* Baris daftar yang barusan tersimpan berkilat hijau */
+.item.just-saved{ animation:flashOk 1.8s ease; }
+@keyframes flashOk{
+  0%{ background:rgba(18,161,80,.30); border-color:#12a150; }
+  70%{ background:rgba(18,161,80,.14); border-color:#12a150; }
+  100%{ background:var(--bg-elev); border-color:var(--line); }
+}
+/* Penanda mode edit (setelah tombol ↺ dipakai) */
+.k-edit-note{
+  display:flex; align-items:center; gap:8px; justify-content:space-between;
+  margin:0 0 8px; padding:7px 9px 7px 11px;
+  background:color-mix(in srgb, var(--accent) 12%, var(--bg-elev));
+  border:1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
+  border-radius:10px; font-size:12px; font-weight:600; color:var(--accent);
+  overflow-wrap:anywhere;
+}
+.k-edit-note b{ font-weight:800; }
+.k-edit-note .icon-btn.sm{ width:26px; height:26px; font-size:14px; color:var(--accent); flex:0 0 auto; }

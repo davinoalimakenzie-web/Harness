@@ -29,6 +29,9 @@
   var brandId = 'samsung';
   var seriesId = '';
   var filterBrand = 'samsung'; // brand filter untuk daftar harga tersimpan
+  var editingKey = null;       // entri lama yang sedang diedit (lewat tombol ↺)
+  var justSavedKey = null;     // entri yang barusan tersimpan (kilatan hijau)
+  var _justSavedT = null;
 
   /* Aturan harga. `pct` adalah persen yang ditambahkan ke (part x 2). */
   var RULES = [
@@ -313,9 +316,35 @@
     return brand + ' ' + seri + ' · ' + rule.name + ' · ' + money(p.est);
   }
 
+  /* ---------------- Konfirmasi & mode edit ----------------
+     renderEditNote: penanda "sedang mengedit" yang muncul setelah tombol ↺
+     dipakai, supaya jelas entri lama akan DIGANTI (bukan ditambah) saat
+     disimpan — inilah cara memperbarui nama seri lama / menambah persamaan
+     namanya kalau ada temuan baru.
+     flashSaved: tombol simpan berubah hijau + centang sekejap. */
+  function renderEditNote() {
+    if (!el.kEditNote) return;
+    var on = !!editingKey;
+    if (on) {
+      var t = (S.state.templates || []).filter(function (x) {
+        return S.templateKey(x.payload || {}) === editingKey;
+      })[0];
+      if (el.kEditName) el.kEditName.textContent = t ? labelTpl(t.payload || {}) : editingKey;
+    }
+    el.kEditNote.classList.toggle('hidden', !on);
+    el.kEditNote.style.display = on ? '' : 'none';
+    el.kEditNote.setAttribute('aria-hidden', on ? 'false' : 'true');
+  }
+
+  function flashSaved() {
+    if (!el.kSaveTpl) return;
+    el.kSaveTpl.classList.add('ok');
+    clearTimeout(flashSaved._t);
+    flashSaved._t = setTimeout(function () { el.kSaveTpl.classList.remove('ok'); }, 1700);
+  }
+
   function renderTpl() {
     var t = S.state.templates || [];
-
     // Brand filter — grid 2 kolom: Samsung-Xiaomi / Oppo-Vivo / Realme-Infinix
     var brandPairs = [
       ['samsung', 'xiaomi'],
@@ -345,7 +374,8 @@
           var delBtn = locked
             ? '<button class="icon-btn sm" disabled title="Seri terkunci">🔒</button>'
             : '<button class="icon-btn sm" data-tpldel="' + esc(x.id) + '">🗑</button>';
-          return '<div class="item" data-tpl="' + esc(x.id) + '">' +
+          var isFresh = justSavedKey && S.templateKey && S.templateKey(p) === justSavedKey;
+          return '<div class="item' + (isFresh ? ' just-saved' : '') + '" data-tpl="' + esc(x.id) + '">' +
             '<div class="item-body"><div class="item-title">' + esc(labelTpl(p)) + '</div>' +
             '<div class="item-sub"><span class="tag">part ' + money(p.part) + '</span>' +
             '<span>estimasi ' + money(p.est) + '</span></div></div>' +
@@ -367,21 +397,39 @@
     var brandName = brandById(brandId).name;
     if (brandId === CUSTOM_BRAND && !brandName) { w.App.toast('Isi brand manual dulu'); return; }
 
-    var hasil = S.upsertTemplate({
+    var payload = {
       brandId: brandId, brandName: brandName,
       series: seri, ruleId: rule.id, part: part,
       est: hitung(part, rule).est
-    });
+    };
+    var newKey = S.templateKey ? S.templateKey(payload) : '';
+    var hasil = S.upsertTemplate(payload);
     if (!hasil.ok) {
       w.App.toast('Gagal menyimpan: ' + hasil.reason);
       return;
     }
+    /* Sedang mengedit entri lama lalu identitasnya berubah (mis. nama seri
+       diperbarui / ditambah persamaan nama): entri lamanya dihapus supaya
+       tidak jadi dua entri kembar. */
+    if (editingKey && newKey && editingKey !== newKey) {
+      S.state.templates = (S.state.templates || []).filter(function (x) {
+        return S.templateKey(x.payload || {}) !== editingKey;
+      });
+      S.save();
+      hasil.replaced = true;
+    }
+    editingKey = null;
+    renderEditNote();
+    justSavedKey = newKey;
+    clearTimeout(_justSavedT);
+    _justSavedT = setTimeout(function () { justSavedKey = null; }, 2600);
     renderTpl();
     renderSeries();
     TG.haptic('success');
+    flashSaved();
     w.App.toast(hasil.replaced
-      ? 'Harga lama untuk kombinasi ini diganti'
-      : 'Harga tersimpan (' + hasil.total + ' tersimpan)');
+      ? '\u2713 Tersimpan — entri lama diperbarui'
+      : '\u2713 Tersimpan (' + hasil.total + ' entri)', 2800, 'ok');
   }
 
   function applyTpl(p) {
@@ -420,6 +468,8 @@
     el.kFormulaOut = $('#kFormulaOut');
     el.tpl = $('#tplList');
     el.kSaveTpl = $('#kSaveTpl');
+    el.kEditNote = $('#kEditNote');
+    el.kEditName = $('#kEditName');
 
     seedIfNeeded();
     renderBrands();
@@ -427,6 +477,15 @@
     renderRules();
     renderOut();
     renderTpl();
+    renderEditNote();
+
+    if ($('#kEditCancel')) {
+      $('#kEditCancel').addEventListener('click', function () {
+        editingKey = null;
+        renderEditNote();
+        w.App.toast('Mode edit dibatalkan — simpan akan jadi entri baru');
+      });
+    }
 
     el.kPart.addEventListener('input', renderOut);
     el.kName.addEventListener('input', function () { if (seriesId === CUSTOM_SERIES) renderOut(); });
@@ -435,6 +494,11 @@
       brandId = el.kBrand.value;
       seriesId = '';
       el.kName.value = '';
+      /* Ganti brand = bukan lagi mengedit entri lama (entri akan dibuat
+         untuk brand baru), jadi mode edit dimatikan supaya entri lama
+         tidak terhapus tanpa disadari. */
+      editingKey = null;
+      renderEditNote();
       if (brandId === CUSTOM_BRAND) {
         el.kBrandNameInput.value = '';
         el.kSeriesNameInput.value = '';
@@ -512,12 +576,21 @@
         var x = (S.state.templates || []).filter(function (t) { return t.id === use.dataset.tpluse; })[0];
         if (x) {
           applyTpl(x.payload || {});
+          /* Masuk MODE EDIT: entri ini akan diganti (bukan ditambah) saat
+             disimpan, jadi nama seri lama bisa diperbarui / ditambah
+             persamaan namanya tanpa membuat entri kembar. */
+          editingKey = S.templateKey ? S.templateKey(x.payload || {}) : null;
+          renderEditNote();
           w.scrollTo({ top: 0, behavior: 'smooth' });
           TG.haptic('success');
-          w.App.toast('Harga dipakai');
+          w.App.toast('Siap diedit — ubah nama seri atau harganya, lalu Simpan', 2800);
         }
       } else if (del) {
+        var delKey = '';
+        var d = (S.state.templates || []).filter(function (t) { return t.id === del.dataset.tpldel; })[0];
+        if (d && S.templateKey) delKey = S.templateKey(d.payload || {});
         S.state.templates = (S.state.templates || []).filter(function (t) { return t.id !== del.dataset.tpldel; });
+        if (delKey && delKey === editingKey) { editingKey = null; renderEditNote(); }
         S.save(); renderTpl(); TG.haptic('success');
       }
     });

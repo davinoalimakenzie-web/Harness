@@ -27,12 +27,18 @@
     exportJSON: exportJSON,
     bagikanKeTelegram: bagikanKeTelegram,
 
-    toast: function (msg, ms) {
+    toast: function (msg, ms, kind) {
       var t = $('#toast');
+      /* Pengaman: halaman standalone (mis. service.html) bisa saja belum
+         punya elemen #toast. Dulu ini melempar error sehingga konfirmasi
+         simpan tidak pernah muncul dan pengguna tidak tahu hasilnya. */
+      if (!t) { try { console.log('[toast]', msg); } catch (e) {} return; }
       t.textContent = msg;
       t.classList.remove('hidden');
+      /* kind 'ok' = toast sukses (hijau) supaya konfirmasi simpan jelas. */
+      t.classList.toggle('ok', kind === 'ok');
       clearTimeout(App._tt);
-      App._tt = setTimeout(function () { t.classList.add('hidden'); }, ms || 2200);
+      App._tt = setTimeout(function () { t.classList.add('hidden'); t.classList.remove('ok'); }, ms || 2200);
     },
 
     // Bunyi peringatan sederhana (Web Audio, tanpa file)
