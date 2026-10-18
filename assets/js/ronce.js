@@ -729,8 +729,6 @@
 
     var pb = $('#roncePinBack');
     if (pb) pb.addEventListener('click', function () { showLogin(); });
-    var lo = $('#ronceLogout');
-    if (lo) lo.addEventListener('click', logout);
 
     // Tabs
     document.addEventListener('click', function (e) {
@@ -810,13 +808,6 @@
       if (sg) { toggleSet(sg.dataset.rsSet); return; }
       var dg = e.target.closest('[data-rs-del]');
       if (dg) { hapusGarapan(dg.dataset.rsDel); return; }
-      var bersih = e.target.closest('#rsBersihkan');
-      if (bersih) {
-        if (w.confirm('Bersihkan semua data riwayat dan reset saldo?')) {
-          bersihkanSemua();
-          w.App.toast('Data dibersihkan');
-        }
-      }
     });
   }
 

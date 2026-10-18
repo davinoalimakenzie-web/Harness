@@ -150,6 +150,10 @@ input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0
   font-size:13px; font-weight:600; color:var(--text-2); cursor:pointer; white-space:nowrap;
 }
 .seg-btn.active{ background:var(--bg-elev); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.12); }
+/* Tab bar Ronce punya 5 tab dengan label panjang ("Servis HP", "Setting").
+   Di layar 360px totalnya meluber ~17px dan memicu scroll horizontal —
+   kecilkan font & padding khusus tab bar ini supaya muat pas selebar layar. */
+#ronceTabs .seg-btn{ font-size:11.5px; padding:9px 4px; }
 
 /* ---------------- Catatan ---------------- */
 .compose textarea{ min-height:52px; }
@@ -2191,6 +2195,11 @@ select.mc-inp{ appearance:none; }
    tengah keempatnya. Jarak antar kartu dirapatkan supaya compact.
    ========================================================= */
 #view-calc, #view-service, #ronceTab-servis{ padding:10px 10px 6px; }
+/* Kalkulator Servis HP di dalam Ronce: FULL-BLEED — batalkan padding kiri-kanan
+   #view-ronce (14px) supaya panel kalkulator benar-benar selebar layar
+   (mepet kiri-kanan), sesuai permintaan Alima. Sisa padding kecil 6px supaya
+   kartu tidak benar-benar menempel ke tepi. */
+#ronceTab-servis{ margin-left:-14px; margin-right:-14px; padding:8px 6px 6px; }
 #view-calc .card, #view-service .card, #ronceTab-servis .card{ margin-bottom:8px; padding:11px; }
 #view-calc .list-head.tight, #view-service .list-head.tight, #ronceTab-servis .list-head.tight{ margin:0 0 7px; }
 #view-calc .k-rules, #view-service .k-rules, #ronceTab-servis .k-rules{ gap:6px; }
