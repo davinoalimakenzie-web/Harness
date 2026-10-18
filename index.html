@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261017x">
+<link rel="stylesheet" href="assets/css/style.css?v=20261018a">
 </head>
 <body>
 
@@ -234,14 +234,9 @@
         <span class="tool-body"><b>Catatan &amp; Pengingat</b><span id="hNotesCount">0 catatan</span></span>
         <span class="tool-go">›</span>
       </button>
-      <button class="tool" data-goto="calc">
-        <span class="tool-ico out">K</span>
-        <span class="tool-body"><b>Kalkulator Servis HP</b><span>Hitung harga estimasi LCD &amp; baterai</span></span>
-        <span class="tool-go">›</span>
-      </button>
       <button class="tool" data-goto="ronce">
         <span class="tool-ico svc">R</span>
-        <span class="tool-body"><b>Kalkulator Ronce</b><span>Rekap komisi &amp; kasbon mitra</span></span>
+        <span class="tool-body"><b>Kalkulator Servis &amp; Ronce</b><span>Harga HP, komisi &amp; kasbon mitra</span></span>
         <span class="tool-go">›</span>
       </button>
       <button class="tool" data-mascim-open="1">
@@ -424,92 +419,6 @@
     <div id="noteList" class="list"></div>
   </section>
 
-  <!-- ============ TOOL: KALKULATOR HARGA SERVIS HP ============ -->
-  <section id="view-calc" class="view">
-    <!-- ===== Perhitungan estimasi biaya — posisi paling atas ===== -->
-    <div class="card">
-      <div class="list-head tight">
-        <strong>Perhitungan estimasi biaya</strong>
-      </div>
-      <div id="kRules" class="k-rules"></div>
-    </div>
-
-    <!-- ===== Panel ringkas: 4 tombol isian + tombol simpan bulat di tengah ===== -->
-    <div class="card k-panel-card">
-      <!-- Penanda mode edit: muncul setelah tombol &#8634; di daftar harga dipakai -->
-      <div class="k-edit-note hidden" id="kEditNote" aria-hidden="true">
-        <span>Sedang mengedit: <b id="kEditName">&mdash;</b></span>
-        <button type="button" class="icon-btn sm" id="kEditCancel" title="Batal edit" aria-label="Batal edit">&#10005;</button>
-      </div>
-
-      <div class="k-quad">
-        <div class="q-tile q-part">
-          <span class="q-lbl">Harga part</span>
-          <input type="text" id="kPart" inputmode="numeric" placeholder="150000">
-        </div>
-
-        <div class="q-tile q-est">
-          <span class="q-lbl">Harga estimasi</span>
-          <div class="q-val" id="kEst">Rp0</div>
-        </div>
-
-        <div class="q-tile q-brand">
-          <span class="q-lbl">Brand HP</span>
-          <!-- Tombol pemilih sendiri (bukan dropdown bawaan browser) supaya
-               warnanya diatur aplikasi: bug "dropdown putih" tidak bisa muncul. -->
-          <button type="button" class="q-pick" id="kBrandPick" aria-haspopup="listbox" aria-expanded="false">
-            <span id="kBrandVal">Samsung</span>
-            <span class="q-pick-caret" aria-hidden="true">&#9662;</span>
-          </button>
-          <select id="kBrand" class="q-sr" aria-label="Brand HP" tabindex="-1"></select>
-        </div>
-
-        <div class="q-tile q-series">
-          <span class="q-lbl">Seri HP</span>
-          <button type="button" class="q-pick q-pick-right" id="kSeriesPick" aria-haspopup="listbox" aria-expanded="false">
-            <span id="kSeriesVal">&mdash;</span>
-            <span class="q-pick-caret" aria-hidden="true">&#9662;</span>
-          </button>
-          <select id="kSeries" class="q-sr" aria-label="Seri HP" tabindex="-1"></select>
-          <!-- Muncul saat mode edit: nama seri langsung diketik di kotak ini -->
-          <input type="text" id="kSeriesEdit" class="hidden" aria-hidden="true"
-                 placeholder="Nama seri HP" aria-label="Edit nama seri HP">
-        </div>
-
-        <button id="kSaveTpl" class="q-save" type="button" title="Simpan harga" aria-label="Simpan harga"></button>
-      </div>
-
-      <p class="hint xs" id="kFormulaOut">Isi harga part, lalu pilih perhitungan estimasi biaya.</p>
-
-      <!-- Input manual: muncul saat pilih "Lainnya…" -->
-      <div class="k-in-row hidden" id="kBrandName" aria-hidden="true" tabindex="-1">
-        <label class="field k-in-half">
-          <span class="lbl">Brand manual</span>
-          <input type="text" id="kBrandNameInput" placeholder="Contoh: Advan, Evercoss, dll">
-        </label>
-        <label class="field k-in-half">
-          <span class="lbl">Seri manual</span>
-          <input type="text" id="kSeriesNameInput" placeholder="Contoh: S50, A57, dll">
-        </label>
-      </div>
-      <input type="text" id="kName" class="hidden" aria-hidden="true" tabindex="-1" placeholder="Ketik seri HP di sini…">
-      <!-- Hasil pencarian lokal dari harga tersimpan (muncul saat mengetik seri) -->
-      <div class="k-suggest hidden" id="kSeriesSuggest" aria-hidden="true" role="listbox"></div>
-      <!-- Daftar pilihan brand/seri (dropdown buatan sendiri) -->
-      <div class="k-suggest hidden" id="kPickList" aria-hidden="true" role="listbox"></div>
-    </div>
-
-    <!-- ===== Harga tersimpan ===== -->
-    <div class="card">
-      <div class="list-head tight">
-        <strong>Harga tersimpan <span class="tpl-total" id="kTotalTpl">0</span></strong>
-      </div>
-      <p class="hint xs">Disimpan dari kombinasi brand, seri, dan estimasi biaya.</p>
-      <div id="tplList" class="list"></div>
-    </div>
-
-  </section>
-
   <!-- ============ TAB: KALKULATOR RONCE ============ -->
   <section id="view-ronce" class="view">
 
@@ -556,7 +465,7 @@
         <button class="seg-btn active" data-rtab="input">Input</button>
         <button class="seg-btn" data-rtab="tugas">Tugas</button>
         <button class="seg-btn" data-rtab="rekap">Rekap</button>
-        <button class="seg-btn" data-rtab="log">Log</button>
+        <button class="seg-btn" data-rtab="servis">Servis HP</button>
         <button class="seg-btn" data-rtab="setting">Setting</button>
       </div>
 
@@ -654,19 +563,96 @@
         <div id="ronceRekapList" class="list"></div>
       </div>
 
-      <!-- Tab: Log Aktivitas -->
-      <div id="ronceTab-log" class="ronce-tab" hidden>
-        <div class="list-head tight"><strong>Log Semua Aktivitas</strong></div>
-        <div id="ronceLogList" class="list"></div>
+      <!-- Tab: Kalkulator Servis HP (menggantikan tab Log) -->
+      <div id="ronceTab-servis" class="ronce-tab" hidden>
+
+        <!-- ===== Perhitungan estimasi biaya — posisi paling atas ===== -->
+        <div class="card">
+          <div class="list-head tight">
+            <strong>Perhitungan estimasi biaya</strong>
+          </div>
+          <div id="kRules" class="k-rules"></div>
+        </div>
+
+        <!-- ===== Panel ringkas: 4 tombol isian + tombol simpan bulat di tengah ===== -->
+        <div class="card k-panel-card">
+          <!-- Penanda mode edit: muncul setelah tombol &#8634; di daftar harga dipakai -->
+          <div class="k-edit-note hidden" id="kEditNote" aria-hidden="true">
+            <span>Sedang mengedit: <b id="kEditName">&mdash;</b></span>
+            <button type="button" class="icon-btn sm" id="kEditCancel" title="Batal edit" aria-label="Batal edit">&#10005;</button>
+          </div>
+
+          <div class="k-quad">
+            <div class="q-tile q-part">
+              <span class="q-lbl">Harga part</span>
+              <input type="text" id="kPart" inputmode="numeric" placeholder="150000">
+            </div>
+
+            <div class="q-tile q-est">
+              <span class="q-lbl">Harga estimasi</span>
+              <div class="q-val" id="kEst">Rp0</div>
+            </div>
+
+            <div class="q-tile q-brand">
+              <span class="q-lbl">Brand HP</span>
+              <!-- Tombol pemilih sendiri (bukan dropdown bawaan browser) supaya
+                   warnanya diatur aplikasi: bug "dropdown putih" tidak bisa muncul. -->
+              <button type="button" class="q-pick" id="kBrandPick" aria-haspopup="listbox" aria-expanded="false">
+                <span id="kBrandVal">Samsung</span>
+                <span class="q-pick-caret" aria-hidden="true">&#9662;</span>
+              </button>
+              <select id="kBrand" class="q-sr" aria-label="Brand HP" tabindex="-1"></select>
+            </div>
+
+            <div class="q-tile q-series">
+              <span class="q-lbl">Seri HP</span>
+              <button type="button" class="q-pick q-pick-right" id="kSeriesPick" aria-haspopup="listbox" aria-expanded="false">
+                <span id="kSeriesVal">&mdash;</span>
+                <span class="q-pick-caret" aria-hidden="true">&#9662;</span>
+              </button>
+              <select id="kSeries" class="q-sr" aria-label="Seri HP" tabindex="-1"></select>
+              <!-- Muncul saat mode edit: nama seri langsung diketik di kotak ini -->
+              <input type="text" id="kSeriesEdit" class="hidden" aria-hidden="true"
+                     placeholder="Nama seri HP" aria-label="Edit nama seri HP">
+            </div>
+
+            <button id="kSaveTpl" class="q-save" type="button" title="Simpan harga" aria-label="Simpan harga"></button>
+          </div>
+
+          <p class="hint xs" id="kFormulaOut">Isi harga part, lalu pilih perhitungan estimasi biaya.</p>
+
+          <!-- Input manual: muncul saat pilih "Lainnya…" -->
+          <div class="k-in-row hidden" id="kBrandName" aria-hidden="true" tabindex="-1">
+            <label class="field k-in-half">
+              <span class="lbl">Brand manual</span>
+              <input type="text" id="kBrandNameInput" placeholder="Contoh: Advan, Evercoss, dll">
+            </label>
+            <label class="field k-in-half">
+              <span class="lbl">Seri manual</span>
+              <input type="text" id="kSeriesNameInput" placeholder="Contoh: S50, A57, dll">
+            </label>
+          </div>
+          <input type="text" id="kName" class="hidden" aria-hidden="true" tabindex="-1" placeholder="Ketik seri HP di sini…">
+          <!-- Hasil pencarian lokal dari harga tersimpan (muncul saat mengetik seri) -->
+          <div class="k-suggest hidden" id="kSeriesSuggest" aria-hidden="true" role="listbox"></div>
+          <!-- Daftar pilihan brand/seri (dropdown buatan sendiri) -->
+          <div class="k-suggest hidden" id="kPickList" aria-hidden="true" role="listbox"></div>
+        </div>
+
+        <!-- ===== Harga tersimpan ===== -->
+        <div class="card">
+          <div class="list-head tight">
+            <strong>Harga tersimpan <span class="tpl-total" id="kTotalTpl">0</span></strong>
+          </div>
+          <p class="hint xs">Disimpan dari kombinasi brand, seri, dan estimasi biaya.</p>
+          <div id="tplList" class="list"></div>
+        </div>
+
+
       </div>
 
       <!-- Tab: Settings -->
       <div id="ronceTab-setting" class="ronce-tab" hidden>
-        <div class="card">
-          <div class="list-head tight"><strong>Tema Aplikasi</strong></div>
-          <button class="btn block" id="rsTema">Mode Terang</button>
-        </div>
-
         <div class="card">
           <div class="list-head tight"><strong>Komisi Garapan</strong></div>
           <div id="rsServiceList" class="list"></div>
@@ -678,8 +664,14 @@
         </div>
 
         <div class="card">
-          <div class="list-head tight"><strong>Akses Mitra</strong></div>
-          <div id="rsUserList" class="list"></div>
+          <div class="list-head tight"><strong>Tambah Mitra</strong></div>
+          <div class="field-row">
+            <input type="text" id="rsNamaMitra" class="grow" placeholder="Nama mitra">
+            <input type="text" id="rsPinMitra" class="grow" placeholder="PIN (4 digit)" inputmode="numeric" maxlength="4">
+            <button class="btn" id="rsTambahMitra">Tambah</button>
+          </div>
+          <div id="rsUserList" class="list" style="margin-top:10px"></div>
+          <p class="hint" style="margin-top:8px">Setiap mitra punya <b>link akses sendiri</b> (lihat di daftar). Buka link itu, lalu masuk dengan <b>PIN</b> — aksesnya terbatas pada datanya sendiri.</p>
         </div>
 
         <div class="card" style="border-color:var(--danger)">
@@ -777,7 +769,7 @@
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
 <script src="assets/js/transactions.js?v=20261014l"></script>
-<script src="assets/js/ronce.js?v=20261015a"></script>
+<script src="assets/js/ronce.js?v=20261018a"></script>
 <script src="assets/js/calc.js?v=20261017x"></script>
 <script src="assets/js/calc-sync.js?v=20261017u"></script>
 <script src="assets/js/supabase.js?v=20261017s"></script>
@@ -792,6 +784,6 @@
 <script src="assets/js/nava-trader-quote.js?v=20261015d"></script>
 <script src="assets/js/nava-trader.js?v=20261015a"></script>
 <script src="assets/js/backup.js?v=20261014l"></script>
-<script src="assets/js/app.js?v=20261017x"></script>
+<script src="assets/js/app.js?v=20261018a"></script>
 </body>
 </html>

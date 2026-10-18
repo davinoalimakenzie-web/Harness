@@ -15,7 +15,6 @@
     recap:   ['Rekap', 'Ringkasan & komposisi kategori'],
     more:    ['Lainnya', 'Alat, kategori, akun & data'],
     notes:   ['Catatan', 'Pengingat voice'],
-    calc:    ['Kalkulator Servis HP', 'Harga estimasi LCD & baterai dari harga part'],
     ronce:   ['Kalkulator Ronce', 'Rekap komisi & kasbon mitra'],
     mascim:  ['Mas Cim Service HP', 'Servis, kas & Dana Bank']
   };

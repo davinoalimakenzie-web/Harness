@@ -1,7 +1,9 @@
 /* ===================================================================
    ronce.js - Kalkulator Ronce, native view di Project Nava.
 
-   Lima tab: Input, Tugas, Rekap, Log, Setting.
+   Lima tab: Input, Tugas, Rekap, Servis HP, Setting.
+  Tab Log diganti Kalkulator Servis HP. Setiap Mitra punya link
+  akses sendiri (?m=ID) + PIN; akses mitra terbatas pada datanya sendiri.
    Data tersimpan di localStorage. Auto-seed Davino Alima PIN 1234.
    =================================================================== */
 (function (w) {
@@ -41,7 +43,6 @@
   var tabAktif = 'input';
   var filter = 'month';
   var selectedMonth = -1;
-  var gelap = true;
   var pinTempu = '';
   var pesanPin = '';
   var pilihPin = null;
@@ -136,6 +137,57 @@
   function cariMitra(id) {
     for (var i = 0; i < data.users.length; i++) if (data.users[i].id === id) return data.users[i];
     return null;
+  }
+
+  /* ---------------- Akses Mitra ----------------
+     Mitra (role 'mitra') hanya melihat datanya sendiri dan tidak boleh
+     masuk tab Setting. Owner (Davino) melihat semuanya. */
+  var mitraDariLink = null;
+
+  function adalahOwner() { return !!(sesi && sesi.role === 'owner'); }
+
+  /* Baca ID mitra dari link akses (?m=ID) atau start_param Telegram.
+     Dipakai untuk login otomatis: buka link -> langsung PIN pad mitra itu. */
+  function idMitraDariSumber() {
+    try {
+      var sp = (w.TG && TG.wa && TG.wa.initDataUnsafe) ? TG.wa.initDataUnsafe.start_param : null;
+      if (sp) { var v = String(sp).replace(/^mitra_/, ''); if (v) return v; }
+    } catch (e) {}
+    try {
+      var m = new URLSearchParams(w.location.search).get('m');
+      if (m) return m;
+    } catch (e) {}
+    return null;
+  }
+
+  function linkMitra(u) {
+    try { return w.location.origin + w.location.pathname + '?m=' + encodeURIComponent(u.id); }
+    catch (e) { return '?m=' + u.id; }
+  }
+
+  function salinLink(id) {
+    var u = cariMitra(id);
+    if (!u) return;
+    var link = linkMitra(u);
+    var ok = function () { w.App.toast('Link tersalin — kirim ke ' + u.name); };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(ok, function () { salinLinkFallback(link); });
+        return;
+      }
+    } catch (e) {}
+    salinLinkFallback(link);
+  }
+
+  function salinLinkFallback(link) {
+    try {
+      var ta = w.document.createElement('textarea');
+      ta.value = link; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      w.document.body.appendChild(ta); ta.select();
+      try { w.document.execCommand('copy'); w.App.toast('Link tersalin'); }
+      catch (e) { w.App.toast('Link: ' + link, 5000); }
+      w.document.body.removeChild(ta);
+    } catch (e) { w.App.toast('Link: ' + link, 5000); }
   }
 
   /* ---------------- Saldo mitra ---------------- */
@@ -254,6 +306,13 @@
   function renderLogin() {
     var list = $('#ronceUserList');
     if (!list) return;
+    /* Link akses per-mitra: buka link -> langsung PIN pad mitra itu,
+       tanpa harus memilih dari daftar. */
+    if (mitraDariLink) {
+      var u = cariMitra(mitraDariLink);
+      if (u) { pilihPin = u; layar = 'pin'; renderPin(); return; }
+      mitraDariLink = null; // tidak dkenal -> tampilkan daftar penuh
+    }
     var h = '';
     for (var i = 0; i < data.users.length; i++) {
       var u = data.users[i];
@@ -324,6 +383,10 @@
   function showLogin() {
     layar = 'pilih';
     sesi = null;
+    /* Setelah logout, reset pilihan dari link supaya daftar akun tampil
+       penuh lagi — kalau tidak, owner tidak bisa masuk dan malah "terkunci"
+       di PIN pad mitra yang barusan keluar. */
+    mitraDariLink = null;
     try { w.localStorage.removeItem(KUNCI_SESI); } catch (e) {}
     $('#ronceApp').hidden = true;
     $('#ronceLogin').style.display = '';
@@ -343,16 +406,29 @@
     document.querySelectorAll('#ronceTabs .seg-btn').forEach(function (b) {
       b.classList.toggle('active', b.dataset.rtab === tabAktif);
     });
-    var tabs = ['input','tugas','rekap','log','setting'];
+    var tabs = ['input','tugas','rekap','servis','setting'];
     tabs.forEach(function (t) {
       var el = $('#ronceTab-' + t);
       if (el) el.hidden = (t !== tabAktif);
     });
+    /* Setting khusus owner: sembunyikan tombolnya untuk mitra. */
+    document.querySelectorAll('#ronceTabs .seg-btn').forEach(function (b) {
+      if (b.dataset.rtab === 'setting') b.style.display = adalahOwner() ? '' : 'none';
+    });
+    if (!adalahOwner() && tabAktif === 'setting') tabAktif = 'input';
     if (tabAktif === 'input') renderInput();
     else if (tabAktif === 'tugas') renderTugas();
     else if (tabAktif === 'rekap') renderRekap();
-    else if (tabAktif === 'log') renderLog();
+    else if (tabAktif === 'servis') renderServis();
     else renderSetting();
+  }
+
+  /* ---------------- Tab: Servis HP ----------------
+     Kalkulator Servis HP kini hidup di dalam Kalkulator Ronce (menggantikan
+     tab Log). Cukup gambar ulang daftar harganya; seluruh logika kalkulator
+     ada di calc.js. */
+  function renderServis() {
+    if (w.CalcUI && w.CalcUI.renderList) w.CalcUI.renderList();
   }
 
   /* ---------------- Tab: Input ---------------- */
@@ -362,16 +438,19 @@
     if (m) m.innerHTML = optsMitra();
     if (g) g.innerHTML = optsGarapan();
     if (t) t.value = hariIni();
+    /* Mitra: kolom Mitra disembunyikan, daftar hanya pekerjaannya sendiri. */
+    if (m && m.closest) { var mf = m.closest('.field'); if (mf) mf.style.display = adalahOwner() ? '' : 'none'; }
 
-    var pending = data.jobs.filter(function (j) { return (j.status || 'pending') === 'pending'; });
+    var jobs = adalahOwner() ? data.jobs : data.jobs.filter(function (j) { return j.employeeId === sesi.id; });
+    var pending = jobs.filter(function (j) { return (j.status || 'pending') === 'pending'; });
     var totalPending = pending.reduce(function (s, j) { return s + num(j.deliveryFee); }, 0);
     var cnt = $('#rjPendingCount'); if (cnt) cnt.textContent = pending.length + ' pekerjaan';
     var tot = $('#rjPendingTotal'); if (tot) tot.textContent = formatIDR(totalPending);
 
     var h = $('#rjHistory');
     if (!h) return;
-    if (!data.jobs.length) { h.innerHTML = '<div class="empty">Belum ada pekerjaan</div>'; return; }
-    h.innerHTML = data.jobs.map(function (j) {
+    if (!jobs.length) { h.innerHTML = '<div class="empty">Belum ada pekerjaan</div>'; return; }
+    h.innerHTML = jobs.map(function (j) {
       var s = cariGarapan(j.serviceId);
       var set = s && s.isSetEnabled;
       return '<div class="item">'
@@ -389,6 +468,16 @@
     if (m) m.innerHTML = optsMitra();
     if (t) t.value = hariIni();
 
+    /* Formulir penugasan khusus owner; mitra hanya melihat tugasnya sendiri. */
+    var own = adalahOwner();
+    var items = $('#rtItems');
+    if (items) items.style.display = own ? '' : 'none';
+    if (m && m.closest) { var mf = m.closest('.field'); if (mf) mf.style.display = own ? '' : 'none'; }
+    if (t && t.closest) { var tf = t.closest('.field'); if (tf) tf.style.display = own ? '' : 'none'; }
+    ['#rtTambah', '#rtKirim'].forEach(function (sel) {
+      var b = $(sel); if (b) b.style.display = own ? '' : 'none';
+    });
+
     var items = $('#rtItems');
     if (!items) return;
     items.innerHTML = taskItems.map(function (it, i) {
@@ -400,6 +489,7 @@
     }).join('');
 
     var pending = data.tasks.filter(function (t) { return t.status === 'pending'; });
+    if (!own) pending = pending.filter(function (t) { return t.employeeId === sesi.id; });
     var p = $('#rtPending');
     if (!p) return;
     if (!pending.length) { p.innerHTML = '<div class="empty">Tidak ada tugas belum selesai</div>'; return; }
@@ -432,34 +522,22 @@
     var list = $('#ronceRekapList');
     if (!list) return;
     var rekap = rekapMitra().filter(function (m) { return m.saldo > 0; });
+    if (!adalahOwner()) rekap = rekap.filter(function (m) { return m.id === sesi.id; });
     if (!rekap.length) { list.innerHTML = '<div class="empty">Semua komisi mitra telah dilunasi!</div>'; return; }
     list.innerHTML = rekap.map(function (m) {
       return '<div class="item">'
         + '<div class="item-body"><div class="item-title">' + esc(m.nama) + '</div>'
         + '<div class="item-sub"><span>' + m.kerjaan + ' kerjaan</span><span>Sisa ' + formatIDR(m.saldo) + '</span></div></div>'
-        + '<div style="display:flex;gap:6px"><button class="mini-btn" data-rn-bayar="' + esc(m.id) + '" data-rn-mode="full">Lunasi</button>'
-        + '<button class="mini-btn" data-rn-bayar="' + esc(m.id) + '" data-rn-mode="cicil">Cicil</button></div></div>';
-    }).join('');
-  }
-
-  /* ---------------- Tab: Log ---------------- */
-
-  function renderLog() {
-    var list = $('#ronceLogList');
-    if (!list) return;
-    if (!data.log.length) { list.innerHTML = '<div class="empty">Belum ada aktivitas</div>'; return; }
-    list.innerHTML = data.log.map(function (l) {
-      return '<div class="item"><div class="item-body"><div class="item-sub"><span>' + jam(l.waktu) + '</span></div>'
-        + '<div class="item-title" style="font-size:13.5px">' + esc(l.teks) + '</div></div></div>';
+        + (adalahOwner()
+            ? '<div style="display:flex;gap:6px"><button class="mini-btn" data-rn-bayar="' + esc(m.id) + '" data-rn-mode="full">Lunasi</button>'
+            + '<button class="mini-btn" data-rn-bayar="' + esc(m.id) + '" data-rn-mode="cicil">Cicil</button></div>'
+            : '<span class="item-sub">Menunggu pelunasan owner</span>') + '</div>';
     }).join('');
   }
 
   /* ---------------- Tab: Setting ---------------- */
 
   function renderSetting() {
-    var tema = $('#rsTema');
-    if (tema) tema.textContent = gelap ? 'Mode Terang' : 'Mode Gelap';
-
     var sl = $('#rsServiceList');
     if (sl) {
       sl.innerHTML = data.services.map(function (g) {
@@ -475,7 +553,14 @@
     if (ul) {
       ul.innerHTML = data.users.map(function (u) {
         return '<div class="item"><div class="item-body"><div class="item-title">' + esc(u.name) + '</div>'
-          + '<div class="item-sub"><span>' + esc(u.role) + '</span></div></div></div>';
+          + '<div class="item-sub"><span>' + esc(u.role) + '</span><span>PIN ' + esc(u.pin || '-') + '</span></div></div>'
+          + '<div style="display:flex;gap:6px"><button class="mini-btn" data-rlink="' + esc(u.id) + '">Link</button>'
+          + (u.role === 'owner'
+              ? ''
+              : '<button class="mini-btn danger" data-rdeluser="' + esc(u.id) + '">Hapus</button>')
+          + '</div>'
+          + '<div class="item-sub" style="margin-top:5px"><code style="font-size:11px;word-break:break-all;color:var(--muted)">' + esc(linkMitra(u)) + '</code></div>'
+          + '</div>';
       }).join('');
     }
   }
@@ -483,7 +568,8 @@
   /* ---------------- Actions ---------------- */
 
   function tambahJob() {
-    var employeeId = ($('#rjMitra') || {}).value || '';
+    /* Mitra tidak bisa memilih mitra lain: pekerjaannya selalu miliknya. */
+    var employeeId = adalahOwner() ? (($('#rjMitra') || {}).value || '') : (sesi ? sesi.id : '');
     var serviceId = ($('#rjGarapan') || {}).value || '';
     var quantity = ($('#rjQty') || {}).value || '';
     var fee = ($('#rjFee') || {}).value || '';
@@ -562,6 +648,34 @@
     renderSetting();
   }
 
+  /* ---------------- Manajemen Mitra ---------------- */
+  function tambahMitra() {
+    if (!adalahOwner()) return;
+    var name = (($('#rsNamaMitra') || {}).value || '').trim().toUpperCase();
+    var pin = (($('#rsPinMitra') || {}).value || '').replace(/\D/g, '').slice(0, 4);
+    if (!name) { w.App.toast('Isi nama mitra!'); return; }
+    if (pin.length !== 4) { w.App.toast('PIN harus 4 digit angka!'); return; }
+    var ada = data.users.some(function (u) { return u.name.toUpperCase() === name; });
+    if (ada) { w.App.toast('Nama mitra sudah terdaftar!'); return; }
+    var u = { id: 'u_' + uid(), name: name, role: 'mitra', pin: pin };
+    data.users.push(u);
+    catat('Mitra ' + name + ' ditambahkan (PIN ' + pin + ')');
+    simpan();
+    w.App.toast('Mitra ditambahkan — salin linknya di daftar');
+    renderSetting();
+  }
+
+  function hapusMitra(id) {
+    if (!adalahOwner()) return;
+    var u = cariMitra(id);
+    if (!u || u.role === 'owner') { w.App.toast('Akun owner tidak bisa dihapus'); return; }
+    if (!w.confirm('Hapus mitra "' + u.name + '"? Riwayat pekerjaan mereka tetap ada.')) return;
+    data.users = data.users.filter(function (x) { return x.id !== id; });
+    catat('Mitra ' + u.name + ' dihapus');
+    simpan();
+    renderSetting();
+  }
+
   function toggleSet(id) {
     for (var i = 0; i < data.services.length; i++) {
       if (data.services[i].id === id) {
@@ -591,6 +705,7 @@
     if (_inited) return;
     _inited = true;
     muat();
+    mitraDariLink = idMitraDariSumber();
     try {
       var uidSesi = w.localStorage.getItem(KUNCI_SESI);
       var u = uidSesi ? cariMitra(uidSesi) : null;
@@ -682,11 +797,15 @@
     });
 
     // Setting actions
-    var st = $('#rsTema');
-    if (st) st.addEventListener('click', function () { gelap = !gelap; renderSetting(); });
     var ta = $('#rsTambah');
     if (ta) ta.addEventListener('click', tambahGarapan);
+    var tm = $('#rsTambahMitra');
+    if (tm) tm.addEventListener('click', tambahMitra);
     document.addEventListener('click', function (e) {
+      var rl = e.target.closest('[data-rlink]');
+      if (rl) { salinLink(rl.dataset.rlink); return; }
+      var rd = e.target.closest('[data-rdeluser]');
+      if (rd) { hapusMitra(rd.dataset.rdeluser); return; }
       var sg = e.target.closest('[data-rs-set]');
       if (sg) { toggleSet(sg.dataset.rsSet); return; }
       var dg = e.target.closest('[data-rs-del]');

@@ -2190,12 +2190,12 @@ select.mc-inp{ appearance:none; }
    tombol jenis pekerjaan, dengan tombol simpan bulat tepat di
    tengah keempatnya. Jarak antar kartu dirapatkan supaya compact.
    ========================================================= */
-#view-calc, #view-service{ padding:10px 10px 6px; }
-#view-calc .card, #view-service .card{ margin-bottom:8px; padding:11px; }
-#view-calc .list-head.tight, #view-service .list-head.tight{ margin:0 0 7px; }
-#view-calc .k-rules, #view-service .k-rules{ gap:6px; }
-#view-calc .k-rule, #view-service .k-rule{ min-height:54px; padding:8px 10px; }
-#view-calc #kFormulaOut, #view-service #kFormulaOut{ margin:7px 0 0; }
+#view-calc, #view-service, #ronceTab-servis{ padding:10px 10px 6px; }
+#view-calc .card, #view-service .card, #ronceTab-servis .card{ margin-bottom:8px; padding:11px; }
+#view-calc .list-head.tight, #view-service .list-head.tight, #ronceTab-servis .list-head.tight{ margin:0 0 7px; }
+#view-calc .k-rules, #view-service .k-rules, #ronceTab-servis .k-rules{ gap:6px; }
+#view-calc .k-rule, #view-service .k-rule, #ronceTab-servis .k-rule{ min-height:54px; padding:8px 10px; }
+#view-calc #kFormulaOut, #view-service #kFormulaOut, #ronceTab-servis #kFormulaOut{ margin:7px 0 0; }
 
 .k-quad{
   display:grid; grid-template-columns:1fr 44px 1fr;
@@ -2363,9 +2363,9 @@ select.mc-inp{ appearance:none; }
    Subjudul diberi jarak bawah supaya tidak mepet dengan tombol brand
    di bawahnya. */
 #view-calc .card > .list-head.tight,
-#view-service .card > .list-head.tight{ justify-content:center; text-align:center; }
+#view-service .card > .list-head.tight, #ronceTab-servis .card > .list-head.tight{ justify-content:center; text-align:center; }
 #view-calc .card > .hint.xs:not(#kFormulaOut),
-#view-service .card > .hint.xs:not(#kFormulaOut){ text-align:center; margin-bottom:14px; }
+#view-service .card > .hint.xs:not(#kFormulaOut), #ronceTab-servis .card > .hint.xs:not(#kFormulaOut){ text-align:center; margin-bottom:14px; }
 
 /* =========================================================
    KALKULATOR SERVICE HP — penyesuaian terakhir
@@ -2373,7 +2373,7 @@ select.mc-inp{ appearance:none; }
 /* Tombol kolom kanan pada Perhitungan estimasi biaya (LCD Bagus, Baterai)
    dibuat rata kanan supaya seimbang dengan kolom kanan panel ringkas. */
 #view-calc .k-rules .k-rule:nth-child(even),
-#view-service .k-rules .k-rule:nth-child(even){ align-items:flex-end; text-align:right; }
+#view-service .k-rules .k-rule:nth-child(even), #ronceTab-servis .k-rules .k-rule:nth-child(even){ align-items:flex-end; text-align:right; }
 
 /* =========================================================
    KONFIRMASI SIMPAN + MODE EDIT SERI LAMA
