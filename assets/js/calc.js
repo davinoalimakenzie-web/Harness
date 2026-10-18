@@ -611,6 +611,10 @@
     }
     editingKey = null;
     renderEditNote();
+    /* Tampilkan brand yang barusan disimpan supaya baris yang berkilat
+       hijau langsung terlihat (kalau tidak, daftarnya masih tersaring
+       brand lain dan pengguna mengira tidak ada yang berubah). */
+    filterBrand = payload.brandId;
     justSavedKey = newKey;
     clearTimeout(_justSavedT);
     _justSavedT = setTimeout(function () { justSavedKey = null; }, 2600);
