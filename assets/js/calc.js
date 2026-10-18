@@ -622,6 +622,8 @@
     renderSeries();
     TG.haptic('success');
     flashSaved();
+    /* Sinkronkan ke cloud supaya tautan/perangkat lain ikut terbarui. */
+    if (w.CalcSync) w.CalcSync.tandaiBerubah();
     w.App.toast(hasil.replaced
       ? '\u2713 Tersimpan — entri lama diperbarui'
       : '\u2713 Tersimpan (' + hasil.total + ' entri)', 2800, 'ok');
@@ -680,6 +682,9 @@
     renderOut();
     renderTpl();
     renderEditNote();
+
+    /* Sinkronisasi harga tersimpan antar tautan/perangkat (real-time). */
+    if (w.CalcSync) w.CalcSync.mulai();
 
     if ($('#kEditCancel')) {
       $('#kEditCancel').addEventListener('click', function () {
@@ -846,6 +851,7 @@
         S.state.templates = (S.state.templates || []).filter(function (t) { return t.id !== del.dataset.tpldel; });
         if (delKey && delKey === editingKey) { editingKey = null; renderEditNote(); }
         S.save(); renderTpl(); TG.haptic('success');
+        if (w.CalcSync) w.CalcSync.tandaiBerubah();
       }
     });
   }
@@ -853,6 +859,9 @@
   w.CalcUI = {
     init: init,
     render: renderOut,
+    /* Dipakai modul sinkronisasi untuk menggambar ulang daftar + dropdown
+       setelah data dari perangkat lain masuk. */
+    renderList: function () { renderSeries(); renderTpl(); },
     RULES: RULES,
     BRANDS: BRANDS,
     SERIES: SERIES,

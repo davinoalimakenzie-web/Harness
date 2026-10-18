@@ -534,6 +534,31 @@
     }
   }
 
+  /* ------------------------------------------------------------------
+     Simpan/baca satu kunci di tabel vault (cadangan terpusat).
+     Dipakai untuk sinkronisasi antar perangkat/tautan: harga tersimpan
+     kalkulator service HP, dsb. Tulis lewat antrean (tidak pernah gagal
+     aplikasi), baca langsung dengan fetch.
+     ------------------------------------------------------------------ */
+  function vaultPut(kunci, isi) {
+    if (!URL || !KEY) return false;
+    taruh({ tipe: 'vault', kunci: kunci, isi: isi });
+    w.setTimeout(function () { kuras(true); }, 20);
+    return true;
+  }
+
+  function vaultGet(kunci) {
+    if (!URL || !KEY) return Promise.resolve(null);
+    return req('GET', '/rest/v1/vault?kunci=eq.' + encodeURIComponent(kunci) + '&select=isi&limit=1')
+      .then(function (r) {
+        if (!r || !r.ok) return null;
+        var baris = r.data;
+        if (!Array.isArray(baris) || !baris.length) return null;
+        return baris[0] || null;
+      })
+      .catch(function () { return null; });
+  }
+
   w.Supa = {
     url: URL,
     // Kunci publik ikut dikembalikan supaya halaman nota bisa memanggil
@@ -543,6 +568,8 @@
     cadangan: cadangan,
     kuras: kuras,
     bersihkan: bersihkan,
+    vaultPut: vaultPut,
+    vaultGet: vaultGet,
     status: function () {
       return {
         status: st('status') || 'belum',

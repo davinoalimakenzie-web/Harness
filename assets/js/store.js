@@ -1265,6 +1265,14 @@
 
   w.Store = {
     state: state, save: save, saveNow: saveNow, uid: uid,
+    /* muatUlang: baca ulang dari localStorage lalu ganti isi state.
+       Dipakai sinkronisasi saat tab/halaman lain mengubah data. */
+    load: function () {
+      var segar = load();
+      if (!segar) return false;
+      Object.keys(segar).forEach(function (k) { state[k] = segar[k]; });
+      return true;
+    },
     upsertTemplate: upsertTemplate, templateKey: templateKey,
     todayStr: todayStr, nowLocalInput: nowLocalInput, ymOf: ymOf,
     monthLabel: monthLabel, dayLabel: dayLabel, shiftMonth: shiftMonth,
