@@ -2327,7 +2327,8 @@ select.mc-inp{ appearance:none; }
 /* Kotak Seri HP ikut warna brand yang sedang dipilih */
 .k-quad .q-series[data-brand]{ background:var(--bc); }
 .k-quad .q-series[data-brand] .q-lbl{ color:#fff; opacity:.92; }
-.k-quad .q-series[data-brand] select{ color:#fff !important; }
+.k-quad .q-series[data-brand] select,
+.k-quad .q-series[data-brand] #kSeriesEdit{ color:#fff !important; }
 
 /* Brand manual ("Lainnya…") tetap netral supaya tulisan tetap terbaca */
 .k-quad .q-brand[data-brand="__custom_brand__"],
@@ -2335,7 +2336,8 @@ select.mc-inp{ appearance:none; }
 .k-quad .q-brand[data-brand="__custom_brand__"] .q-lbl,
 .k-quad .q-series[data-brand="__custom_brand__"] .q-lbl{ color:var(--hint); opacity:1; }
 .k-quad .q-brand[data-brand="__custom_brand__"] select,
-.k-quad .q-series[data-brand="__custom_brand__"] select{ color:var(--text) !important; }
+.k-quad .q-series[data-brand="__custom_brand__"] select,
+.k-quad .q-series[data-brand="__custom_brand__"] #kSeriesEdit{ color:var(--text) !important; }
 
 /* =========================================================
    KOLOM TENGAH PANEL RINGKAS — dibuat MENYATU dengan kotak tetangga
@@ -2401,3 +2403,18 @@ select.mc-inp{ appearance:none; }
 }
 .k-edit-note b{ font-weight:800; }
 .k-edit-note .icon-btn.sm{ width:26px; height:26px; font-size:14px; color:var(--accent); flex:0 0 auto; }
+
+/* =========================================================
+   KOLOM ISIAN SERI LANGSUNG DI KOTAK SERI HP (mode edit)
+   Saat tombol ↺ dipakai, dropdown seri diganti kolom isian supaya nama
+   seri lama bisa langsung diketik / ditambah persamaan namanya.
+   ========================================================= */
+.k-quad .q-series #kSeriesEdit{
+  width:100%; min-width:0; padding:0; border:0; border-radius:0;
+  border-bottom:1.5px dashed color-mix(in srgb, currentColor 55%, transparent);
+  background:transparent; color:inherit;
+  font:inherit; font-size:16px; font-weight:700; line-height:1.2;
+  text-align:right;
+}
+.k-quad .q-series #kSeriesEdit:focus{ outline:none; border-bottom-color:currentColor; }
+.k-quad .q-series #kSeriesEdit::placeholder{ color:currentColor; opacity:.55; font-weight:600; }

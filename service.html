@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#517da2">
 <title>Kalkulator Service HP — Project Nava</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261017o">
+<link rel="stylesheet" href="assets/css/style.css?v=20261017p">
 <style>
 /* Fallback CSS variables untuk halaman standalone */
 :root {
@@ -96,6 +96,9 @@
           <div class="sel-wrap">
             <select id="kSeries" aria-label="Seri HP"></select>
           </div>
+          <!-- Muncul saat mode edit: nama seri langsung diketik di kotak ini -->
+          <input type="text" id="kSeriesEdit" class="hidden" aria-hidden="true"
+                 placeholder="Nama seri HP" aria-label="Edit nama seri HP">
         </div>
 
         <button id="kSaveTpl" class="q-save" type="button" title="Simpan harga" aria-label="Simpan harga"></button>
@@ -137,8 +140,8 @@
 <!-- Dependencies: calc.js butuh Store, TG, App dulu -->
 <script src="assets/js/store.js"></script>
 <script src="assets/js/tg.js"></script>
-<script src="assets/js/app.js?v=20261017o"></script>
-<script src="assets/js/calc.js?v=20261017o"></script>
+<script src="assets/js/app.js?v=20261017p"></script>
+<script src="assets/js/calc.js?v=20261017p"></script>
 
 <script>
 // Auto-init kalkulator service HP

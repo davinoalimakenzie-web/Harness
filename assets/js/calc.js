@@ -249,9 +249,16 @@
     el.kName.classList.toggle('k-custom-series', showSeriesInput);
     el.kName.setAttribute('aria-hidden', showSeriesInput ? 'false' : 'true');
     el.kName.style.display = showSeriesInput ? '' : 'none';
+
+    /* Mode edit selalu menang: kotak Seri HP tetap jadi kolom isian. */
+    syncEditMode();
   }
 
   function readSeries() {
+    /* Mode edit: nama seri dibaca langsung dari kolom isian di kotak Seri HP. */
+    if (editingKey && el.kSeriesEdit && el.kSeriesEdit.value.trim()) {
+      return el.kSeriesEdit.value.trim();
+    }
     if (brandId === CUSTOM_BRAND) {
       return el.kSeriesNameInput.value.trim();
     }
@@ -322,8 +329,27 @@
      disimpan — inilah cara memperbarui nama seri lama / menambah persamaan
      namanya kalau ada temuan baru.
      flashSaved: tombol simpan berubah hijau + centang sekejap. */
+  /* Mode edit: kotak Seri HP berubah jadi kolom isian yang bisa langsung
+     diketik (tanpa lewat "Lainnya…"), jadi nama seri lama gampang diperbarui
+     atau ditambah persamaan namanya. */
+  function syncEditMode() {
+    var on = !!editingKey;
+    if (el.kSeriesEdit) {
+      el.kSeriesEdit.classList.toggle('hidden', !on);
+      el.kSeriesEdit.style.display = on ? '' : 'none';
+      el.kSeriesEdit.setAttribute('aria-hidden', on ? 'false' : 'true');
+    }
+    var selWrap = el.kSeries && el.kSeries.closest ? el.kSeries.closest('.sel-wrap') : null;
+    if (selWrap) {
+      selWrap.classList.toggle('hidden', on);
+      selWrap.style.display = on ? 'none' : '';
+    }
+    /* Kolom seri manual di bawah kotak tidak dipakai saat mode edit. */
+    if (on && el.kName) { el.kName.classList.add('hidden'); el.kName.style.display = 'none'; }
+  }
+
   function renderEditNote() {
-    if (!el.kEditNote) return;
+    if (!el.kEditNote) { syncEditMode(); return; }
     var on = !!editingKey;
     if (on) {
       var t = (S.state.templates || []).filter(function (x) {
@@ -334,6 +360,7 @@
     el.kEditNote.classList.toggle('hidden', !on);
     el.kEditNote.style.display = on ? '' : 'none';
     el.kEditNote.setAttribute('aria-hidden', on ? 'false' : 'true');
+    syncEditMode();
   }
 
   function flashSaved() {
@@ -470,6 +497,7 @@
     el.kSaveTpl = $('#kSaveTpl');
     el.kEditNote = $('#kEditNote');
     el.kEditName = $('#kEditName');
+    el.kSeriesEdit = $('#kSeriesEdit');
 
     seedIfNeeded();
     renderBrands();
@@ -578,12 +606,14 @@
           applyTpl(x.payload || {});
           /* Masuk MODE EDIT: entri ini akan diganti (bukan ditambah) saat
              disimpan, jadi nama seri lama bisa diperbarui / ditambah
-             persamaan namanya tanpa membuat entri kembar. */
+             persamaan namanya tanpa membuat entri kembar. Nama seri langsung
+             bisa diketik di kotak Seri HP. */
           editingKey = S.templateKey ? S.templateKey(x.payload || {}) : null;
+          if (el.kSeriesEdit) el.kSeriesEdit.value = (x.payload || {}).series || '';
           renderEditNote();
           w.scrollTo({ top: 0, behavior: 'smooth' });
           TG.haptic('success');
-          w.App.toast('Siap diedit — ubah nama seri atau harganya, lalu Simpan', 2800);
+          w.App.toast('Mode edit: nama seri bisa langsung diketik di kotak Seri HP', 3000);
         }
       } else if (del) {
         var delKey = '';
