@@ -62,6 +62,11 @@
     },
 
     go: function (v) {
+      /* Mode mitra (buka link akses ?m=ID): mitra TERKUNCI di Kalkulator
+         Garapan. Semua upaya pindah view diabaikan — termasuk App.go('home')
+         di akhir init dan tombol back — supaya mitra tidak bisa nyasar
+         kembali ke menu Project Nava. */
+      if (w.document.body.classList.contains('mitra-mode') && v !== 'ronce') return;
       App.view = v;
       $$('.tab').forEach(function (b) { b.classList.toggle('active', b.dataset.view === v); });
       $$('.view').forEach(function (s) { s.classList.toggle('active', s.id === 'view-' + v); });
@@ -881,7 +886,11 @@
       scheduleFull();
     }
 
-    App.go('home');
+    /* Mode mitra (buka link akses ?m=ID): JANGAN balik ke beranda — mitra
+       harus mendarat langsung di Kalkulator Garapan. Ronce.init() yang
+       dipanggil di atas sudah menandai body.mitra-mode + mengaktifkan
+       view ronce, jadi App.go('home') di sini akan merusaknya. */
+    if (!w.document.body.classList.contains('mitra-mode')) App.go('home');
     console.log('Project Nava siap. Telegram:', TG.isTelegram);
   }
 

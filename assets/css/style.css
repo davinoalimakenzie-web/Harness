@@ -160,6 +160,11 @@ input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0
    kecilkan font & padding khusus tab bar ini supaya muat pas selebar layar. */
 #ronceTabs .seg-btn{ font-size:11.5px; padding:9px 4px; }
 
+/* Mode mitra (buka link akses ?m=ID): yang tampil HANYA Kalkulator Garapan.
+   Header Project Nava disembunyikan supaya mitra tidak nyasar ke menu lain. */
+body.mitra-mode .topbar{ display:none; }
+body.mitra-mode #app{ padding-top:0; }
+
 /* ---------------- Manajemen Mitra (Setting Ronce) ---------------- */
 /* Form Tambah Mitra: satu baris sejajar — Nama | No. WA | Kirim Link */
 .mitra-add{ display:flex; gap:6px; align-items:stretch; }

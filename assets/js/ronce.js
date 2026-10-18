@@ -185,8 +185,17 @@
   function kirimLinkWa(u) {
     if (!u) return;
     var link = linkMitra(u);
-    var pesan = 'Halo ' + u.name + '! Ini link akses Kalkulator Nava kamu:\n' + link +
-      '\n\nMasuk pakai PIN default 0000, lalu ganti PIN-mu. Setelah PIN diganti, akunmu AKTIF dan siap terima tugas.';
+    var NL = String.fromCharCode(10);
+    var pesan = [
+      'Hai ' + u.name + ',',
+      'ini adalah link akses Garapan kamu:',
+      link,
+      '',
+      'Klik link diatas 👆👆👆',
+      'Lalu masuk menggunakan Pin default 0000,',
+      'Setelah masuk Ubah Pin default untuk aktivasi ya,',
+      'terimakasih dan selamat bertugas semoga berkah🤲😊👍'
+    ].join(NL);
     var wa = waInternasional(u.wa);
     if (!wa) { w.App.toast('Isi No. WA dulu supaya link bisa dikirim'); return; }
     try {
@@ -801,6 +810,28 @@
     } catch (e) {}
     renderLogin();
     if (layar === 'app') showApp();
+
+    /* Buka link mitra (?m=ID / start_param Telegram): mitra harus langsung
+       mendarat di Kalkulator Garapan (view ronce) — bukan beranda Project
+       Nava. Header Project Nava disembunyikan (body.mitra-mode) supaya yang
+       tampak hanya kalkulator garapan yang sudah dibatasi aksesnya.
+       Sengaja TIDAK lewat App.go(): onShow() -> showLogin() akan
+       mengosongkan mitraDariLink dan merusak login-langsung mitra. */
+    if (mitraDariLink) {
+      try {
+        w.document.body.classList.add('mitra-mode');
+        if (w.App) w.App.view = 'ronce';
+        var navb = w.document.querySelector('.tabbar');
+        if (navb) navb.style.display = 'none';
+        Array.prototype.forEach.call(w.document.querySelectorAll('.view'), function (s) {
+          s.classList.toggle('active', s.id === 'view-ronce');
+        });
+        var pt = w.document.querySelector('#pageTitle');
+        if (pt) pt.textContent = 'Kalkulator Garapan';
+        var ps = w.document.querySelector('#pageSub');
+        if (ps) ps.textContent = 'Akses mitra';
+      } catch (e) {}
+    }
 
     // Login: pilih user
     document.addEventListener('click', function (e) {
