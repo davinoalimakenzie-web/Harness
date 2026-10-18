@@ -2356,11 +2356,13 @@ select.mc-inp{ appearance:none; }
 .k-quad .q-save[data-brand="realme"] { --bc:#ca8a04; }
 .k-quad .q-save[data-brand="infinix"]{ --bc:#dc2626; }
 
-/* Judul & subjudul kartu kalkulator dibuat rata tengah */
+/* Judul & subjudul kartu kalkulator dibuat rata tengah.
+   Subjudul diberi jarak bawah supaya tidak mepet dengan tombol brand
+   di bawahnya. */
 #view-calc .card > .list-head.tight,
 #view-service .card > .list-head.tight{ justify-content:center; text-align:center; }
 #view-calc .card > .hint.xs:not(#kFormulaOut),
-#view-service .card > .hint.xs:not(#kFormulaOut){ text-align:center; }
+#view-service .card > .hint.xs:not(#kFormulaOut){ text-align:center; margin-bottom:14px; }
 
 /* =========================================================
    KALKULATOR SERVICE HP — penyesuaian terakhir

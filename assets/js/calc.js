@@ -219,6 +219,16 @@
       el.kSeries.innerHTML = opts;
     }
 
+    /* Selaraskan state dengan yang BENAR-BENAR tampil di dropdown.
+       Kalau seriesId kosong, browser otomatis memilih opsi pertama sehingga
+       dropdown terlihat sudah terisi padahal state masih kosong — akibatnya
+       tombol simpan menolak dengan "Pilih seri HP dulu" walaupun seri sudah
+       kelihatan terpilih. Kalau dropdown cuma berisi "Lainnya…", anggap
+       seri manual supaya kolom isiannya langsung muncul. */
+    if (!seriesId && el.kSeries && el.kSeries.value) {
+      seriesId = el.kSeries.value;
+    }
+
     /* Saat brand custom: tampilkan 2 input sejajar (kiri brand, kanan seri).
        Saat seri "Lainnya…": tampilkan kolom input seri manual. */
     var isCustomBrand = brandId === CUSTOM_BRAND;
@@ -245,7 +255,13 @@
     if (seriesId === CUSTOM_SERIES) {
       return el.kName.value.trim();
     }
-    return seriesId;
+    if (seriesId) return seriesId;
+    /* Jaring pengaman: kalau state kosong, pakai nilai yang benar-benar
+       tampil di dropdown supaya simpan tidak gagal padahal seri sudah
+       terlihat terpilih di layar. */
+    var shown = el.kSeries ? el.kSeries.value : '';
+    if (shown && shown !== CUSTOM_SERIES) return shown;
+    return el.kName.value.trim();
   }
 
   /* ---------------- Render ---------------- */
@@ -430,11 +446,17 @@
     });
 
     function onSeriesChange() {
-      seriesId = el.kSeries.value;
+      var next = el.kSeries.value;
+      var wasCustom = seriesId === CUSTOM_SERIES;
+      seriesId = next;
 
       // Saat "Lainnya…" dipilih — langsung tampilkan input di bawah
       if (seriesId === CUSTOM_SERIES && brandId !== CUSTOM_BRAND) {
-        el.kName.value = '';
+        /* Hanya kosongkan kolom manual kalau barusan BERPINDAH ke
+           "Lainnya…". Kalau memang sudah di "Lainnya…", ketikan yang
+           sudah ada jangan dihapus — dulu ini bikin seri hilang dan
+           tombol simpan menolak ("Pilih seri HP dulu"). */
+        if (!wasCustom) el.kName.value = '';
         el.kName.classList.remove('hidden');
         el.kName.style.display = '';
         renderOut();
