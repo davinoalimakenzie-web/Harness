@@ -2252,7 +2252,7 @@ select.mc-inp{ appearance:none; }
    Warnanya sengaja SAMA dengan panel (bukan putih) supaya latar kolom
    tengah tidak membentuk jalur/pita yang memisahkan kotak kiri dan kanan. */
 .q-save::after{
-  content:'��'; position:absolute; left:50%; top:50%;
+  content:'\1F4BE'; position:absolute; left:50%; top:50%;
   transform:translate(-50%,-50%);
   width:64px; height:64px; border-radius:50%;
   background:#fff; color:#1a1a2e;
