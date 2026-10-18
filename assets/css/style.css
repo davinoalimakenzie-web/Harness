@@ -2197,8 +2197,8 @@ select.mc-inp{ appearance:none; }
 #view-calc #kFormulaOut, #view-service #kFormulaOut{ margin:7px 0 0; }
 
 .k-quad{
-  display:grid; grid-template-columns:1fr 1fr;
-  grid-template-areas:"part est" "brand series";
+  display:grid; grid-template-columns:1fr 44px 1fr;
+  grid-template-areas:"part save est" "brand save series";
   gap:0; align-items:stretch;
 }
 .k-quad .q-part{ grid-area:part; border-radius:12px 0 0 0; border-right-width:0; }
