@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261018g">
+<link rel="stylesheet" href="assets/css/style.css?v=20261018i">
 </head>
 <body>
 
@@ -469,17 +469,8 @@
         <button class="seg-btn" data-rtab="setting">Setting</button>
       </div>
 
-      <!-- Tab: Input Garapan -->
+      <!-- Tab: Input Garapan (khusus owner) -->
       <div id="ronceTab-input" class="ronce-tab">
-        <!-- Kartu akun mitra: ganti PIN default 0000 -> akun jadi Aktif -->
-        <div class="card" id="rsAkunCard" hidden>
-          <div class="list-head tight"><strong>Akun Saya</strong></div>
-          <div id="rsAkunStatus" class="mitra-meta" style="margin-bottom:9px"></div>
-          <div class="mitra-add">
-            <input type="text" id="rsPinBaru" inputmode="numeric" maxlength="4" placeholder="PIN baru (4 digit)" autocomplete="off">
-            <button class="btn primary" id="rsGantiPin" type="button">Ganti PIN</button>
-          </div>
-        </div>
         <div class="card">
           <div class="list-head tight"><strong>Input Pekerjaan</strong></div>
           <div class="field">
@@ -522,30 +513,108 @@
         <div id="rjHistory" class="list"></div>
       </div>
 
-      <!-- Tab: Tugas Mitra -->
+      <!-- Tab: Tugas — owner: formulir penugasan · mitra: dashboard garapan -->
       <div id="ronceTab-tugas" class="ronce-tab" hidden>
-        <div class="card">
-          <div class="list-head tight"><strong>Formulir Penugasan Baru</strong></div>
-          <div class="field-row">
-            <div class="field">
-              <label class="lbl" for="rtMitra">Mitra Tujuan</label>
-              <select id="rtMitra"></select>
+
+        <!-- ============ TAMPILAN OWNER ============ -->
+        <div id="rtOwnerView">
+          <div class="card">
+            <div class="list-head tight"><strong>Formulir Penugasan Baru</strong></div>
+            <div class="field-row">
+              <div class="field">
+                <label class="lbl" for="rtMitra">Mitra Tujuan</label>
+                <select id="rtMitra"></select>
+              </div>
+              <div class="field">
+                <label class="lbl" for="rtTanggal">Tanggal</label>
+                <input type="date" id="rtTanggal">
+              </div>
             </div>
-            <div class="field">
-              <label class="lbl" for="rtTanggal">Tanggal</label>
-              <input type="date" id="rtTanggal">
+            <div class="lbl" style="margin-bottom:6px">Daftar Garapan</div>
+            <div id="rtItems"></div>
+            <div class="row-2 mt">
+              <button class="btn ghost" id="rtTambah">+ Tambah Item</button>
+              <button class="btn primary" id="rtKirim">Serahkan Tugas</button>
             </div>
           </div>
-          <div class="lbl" style="margin-bottom:6px">Daftar Garapan</div>
-          <div id="rtItems"></div>
-          <div class="row-2 mt">
-            <button class="btn ghost" id="rtTambah">+ Tambah Item</button>
-            <button class="btn primary" id="rtKirim">Serahkan Tugas</button>
-          </div>
+
+          <div class="list-head"><strong>Tugas Belum Selesai</strong></div>
+          <div id="rtPending" class="list"></div>
         </div>
 
-        <div class="list-head"><strong>Tugas Belum Selesai</strong></div>
-        <div id="rtPending" class="list"></div>
+        <!-- ============ TAMPILAN MITRA ============ -->
+        <div id="rtMitraView" hidden>
+
+          <!-- Ringkasan jasa -->
+          <div class="mt-hero">
+            <div class="mt-hero-top">
+              <span class="mt-hero-lbl">TOTAL JASA KAMU</span>
+              <button class="mt-help" id="mtHelp" type="button">? BANTUAN</button>
+            </div>
+            <div class="mt-hero-amt" id="mtTotalJasa">Rp0</div>
+            <div class="mt-hero-grid">
+              <div class="mt-mini proses">
+                <span>Sedang dikerjakan</span>
+                <b id="mtJasaProses">Rp0</b>
+              </div>
+              <div class="mt-mini done">
+                <span>Sudah selesai</span>
+                <b id="mtJasaDone">Rp0</b>
+              </div>
+              <div class="mt-mini bayar">
+                <span>Sudah dibayar</span>
+                <b id="mtJasaDibayar">Rp0</b>
+              </div>
+              <div class="mt-mini tunggu">
+                <span>Menunggu bayar</span>
+                <b id="mtJasaTunggu">Rp0</b>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panduan singkat (tombol BANTUAN) -->
+          <div class="mt-guide" id="mtGuide" hidden>
+            <b>Panduan singkat</b>
+            <ul>
+              <li><span class="mt-dot proses"></span><b>Proses</b> &mdash; garapan yang masih kamu kerjakan.</li>
+              <li><span class="mt-dot done"></span><b>Selesai</b> &mdash; sudah kamu lapor, tekan tombol <b>LAPOR SELESAI</b> di tiap garapan.</li>
+              <li><span class="mt-dot bayar"></span><b>Sudah dibayar</b> &mdash; jasa yang sudah dibayarkan owner.</li>
+              <li><span class="mt-dot tunggu"></span><b>Menunggu bayar</b> &mdash; jasa selesai yang belum dibayar. Tekan <b>AJUKAN PEMBAYARAN</b>.</li>
+            </ul>
+          </div>
+
+          <!-- Tombol aksi utama -->
+          <button class="mt-cta" id="mtAjukan" type="button">
+            <span class="mt-cta-ico">&#128176;</span>
+            <span class="mt-cta-txt"><b>AJUKAN PEMBAYARAN</b><i id="mtAjukanSub">Belum ada jasa menunggu bayar</i></span>
+          </button>
+
+          <!-- Tabel garapan -->
+          <div class="mt-head">
+            <strong>GARAPAN SEDANG PROSES</strong>
+            <span class="mt-count proses" id="mtCntProses">0</span>
+          </div>
+          <div id="mtListProses" class="list"></div>
+
+          <div class="mt-head">
+            <strong>GARAPAN SELESAI</strong>
+            <span class="mt-count done" id="mtCntDone">0</span>
+          </div>
+          <div id="mtListDone" class="list"></div>
+
+          <div class="mt-head"><strong>PENGAJUAN &amp; PELUNASAN</strong></div>
+          <div id="mtListBayar" class="list"></div>
+
+          <!-- Akun: ganti PIN default 0000 -> akun jadi Aktif -->
+          <div class="card" id="rsAkunCard" hidden>
+            <div class="list-head tight"><strong>Akun Saya</strong></div>
+            <div id="rsAkunStatus" class="mitra-meta" style="margin-bottom:9px"></div>
+            <div class="mitra-add">
+              <input type="text" id="rsPinBaru" inputmode="numeric" maxlength="4" placeholder="PIN baru (4 digit)" autocomplete="off">
+              <button class="btn primary" id="rsGantiPin" type="button">Ganti PIN</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Tab: Rekap Gaji -->
@@ -570,6 +639,9 @@
           </div>
         </div>
         <div id="ronceRekapList" class="list"></div>
+
+        <div class="list-head"><strong>Pengajuan Pembayaran Mitra</strong></div>
+        <div id="roncePayReq" class="list"></div>
       </div>
 
       <!-- Tab: Kalkulator Servis HP (menggantikan tab Log) -->
@@ -771,7 +843,7 @@
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
 <script src="assets/js/transactions.js?v=20261014l"></script>
-<script src="assets/js/ronce.js?v=20261018g"></script>
+<script src="assets/js/ronce.js?v=20261018i"></script>
 <script src="assets/js/calc.js?v=20261017x"></script>
 <script src="assets/js/calc-sync.js?v=20261017u"></script>
 <script src="assets/js/supabase.js?v=20261017s"></script>
@@ -786,6 +858,6 @@
 <script src="assets/js/nava-trader-quote.js?v=20261015d"></script>
 <script src="assets/js/nava-trader.js?v=20261015a"></script>
 <script src="assets/js/backup.js?v=20261014l"></script>
-<script src="assets/js/app.js?v=20261018g"></script>
+<script src="assets/js/app.js?v=20261018i"></script>
 </body>
 </html>

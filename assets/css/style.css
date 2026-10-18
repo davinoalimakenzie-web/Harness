@@ -194,6 +194,112 @@ body.mitra-mode #app{ padding-top:0; }
 .tag.ok{ background:rgba(34,197,94,.16); color:var(--success); }
 .tag.wait{ background:rgba(245,158,11,.16); color:var(--warn); }
 
+/* =========================================================
+   DASHBOARD MITRA (tab Tugas, tampilan mitra)
+   Satu layar: ringkasan jasa berwarna + tabel garapan proses/selesai +
+   pengajuan pembayaran + laporan pelunasan. Warna dipakai supaya mitra
+   langsung paham status tiap garapan tanpa membaca teks panjang.
+   ========================================================= */
+.mt-hero{
+  background:linear-gradient(135deg,#0f766e,#0ea5a4);
+  color:#fff; border-radius:16px; padding:14px 14px 12px;
+  margin-bottom:10px; box-shadow:0 4px 14px rgba(15,118,110,.25);
+}
+.mt-hero-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.mt-hero-lbl{ font-size:11px; font-weight:800; letter-spacing:.06em; opacity:.9; }
+.mt-help{
+  border:0; border-radius:999px; padding:5px 10px; font-size:10.5px; font-weight:800;
+  background:rgba(255,255,255,.22); color:#fff; cursor:pointer; white-space:nowrap;
+}
+.mt-hero-amt{ font-size:28px; font-weight:800; margin:6px 0 10px; letter-spacing:-.5px; }
+.mt-hero-grid{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.mt-mini{
+  background:rgba(255,255,255,.16); border-radius:10px; padding:7px 9px;
+  display:flex; flex-direction:column; gap:2px; min-width:0;
+}
+.mt-mini span{ font-size:10px; font-weight:600; opacity:.92; }
+.mt-mini b{ font-size:14px; font-weight:800; overflow-wrap:anywhere; }
+.mt-mini.proses b{ color:#ffe08a; }
+.mt-mini.done b{ color:#c7f9d0; }
+.mt-mini.bayar b{ color:#bfe9ff; }
+.mt-mini.tunggu b{ color:#ffd0d0; }
+
+.mt-guide{
+  background:var(--bg-elev); border:1px dashed var(--line); border-radius:12px;
+  padding:11px 12px; margin-bottom:10px; font-size:12px; color:var(--text-2);
+}
+.mt-guide > b{ color:var(--text); display:block; margin-bottom:6px; }
+.mt-guide ul{ margin:0; padding-left:0; list-style:none; display:flex; flex-direction:column; gap:6px; }
+.mt-guide li{ display:flex; gap:7px; align-items:flex-start; line-height:1.4; }
+.mt-guide li b{ display:inline; margin:0; color:var(--text); }
+.mt-dot{ flex:0 0 auto; width:10px; height:10px; border-radius:50%; margin-top:4px; }
+.mt-dot.proses{ background:#f59e0b; }
+.mt-dot.done{ background:#22c55e; }
+.mt-dot.bayar{ background:#0ea5e9; }
+.mt-dot.tunggu{ background:#ef4444; }
+
+.mt-cta{
+  width:100%; display:flex; align-items:center; gap:11px; text-align:left;
+  border:0; border-radius:14px; padding:13px 14px; cursor:pointer;
+  background:linear-gradient(135deg,#16a34a,#22c55e); color:#fff;
+  box-shadow:0 4px 14px rgba(22,163,74,.3); margin-bottom:12px;
+}
+.mt-cta:active{ transform:scale(.985); }
+.mt-cta.off{ background:var(--tap); color:var(--hint); box-shadow:none; }
+.mt-cta-ico{ font-size:22px; }
+.mt-cta-txt{ display:flex; flex-direction:column; gap:1px; min-width:0; }
+.mt-cta-txt b{ font-size:14px; font-weight:800; letter-spacing:.02em; }
+.mt-cta-txt i{ font-style:normal; font-size:11px; opacity:.92; }
+
+.mt-head{
+  display:flex; align-items:center; justify-content:space-between;
+  margin:12px 0 7px; font-size:11.5px; letter-spacing:.05em;
+}
+.mt-head strong{ font-weight:800; color:var(--text-2); }
+.mt-count{ font-size:11px; font-weight:800; border-radius:999px; padding:2px 9px; }
+.mt-count.proses{ background:rgba(245,158,11,.16); color:#b45309; }
+.mt-count.done{ background:rgba(34,197,94,.16); color:#15803d; }
+
+.mt-row{
+  background:var(--bg-elev); border:1px solid var(--line); border-left:4px solid #f59e0b;
+  border-radius:12px; padding:10px 11px; margin-bottom:8px;
+}
+.mt-row.done{ border-left-color:#22c55e; }
+.mt-row-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.mt-row-nama{ font-weight:700; font-size:14px; overflow-wrap:anywhere; }
+.mt-tag{
+  flex:0 0 auto; font-size:10px; font-weight:800; letter-spacing:.04em;
+  border-radius:999px; padding:2px 8px; white-space:nowrap;
+}
+.mt-tag.proses{ background:rgba(245,158,11,.16); color:#b45309; }
+.mt-tag.done{ background:rgba(34,197,94,.16); color:#15803d; }
+.mt-tag.tunggu{ background:rgba(239,68,68,.14); color:#b91c1c; }
+.mt-row-mid{ font-size:11.5px; color:var(--text-2); margin-top:3px; }
+.mt-row-note{ font-size:11.5px; color:var(--text-2); margin-top:3px; font-style:italic; }
+.mt-row-bottom{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; }
+.mt-row-jasa{ font-weight:800; font-size:14px; font-variant-numeric:tabular-nums; }
+.mt-btn-done{
+  border:0; border-radius:9px; padding:8px 11px; font-size:11px; font-weight:800;
+  background:#16a34a; color:#fff; cursor:pointer; white-space:nowrap;
+}
+.mt-btn-done:active{ transform:scale(.96); }
+.mt-row-ok{ font-size:11px; font-weight:700; color:#15803d; }
+
+.mt-pay{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  background:var(--bg-elev); border:1px solid var(--line); border-radius:12px;
+  padding:10px 11px; margin-bottom:8px;
+}
+.mt-pay.wait{ border-color:rgba(239,68,68,.4); }
+.mt-pay.ok{ border-color:rgba(34,197,94,.4); }
+.mt-pay-l{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.mt-pay-l b{ font-size:13px; font-weight:700; overflow-wrap:anywhere; }
+.mt-pay-l span{ font-size:11px; color:var(--text-2); }
+.mt-empty{
+  text-align:center; color:var(--hint); font-size:12px; padding:14px 10px;
+  background:var(--bg-elev); border:1px dashed var(--line); border-radius:12px;
+}
+
 /* ---------------- Catatan ---------------- */
 .compose textarea{ min-height:52px; }
 .compose-row{ display:flex; gap:8px; margin-top:10px; align-items:center; }
