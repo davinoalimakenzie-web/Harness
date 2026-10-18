@@ -5,30 +5,7 @@
 (function (w) {
   'use strict';
 
-  /* Helper selektor. Kalau elemennya tidak ada di halaman ini (tombol "More",
-     sheet, dst. hanya ada di index.html — tidak di service.html), kembalikan
-     objek pengganti yang diam-diam tidak berbuat apa. Tanpa ini init()
-     berhenti di tengah jalan: semua langkah setelah #btnMore tidak pernah
-     jalan di halaman service.html. Peringatan hanya muncul sekali per elemen. */
-  var $ = function (s) {
-    var e = document.querySelector(s);
-    if (e) return e;
-    if (!$.hilang) $.hilang = {};
-    if (!$.hilang[s]) { $.hilang[s] = 1; console.warn('[app] elemen tidak ada di halaman ini: ' + s); }
-    return $.kosong;
-  };
-  $.kosong = {
-    addEventListener: function () {}, removeEventListener: function () {},
-    classList: { contains: function () { return false; }, add: function () {}, remove: function () {}, toggle: function () {} },
-    style: {}, dataset: {}, value: '', textContent: '', innerHTML: '',
-    disabled: false, checked: false, src: '', href: '', title: '', placeholder: '',
-    appendChild: function () {}, removeChild: function () {}, remove: function () {},
-    click: function () {}, focus: function () {}, blur: function () {}, select: function () {},
-    setAttribute: function () {}, getAttribute: function () { return null; }, removeAttribute: function () {},
-    getBoundingClientRect: function () { return { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 }; },
-    querySelector: function () { return null; }, querySelectorAll: function () { return []; },
-    getContext: function () { return null; }, insertAdjacentHTML: function () {}, scrollIntoView: function () {}
-  };
+  var $ = function (s) { return document.querySelector(s); };
   var $$ = function (s) { return [].slice.call(document.querySelectorAll(s)); };
   var S = w.Store, TG = w.TG;
 
@@ -209,7 +186,7 @@
       return '<div class="item"><div class="tx-icon in">' + esc(a.icon) + '</div>' +
         '<div class="item-body"><div class="item-title">' + esc(a.name) + '</div>' +
         '<div class="item-sub"><span class="tag">' + typeLbl + '</span>' +
-        '<span>Saldo ' + (w.TxUI && w.TxUI.money ? w.TxUI.money(bal) : bal) + '</span></div></div>' +
+        '<span>Saldo ' + w.TxUI.money(bal) + '</span></div></div>' +
         '<button class="mini-btn danger" data-delacc="' + esc(a.id) + '">Hapus</button></div>';
     }).join('') +
       '<button class="tool" id="addAccBtn"><span class="tool-ico in">＋</span>' +
@@ -528,11 +505,10 @@
       else TG.wa.close();
     });
 
-    /* Sub-modul — ada penjagaan: halaman service.html tidak memuat modul
-       catatan (NotesUI) & transaksi (TxUI), jadi panggilannya harus aman. */
-    if (w.NotesUI && w.NotesUI.init) w.NotesUI.init();
-    if (w.TxUI && w.TxUI.init) w.TxUI.init();
-    if (w.CalcUI && w.CalcUI.init) w.CalcUI.init();
+    // Sub-modul
+    w.NotesUI.init();
+    w.TxUI.init();
+    w.CalcUI.init();
     if (w.MascimUI && w.MascimUI.init) w.MascimUI.init();
     if (w.Ronce && w.Ronce.init) w.Ronce.init();
     if (w.NavaTraderUI && w.NavaTraderUI.init) w.NavaTraderUI.init();
@@ -787,10 +763,8 @@
     // Perbarui saat kembali ke app
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) return;
-      if (w.TxUI && w.TxUI.render) w.TxUI.render();
-      if (w.NotesUI && w.NotesUI.render) w.NotesUI.render();
-      if (w.NotesUI && w.NotesUI.check) w.NotesUI.check();
-      if (w.Sync) { w.Sync.pull().then(function (r) { if (r && (r.added || r.updated)) { if (w.TxUI && w.TxUI.render) w.TxUI.render(); renderSyncStatus(); } }); }
+      w.TxUI.render(); w.NotesUI.render(); w.NotesUI.check();
+      if (w.Sync) { w.Sync.pull().then(function (r) { if (r && (r.added || r.updated)) { w.TxUI.render(); renderSyncStatus(); } }); }
       // Pool dari bot: cepat-cepat ditarik saat kembali ke app supaya
       // transaksi baru dari chat langsung terlihat.
       if (w.Sync && w.Sync.pullPool) {
@@ -986,46 +960,10 @@
     });
   }
 
-  /* Semua kolom isian otomatis huruf besar — seperti CAPS LOCK menyala
-     permanen. Nilai yang tersimpan ikut huruf besar, bukan hanya tampilannya. */
-  function capsPermanen() {
-    var seler = 'input[type=text], input[type=search], input:not([type]), textarea';
-    document.querySelectorAll(seler).forEach(function (el) {
-      if (el.dataset.caps) return;
-      el.dataset.caps = '1';
-      el.addEventListener('input', function () {
-        var v = el.value;
-        if (v === v.toUpperCase()) return;
-        var pos = el.selectionStart, pos2 = el.selectionEnd;
-        el.value = v.toUpperCase();
-        try { el.setSelectionRange(pos, pos2); } catch (e) {}
-      });
-    });
-    /* Kolom yang ditambah belakangan (pilihan brand/seri, dsb). */
-    setInterval(function () {
-      document.querySelectorAll(seler).forEach(function (el) {
-        if (el.dataset.caps) return;
-        el.dataset.caps = '1';
-        el.addEventListener('input', function () {
-          var v = el.value;
-          if (v === v.toUpperCase()) return;
-          var pos = el.selectionStart;
-          el.value = v.toUpperCase();
-          try { el.setSelectionRange(pos, pos); } catch (e) {}
-        });
-      });
-    }, 1200);
-  }
-
-  function mulaiAplikasi() {
-    init();
-    capsPermanen();
-  }
-
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', mulaiAplikasi);
+    document.addEventListener('DOMContentLoaded', init);
   } else {
-    mulaiAplikasi();
+    init();
   }
 
   // Apply initial hash after ALL scripts loaded and DOM ready.
