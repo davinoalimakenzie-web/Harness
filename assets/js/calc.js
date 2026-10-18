@@ -596,8 +596,8 @@
     if (brandId === CUSTOM_BRAND && !brandName) { w.App.toast('Isi brand manual dulu'); return; }
 
     var payload = {
-      brandId: brandId, brandName: brandName,
-      series: seri, ruleId: rule.id, part: part,
+      brandId: brandId, brandName: String(brandName || '').toUpperCase(),
+      series: String(seri || '').toUpperCase(), ruleId: rule.id, part: part,
       est: hitung(part, rule).est
     };
     var newKey = S.templateKey ? S.templateKey(payload) : '';

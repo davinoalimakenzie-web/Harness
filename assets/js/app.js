@@ -960,10 +960,41 @@
     });
   }
 
+  /* Semua kolom isian otomatis huruf besar — seperti CAPS LOCK menyala
+     permanen. Nilai yang tersimpan ikut huruf besar, bukan hanya tampilannya.
+     Setiap bagian dibungkus try/catch: fitur ini TIDAK BOLEH membuat
+     aplikasi gagal (pelajaran: halaman kosong = aplikasi tidak render). */
+  function capsPermanen() {
+    try {
+      var seler = 'input[type=text], input[type=search], input:not([type]), textarea';
+      function pasang(el) {
+        if (!el || el.dataset.caps) return;
+        el.dataset.caps = '1';
+        el.addEventListener('input', function () {
+          var v = el.value;
+          if (v === v.toUpperCase()) return;
+          var pos = el.selectionStart;
+          el.value = v.toUpperCase();
+          try { el.setSelectionRange(pos, pos); } catch (e) {}
+        });
+      }
+      document.querySelectorAll(seler).forEach(pasang);
+      /* Kolom yang ditambah belakangan (pilihan brand/seri, dst). */
+      setInterval(function () {
+        try { document.querySelectorAll(seler).forEach(pasang); } catch (e) {}
+      }, 1200);
+    } catch (e) { try { console.warn('[app] capsPermanen:', e && e.message); } catch (e2) {} }
+  }
+
+  function mulaiAplikasi() {
+    try { init(); } catch (e) { try { console.warn('[app] init selesai sebagian:', e && e.message); } catch (e2) {} }
+    capsPermanen();
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', mulaiAplikasi);
   } else {
-    init();
+    mulaiAplikasi();
   }
 
   // Apply initial hash after ALL scripts loaded and DOM ready.
