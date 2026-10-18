@@ -191,6 +191,9 @@
     if (tileBrand) tileBrand.setAttribute('data-brand', brandId);
     var tileSeries = el.kSeries && el.kSeries.closest ? el.kSeries.closest('.q-series') : null;
     if (tileSeries) tileSeries.setAttribute('data-brand', brandId);
+    /* Tombol simpan juga diberi data-brand supaya latar kolom tengahnya
+       ikut warna brand (menyatu dengan kotak Brand HP & Seri HP). */
+    if (el.kSaveTpl) el.kSaveTpl.setAttribute('data-brand', brandId);
   }
 
   function renderSeries() {
@@ -400,6 +403,7 @@
     el.kEst = $('#kEst');
     el.kFormulaOut = $('#kFormulaOut');
     el.tpl = $('#tplList');
+    el.kSaveTpl = $('#kSaveTpl');
 
     seedIfNeeded();
     renderBrands();

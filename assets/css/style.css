@@ -2240,7 +2240,6 @@ select.mc-inp{ appearance:none; }
 .q-save{
   grid-area:save; position:relative; overflow:visible;
   width:100%; height:100%; padding:0; border:0; border-radius:0;
-  border-top:1.5px solid var(--line); border-bottom:1.5px solid var(--line);
   background:var(--bg-elev); cursor:pointer;
   display:block;
 }
@@ -2249,19 +2248,27 @@ select.mc-inp{ appearance:none; }
    dan Seri — tidak ada lagi celah di sisi kiri-kanan tombol.
    PENTING: dipusatkan dengan position:absolute + translate, BUKAN
    place-items:center. Item grid yang lebih lebar dari selnya TIDAK
-   ter-center di dalam <button> (terbukti bergeser +7,9px ke kanan). */
+   ter-center di dalam <button> (terbukti bergeser +7,9px ke kanan).
+   Warnanya sengaja SAMA dengan panel (bukan putih) supaya latar kolom
+   tengah tidak membentuk jalur/pita yang memisahkan kotak kiri dan kanan. */
 .q-save::after{
-  content:'💾'; position:absolute; left:50%; top:50%;
+  content:'��'; position:absolute; left:50%; top:50%;
   transform:translate(-50%,-50%);
-  width:62px; height:62px; border-radius:50%;
+  width:64px; height:64px; border-radius:50%;
   background:#fff; color:#1a1a2e;
-  border:1.5px solid var(--line);
-  font-size:23px; line-height:1;
+  border:2px solid var(--accent);
+  font-size:24px; line-height:1;
   display:grid; place-items:center;
+  box-sizing:border-box;
   box-shadow:0 2px 8px rgba(0,0,0,.16);
   transition:transform .12s ease;
 }
 .q-save:active::after{ transform:translate(-50%,-50%) scale(.94); }
+
+/* Garis pemisah baris pada panel ringkas: di kolom tengah, baris yang
+   berdempetan dengan tombol simpan dimatikan supaya keempat kotak benar-
+   benar menyatu (tanpa garis menerus yang membelah panel). */
+.k-quad .q-part, .k-quad .q-est{ border-bottom:0; }
 
 /* =========================================================
    WARNA BRAND — kotak Brand HP + tombol brand daftar harga tersimpan
@@ -2324,6 +2331,25 @@ select.mc-inp{ appearance:none; }
 .k-quad .q-series[data-brand="__custom_brand__"] .q-lbl{ color:var(--hint); opacity:1; }
 .k-quad .q-brand[data-brand="__custom_brand__"] select,
 .k-quad .q-series[data-brand="__custom_brand__"] select{ color:var(--text) !important; }
+
+/* =========================================================
+   KOLOM TENGAH PANEL RINGKAS — dibuat MENYATU dengan kotak tetangga
+   Latar kolom tengah mengikuti tetangganya: putih di baris atas
+   (Harga part / Harga estimasi) dan warna brand di baris bawah
+   (Brand HP / Seri HP). Tanpa ini kolom tengah tampak sebagai jalur
+   putih yang memisahkan kotak kiri dan kanan — itulah "jarak antar
+   tombol" yang terlihat walaupun celah DOM-nya 0px.
+   ========================================================= */
+.k-quad .q-save{
+  --bc:var(--bg-elev);
+  background:linear-gradient(to bottom, var(--bg-elev) 0 50%, var(--bc) 50% 100%);
+}
+.k-quad .q-save[data-brand="samsung"]{ --bc:#1e3a8a; }
+.k-quad .q-save[data-brand="xiaomi"] { --bc:#ea580c; }
+.k-quad .q-save[data-brand="oppo"]   { --bc:#15803d; }
+.k-quad .q-save[data-brand="vivo"]   { --bc:#0284c7; }
+.k-quad .q-save[data-brand="realme"] { --bc:#ca8a04; }
+.k-quad .q-save[data-brand="infinix"]{ --bc:#dc2626; }
 
 /* Judul & subjudul kartu kalkulator dibuat rata tengah */
 #view-calc .card > .list-head.tight,
