@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261018a">
+<link rel="stylesheet" href="assets/css/style.css?v=20261018b">
 </head>
 <body>
 
@@ -665,11 +665,15 @@
 
         <div class="card">
           <div class="list-head tight"><strong>Tambah Mitra</strong></div>
-          <div class="field-row">
-            <input type="text" id="rsNamaMitra" class="grow" placeholder="Nama mitra">
-            <input type="text" id="rsPinMitra" class="grow" placeholder="PIN (4 digit)" inputmode="numeric" maxlength="4">
-            <button class="btn" id="rsTambahMitra">Tambah</button>
+          <div class="field">
+            <label class="lbl" for="rsNamaMitra">Nama Mitra</label>
+            <input type="text" id="rsNamaMitra" placeholder="Nama lengkap mitra" autocomplete="off">
           </div>
+          <div class="field">
+            <label class="lbl" for="rsPinMitra">PIN (4 Digit)</label>
+            <input type="text" id="rsPinMitra" inputmode="numeric" maxlength="4" placeholder="Contoh: 4321" autocomplete="off">
+          </div>
+          <button class="btn primary block" id="rsTambahMitra" type="button">&#65291; Tambah Mitra</button>
           <div id="rsUserList" class="list" style="margin-top:10px"></div>
           <p class="hint" style="margin-top:8px">Setiap mitra punya <b>link akses sendiri</b> (lihat di daftar). Buka link itu, lalu masuk dengan <b>PIN</b> — aksesnya terbatas pada datanya sendiri.</p>
         </div>
@@ -784,6 +788,6 @@
 <script src="assets/js/nava-trader-quote.js?v=20261015d"></script>
 <script src="assets/js/nava-trader.js?v=20261015a"></script>
 <script src="assets/js/backup.js?v=20261014l"></script>
-<script src="assets/js/app.js?v=20261018a"></script>
+<script src="assets/js/app.js?v=20261018b"></script>
 </body>
 </html>

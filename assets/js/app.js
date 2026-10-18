@@ -70,6 +70,12 @@
       $('#pageSub').textContent = t[1];
       w.scrollTo(0, 0);
       TG.haptic('select');
+      /* Nav bawah (Beranda/Riwayat/+/Rekap/Lainnya) disembunyikan saat alat
+         penuh layar dibuka — Kalkulator & Catatan — supaya kontennya tampak
+         full screen dan tidak ada tombol pengganggu. Pakai tombol kembali
+         (back) Telegram untuk berpindah. */
+      var navbawah = $('.tabbar');
+      if (navbawah) navbawah.style.display = (v === 'ronce' || v === 'notes') ? 'none' : '';
       if (v === 'ronce' && w.Ronce && w.Ronce.onShow) w.Ronce.onShow();
     },
 
