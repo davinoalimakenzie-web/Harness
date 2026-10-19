@@ -240,6 +240,13 @@ body.mitra-mode #app{ padding-top:0; }
 .mt-mini.done b{ color:#c7f9d0; }
 .mt-mini.bayar b{ color:#bfe9ff; }
 .mt-mini.tunggu b{ color:#ffd0d0; }
+/* Kasbon (BON) berjalan — baris di dalam kartu Total Jasa Kamu */
+.mt-hero-kasbon{
+  margin-top:8px; display:flex; align-items:center; justify-content:space-between;
+  gap:8px; background:rgba(0,0,0,.18); border-radius:10px; padding:7px 10px;
+}
+.mt-hero-kasbon span{ font-size:10.5px; font-weight:600; opacity:.92; }
+.mt-hero-kasbon b{ font-size:14px; font-weight:800; color:#ffd8a8; overflow-wrap:anywhere; }
 
 .mt-guide{
   background:var(--bg-elev); border:1px dashed var(--line); border-radius:12px;

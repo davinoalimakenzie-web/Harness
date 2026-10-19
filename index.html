@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261019c">
+<link rel="stylesheet" href="assets/css/style.css?v=20261019d">
 </head>
 <body>
 
@@ -518,13 +518,14 @@
         <div id="rjHistory" class="list"></div>
       </div>
 
-      <!-- Tab: Dashboard Mitra (tab "Dashboard") — total garapan yang sedang
-           berjalan. Garapan selesai & pengajuan pembayaran ada di tab Rekap. -->
+      <!-- Tab: Dashboard Mitra (tab "Dashboard") — HANYA tugas yang sedang
+           berjalan. Garapan selesai + pengajuan pembayaran ada di tab Rekap;
+           Akun Saya ada di tab Setting. -->
       <div id="ronceTab-tugas" class="ronce-tab" hidden>
 
         <div id="rtMitraView">
 
-          <!-- Ringkasan jasa: total garapan yang sedang berjalan -->
+          <!-- Ringkasan jasa: total garapan yang sedang berjalan + kasbon berjalan -->
           <div class="mt-hero">
             <div class="mt-hero-top">
               <span class="mt-hero-lbl">TOTAL JASA KAMU</span>
@@ -540,30 +541,19 @@
                 <b id="mtCntDone">0</b>
               </div>
             </div>
-          </div>
-
-          <!-- Akun: ganti PIN default 0000 -> akun jadi Aktif.
-               Posisikan tepat di bawah "Total Jasa Kamu". -->
-          <div class="card" id="rsAkunCard" hidden>
-            <div class="list-head tight"><strong>Akun Saya</strong></div>
-            <div id="rsAkunStatus" class="mitra-meta" style="margin-bottom:9px"></div>
-            <div class="mitra-add">
-              <input type="text" id="rsPinBaru" inputmode="numeric" maxlength="4" placeholder="PIN baru (4 digit)" autocomplete="off">
-              <button class="btn primary" id="rsGantiPin" type="button">Ganti PIN</button>
+            <!-- Kasbon (BON) yang masih berjalan — sisa yang belum dilunasi -->
+            <div class="mt-hero-kasbon" id="mtHeroKasbon" hidden>
+              <span>Kasbon berjalan</span>
+              <b id="mtKasbonBerjalan">Rp0</b>
             </div>
           </div>
 
-          <!-- Tabel garapan -->
+          <!-- Tugas yang sedang berjalan -->
           <div class="mt-head">
             <strong>GARAPAN SEDANG PROSES</strong>
           </div>
           <div id="mtListProses" class="list"></div>
-
-          <!-- Tombol "Sudah Selesai" memunculkan checklist garapan selesai. -->
-          <button class="btn primary block" id="mtBtnSelesai" hidden>Sudah Selesai</button>
-          <div id="mtListSelesai" class="list" hidden></div>
-          <button class="btn primary block" id="mtAjukan" hidden>Ajukan Pelunasan</button>
-          <p class="hint xs" style="margin-top:8px">Syarat ajukan: min. 1 minggu atau nilai garapan Rp200.000.</p>
+          <p class="hint xs" style="margin-top:8px">Tekan <b>LAPOR SELESAI</b> pada garapan yang sudah jadi — otomatis pindah ke tab Rekap untuk pengajuan pembayaran.</p>
         </div>
       </div>
 
@@ -599,8 +589,24 @@
 
         <!-- ============ MITRA ============ -->
         <div id="ronceRekapMitra" hidden>
+          <!-- Rekapan: garapan selesai yang belum dibayar vs sudah dibayar -->
+          <div class="mt-sum">
+            <div class="mt-sum-card proses">
+              <span>BELUM DIBAYAR</span>
+              <b id="rkBelumTotal">Rp0</b>
+              <i id="rkBelumN">0 garapan</i>
+            </div>
+            <div class="mt-sum-card titip">
+              <span>SUDAH DIBAYAR</span>
+              <b id="rkLunasTotal">Rp0</b>
+              <i id="rkLunasN">0 garapan</i>
+            </div>
+          </div>
+
           <div class="list-head"><strong>GARAPAN SELESAI</strong></div>
           <div id="ronceRekapList" class="list"></div>
+          <button class="btn primary block" id="mtAjukan" hidden>Ajukan Pelunasan</button>
+          <p class="hint xs" style="margin-top:8px">Ceklis garapan yang mau diajukan. Syarat: min. 1 minggu atau nilai garapan Rp200.000.</p>
         </div>
       </div>
 
@@ -717,25 +723,41 @@
 
       <!-- Tab: Settings -->
       <div id="ronceTab-setting" class="ronce-tab" hidden>
-        <div class="card">
-          <div class="list-head tight"><strong>Komisi Garapan</strong></div>
-          <div id="rsServiceList" class="list"></div>
-          <div class="field-row mt">
-            <input type="text" id="rsNama" class="grow" placeholder="Nama garapan">
-            <input type="text" id="rsHarga" class="grow" placeholder="Harga" inputmode="numeric">
-            <button class="btn" id="rsTambah">Tambah</button>
+
+        <!-- ============ MITRA: Akun Saya (wadah fitur mitra berikutnya) ============ -->
+        <div id="rsSettingMitra" hidden>
+          <div class="card" id="rsAkunCard">
+            <div class="list-head tight"><strong>Akun Saya</strong></div>
+            <div id="rsAkunStatus" class="mitra-meta" style="margin-bottom:9px"></div>
+            <div class="mitra-add">
+              <input type="text" id="rsPinBaru" inputmode="numeric" maxlength="4" placeholder="PIN baru (4 digit)" autocomplete="off">
+              <button class="btn primary" id="rsGantiPin" type="button">Ganti PIN</button>
+            </div>
           </div>
         </div>
 
-        <div class="card">
-          <div class="list-head tight"><strong>Tambah Mitra</strong></div>
-          <div class="mitra-add">
-            <input type="text" id="rsNamaMitra" placeholder="Nama" autocomplete="off">
-            <input type="tel" id="rsWaMitra" placeholder="No. WA" inputmode="tel" autocomplete="off">
-            <button class="btn primary" id="rsTambahMitra" type="button">Kirim Link</button>
+        <!-- ============ OWNER ============ -->
+        <div id="rsSettingOwner">
+          <div class="card">
+            <div class="list-head tight"><strong>Komisi Garapan</strong></div>
+            <div id="rsServiceList" class="list"></div>
+            <div class="field-row mt">
+              <input type="text" id="rsNama" class="grow" placeholder="Nama garapan">
+              <input type="text" id="rsHarga" class="grow" placeholder="Harga" inputmode="numeric">
+              <button class="btn" id="rsTambah">Tambah</button>
+            </div>
           </div>
-          <div id="rsUserList" class="list" style="margin-top:10px"></div>
-          <p class="hint" style="margin-top:8px">Isi nama + No. WA, lalu <b>Kirim Link</b>. Mitra masuk dengan <b>PIN 0000</b> — begitu PIN-nya diganti, akun jadi <b>Aktif</b> &amp; siap terima tugas.</p>
+
+          <div class="card">
+            <div class="list-head tight"><strong>Tambah Mitra</strong></div>
+            <div class="mitra-add">
+              <input type="text" id="rsNamaMitra" placeholder="Nama" autocomplete="off">
+              <input type="tel" id="rsWaMitra" placeholder="No. WA" inputmode="tel" autocomplete="off">
+              <button class="btn primary" id="rsTambahMitra" type="button">Kirim Link</button>
+            </div>
+            <div id="rsUserList" class="list" style="margin-top:10px"></div>
+            <p class="hint" style="margin-top:8px">Isi nama + No. WA, lalu <b>Kirim Link</b>. Mitra masuk dengan <b>PIN 0000</b> — begitu PIN-nya diganti, akun jadi <b>Aktif</b> &amp; siap terima tugas.</p>
+          </div>
         </div>
 
       </div>
@@ -826,7 +848,7 @@
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
 <script src="assets/js/transactions.js?v=20261014l"></script>
-<script src="assets/js/ronce.js?v=20261019c"></script>
+<script src="assets/js/ronce.js?v=20261019d"></script>
 <script src="assets/js/ronce-sync.js?v=20261019c"></script>
 <script src="assets/js/calc.js?v=20261019c"></script>
 <script src="assets/js/calc-sync.js?v=20261017u"></script>
@@ -839,7 +861,7 @@
 <script src="assets/js/nava-trader-fund.js?v=20261014l"></script>
 <script src="assets/js/nava-trader-alert.js?v=20261014l"></script>
 <script src="assets/js/nava-kesegaran.js?v=20261014l"></script>
-<script src="assets/js/nava-trader-quote.js?v=20261015d"></script>
+<script src="assets/js/nava-trader-quote.js?v=20261019d"></script>
 <script src="assets/js/nava-trader.js?v=20261015a"></script>
 <script src="assets/js/backup.js?v=20261014l"></script>
 <script src="assets/js/app.js?v=20261018s"></script>

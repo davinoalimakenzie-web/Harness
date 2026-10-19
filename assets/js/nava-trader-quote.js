@@ -235,9 +235,9 @@
           volumeSesi: r.volume,
           labelData: defaultLabel,
           keyakinan: 'sedang',
-          keteranganData: 'Sumber cadangan: Yahoo Finance (' + defaultLabel + ')',
+          keteranganData: 'Sumber: Yahoo Finance (' + defaultLabel + ')',
           waktuDataWIB: r.waktuDataWIB,
-          sumber: 'Yahoo Finance' + (bursa.buka ? ' (real-time)' : ' (fallback)'),
+          sumber: 'Yahoo Finance' + (bursa.buka ? ' (real-time)' : ' (delayed)'),
           dariCacheBasi: false,
           alasanLabel: bursa.buka ? 'Intraday jam bursa' : 'Bursa tutup - harga sesi penutupan'
         };
@@ -277,7 +277,7 @@
           datar: datar,
           keyakinanIHSG: 'sedang'
         },
-        sumber: 'Yahoo Finance' + (bursa.buka ? ' (real-time)' : ' (fallback)'),
+        sumber: 'Yahoo Finance' + (bursa.buka ? ' (real-time)' : ' (delayed)'),
         dariCache: false,
         catatan: note
       };
@@ -375,7 +375,12 @@
     M.galat = '';
     M.terakhirCoba = Date.now();
 
-    var hasApi = !!Sync().mascimApi;
+    var S = Sync();
+    /* Backend bot sync sudah dimatikan (sync.json kosong sejak 2026-10-03),
+       jadi Yahoo Finance adalah SUMBER UTAMA — bukan "cadangan". Kalau backend
+       belum dikonfigurasi, jangan tembak endpoint yang pasti gagal (dulu itu
+       yang membuat label "fallback" muncul terus tiap muat). */
+    var hasApi = !!(S && S.mascimApi && typeof S.isConfigured === 'function' && S.isConfigured());
 
     var primaryPromise = hasApi
       ? api('GET', q)
@@ -391,29 +396,28 @@
               throw new Error((r && r.error) || 'Gagal mengambil data real-time');
             }
           })
-      : Promise.reject(new Error('Sinkronisasi belum siap'));
+      : Promise.reject(new Error('Backend bot tidak aktif'));
 
     return primaryPromise
-      .catch(function (e) {
-        // Primary source failed — try Yahoo Finance fallback
+      .catch(function () {
         return fetchYahooFallback(cs, denganIHSG)
           .then(function (fr) {
             if (fr && fr.ok) {
-              M.gagalSeq = 0; // reset error counter on fallback success
-              M.galat = ''; // clear error message on fallback success
+              M.gagalSeq = 0; // reset error counter saat berhasil
+              M.galat = ''; // bersihkan pesan galat
               M.quote = gabungQuote(M.quote, fr);
               M.waktuAmbil = Date.now();
               var ring = fr.ringkasan || {};
-              toast('Data dari Yahoo Finance (fallback) - ' +
+              toast('Data ' + (ring.labelDataIHSG || 'Delayed') + ' - ' +
                     (ring.jumlahBerhasil || 0) + '/' + (ring.jumlahDiminta || 0) + ' simbol');
             } else {
               M.gagalSeq++;
-              M.galat = (fr && fr.error) || 'Gagal mengambil data dari sumber cadangan';
+              M.galat = (fr && fr.error) || 'Gagal mengambil data';
             }
           })
           .catch(function (e2) {
             M.gagalSeq++;
-            M.galat = (e2 && e2.message) || 'Gagal mengambil data dari semua sumber';
+            M.galat = (e2 && e2.message) || 'Gagal mengambil data';
           });
       })
       .then(function () {
