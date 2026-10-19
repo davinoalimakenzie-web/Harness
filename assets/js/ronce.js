@@ -430,7 +430,6 @@
     var info = bonInfo(mitraId);
     if (info.remaining <= 0) { w.App.toast('BON sudah lunas'); return; }
     var cek = document.querySelectorAll('#bonSettleList .bon-pilih:checked');
-    if (!cek.length) { w.App.toast('Ceklis garapan yang mau dipakai'); return; }
     var sisa = info.remaining, dipakai = [], nilai = 0;
     for (var i = 0; i < cek.length && sisa > 0; i++) {
       var t = cariTugas(cek[i].dataset.pid);
@@ -442,8 +441,10 @@
       nilai += ambil;
       sisa -= ambil;
     }
-    if (nilai <= 0) { w.App.toast('Tidak ada nilai jasa pada ceklis'); return; }
-    lunasiBon(mitraId, nilai, 'jasa', dipakai);
+    /* "Cicil Dulu" butuh jasa terceklis; "Bayar Sisa via Cash" tetap jalan
+       walau tidak ada garapan (sisa dibayar penuh cash). */
+    if (!pakaiCash && nilai <= 0) { w.App.toast('Ceklis garapan yang mau dipakai'); return; }
+    if (nilai > 0) lunasiBon(mitraId, nilai, 'jasa', dipakai);
     if (pakaiCash) {
       var sisaAkhir = bonInfo(mitraId).remaining;
       if (sisaAkhir > 0) lunasiBon(mitraId, sisaAkhir, 'cash');
@@ -496,21 +497,22 @@
                 + '<b class="bon-row-amt">' + formatIDR(t.deliveryFee) + '</b>'
                 + '</label>';
             }).join('')
-          + '</div>'
-          + '<div class="bon-calc">'
-          + '<div class="bon-calc-row"><span>Total BON</span><b id="bonCalcTotal">' + formatIDR(info.remaining) + '</b></div>'
-          + '<div class="bon-calc-row"><span>Total jasa terceklis</span><b id="bonCalcJasa">Rp0</b></div>'
-          + '<div class="bon-calc-row total"><span>Sisa BON</span><b id="bonCalcSisa">' + formatIDR(info.remaining) + '</b></div>'
-          + '</div>'
-          + '<div class="row-2 mt">'
-          + '<button class="btn primary" data-bon-cashjasa="' + esc(mitraId) + '">Bayar Sisa via Cash</button>'
-          + '<button class="btn ghost" data-bon-cicil="' + esc(mitraId) + '">Cicil Dulu</button>'
-          + '</div>'
-          + '<p class="hint xs" style="margin-top:8px">Cicil = hanya jasa terceklis yang dipotong sekarang; sisanya tetap jadi BON.</p>';
+          + '</div>';
       } else {
-        h += '<p class="hint xs">Belum ada garapan selesai yang bisa dipakai melunasi BON.</p>';
+        h += '<p class="hint xs">Belum ada garapan selesai yang bisa dipakai melunasi BON. '
+          + 'Sisa BON masih bisa dibayar cash.</p><div id="bonSettleList" class="list"></div>';
       }
-      h += '</div>';
+      h += '<div class="bon-calc">'
+        + '<div class="bon-calc-row"><span>Total BON</span><b id="bonCalcTotal">' + formatIDR(info.remaining) + '</b></div>'
+        + '<div class="bon-calc-row"><span>Total jasa terceklis</span><b id="bonCalcJasa">Rp0</b></div>'
+        + '<div class="bon-calc-row total"><span>Sisa BON</span><b id="bonCalcSisa">' + formatIDR(info.remaining) + '</b></div>'
+        + '</div>'
+        + '<div class="row-2 mt">'
+        + '<button class="btn primary" data-bon-cashjasa="' + esc(mitraId) + '">Bayar Sisa via Cash</button>'
+        + '<button class="btn ghost" data-bon-cicil="' + esc(mitraId) + '">Cicil Dulu</button>'
+        + '</div>'
+        + '<p class="hint xs" style="margin-top:8px">Cicil = hanya jasa terceklis yang dipotong sekarang; sisanya tetap jadi BON.</p>'
+        + '</div>';
     }
     h += '</div>';
 
