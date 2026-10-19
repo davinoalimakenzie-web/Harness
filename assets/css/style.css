@@ -260,6 +260,20 @@ body.mitra-mode #app{ padding-top:0; }
 .mt-count.proses{ background:rgba(245,158,11,.16); color:#b45309; }
 .mt-count.done{ background:rgba(34,197,94,.16); color:#15803d; }
 
+/* Ringkasan dua kotak (tab Input owner): Sedang Proses & Titip Bayar */
+.mt-sum{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:2px 0 2px; }
+.mt-sum-card{
+  border-radius:12px; padding:10px 11px; display:flex; flex-direction:column; gap:2px;
+  border:1px solid var(--line); background:var(--bg-elev);
+}
+.mt-sum-card span{ font-size:10px; font-weight:800; letter-spacing:.04em; color:var(--text-2); }
+.mt-sum-card b{ font-size:16px; font-weight:800; font-variant-numeric:tabular-nums; }
+.mt-sum-card i{ font-style:normal; font-size:10.5px; color:var(--hint); }
+.mt-sum-card.proses{ border-left:4px solid #f59e0b; }
+.mt-sum-card.proses b{ color:#b45309; }
+.mt-sum-card.titip{ border-left:4px solid #0ea5e9; }
+.mt-sum-card.titip b{ color:#0369a1; }
+
 .mt-row{
   background:var(--bg-elev); border:1px solid var(--line); border-left:4px solid #f59e0b;
   border-radius:12px; padding:10px 11px; margin-bottom:8px;
@@ -274,6 +288,7 @@ body.mitra-mode #app{ padding-top:0; }
 .mt-tag.proses{ background:rgba(245,158,11,.16); color:#b45309; }
 .mt-tag.done{ background:rgba(34,197,94,.16); color:#15803d; }
 .mt-tag.tunggu{ background:rgba(239,68,68,.14); color:#b91c1c; }
+.mt-tag.titip{ background:rgba(14,165,233,.16); color:#0369a1; }
 .mt-row-mid{ font-size:11.5px; color:var(--text-2); margin-top:3px; }
 .mt-row-note{ font-size:11.5px; color:var(--text-2); margin-top:3px; font-style:italic; }
 .mt-row-bottom{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; }

@@ -243,19 +243,31 @@
 
   /* ---------------- Saldo mitra ---------------- */
 
+  /* Komisi mitra = jasa pekerjaan lama (data.jobs) + garapan yang sudah
+     SELESAI (data.tasks). Input Garapan sekarang mengirim TUGAS, jadi tanpa
+     ini komisi mitra tidak pernah bertambah. */
+  function komisiMitra(id) {
+    var k = 0, i;
+    for (i = 0; i < data.jobs.length; i++) if (data.jobs[i].employeeId === id) k += num(data.jobs[i].deliveryFee);
+    for (i = 0; i < data.tasks.length; i++) {
+      var t = data.tasks[i];
+      if (t.employeeId === id && t.status === 'completed') k += num(t.deliveryFee);
+    }
+    return k;
+  }
   function saldoMitra(id) {
-    var komisi = 0, keluar = 0, i;
-    for (i = 0; i < data.jobs.length; i++) if (data.jobs[i].employeeId === id) komisi += num(data.jobs[i].deliveryFee);
+    var keluar = 0, i;
     for (i = 0; i < data.transactions.length; i++) {
       var t = data.transactions[i];
       if (t.employeeId !== id) continue;
       if (t.type === 'pelunasan' || t.type === 'penarikan') keluar += num(t.amount);
     }
-    return komisi - keluar;
+    return komisiMitra(id) - keluar;
   }
   function totalKomisiSemua() {
-    var t = 0;
-    for (var i = 0; i < data.jobs.length; i++) t += num(data.jobs[i].deliveryFee);
+    var t = 0, i;
+    for (i = 0; i < data.jobs.length; i++) t += num(data.jobs[i].deliveryFee);
+    for (i = 0; i < data.tasks.length; i++) if (data.tasks[i].status === 'completed') t += num(data.tasks[i].deliveryFee);
     return t;
   }
   function rekapMitra() {
@@ -268,7 +280,9 @@
     var hasil = [];
     for (i = 0; i < urutan.length; i++) {
       var id = urutan[i], kerjaan = 0, komisi = 0;
-      for (k = 0; k < data.jobs.length; k++) if (data.jobs[k].employeeId === id) { kerjaan++; komisi += num(data.jobs[k].deliveryFee); }
+      for (k = 0; k < data.jobs.length; k++) if (data.jobs[k].employeeId === id) kerjaan++;
+      for (k = 0; k < data.tasks.length; k++) if (data.tasks[k].employeeId === id && data.tasks[k].status === 'completed') kerjaan++;
+      komisi = komisiMitra(id);
       var u = cariMitra(id);
       hasil.push({ id: id, nama: u ? u.name : id, kerjaan: kerjaan, komisi: komisi, saldo: saldoMitra(id) });
     }
@@ -515,31 +529,70 @@
 
   function renderInput() {
     renderAkun();
-    var m = $('#rjMitra'), g = $('#rjGarapan'), t = $('#rjTanggal');
-    if (m) m.innerHTML = optsMitra();
+    var m = $('#rjMitra'), g = $('#rjGarapan');
+    if (m) m.innerHTML = optsMitra(true);
     if (g) g.innerHTML = optsGarapan();
-    if (t) t.value = hariIni();
-    /* Mitra: kolom Mitra disembunyikan, daftar hanya pekerjaannya sendiri. */
-    if (m && m.closest) { var mf = m.closest('.field'); if (mf) mf.style.display = adalahOwner() ? '' : 'none'; }
 
-    var jobs = adalahOwner() ? data.jobs : data.jobs.filter(function (j) { return j.employeeId === sesi.id; });
-    var pending = jobs.filter(function (j) { return (j.status || 'pending') === 'pending'; });
-    var totalPending = pending.reduce(function (s, j) { return s + num(j.deliveryFee); }, 0);
-    var cnt = $('#rjPendingCount'); if (cnt) cnt.textContent = pending.length + ' pekerjaan';
-    var tot = $('#rjPendingTotal'); if (tot) tot.textContent = formatIDR(totalPending);
+    /* Ringkasan & daftar: HANYA garapan yang masih PROSES dan yang sudah
+       TITIP BAYAR (selesai tapi belum dilunasi). Pelunasan & cicil
+       pelunasan dilakukan di tab Rekap. */
+    var tasks = data.tasks.slice().sort(function (a, b) {
+      return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+    });
+    var proses = tasks.filter(function (t) { return t.status !== 'completed'; });
+    var titip = tasks.filter(function (t) { return t.status === 'completed' && !sudahLunas(t); });
+    var jml = function (a) { return a.reduce(function (s, t) { return s + num(t.deliveryFee); }, 0); };
+    var set = function (sel, v) { var e = $(sel); if (e) e.textContent = v; };
+    set('#rjProsesTotal', formatIDR(jml(proses)));
+    set('#rjProsesCount', proses.length + ' garapan');
+    set('#rjTitipTotal', formatIDR(jml(titip)));
+    set('#rjTitipCount', titip.length + ' garapan');
 
     var h = $('#rjHistory');
     if (!h) return;
-    if (!jobs.length) { h.innerHTML = '<div class="empty">Belum ada pekerjaan</div>'; return; }
-    h.innerHTML = jobs.map(function (j) {
-      var s = cariGarapan(j.serviceId);
-      var set = s && s.isSetEnabled;
-      return '<div class="item">'
-        + '<div class="item-body"><div class="item-title">' + esc(j.employeeName) + '</div>'
-        + '<div class="item-sub"><span>' + formatTanggal(j.date) + '</span><span>' + j.quantity + (set ? ' Set' : ' Pcs') + ' ' + esc(namaGarapan(j.serviceId)) + '</span></div></div>'
-        + '<div style="text-align:right"><div class="item-amt">' + formatIDR(j.deliveryFee) + '</div>'
-        + '<span class="tag" style="font-size:11px;color:' + (j.status === 'lunas' ? 'var(--success)' : 'var(--warn)') + '">' + (j.status === 'lunas' ? 'Lunas' : 'Pending') + '</span></div></div>';
-    }).join('');
+    var tampil = proses.concat(titip);
+    if (!tampil.length) { h.innerHTML = '<div class="empty">Belum ada garapan berjalan</div>'; return; }
+    h.innerHTML = tampil.map(function (t) { return rjRow(t); }).join('');
+  }
+
+  /* Satu baris garapan di tab Input (owner). */
+  function rjRow(t) {
+    var s = cariGarapan(t.serviceId);
+    var set = s && s.isSetEnabled;
+    var selesai = t.status === 'completed';
+    return '<div class="mt-row' + (selesai ? ' done' : '') + '">'
+      + '<div class="mt-row-top">'
+      +   '<span class="mt-row-nama">' + esc(namaGarapan(t.serviceId)) + '</span>'
+      +   '<span class="mt-tag ' + (selesai ? 'titip' : 'proses') + '">' + (selesai ? 'TITIP BAYAR' : 'TERKIRIM') + '</span>'
+      + '</div>'
+      + '<div class="mt-row-mid">' + esc(t.employeeName) + ' &middot; ' + t.quantity + (set ? ' Set' : ' pcs') + ' &middot; ' + formatTanggal(t.date) + '</div>'
+      + (t.note ? '<div class="mt-row-note">Catatan: ' + esc(t.note) + '</div>' : '')
+      + '<div class="mt-row-bottom">'
+      +   '<span class="mt-row-jasa">' + formatIDR(t.deliveryFee) + '</span>'
+      +   '<span class="mt-row-ok">' + (selesai ? 'Menunggu pelunasan di Rekap' : 'Menunggu laporan mitra') + '</span>'
+      + '</div>'
+      + '</div>';
+  }
+
+  /* Garapan LUNAS = id-nya ada di pengajuan yang sudah dibayar. */
+  function sudahLunas(t) {
+    var reqs = data.paymentRequests || [];
+    for (var i = 0; i < reqs.length; i++) {
+      var r = reqs[i];
+      if (r.status !== 'dibayar' || !r.taskIds) continue;
+      if (r.taskIds.indexOf(t.id) >= 0) return true;
+    }
+    return false;
+  }
+
+  /* Garapan yang sudah masuk pengajuan tapi belum dibayar. */
+  function sudahDiajukan(tid) {
+    var reqs = data.paymentRequests || [];
+    for (var i = 0; i < reqs.length; i++) {
+      if (reqs[i].status === 'dibayar' || !reqs[i].taskIds) continue;
+      if (reqs[i].taskIds.indexOf(tid) >= 0) return true;
+    }
+    return false;
   }
 
   /* ---------------- Tab: Tugas ---------------- */
@@ -679,9 +732,13 @@
     if (!sesi || sesi.role === 'owner') return;
     var h = mtHitung();
     if (h.bisaAjukan <= 0) { w.App.toast('Belum ada jasa menunggu bayar'); return; }
+    /* Catat juga garapan mana saja yang diajukan, supaya owner bisa tahu
+       mana yang masih "titip bayar" dan mana yang sudah lunas. */
+    var belum = h.done.filter(function (t) { return !sudahDiajukan(t.id); });
     data.paymentRequests.push({
       id: uid(), employeeId: sesi.id, employeeName: sesi.name,
-      amount: h.bisaAjukan, date: hariIni(), status: 'diajukan',
+      amount: h.bisaAjukan, taskIds: belum.map(function (t) { return t.id; }),
+      date: hariIni(), status: 'diajukan',
       createdAt: new Date().toISOString()
     });
     catat('Pengajuan pembayaran ' + formatIDR(h.bisaAjukan) + ' oleh ' + sesi.name);
@@ -718,6 +775,8 @@
   /* ---------------- Tab: Rekap ---------------- */
 
   function renderRekap() {
+    /* Chip "Tahun Ini" & "Semua" sudah dihapus — pastikan filternya valid. */
+    if (filter !== 'today' && filter !== 'week' && filter !== 'month') filter = 'month';
     document.querySelectorAll('#ronceFilters .chip').forEach(function (c) {
       c.classList.toggle('on', c.dataset.rfilter === filter);
     });
@@ -812,21 +871,29 @@
   /* ---------------- Actions ---------------- */
 
   function tambahJob() {
-    /* Mitra tidak bisa memilih mitra lain: pekerjaannya selalu miliknya. */
-    var employeeId = adalahOwner() ? (($('#rjMitra') || {}).value || '') : (sesi ? sesi.id : '');
+    /* Input Garapan = pengirim TUGAS ke mitra. Tanggal otomatis hari ini,
+       jasa otomatis dari komisi garapan — tidak ada isian tanggal/jasa. */
     var serviceId = ($('#rjGarapan') || {}).value || '';
     var quantity = ($('#rjQty') || {}).value || '';
-    var fee = ($('#rjFee') || {}).value || '';
-    if (!employeeId) { w.App.toast('Pilih mitra!'); return; }
+    var employeeId = ($('#rjMitra') || {}).value || '';
+    var catatan = (($('#rjCatatan') || {}).value || '').trim();
     if (!serviceId) { w.App.toast('Pilih jenis garapan!'); return; }
     if (num(quantity) <= 0) { w.App.toast('Jumlah minimal 1!'); return; }
+    if (!employeeId) { w.App.toast('Pilih mitra!'); return; }
     var u = cariMitra(employeeId);
     if (!u) { w.App.toast('Data mitra tidak ditemukan!'); return; }
-    var s = cariGarapan(serviceId);
-    data.jobs.unshift({ id: uid(), employeeId: employeeId, employeeName: u.name, date: ($('#rjTanggal') || {}).value || hariIni(), serviceId: serviceId, quantity: num(quantity), deliveryFee: fee === '' ? feeOtomatis(serviceId, quantity) : num(fee), status: 'pending', createdAt: new Date().toISOString() });
-    catat(namaGarapan(serviceId) + ' x' + quantity + ' oleh ' + u.name);
+    data.tasks.unshift({
+      id: uid(), employeeId: employeeId, employeeName: u.name,
+      serviceId: serviceId, quantity: num(quantity),
+      deliveryFee: feeOtomatis(serviceId, quantity),
+      date: hariIni(), note: catatan, status: 'pending',
+      createdAt: new Date().toISOString()
+    });
+    catat('Tugas ' + namaGarapan(serviceId) + ' x' + quantity + ' dikirim ke ' + u.name);
     simpan();
-    w.App.toast('Pekerjaan tersimpan');
+    w.App.toast('Tugas terkirim ke ' + u.name);
+    var q = $('#rjQty'); if (q) q.value = '';
+    var c = $('#rjCatatan'); if (c) c.value = '';
     renderInput();
   }
 
