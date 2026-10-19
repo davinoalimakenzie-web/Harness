@@ -567,6 +567,13 @@
   function renderTab() {
     if (!sesi) { showLogin(); return; }
     var own = adalahOwner();
+    /* Normalisasi tabAktif DULU, sebelum tombol di-highlight — kalau tidak,
+       tombol lama tetap tampak aktif padahal isinya sudah tab lain. */
+    if (!own) {
+      if (tabAktif === 'input' || tabAktif === 'servis') tabAktif = 'tugas';
+    } else if (tabAktif === 'tugas' || tabAktif === 'kasbon') {
+      tabAktif = 'input';
+    }
     var bar = $('#ronceTabs');
     if (bar) bar.style.display = '';
     document.querySelectorAll('#ronceTabs .seg-btn').forEach(function (b) {
@@ -580,9 +587,6 @@
       if (t === 'tugas') b.textContent = 'Dashboard';
       b.classList.toggle('active', t === tabAktif);
     });
-    if (!own) {
-      if (tabAktif === 'input' || tabAktif === 'servis') tabAktif = 'tugas';
-    } else if (tabAktif === 'tugas' || tabAktif === 'kasbon') tabAktif = 'input';
     /* SEMUA tab (termasuk 'tugas') dikelola di satu loop. Sebelumnya
        #ronceTab-tugas hanya disembunyikan untuk owner, sehingga untuk mitra
        dashboard (Total Jasa Kamu + Akun Saya) ikut tampil di tab Rekap/Kasbon. */
