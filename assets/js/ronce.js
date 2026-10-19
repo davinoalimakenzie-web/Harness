@@ -35,7 +35,11 @@
     tasks: [],
     paymentRequests: [],
     centralBalance: 0,
-    log: []
+    log: [],
+    /* Sinkronisasi antar perangkat: stempel waktu dokumen + tombstone
+       supaya item yang dihapus tidak "hidup lagi" saat digabung. */
+    updatedAt: '',
+    hapus: { users: [], tasks: [], services: [] }
   };
 
   var sesi = null;
@@ -105,6 +109,11 @@
       if (!Array.isArray(data[k])) data[k] = [];
     });
     if (typeof data.centralBalance !== 'number') data.centralBalance = 0;
+    if (typeof data.updatedAt !== 'string') data.updatedAt = '';
+    if (!data.hapus || typeof data.hapus !== 'object') data.hapus = { users: [], tasks: [], services: [] };
+    ['users','tasks','services'].forEach(function (k) {
+      if (!Array.isArray(data.hapus[k])) data.hapus[k] = [];
+    });
     /* Migrasi: user lama belum punya field `aktif`/`wa`. Mitra yang sudah
        punya PIN sendiri (bukan 0000) dianggap sudah aktif. */
     data.users.forEach(function (u) {
@@ -115,7 +124,10 @@
   }
 
   function simpan() {
+    data.updatedAt = new Date().toISOString();
     try { w.localStorage.setItem(KUNCI, JSON.stringify(data)); } catch (e) {}
+    /* Dorong ke server supaya perangkat lain (HP mitra) ikut dapat. */
+    try { if (w.RonceSync && w.RonceSync.kirim) w.RonceSync.kirim(); } catch (e) {}
   }
 
   function catat(teks) {
@@ -358,7 +370,24 @@
     if (mitraDariLink) {
       var u = cariMitra(mitraDariLink);
       if (u) { pilihPin = u; layar = 'pin'; renderPin(); return; }
-      mitraDariLink = null; // tidak dkenal -> tampilkan daftar penuh
+      /* Akun belum ketemu — biasanya karena data mitra belum tersinkron ke
+         perangkat ini (HP mitra masih baru). Tampilkan status menunggu,
+         JANGAN lempar mitra ke daftar akun Project Nava. */
+      list.innerHTML = '<div class="empty"><b>Menghubungkan ke akun mitra…</b>'
+        + 'Sedang menyinkronkan data dari server. Tunggu sebentar ya.</div>';
+      if (!renderLogin._t) {
+        renderLogin._t = w.setTimeout(function () {
+          renderLogin._t = null;
+          if (!mitraDariLink || cariMitra(mitraDariLink)) return;
+          var l2 = $('#ronceUserList');
+          if (l2) {
+            l2.innerHTML = '<div class="empty"><b>Akun mitra belum tersedia</b>'
+              + 'Data belum tersinkron ke perangkat ini. Pastikan perangkat terhubung internet, '
+              + 'lalu minta owner membuka aplikasi sebentar supaya data terkirim.</div>';
+          }
+        }, 10000);
+      }
+      return;
     }
     var h = '';
     for (var i = 0; i < data.users.length; i++) {
@@ -679,6 +708,7 @@
     });
     r.status = 'dibayar';
     r.paidAt = new Date().toISOString();
+    r._u = new Date().toISOString();
     catat('Pengajuan ' + formatIDR(r.amount) + ' dari ' + r.employeeName + ' dibayar');
     simpan();
     w.App.toast('Ditandai sudah dibayar');
@@ -831,6 +861,7 @@
       if (data.tasks[i].id === id) {
         data.tasks[i].status = 'completed';
         data.tasks[i].completedAt = new Date().toISOString();
+        data.tasks[i]._u = new Date().toISOString();
         catat('Tugas ' + namaGarapan(data.tasks[i].serviceId) + ' selesai oleh ' + data.tasks[i].employeeName);
       }
     }
@@ -840,6 +871,7 @@
 
   function hapusTugas(id) {
     data.tasks = data.tasks.filter(function (x) { return x.id !== id; });
+    data.hapus.tasks.push({ id: id, t: new Date().toISOString() });
     simpan();
     renderTugas();
   }
@@ -858,6 +890,7 @@
 
   function hapusGarapan(id) {
     data.services = data.services.filter(function (g) { return g.id !== id; });
+    data.hapus.services.push({ id: id, t: new Date().toISOString() });
     simpan();
     renderSetting();
   }
@@ -887,6 +920,7 @@
     if (!u || u.role === 'owner') { w.App.toast('Akun owner tidak bisa dihapus'); return; }
     if (!w.confirm('Hapus mitra "' + u.name + '"? Riwayat pekerjaan mereka tetap ada.')) return;
     data.users = data.users.filter(function (x) { return x.id !== id; });
+    data.hapus.users.push({ id: id, t: new Date().toISOString() });
     catat('Mitra ' + u.name + ' dihapus');
     simpan();
     renderSetting();
@@ -902,6 +936,7 @@
     var pertamaKali = !sesi.aktif;
     sesi.pin = pin;
     sesi.aktif = true;
+    sesi._u = new Date().toISOString();
     catat('Mitra ' + sesi.name + (pertamaKali ? ' AKTIF (PIN diganti)' : ' ganti PIN'));
     simpan();
     var ip = $('#rsPinBaru'); if (ip) ip.value = '';
@@ -931,6 +966,7 @@
         g.isSetEnabled = !g.isSetEnabled;
         if (g.isSetEnabled && !g.itemsPerSet) g.itemsPerSet = 10;
         if (g.isSetEnabled && !g.pricePerSet) g.pricePerSet = num(g.price) * num(g.itemsPerSet || 10);
+        g._u = new Date().toISOString();
       }
     }
     simpan();
@@ -946,6 +982,89 @@
     renderSetting();
   }
 
+  /* ---------------- Sinkronisasi antar perangkat ----------------
+     Dokumen = seluruh `data` + `updatedAt` + tombstone `hapus`.
+     Digabung per-item (berdasarkan id + stempel waktu item) supaya
+     perubahan owner (tugas baru) dan mitra (lapor selesai, pengajuan)
+     TIDAK saling menimpa. Dipakai oleh ronce-sync.js. */
+  function stempel(it) {
+    return String((it && (it._u || it.updatedAt || it.paidAt || it.completedAt || it.createdAt)) || '');
+  }
+
+  function doc() { return data; }
+
+  function gabung(jauh) {
+    if (!jauh || typeof jauh !== 'object') return false;
+    var berubah = false;
+    var KH = ['users', 'tasks', 'services'];
+
+    /* 1. Tombstone dari kedua sisi digabung. */
+    KH.forEach(function (k) {
+      var a = data.hapus[k] || [], b = (jauh.hapus && jauh.hapus[k]) || [];
+      var ada = {};
+      a.concat(b).forEach(function (x) { ada[String(x && x.id ? x.id : x)] = 1; });
+      var hasil = Object.keys(ada).map(function (id) { return { id: id }; });
+      if (hasil.length !== a.length) berubah = true;
+      data.hapus[k] = hasil;
+    });
+
+    /* 2. Tiap daftar digabung berdasarkan id; stempel lebih baru menang. */
+    ['users','tasks','jobs','transactions','paymentRequests','services','log'].forEach(function (k) {
+      var lokal = Array.isArray(data[k]) ? data[k] : [];
+      var jauhArr = Array.isArray(jauh[k]) ? jauh[k] : [];
+      if (!jauhArr.length) return;
+      var peta = {}, urut = [];
+      lokal.forEach(function (it) {
+        var id = String(it && it.id);
+        if (!peta[id]) { peta[id] = it; urut.push(id); }
+      });
+      jauhArr.forEach(function (it) {
+        var id = String(it && it.id);
+        if (!peta[id]) { peta[id] = it; urut.push(id); berubah = true; return; }
+        if (stempel(it) > stempel(peta[id])) { peta[id] = it; berubah = true; }
+      });
+      data[k] = urut.map(function (id) { return peta[id]; });
+    });
+
+    /* 3. Buang item yang sudah dihapus. */
+    KH.forEach(function (k) {
+      var buang = {};
+      data.hapus[k].forEach(function (x) { buang[String(x.id)] = 1; });
+      var sebelum = data[k].length;
+      data[k] = data[k].filter(function (it) { return !buang[String(it.id)]; });
+      if (data[k].length !== sebelum) berubah = true;
+    });
+
+    /* 4. Saldo terpusat: pakai dokumen yang lebih baru. */
+    if (String(jauh.updatedAt || '') > String(data.updatedAt || '')) {
+      data.centralBalance = num(jauh.centralBalance);
+      data.updatedAt = jauh.updatedAt;
+      berubah = true;
+    }
+
+    /* 5. Batasi tombstone & log. */
+    KH.forEach(function (k) { if (data.hapus[k].length > 300) data.hapus[k] = data.hapus[k].slice(-300); });
+    if (data.log.length > 300) data.log.length = 300;
+
+    if (berubah) {
+      try { w.localStorage.setItem(KUNCI, JSON.stringify(data)); } catch (e) {}
+      if (sesi) {
+        var ul = cariMitra(sesi.id);
+        if (ul) sesi = ul;
+        else { sesi = null; try { w.localStorage.removeItem(KUNCI_SESI); } catch (e) {} }
+      }
+    }
+    return berubah;
+  }
+
+  /* Gambar ulang tampilan setelah data digabung dari server. */
+  function refresh() {
+    try {
+      if (sesi) renderTab();
+      else renderLogin();
+    } catch (e) {}
+  }
+
   /* ---------------- Init ---------------- */
 
   var _inited = false;
@@ -953,7 +1072,12 @@
     if (_inited) return;
     _inited = true;
     muat();
-    mitraDariLink = idMitraDariSumber();
+    /* Tandai mode mitra dari PARAMETER LINK — bukan dari apakah akunnya sudah
+       ketemu di perangkat ini. Di HP mitra (perangkat baru) datanya belum ada,
+       jadi kalau menunggu akun ketemu dulu, mitra akan mendarat di beranda
+       Project Nava. */
+    var dariLink = idMitraDariSumber();
+    mitraDariLink = dariLink;
     try {
       var uidSesi = w.localStorage.getItem(KUNCI_SESI);
       var u = uidSesi ? cariMitra(uidSesi) : null;
@@ -968,7 +1092,7 @@
        tampak hanya kalkulator garapan yang sudah dibatasi aksesnya.
        Sengaja TIDAK lewat App.go(): onShow() -> showLogin() akan
        mengosongkan mitraDariLink dan merusak login-langsung mitra. */
-    if (mitraDariLink) {
+    if (dariLink) {
       try {
         w.document.body.classList.add('mitra-mode');
         if (w.App) w.App.view = 'ronce';
@@ -983,6 +1107,9 @@
         if (ps) ps.textContent = 'Akses mitra';
       } catch (e) {}
     }
+
+    /* Sinkronisasi data Ronce antar perangkat (owner <-> HP mitra). */
+    try { if (w.RonceSync && w.RonceSync.mulai) w.RonceSync.mulai(); } catch (e) {}
 
     // Login: pilih user
     document.addEventListener('click', function (e) {
@@ -1102,6 +1229,7 @@
     onShow: function () { if (sesi) { showApp(); } else { showLogin(); } },
     _data: function () { return data; },
     _muat: muat, _simpan: simpan,
+    _doc: doc, _gabung: gabung, _refresh: refresh,
     feeOtomatis: feeOtomatis, hargaPerSet: hargaPerSet,
     saldoMitra: saldoMitra, rekapMitra: rekapMitra,
     eksekusiPelunasan: eksekusiPelunasan,
