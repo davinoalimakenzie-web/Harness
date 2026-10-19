@@ -546,29 +546,21 @@
         <!-- ============ TAMPILAN MITRA ============ -->
         <div id="rtMitraView" hidden>
 
-          <!-- Ringkasan jasa -->
+          <!-- Ringkasan jasa: total garapan berjalan -->
           <div class="mt-hero">
             <div class="mt-hero-top">
               <span class="mt-hero-lbl">TOTAL JASA KAMU</span>
               <button class="mt-help" id="mtHelp" type="button">? BANTUAN</button>
             </div>
             <div class="mt-hero-amt" id="mtTotalJasa">Rp0</div>
-            <div class="mt-hero-grid">
+            <div class="mt-hero-grid" style="grid-template-columns:1fr 1fr">
               <div class="mt-mini proses">
                 <span>Sedang dikerjakan</span>
-                <b id="mtJasaProses">Rp0</b>
+                <b id="mtCntProses">0</b>
               </div>
               <div class="mt-mini done">
                 <span>Sudah selesai</span>
-                <b id="mtJasaDone">Rp0</b>
-              </div>
-              <div class="mt-mini bayar">
-                <span>Sudah dibayar</span>
-                <b id="mtJasaDibayar">Rp0</b>
-              </div>
-              <div class="mt-mini tunggu">
-                <span>Menunggu bayar</span>
-                <b id="mtJasaTunggu">Rp0</b>
+                <b id="mtCntDone">0</b>
               </div>
             </div>
           </div>
@@ -579,32 +571,8 @@
             <ul>
               <li><span class="mt-dot proses"></span><b>Proses</b> &mdash; garapan yang masih kamu kerjakan.</li>
               <li><span class="mt-dot done"></span><b>Selesai</b> &mdash; sudah kamu lapor, tekan tombol <b>LAPOR SELESAI</b> di tiap garapan.</li>
-              <li><span class="mt-dot bayar"></span><b>Sudah dibayar</b> &mdash; jasa yang sudah dibayarkan owner.</li>
-              <li><span class="mt-dot tunggu"></span><b>Menunggu bayar</b> &mdash; jasa selesai yang belum dibayar. Tekan <b>AJUKAN PEMBAYARAN</b>.</li>
             </ul>
           </div>
-
-          <!-- Tombol aksi utama -->
-          <button class="mt-cta" id="mtAjukan" type="button">
-            <span class="mt-cta-ico">&#128176;</span>
-            <span class="mt-cta-txt"><b>AJUKAN PEMBAYARAN</b><i id="mtAjukanSub">Belum ada jasa menunggu bayar</i></span>
-          </button>
-
-          <!-- Tabel garapan -->
-          <div class="mt-head">
-            <strong>GARAPAN SEDANG PROSES</strong>
-            <span class="mt-count proses" id="mtCntProses">0</span>
-          </div>
-          <div id="mtListProses" class="list"></div>
-
-          <div class="mt-head">
-            <strong>GARAPAN SELESAI</strong>
-            <span class="mt-count done" id="mtCntDone">0</span>
-          </div>
-          <div id="mtListDone" class="list"></div>
-
-          <div class="mt-head"><strong>PENGAJUAN &amp; PELUNASAN</strong></div>
-          <div id="mtListBayar" class="list"></div>
 
           <!-- Akun: ganti PIN default 0000 -> akun jadi Aktif -->
           <div class="card" id="rsAkunCard" hidden>
@@ -615,6 +583,20 @@
               <button class="btn primary" id="rsGantiPin" type="button">Ganti PIN</button>
             </div>
           </div>
+
+          <!-- Tabel garapan -->
+          <div class="mt-head">
+            <strong>GARAPAN SEDANG PROSES</strong>
+          </div>
+          <div id="mtListProses" class="list"></div>
+
+          <div class="mt-head">
+            <strong>GARAPAN SELESAI</strong>
+          </div>
+          <div id="mtListDone" class="list"></div>
+
+          <div class="mt-head"><strong>PENGAJUAN &amp; PELUNASAN</strong></div>
+          <div id="mtListBayar" class="list"></div>
         </div>
       </div>
 
@@ -627,8 +609,8 @@
             <button class="chip" data-rfilter="week">Minggu Ini</button>
             <button class="chip on" data-rfilter="month">Bulan Ini</button>
           </div>
-          <div id="ronceMonthWrap" style="display:none;margin-bottom:10px">
-            <select id="rreBulan" class="grow"></select>
+          <div id="ronceMitraFilterWrap" style="margin-bottom:10px">
+            <select id="ronceMitraFilter" class="grow"><option value="">Semua Mitra</option></select>
           </div>
           <div class="item">
             <div class="item-body">
@@ -641,6 +623,8 @@
 
         <div class="list-head"><strong>Pengajuan Pembayaran Mitra</strong></div>
         <div id="roncePayReq" class="list"></div>
+
+        <div id="ronceBonSection"></div>
       </div>
 
       <!-- Tab: Kalkulator Servis HP (menggantikan tab Log) -->
@@ -842,8 +826,8 @@
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
 <script src="assets/js/transactions.js?v=20261014l"></script>
-<script src="assets/js/ronce.js?v=20261019a"></script>
-<script src="assets/js/ronce-sync.js?v=20261019a"></script>
+<script src="assets/js/ronce.js?v=20261019b"></script>
+<script src="assets/js/ronce-sync.js?v=20261019b"></script>
 <script src="assets/js/calc.js?v=20261017x"></script>
 <script src="assets/js/calc-sync.js?v=20261017u"></script>
 <script src="assets/js/supabase.js?v=20261017s"></script>

@@ -36,6 +36,7 @@
     paymentRequests: [],
     centralBalance: 0,
     log: [],
+    bon: { total: 0, remaining: 0, history: [] },
     /* Sinkronisasi antar perangkat: stempel waktu dokumen + tombstone
        supaya item yang dihapus tidak "hidup lagi" saat digabung. */
     updatedAt: '',
@@ -107,6 +108,8 @@
     ['jobs','transactions','tasks','paymentRequests','log'].forEach(function (k) {
       if (!Array.isArray(data[k])) data[k] = [];
     });
+    if (!data.bon || typeof data.bon !== 'object') data.bon = { total: 0, remaining: 0, history: [] };
+    if (!Array.isArray(data.bon.history)) data.bon.history = [];
     if (typeof data.centralBalance !== 'number') data.centralBalance = 0;
     if (typeof data.updatedAt !== 'string') data.updatedAt = '';
     if (!data.hapus || typeof data.hapus !== 'object') data.hapus = { users: [], tasks: [], services: [] };
@@ -287,6 +290,58 @@
     }
     hasil.sort(function (a, b) { return b.saldo - a.saldo; });
     return hasil;
+  }
+
+  /* ---------------- BON (Kasbon Mitra) ----------------
+     BON = pinjaman dari owner ke mitra. Max 500rb.
+     Pelunasan: via jasa garapan (potong komisi) atau cash. */
+  var BON_MAX = 500000;
+
+  function bonInfo(mitraId) {
+    var total = 0, i;
+    for (i = 0; i < data.transactions.length; i++) {
+      var t = data.transactions[i];
+      if (t.employeeId === mitraId && t.type === 'penarikan') total += num(t.amount);
+    }
+    var lunas = 0;
+    for (i = 0; i < data.transactions.length; i++) {
+      var t2 = data.transactions[i];
+      if (t2.employeeId === mitraId && t2.type === 'pelunasan_bon') lunas += num(t2.amount);
+    }
+    return { total: total, remaining: Math.max(0, total - lunas) };
+  }
+
+  function ajukanBon(mitraId, amount) {
+    var u = cariMitra(mitraId);
+    if (!u) return;
+    var current = bonInfo(mitraId);
+    if (current.total + amount > BON_MAX) {
+      w.App.toast('Maksimal BON ' + formatIDR(BON_MAX));
+      return;
+    }
+    data.transactions.push({
+      id: uid(), employeeId: mitraId, type: 'penarikan', amount: amount,
+      date: hariIni(), note: 'BON (kasbon mitra)', createdAt: new Date().toISOString()
+    });
+    catat('BON ' + formatIDR(amount) + ' untuk ' + u.name);
+    simpan();
+    w.App.toast('BON ' + formatIDR(amount) + ' dicatat');
+  }
+
+  function lunasiBon(mitraId, amount, mode) {
+    var u = cariMitra(mitraId);
+    if (!u) return;
+    var info = bonInfo(mitraId);
+    if (amount > info.remaining) amount = info.remaining;
+    if (amount <= 0) { w.App.toast('BON sudah lunas'); return; }
+    var note = mode === 'jasa' ? 'Pelunasan BON via jasa garapan' : 'Pelunasan BON cash';
+    data.transactions.push({
+      id: uid(), employeeId: mitraId, type: 'pelunasan_bon', amount: amount,
+      date: hariIni(), note: note, createdAt: new Date().toISOString()
+    });
+    catat('Pelunasan BON ' + formatIDR(amount) + ' (' + mode + ') untuk ' + u.name);
+    simpan();
+    w.App.toast('BON lunas ' + formatIDR(amount));
   }
 
   /* ---------------- Periode filter ---------------- */
@@ -641,54 +696,39 @@
 
   function renderTugasMitra() {
     if (!sesi) return;
-    renderAkun();
-    var h = mtHitung();
+    var id = sesi.id;
+    var tasks = data.tasks.filter(function (t) { return t.employeeId === id; });
+    var proses = tasks.filter(function (t) { return t.status !== 'completed'; });
+    var done = tasks.filter(function (t) { return t.status === 'completed'; });
+    var jml = function (a) { return a.reduce(function (s, t) { return s + num(t.deliveryFee); }, 0); };
+    var totalBerjalan = jml(proses);
+    var totalDone = jml(done);
+
     var set = function (sel, v) { var e = $(sel); if (e) e.textContent = v; };
-    set('#mtTotalJasa', formatIDR(h.jasaProses + h.jasaDone));
-    set('#mtJasaProses', formatIDR(h.jasaProses));
-    set('#mtJasaDone', formatIDR(h.jasaDone));
-    set('#mtJasaDibayar', formatIDR(h.dibayar));
-    set('#mtJasaTunggu', formatIDR(h.tunggu));
-    set('#mtCntProses', h.proses.length);
-    set('#mtCntDone', h.done.length);
+    set('#mtTotalJasa', formatIDR(totalBerjalan));
+    set('#mtCntProses', proses.length);
+    set('#mtCntDone', done.length);
 
     var sub = $('#mtAjukanSub');
-    if (sub) sub.textContent = h.bisaAjukan > 0
-      ? ('Siap diajukan: ' + formatIDR(h.bisaAjukan))
-      : 'Belum ada jasa menunggu bayar';
+    if (sub) sub.textContent = totalDone > 0
+      ? ('Total selesai: ' + formatIDR(totalDone) + ' — cek di tab Rekap')
+      : 'Belum ada garapan selesai';
     var cta = $('#mtAjukan');
-    if (cta) { cta.disabled = h.bisaAjukan <= 0; cta.classList.toggle('off', h.bisaAjukan <= 0); }
+    if (cta) cta.style.display = 'none';
 
-    var lp = $('#mtListProses'), ld = $('#mtListDone');
-    if (lp) lp.innerHTML = h.proses.length
-      ? h.proses.map(function (t) { return mtRow(t, false); }).join('')
+    var lp = $('#mtListProses');
+    if (lp) lp.innerHTML = proses.length
+      ? proses.map(function (t) { return mtRow(t, false); }).join('')
       : '<div class="mt-empty">Tidak ada garapan yang sedang dikerjakan</div>';
-    if (ld) ld.innerHTML = h.done.length
-      ? h.done.map(function (t) { return mtRow(t, true); }).join('')
+    var ld = $('#mtListDone');
+    if (ld) ld.innerHTML = done.length
+      ? done.map(function (t) { return mtRow(t, true); }).join('')
       : '<div class="mt-empty">Belum ada garapan selesai</div>';
 
     var lb = $('#mtListBayar');
-    if (lb) {
-      var rows = [];
-      data.paymentRequests.filter(function (r) { return r.employeeId === sesi.id; })
-        .slice().reverse().forEach(function (r) {
-          var ok = r.status === 'dibayar';
-          rows.push('<div class="mt-pay ' + (ok ? 'ok' : 'wait') + '">'
-            + '<div class="mt-pay-l"><b>Pengajuan ' + formatIDR(r.amount) + '</b>'
-            + '<span>' + formatTanggal(r.date) + '</span></div>'
-            + '<span class="mt-tag ' + (ok ? 'done' : 'tunggu') + '">' + (ok ? 'DIBAYAR' : 'DIAJUKAN') + '</span>'
-            + '</div>');
-        });
-      data.transactions.filter(function (x) { return x.employeeId === sesi.id && x.type === 'pelunasan'; })
-        .slice().reverse().forEach(function (x) {
-          rows.push('<div class="mt-pay ok">'
-            + '<div class="mt-pay-l"><b>Pelunasan ' + formatIDR(x.amount) + '</b>'
-            + '<span>' + formatTanggal(x.date) + (x.note ? ' &middot; ' + esc(x.note) : '') + '</span></div>'
-            + '<span class="mt-tag done">DIBAYAR</span>'
-            + '</div>');
-        });
-      lb.innerHTML = rows.length ? rows.join('') : '<div class="mt-empty">Belum ada pengajuan atau pelunasan</div>';
-    }
+    if (lb) lb.innerHTML = '<div class="mt-empty">Lihat status pengajuan di tab Rekap</div>';
+
+    renderAkun();
   }
 
   /* Mitra mengajukan pembayaran untuk jasa selesai yang belum dibayar. */
@@ -696,19 +736,39 @@
     if (!sesi || sesi.role === 'owner') return;
     var h = mtHitung();
     if (h.bisaAjukan <= 0) { w.App.toast('Belum ada jasa menunggu bayar'); return; }
-    /* Catat juga garapan mana saja yang diajukan, supaya owner bisa tahu
-       mana yang masih "titip bayar" dan mana yang sudah lunas. */
-    var belum = h.done.filter(function (t) { return !sudahDiajukan(t.id); });
+    var belum = h.done.filter(function (t) { return !sudahDiajukan(t.id) && isEligibleForPayment(t); });
+    if (!belum.length) { w.App.toast('Belum ada garapan yang memenuhi syarat (min. 1 minggu / Rp200rb)'); return; }
+    var totalAjukan = belum.reduce(function (s, t) { return s + num(t.deliveryFee); }, 0);
     data.paymentRequests.push({
       id: uid(), employeeId: sesi.id, employeeName: sesi.name,
-      amount: h.bisaAjukan, taskIds: belum.map(function (t) { return t.id; }),
+      amount: totalAjukan, taskIds: belum.map(function (t) { return t.id; }),
       date: hariIni(), status: 'diajukan',
       createdAt: new Date().toISOString()
     });
-    catat('Pengajuan pembayaran ' + formatIDR(h.bisaAjukan) + ' oleh ' + sesi.name);
+    catat('Pengajuan pembayaran ' + formatIDR(totalAjukan) + ' oleh ' + sesi.name);
     simpan();
     w.App.toast('Pengajuan terkirim ke owner');
     renderTugasMitra();
+  }
+
+  /* Mitra ajukan single task (jika eligible). */
+  function ajukanSingle(taskId) {
+    if (!sesi || sesi.role === 'owner') return;
+    var t = null;
+    for (var i = 0; i < data.tasks.length; i++) if (data.tasks[i].id === taskId) t = data.tasks[i];
+    if (!t) return;
+    if (!isEligibleForPayment(t)) { w.App.toast('Belum memenuhi syarat (min. 1 minggu / Rp200rb)'); return; }
+    if (sudahDiajukan(t.id)) { w.App.toast('Sudah diajukan'); return; }
+    data.paymentRequests.push({
+      id: uid(), employeeId: sesi.id, employeeName: sesi.name,
+      amount: num(t.deliveryFee), taskIds: [t.id],
+      date: hariIni(), status: 'diajukan',
+      createdAt: new Date().toISOString()
+    });
+    catat('Pengajuan ' + formatIDR(t.deliveryFee) + ' untuk ' + namaGarapan(t.serviceId));
+    simpan();
+    w.App.toast('Pengajuan terkirim ke owner');
+    renderRekap();
   }
 
   /* Owner menandai pengajuan mitra sudah dibayar -> tercatat sebagai pelunasan
@@ -738,12 +798,38 @@
 
   /* ---------------- Tab: Rekap ---------------- */
 
+  var selectedMitraFilter = '';
+
+  function isEligibleForPayment(t) {
+    if (t.status !== 'completed') return false;
+    var val = num(t.deliveryFee);
+    if (val >= 200000) return true;
+    if (t.completedAt) {
+      var done = new Date(t.completedAt);
+      var now = new Date();
+      var diffDays = Math.floor((now - done) / (1000 * 60 * 60 * 24));
+      if (diffDays >= 7) return true;
+    }
+    return false;
+  }
+
   function renderRekap() {
-    /* Chip "Tahun Ini" & "Semua" sudah dihapus — pastikan filternya valid. */
     if (filter !== 'today' && filter !== 'week' && filter !== 'month') filter = 'month';
     document.querySelectorAll('#ronceFilters .chip').forEach(function (c) {
       c.classList.toggle('on', c.dataset.rfilter === filter);
     });
+
+    /* Filter dropdown mitra (owner only) */
+    var mf = $('#ronceMitraFilter');
+    if (mf && adalahOwner()) {
+      var opts = '<option value="">Semua Mitra</option>';
+      data.users.forEach(function (u) {
+        if (u.role === 'owner') return;
+        opts += '<option value="' + esc(u.id) + '"' + (selectedMitraFilter === u.id ? ' selected' : '') + '>' + esc(u.name) + '</option>';
+      });
+      mf.innerHTML = opts;
+    }
+
     var tk = $('#ronceTotalKomisi');
     if (tk) tk.textContent = formatIDR(totalKomisiSemua());
 
@@ -751,6 +837,7 @@
     var pr = $('#roncePayReq');
     if (pr && adalahOwner()) {
       var reqs = data.paymentRequests.slice().reverse();
+      if (selectedMitraFilter) reqs = reqs.filter(function (r) { return r.employeeId === selectedMitraFilter; });
       pr.innerHTML = reqs.length ? reqs.map(function (r) {
         var ok = r.status === 'dibayar';
         return '<div class="mt-pay ' + (ok ? 'ok' : 'wait') + '">'
@@ -763,19 +850,95 @@
       }).join('') : '<div class="mt-empty">Belum ada pengajuan dari mitra</div>';
     }
 
+    /* BON section (owner + mitra) */
+    var bonEl = $('#ronceBonSection');
+    if (bonEl) {
+      var bonMitraId = adalahOwner() ? (selectedMitraFilter || '') : (sesi ? sesi.id : '');
+      var bonData = bonMitraId ? bonInfo(bonMitraId) : { total: 0, remaining: 0 };
+      var bonHtml = '<div class="card"><div class="list-head tight"><strong>BON (Kasbon)</strong></div>'
+        + '<div class="item"><div class="item-body"><div class="item-title">Sisa BON</div>'
+        + '<div class="item-sub"><span>' + formatIDR(bonData.remaining) + ' dari ' + formatIDR(bonData.total) + '</span></div></div></div>';
+      if (adalahOwner() && selectedMitraFilter) {
+        bonHtml += '<div class="mitra-add">'
+          + '<input type="number" id="bonAmount" placeholder="Nominal BON" style="flex:1">'
+          + '<button class="btn primary" data-bon-ajukan="' + esc(selectedMitraFilter) + '">Catat BON</button></div>';
+      }
+      bonData.history = [];
+      for (var i = 0; i < data.transactions.length; i++) {
+        var t = data.transactions[i];
+        if (t.employeeId === bonMitraId && (t.type === 'penarikan' || t.type === 'pelunasan_bon')) {
+          bonData.history.push(t);
+        }
+      }
+      if (bonData.history.length) {
+        bonHtml += '<div class="mt-list-head"><strong>Riwayat BON</strong></div>';
+        bonData.history.slice().reverse().forEach(function (t) {
+          var isPenarikan = t.type === 'penarikan';
+          bonHtml += '<div class="mt-pay ' + (isPenarikan ? 'wait' : 'ok') + '">'
+            + '<div class="mt-pay-l"><b>' + (isPenarikan ? 'BON' : 'Lunas BON') + ' ' + formatIDR(t.amount) + '</b>'
+            + '<span>' + formatTanggal(t.date) + '</span></div>'
+            + '<span class="mt-tag ' + (isPenarikan ? 'tunggu' : 'done') + '">' + (isPenarikan ? 'BON' : 'LUNAS') + '</span>'
+            + '</div>';
+        });
+      }
+      bonEl.innerHTML = bonHtml;
+    }
+
+    /* Mitra view: done items + eligibility + ajukan pembayaran */
+    if (!adalahOwner()) {
+      var list = $('#ronceRekapList');
+      if (!list) return;
+      var mitraId = sesi ? sesi.id : '';
+      var doneTasks = data.tasks.filter(function (t) {
+        return t.employeeId === mitraId && t.status === 'completed';
+      });
+      if (!doneTasks.length) { list.innerHTML = '<div class="empty">Belum ada garapan selesai</div>'; return; }
+      list.innerHTML = doneTasks.map(function (t) {
+        var eligible = isEligibleForPayment(t);
+        var diajukan = sudahDiajukan(t.id);
+        var sudahLunasT = sudahLunas(t);
+        var badge, action;
+        if (sudahLunasT) {
+          badge = '<span class="mt-tag done">LUNAS</span>';
+          action = '<span class="mt-row-ok">Sudah dibayar</span>';
+        } else if (diajukan) {
+          badge = '<span class="mt-tag tunggu">DIAJUKAN</span>';
+          action = '<span class="mt-row-ok">Menunggu owner</span>';
+        } else if (eligible) {
+          badge = '<span class="mt-tag proses">SIAP AJUKAN</span>';
+          action = '<button class="mini-btn" data-ajukan-single="' + esc(t.id) + '">Ajukan</button>';
+        } else {
+          badge = '<span class="mt-tag">BELUM SIAP</span>';
+          action = '<span class="mt-row-ok">Min. 1 minggu / Rp200rb</span>';
+        }
+        return '<div class="mt-row done">'
+          + '<div class="mt-row-top">'
+          +   '<span class="mt-row-nama">' + esc(namaGarapan(t.serviceId)) + '</span>'
+          +   badge
+          + '</div>'
+          + '<div class="mt-row-mid">' + t.quantity + ' &middot; ' + formatTanggal(t.date) + '</div>'
+          + '<div class="mt-row-bottom">'
+          +   '<span class="mt-row-jasa">' + formatIDR(t.deliveryFee) + '</span>'
+          +   action
+          + '</div>'
+          + '</div>';
+      }).join('');
+      return;
+    }
+
+    /* Owner view: rekap list with pelunasan/cicil */
     var list = $('#ronceRekapList');
     if (!list) return;
     var rekap = rekapMitra().filter(function (m) { return m.saldo > 0; });
-    if (!adalahOwner()) rekap = rekap.filter(function (m) { return m.id === sesi.id; });
+    if (selectedMitraFilter) rekap = rekap.filter(function (m) { return m.id === selectedMitraFilter; });
     if (!rekap.length) { list.innerHTML = '<div class="empty">Semua komisi mitra telah dilunasi!</div>'; return; }
     list.innerHTML = rekap.map(function (m) {
       return '<div class="item">'
         + '<div class="item-body"><div class="item-title">' + esc(m.nama) + '</div>'
         + '<div class="item-sub"><span>' + m.kerjaan + ' kerjaan</span><span>Sisa ' + formatIDR(m.saldo) + '</span></div></div>'
-        + (adalahOwner()
-            ? '<div style="display:flex;gap:6px"><button class="mini-btn" data-rn-bayar="' + esc(m.id) + '" data-rn-mode="full">Lunasi</button>'
-            + '<button class="mini-btn" data-rn-bayar="' + esc(m.id) + '" data-rn-mode="cicil">Cicil</button></div>'
-            : '<span class="item-sub">Menunggu pelunasan owner</span>') + '</div>';
+        + '<div style="display:flex;gap:6px"><button class="mini-btn" data-rn-bayar="' + esc(m.id) + '" data-rn-mode="full">Lunasi</button>'
+        + '<button class="mini-btn" data-rn-bayar="' + esc(m.id) + '" data-rn-mode="cicil">Cicil</button></div>'
+        + '</div>';
     }).join('');
   }
 
@@ -1158,6 +1321,22 @@
     document.addEventListener('click', function (e) {
       var done = e.target.closest('[data-rt-done]');
       if (done) { selesaiTugas(done.dataset.rtDone); return; }
+      var ajukan = e.target.closest('[data-ajukan-single]');
+      if (ajukan) { ajukanSingle(ajukan.dataset.ajukanSingle); return; }
+      var bonBtn = e.target.closest('[data-bon-ajukan]');
+      if (bonBtn) {
+        var amt = num(($('#bonAmount') || {}).value);
+        if (amt <= 0) { w.App.toast('Isi nominal BON dulu'); return; }
+        ajukanBon(bonBtn.dataset.bonAjukan, amt);
+        renderRekap();
+        return;
+      }
+    });
+
+    // Filter mitra dropdown di tab Rekap
+    document.addEventListener('change', function (e) {
+      var mf = e.target.closest('#ronceMitraFilter');
+      if (mf) { selectedMitraFilter = mf.value; renderRekap(); }
     });
 
     // Setting actions
