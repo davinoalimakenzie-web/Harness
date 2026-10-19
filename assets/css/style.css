@@ -248,6 +248,32 @@ body.mitra-mode #app{ padding-top:0; }
 .mt-hero-kasbon span{ font-size:10.5px; font-weight:600; opacity:.92; }
 .mt-hero-kasbon b{ font-size:14px; font-weight:800; color:#ffd8a8; overflow-wrap:anywhere; }
 
+/* Panel pelunasan BON via jasa (tab Kasbon mitra) */
+.bon-settle{ margin-top:12px; border-top:1px solid var(--line); padding-top:10px; }
+.bon-row{
+  display:flex; align-items:center; gap:9px; padding:8px 2px;
+  border-bottom:1px dashed var(--line); cursor:pointer;
+}
+.bon-row:last-child{ border-bottom:0; }
+.bon-row input[type=checkbox]{ width:18px; height:18px; flex:0 0 auto; accent-color:var(--accent); }
+.bon-row-info{ flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.bon-row-info b{ font-size:13px; font-weight:650; overflow-wrap:anywhere; }
+.bon-row-info i{ font-size:11px; font-style:normal; color:var(--text-2); }
+.bon-row-amt{ font-size:13px; font-weight:700; white-space:nowrap; }
+.bon-calc{
+  margin-top:10px; background:var(--bg-elev); border:1px solid var(--line);
+  border-radius:10px; padding:9px 11px;
+}
+.bon-calc-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12.5px; padding:3px 0; }
+.bon-calc-row span{ color:var(--text-2); }
+.bon-calc-row b{ font-weight:700; white-space:nowrap; }
+.bon-calc-row.total{ border-top:1px solid var(--line); margin-top:4px; padding-top:6px; }
+.bon-calc-row.total span{ color:var(--text); font-weight:650; }
+.bon-calc-row.total b{ color:var(--danger); font-size:14px; }
+/* Tombol aksi berpasangan di baris pengajuan BON (owner) */
+.mt-pay-act{ display:flex; gap:6px; flex:0 0 auto; }
+.mini-btn.ok{ background:#12a150; color:#fff; border-color:#12a150; }
+
 .mt-guide{
   background:var(--bg-elev); border:1px dashed var(--line); border-radius:12px;
   padding:11px 12px; margin-bottom:10px; font-size:12px; color:var(--text-2);

@@ -407,9 +407,9 @@
               M.galat = ''; // bersihkan pesan galat
               M.quote = gabungQuote(M.quote, fr);
               M.waktuAmbil = Date.now();
-              var ring = fr.ringkasan || {};
-              toast('Data ' + (ring.labelDataIHSG || 'Delayed') + ' - ' +
-                    (ring.jumlahBerhasil || 0) + '/' + (ring.jumlahDiminta || 0) + ' simbol');
+              /* Sengaja TIDAK memunculkan toast "Data Delayed - n/n simbol":
+                 label sumber sudah tampil di kartu quote (badgeLive), jadi
+                 toast itu hanya mengganggu tiap kali halaman dimuat. */
             } else {
               M.gagalSeq++;
               M.galat = (fr && fr.error) || 'Gagal mengambil data';

@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261019d">
+<link rel="stylesheet" href="assets/css/style.css?v=20261019e">
 </head>
 <body>
 
@@ -615,6 +615,15 @@
 
         <!-- ============ OWNER ============ -->
         <div id="ronceKasbonOwner" hidden>
+          <!-- Pengajuan BON dari mitra yang perlu direspons -->
+          <div class="card">
+            <div class="list-head tight">
+              <strong>Pengajuan BON Mitra <span class="tpl-total" id="kasbonPendingBadge" hidden>0</span></strong>
+            </div>
+            <p class="hint xs">Setujui atau tolak pengajuan kasbon dari mitra. BON baru tercatat setelah disetujui.</p>
+            <div id="kasbonPendingList" class="list"></div>
+          </div>
+
           <div class="card">
             <div class="list-head tight"><strong>BON (Kasbon Mitra)</strong></div>
             <div class="item">
@@ -625,6 +634,14 @@
             </div>
           </div>
           <div id="kasbonOwnerList" class="list"></div>
+
+          <!-- Catat BON tunai langsung (tanpa pengajuan mitra) -->
+          <div class="card">
+            <div class="list-head tight"><strong>Catat BON Langsung</strong></div>
+            <p class="hint xs">Untuk kasbon tunai yang langsung diserahkan owner ke mitra (tanpa pengajuan).</p>
+            <select id="kasbonMitraPick" class="grow" style="margin-bottom:10px"></select>
+            <div id="ronceBonSection"></div>
+          </div>
         </div>
 
         <!-- ============ MITRA ============ -->
@@ -848,7 +865,7 @@
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
 <script src="assets/js/transactions.js?v=20261014l"></script>
-<script src="assets/js/ronce.js?v=20261019e"></script>
+<script src="assets/js/ronce.js?v=20261019f"></script>
 <script src="assets/js/ronce-sync.js?v=20261019c"></script>
 <script src="assets/js/calc.js?v=20261019c"></script>
 <script src="assets/js/calc-sync.js?v=20261017u"></script>
@@ -861,7 +878,7 @@
 <script src="assets/js/nava-trader-fund.js?v=20261014l"></script>
 <script src="assets/js/nava-trader-alert.js?v=20261014l"></script>
 <script src="assets/js/nava-kesegaran.js?v=20261014l"></script>
-<script src="assets/js/nava-trader-quote.js?v=20261019d"></script>
+<script src="assets/js/nava-trader-quote.js?v=20261019e"></script>
 <script src="assets/js/nava-trader.js?v=20261015a"></script>
 <script src="assets/js/backup.js?v=20261014l"></script>
 <script src="assets/js/app.js?v=20261018s"></script>
