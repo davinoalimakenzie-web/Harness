@@ -1036,33 +1036,6 @@
 
   /* ---------------- Actions ---------------- */
 
-  function tambahJob() {
-    /* Input Garapan = pengirim TUGAS ke mitra. Tanggal otomatis hari ini,
-       jasa otomatis dari komisi garapan — tidak ada isian tanggal/jasa. */
-    var serviceId = ($('#rjGarapan') || {}).value || '';
-    var quantity = ($('#rjQty') || {}).value || '';
-    var employeeId = ($('#rjMitra') || {}).value || '';
-    var catatan = (($('#rjCatatan') || {}).value || '').trim();
-    if (!serviceId) { w.App.toast('Pilih jenis garapan!'); return; }
-    if (num(quantity) <= 0) { w.App.toast('Jumlah minimal 1!'); return; }
-    if (!employeeId) { w.App.toast('Pilih mitra!'); return; }
-    var u = cariMitra(employeeId);
-    if (!u) { w.App.toast('Data mitra tidak ditemukan!'); return; }
-    data.tasks.unshift({
-      id: uid(), employeeId: employeeId, employeeName: u.name,
-      serviceId: serviceId, quantity: num(quantity),
-      deliveryFee: feeOtomatis(serviceId, quantity),
-      date: hariIni(), note: catatan, status: 'terkirim',
-      createdAt: new Date().toISOString()
-    });
-    catat('Tugas ' + namaGarapan(serviceId) + ' x' + quantity + ' dikirim ke ' + u.name);
-    simpan();
-    w.App.toast('Tugas terkirim ke ' + u.name);
-    var q = $('#rjQty'); if (q) q.value = '';
-    var c = $('#rjCatatan'); if (c) c.value = '';
-    renderInput();
-  }
-
   /* Tambah garapan ke tampungan sementara (draft) sebelum dikirim ke mitra. */
   function tambahDraftJob() {
     var serviceId = ($('#rjGarapan') || {}).value || '';
