@@ -1521,6 +1521,7 @@
     tambahDraftJob: tambahDraftJob,
     kirimDraftJobs: kirimDraftJobs,
     hapusDraftJob: hapusDraftJob,
-    renderDraft: renderDraft
+    renderDraft: renderDraft,
+    _draftJobs: function () { return draftJobs; }
   };
 })(window);
