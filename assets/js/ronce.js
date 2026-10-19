@@ -1404,14 +1404,12 @@
       if (tb) { tabAktif = tb.dataset.rtab; renderTab(); }
     });
 
-    // Input tab — kirim semua garapan di tampungan ke mitra
-    var sj = $('#rjSimpan');
-    if (sj) sj.addEventListener('click', kirimDraftJobs);
-    // Tombol tambah garapan ke tampungan sementara
-    var tg = $('#rjTambahGarapan');
-    if (tg) tg.addEventListener('click', tambahDraftJob);
-    // Hapus garapan dari tampungan (delegated)
+    // Input tab — event delegation untuk semua tombol di tab Input
     document.addEventListener('click', function (e) {
+      var tambah = e.target.closest('#rjTambahGarapan');
+      if (tambah) { tambahDraftJob(); return; }
+      var kirim = e.target.closest('#rjSimpan');
+      if (kirim) { kirimDraftJobs(); return; }
       var del = e.target.closest('[data-draft-del]');
       if (del) { hapusDraftJob(parseInt(del.dataset.draftDel, 10)); return; }
     });
