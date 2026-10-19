@@ -1407,11 +1407,11 @@
     // Input tab — event delegation untuk semua tombol di tab Input
     document.addEventListener('click', function (e) {
       var tambah = e.target.closest('#rjTambahGarapan');
-      if (tambah) { tambahDraftJob(); return; }
+      if (tambah) { w.Ronce.tambahDraftJob(); return; }
       var kirim = e.target.closest('#rjSimpan');
-      if (kirim) { kirimDraftJobs(); return; }
+      if (kirim) { w.Ronce.kirimDraftJobs(); return; }
       var del = e.target.closest('[data-draft-del]');
-      if (del) { hapusDraftJob(parseInt(del.dataset.draftDel, 10)); return; }
+      if (del) { w.Ronce.hapusDraftJob(parseInt(del.dataset.draftDel, 10)); return; }
     });
 
 
@@ -1517,6 +1517,10 @@
     _doc: doc, _gabung: gabung, _refresh: refresh,
     feeOtomatis: feeOtomatis, hargaPerSet: hargaPerSet,
     saldoMitra: saldoMitra, rekapMitra: rekapMitra,
-    dalamPeriode: dalamPeriode
+    dalamPeriode: dalamPeriode,
+    tambahDraftJob: tambahDraftJob,
+    kirimDraftJobs: kirimDraftJobs,
+    hapusDraftJob: hapusDraftJob,
+    renderDraft: renderDraft
   };
 })(window);
