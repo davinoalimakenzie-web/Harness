@@ -561,8 +561,9 @@
 
     var html = '<div class="tpl-brand-row">' + brandBtns + '</div>';
 
-    if (filterBrand) {
-      var list = t.filter(function (x) { return (x.payload || {}).brandId === filterBrand; });
+    var list = filterBrand
+      ? t.filter(function (x) { return (x.payload || {}).brandId === filterBrand; })
+      : t;
       if (!list.length) {
         html += '<p class="hint xs">Belum ada harga tersimpan untuk brand ini.</p>';
       } else {
@@ -581,7 +582,6 @@
             delBtn + '</div></div>';
         }).join('');
       }
-    }
 
     el.tpl.innerHTML = html;
   }
@@ -827,12 +827,8 @@
       var del = e.target.closest('[data-tpldel]');
       if (brandBtn) {
         var bid = brandBtn.dataset.tplbrand;
-        // Toggle: klik brand yang sama → sembunyikan daftar; klik brand lain → tampilkan
-        if (filterBrand === bid) {
-          filterBrand = '';
-        } else {
-          filterBrand = bid;
-        }
+        // Klik brand → filter brand itu; klik lain → ganti filter
+        filterBrand = bid;
         renderTpl();
         TG.haptic('select');
         return;
