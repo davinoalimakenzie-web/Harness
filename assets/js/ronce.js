@@ -53,6 +53,8 @@
   var pilihPin = null;
   /* Garapan selesai yang diceklis mitra untuk diajukan pelunasannya. */
   var terpilih = {};
+  /* Tampungan sementara garapan sebelum dikirim ke mitra. */
+  var draftJobs = [];
 
   /* ---------------- Utils ---------------- */
 
@@ -630,6 +632,7 @@
     var tampil = proses.concat(titip);
     if (!tampil.length) { h.innerHTML = '<div class="empty">Belum ada garapan berjalan</div>'; return; }
     h.innerHTML = tampil.map(function (t) { return rjRow(t); }).join('');
+    renderDraft();
   }
 
   /* Satu baris garapan di tab Input (owner). */
@@ -1060,6 +1063,75 @@
     renderInput();
   }
 
+  /* Tambah garapan ke tampungan sementara (draft) sebelum dikirim ke mitra. */
+  function tambahDraftJob() {
+    var serviceId = ($('#rjGarapan') || {}).value || '';
+    var quantity = ($('#rjQty') || {}).value || '';
+    if (!serviceId) { w.App.toast('Pilih jenis garapan!'); return; }
+    if (num(quantity) <= 0) { w.App.toast('Jumlah minimal 1!'); return; }
+    draftJobs.push({
+      serviceId: serviceId,
+      quantity: num(quantity),
+      deliveryFee: feeOtomatis(serviceId, num(quantity))
+    });
+    var q = $('#rjQty'); if (q) q.value = '';
+    w.App.toast('Garapan ditambahkan ke tampungan');
+    renderDraft();
+  }
+
+  /* Hapus garapan dari tampungan sementara. */
+  function hapusDraftJob(idx) {
+    draftJobs.splice(idx, 1);
+    renderDraft();
+  }
+
+  /* Render daftar tampungan sementara garapan. */
+  function renderDraft() {
+    var list = $('#rjDraftList');
+    if (!list) return;
+    if (!draftJobs.length) {
+      list.innerHTML = '<div class="empty">Belum ada garapan. Tambahkan garapan dulu, lalu kirim.</div>';
+      return;
+    }
+    list.innerHTML = draftJobs.map(function (d, i) {
+      return '<div class="rj-draft">'
+        + '<div class="rj-draft-info">'
+        + '<div class="rj-draft-name">' + esc(namaGarapan(d.serviceId)) + ' x' + d.quantity + '</div>'
+        + '<div class="rj-draft-sub">Jasa: ' + formatIDR(d.deliveryFee) + '</div>'
+        + '</div>'
+        + '<button class="rj-draft-del" data-draft-del="' + i + '" title="Hapus">&times;</button>'
+        + '</div>';
+    }).join('');
+  }
+
+  /* Kirim semua garapan di tampungan ke mitra. */
+  function kirimDraftJobs() {
+    if (!draftJobs.length) { w.App.toast('Tampungan kosong!'); return; }
+    var employeeId = ($('#rjMitra') || {}).value || '';
+    var catatan = (($('#rjCatatan') || {}).value || '').trim();
+    if (!employeeId) { w.App.toast('Pilih mitra dulu!'); return; }
+    var u = cariMitra(employeeId);
+    if (!u) { w.App.toast('Data mitra tidak ditemukan!'); return; }
+    var count = 0;
+    draftJobs.forEach(function (d) {
+      data.tasks.unshift({
+        id: uid(), employeeId: employeeId, employeeName: u.name,
+        serviceId: d.serviceId, quantity: d.quantity,
+        deliveryFee: d.deliveryFee,
+        date: hariIni(), note: catatan, status: 'terkirim',
+        createdAt: new Date().toISOString()
+      });
+      count++;
+    });
+    catat(count + ' garapan dikirim ke ' + u.name);
+    simpan();
+    w.App.toast(count + ' garapan terkirim ke ' + u.name);
+    draftJobs = [];
+    var c = $('#rjCatatan'); if (c) c.value = '';
+    renderDraft();
+    renderInput();
+  }
+
 
 
   function selesaiTugas(id) {
@@ -1332,9 +1404,17 @@
       if (tb) { tabAktif = tb.dataset.rtab; renderTab(); }
     });
 
-    // Input tab
+    // Input tab — kirim semua garapan di tampungan ke mitra
     var sj = $('#rjSimpan');
-    if (sj) sj.addEventListener('click', tambahJob);
+    if (sj) sj.addEventListener('click', kirimDraftJobs);
+    // Tombol tambah garapan ke tampungan sementara
+    var tg = $('#rjTambahGarapan');
+    if (tg) tg.addEventListener('click', tambahDraftJob);
+    // Hapus garapan dari tampungan (delegated)
+    document.addEventListener('click', function (e) {
+      var del = e.target.closest('[data-draft-del]');
+      if (del) { hapusDraftJob(parseInt(del.dataset.draftDel, 10)); return; }
+    });
 
 
 

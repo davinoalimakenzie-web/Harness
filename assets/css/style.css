@@ -157,8 +157,25 @@ input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0
 .seg-btn.active{ background:var(--bg-elev); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.12); }
 /* Tab bar Ronce punya 5 tab dengan label panjang ("Servis HP", "Setting").
    Di layar 360px totalnya meluber ~17px dan memicu scroll horizontal —
-   kecilkan font & padding khusus tab bar ini supaya muat pas selebar layar. */
-#ronceTabs .seg-btn{ font-size:11.5px; padding:9px 4px; }
+   kecilkan font & padding khusus tab bar ini supaya muat pas selebar layar.
+   Tab bar dijadikan STATIS: tidak bisa digulir, tombol rata selebar layar. */
+#ronceTabs{ overflow-x:hidden; flex-wrap:nowrap; }
+#ronceTabs .seg-btn{ font-size:11.5px; padding:9px 4px; flex:1 1 0; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* Tampungan sementara garapan (draft) sebelum dikirim ke mitra */
+.rj-draft{
+  background:var(--bg-elev); border:1px solid var(--line);
+  border-radius:12px; padding:10px 12px; margin-bottom:8px;
+  display:flex; align-items:center; gap:10px;
+}
+.rj-draft-info{ flex:1; min-width:0; }
+.rj-draft-name{ font-weight:650; font-size:13px; }
+.rj-draft-sub{ color:var(--text-2); font-size:12px; margin-top:2px; }
+.rj-draft-del{
+  background:none; border:none; color:var(--danger); font-size:16px;
+  cursor:pointer; padding:6px 8px; border-radius:8px; flex:0 0 auto;
+}
+.rj-draft-del:hover{ background:rgba(239,68,68,.12); }
 
 /* Mode mitra (buka link akses ?m=ID): yang tampil HANYA Kalkulator Garapan.
    Header Project Nava disembunyikan supaya mitra tidak nyasar ke menu lain. */
