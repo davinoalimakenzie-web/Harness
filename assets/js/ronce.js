@@ -340,6 +340,25 @@
     w.App.toast('Pengajuan BON terkirim ke owner');
   }
 
+  /* Owner mencatat BON langsung (kasbon tunai diserahkan tanpa pengajuan). */
+  function catatBonLangsung(mitraId, amount) {
+    var u = cariMitra(mitraId);
+    if (!u) return;
+    if (amount <= 0) { w.App.toast('Nominal tidak valid'); return; }
+    var info = bonInfo(mitraId);
+    if (info.total + amount > BON_MAX) {
+      w.App.toast('Maksimal BON ' + formatIDR(BON_MAX));
+      return;
+    }
+    data.transactions.push({
+      id: uid(), employeeId: mitraId, type: 'bon', amount: amount,
+      date: hariIni(), note: 'BON dicatat owner', createdAt: new Date().toISOString()
+    });
+    catat('BON ' + formatIDR(amount) + ' dicatat untuk ' + u.name);
+    simpan();
+    w.App.toast('BON ' + formatIDR(amount) + ' dicatat');
+  }
+
   function cariBonReq(id) {
     var arr = data.bonRequests || [];
     for (var i = 0; i < arr.length; i++) { if (arr[i].id === id) return arr[i]; }
@@ -1617,7 +1636,9 @@
       if (bonBtn) {
         var amt = nomorBonDari(bonBtn);
         if (amt <= 0) { w.App.toast('Isi nominal BON dulu'); return; }
-        ajukanBon(bonBtn.dataset.bonAjukan, amt);
+        /* Owner = pencatat/persetuju: langsung catat. Mitra = mengajukan. */
+        if (adalahOwner()) catatBonLangsung(bonBtn.dataset.bonAjukan, amt);
+        else ajukanBon(bonBtn.dataset.bonAjukan, amt);
         renderKasbon();
         return;
       }
