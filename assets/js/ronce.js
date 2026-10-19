@@ -720,14 +720,15 @@
     if (lp) lp.innerHTML = proses.length
       ? proses.map(function (t) { return mtRow(t, false); }).join('')
       : '<div class="mt-empty">Tidak ada garapan yang sedang dikerjakan</div>';
+
+    // Done list dipindah ke tab Rekap — dashboard hanya total berjalan
     var ld = $('#mtListDone');
-    if (ld) ld.innerHTML = done.length
-      ? done.map(function (t) { return mtRow(t, true); }).join('')
-      : '<div class="mt-empty">Belum ada garapan selesai</div>';
+    if (ld) ld.innerHTML = '';
 
     var lb = $('#mtListBayar');
     if (lb) lb.innerHTML = '<div class="mt-empty">Lihat status pengajuan di tab Rekap</div>';
 
+    // Akun Saya tepat di bawah Total Jasa Kamu
     renderAkun();
   }
 
@@ -926,7 +927,8 @@
       return;
     }
 
-    /* Owner view: rekap list with pelunasan/cicil */
+    /* Owner view: rekap list tanpa tombol pelunasan/cicil.
+       Pelunasan kini otomatis saat pengajuan ditandai dibayar. */
     var list = $('#ronceRekapList');
     if (!list) return;
     var rekap = rekapMitra().filter(function (m) { return m.saldo > 0; });
@@ -936,8 +938,6 @@
       return '<div class="item">'
         + '<div class="item-body"><div class="item-title">' + esc(m.nama) + '</div>'
         + '<div class="item-sub"><span>' + m.kerjaan + ' kerjaan</span><span>Sisa ' + formatIDR(m.saldo) + '</span></div></div>'
-        + '<div style="display:flex;gap:6px"><button class="mini-btn" data-rn-bayar="' + esc(m.id) + '" data-rn-mode="full">Lunasi</button>'
-        + '<button class="mini-btn" data-rn-bayar="' + esc(m.id) + '" data-rn-mode="cicil">Cicil</button></div>'
         + '</div>';
     }).join('');
   }
@@ -1300,21 +1300,6 @@
       if (f) {
         filter = f.dataset.rfilter;
         renderRekap();
-      }
-      var b = e.target.closest('[data-rn-bayar]');
-      if (b) {
-        var mode = b.dataset.rnMode || 'full';
-        var unpaid = saldoMitra(b.dataset.rnBayar);
-        var nominal = mode === 'full' ? unpaid : unpaid;
-        if (mode === 'cicil') {
-          var v = w.prompt('Masukkan nominal pelunasan sebagian untuk ' + (cariMitra(b.dataset.rnBayar) || {}).name, String(Math.round(unpaid / 2)));
-          if (v === null) return;
-          nominal = num(v);
-          if (nominal <= 0) { w.App.toast('Nominal tidak valid'); return; }
-        }
-        eksekusiPelunasan(b.dataset.rnBayar, nominal, mode);
-        renderRekap();
-        w.App.toast('Pembayaran dicatat ' + formatIDR(nominal));
       }
     });
     // Tugas actions (delegated) — mitra lapor selesai
