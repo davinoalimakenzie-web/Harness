@@ -51,6 +51,8 @@
   var pinTempu = '';
   var pesanPin = '';
   var pilihPin = null;
+  /* Garapan selesai yang diceklis mitra untuk diajukan pelunasannya. */
+  var terpilih = {};
 
   /* ---------------- Utils ---------------- */
 
@@ -568,16 +570,16 @@
     document.querySelectorAll('#ronceTabs .seg-btn').forEach(function (b) {
       var t = b.dataset.rtab;
       /* Owner: Input | Rekap | Servis HP | Setting.
-         Mitra: Dashboard | Rekap (tab lain disembunyikan). */
-      var show = own ? (t !== 'tugas') : (t === 'tugas' || t === 'rekap');
+         Mitra: Dashboard | Rekap | Kasbon (tab lain disembunyikan). */
+      var show = own ? (t !== 'tugas' && t !== 'kasbon') : (t === 'tugas' || t === 'rekap' || t === 'kasbon');
       b.style.display = show ? '' : 'none';
       if (t === 'tugas') b.textContent = 'Dashboard';
       b.classList.toggle('active', t === tabAktif);
     });
     if (!own) {
       if (tabAktif === 'input' || tabAktif === 'servis' || tabAktif === 'setting') tabAktif = 'tugas';
-    } else if (tabAktif === 'tugas') tabAktif = 'input';
-    var tabs = ['input','rekap','servis','setting'];
+    } else if (tabAktif === 'tugas' || tabAktif === 'kasbon') tabAktif = 'input';
+    var tabs = ['input','rekap','servis','setting','kasbon'];
     tabs.forEach(function (t) {
       var el = $('#ronceTab-' + t);
       if (el) el.hidden = (t !== tabAktif);
@@ -588,6 +590,7 @@
     else if (tabAktif === 'tugas') renderTugasMitra();
     else if (tabAktif === 'rekap') renderRekap();
     else if (tabAktif === 'servis') renderServis();
+    else if (tabAktif === 'kasbon') renderKasbon();
     else renderSetting();
   }
 
@@ -669,6 +672,11 @@
     return false;
   }
 
+  function cariTugas(id) {
+    for (var i = 0; i < data.tasks.length; i++) if (data.tasks[i].id === id) return data.tasks[i];
+    return null;
+  }
+
   /* ---------------- Tab: Tugas ---------------- */
 
 
@@ -680,6 +688,10 @@
   function mtRow(t, selesai) {
     var s = cariGarapan(t.serviceId);
     var set = s && s.isSetEnabled;
+    /* Garapan selesai dapat CEKLIS untuk diajukan pelunasannya. */
+    var cek = selesai
+      ? '<label class="mt-cek"><input type="checkbox" class="mt-pilih" data-pid="' + esc(t.id) + '"' + (terpilih[t.id] ? ' checked' : '') + '></label>'
+      : '';
     return '<div class="mt-row' + (selesai ? ' done' : '') + '">'
       + '<div class="mt-row-top">'
       +   '<span class="mt-row-nama">' + esc(namaGarapan(t.serviceId)) + '</span>'
@@ -690,7 +702,7 @@
       + '<div class="mt-row-bottom">'
       +   '<span class="mt-row-jasa">' + formatIDR(t.deliveryFee) + '</span>'
       +   (selesai
-          ? '<span class="mt-row-ok">&#10003; Sudah dilaporkan</span>'
+          ? cek
           : '<button class="mt-btn-done" data-rt-done="' + esc(t.id) + '">&#10003; LAPOR SELESAI</button>')
       + '</div>'
       + '</div>';
@@ -734,28 +746,70 @@
       ? proses.map(function (t) { return mtRow(t, false); }).join('')
       : '<div class="mt-empty">Tidak ada garapan yang sedang dikerjakan</div>';
 
+    /* Garapan SELESAI: ceklist muncul setelah tombol "Sudah Selesai" diklik. */
+    var ls = $('#mtListSelesai');
+    if (ls) {
+      var showSelesai = $('#mtListSelesai').dataset.show === '1';
+      if (showSelesai) {
+        ls.innerHTML = done.length
+          ? done.map(function (t) { return mtRow(t, true); }).join('')
+          : '<div class="mt-empty">Belum ada garapan selesai</div>';
+        ls.hidden = false;
+      } else {
+        ls.innerHTML = '';
+        ls.hidden = true;
+      }
+    }
+
+    var aj = $('#mtAjukan');
+    if (aj) {
+      var showSelesai2 = $('#mtListSelesai').dataset.show === '1';
+      if (showSelesai2 && done.length) {
+        var n = document.querySelectorAll('.mt-pilih:checked').length;
+        aj.hidden = false;
+        aj.textContent = n > 0 ? ('Ajukan Pelunasan (' + n + ')') : 'Ajukan Pelunasan';
+      } else {
+        aj.hidden = true;
+      }
+    }
+
+    /* Tombol "Sudah Selesai" memunculkan checklist garapan selesai. */
+    var btnSelesai = $('#mtBtnSelesai');
+    if (btnSelesai) {
+      btnSelesai.hidden = !done.length;
+      btnSelesai.textContent = done.length ? 'Sudah Selesai (' + done.length + ')' : 'Sudah Selesai';
+    }
+
     /* "Akun Saya" berada tepat di bawah "Total Jasa Kamu". */
     renderAkun();
   }
 
-  /* Mitra mengajukan pembayaran untuk jasa selesai yang belum dibayar. */
+  /* Mitra mengajukan pelunasan untuk garapan selesai yang DICEKLIS.
+     Hanya yang memenuhi syarat (min. 1 minggu / Rp200rb) yang ikut. */
   function ajukanPembayaran() {
     if (!sesi || sesi.role === 'owner') return;
-    var h = mtHitung();
-    if (h.bisaAjukan <= 0) { w.App.toast('Belum ada jasa menunggu bayar'); return; }
-    var belum = h.done.filter(function (t) { return !sudahDiajukan(t.id) && isEligibleForPayment(t); });
-    if (!belum.length) { w.App.toast('Belum ada garapan yang memenuhi syarat (min. 1 minggu / Rp200rb)'); return; }
-    var totalAjukan = belum.reduce(function (s, t) { return s + num(t.deliveryFee); }, 0);
+    var cek = document.querySelectorAll('.mt-pilih:checked');
+    if (!cek.length) { w.App.toast('Ceklis dulu garapan yang mau diajukan'); return; }
+    var ids = [];
+    for (var i = 0; i < cek.length; i++) ids.push(cek[i].dataset.pid);
+    var eligible = [];
+    for (var j = 0; j < ids.length; j++) {
+      var t = cariTugas(ids[j]);
+      if (t && !sudahDiajukan(t.id) && isEligibleForPayment(t)) eligible.push(t);
+    }
+    if (!eligible.length) { w.App.toast('Belum ada yang memenuhi syarat (min. 1 minggu / Rp200rb)'); return; }
+    var totalAjukan = eligible.reduce(function (s, t) { return s + num(t.deliveryFee); }, 0);
     data.paymentRequests.push({
       id: uid(), employeeId: sesi.id, employeeName: sesi.name,
-      amount: totalAjukan, taskIds: belum.map(function (t) { return t.id; }),
+      amount: totalAjukan, taskIds: eligible.map(function (t) { return t.id; }),
       date: hariIni(), status: 'diajukan',
       createdAt: new Date().toISOString()
     });
-    catat('Pengajuan pembayaran ' + formatIDR(totalAjukan) + ' oleh ' + sesi.name);
+    eligible.forEach(function (t) { delete terpilih[t.id]; });
+    catat('Pengajuan pelunasan ' + formatIDR(totalAjukan) + ' oleh ' + sesi.name);
     simpan();
     w.App.toast('Pengajuan terkirim ke owner');
-    renderRekap();
+    renderTugasMitra();
   }
 
   /* Owner menandai pengajuan mitra sudah dibayar -> tercatat sebagai pelunasan
@@ -840,7 +894,6 @@
           + '</div>';
       }).join('') : '<div class="mt-empty">Belum ada pengajuan dari mitra</div>';
     }
-    renderBon(selectedMitraFilter || '');
   }
 
   /* Ringkasan per mitra: garapan done, pengajuan pembayaran, sudah lunas. */
@@ -873,14 +926,9 @@
     var doneTasks = data.tasks.filter(function (t) {
       return t.employeeId === mitraId && t.status === 'completed';
     });
-    var eligible = doneTasks.filter(function (t) { return !sudahDiajukan(t.id) && isEligibleForPayment(t); });
-    var bisaAjukan = eligible.reduce(function (s, t) { return s + num(t.deliveryFee); }, 0);
+    /* Tab Rekap mitra = HANYA daftar garapan selesai (statusnya).
+       Pengajuan pelunasan dilakukan lewat ceklist di tab Dashboard. */
     var h = '';
-    if (bisaAjukan > 0) {
-      h += '<button class="btn primary block" id="mtAjukanAll" style="margin-bottom:10px">Ajukan Pembayaran ' + formatIDR(bisaAjukan) + '</button>';
-    } else if (doneTasks.length) {
-      h += '<p class="hint xs" style="margin-bottom:10px">Syarat ajukan: min. 1 minggu atau nilai garapan Rp200.000.</p>';
-    }
     h += doneTasks.length ? doneTasks.map(function (t) {
       var eligibleT = isEligibleForPayment(t);
       var diajukan = sudahDiajukan(t.id);
@@ -912,7 +960,31 @@
         + '</div>';
     }).join('') : '<div class="empty">Belum ada garapan selesai</div>';
     list.innerHTML = h;
-    renderBon(mitraId, true);
+  }
+
+  /* ---------------- Tab: Kasbon (mitra & owner) ----------------
+     Kasbon dipisah ke tab sendiri supaya fokus ke kasbon, tidak
+     bercampur dengan totalan garapan. */
+  function renderKasbon() {
+    var own = adalahOwner();
+    var ro = $('#ronceKasbonOwner'), rm = $('#ronceKasbonMitra');
+    if (ro) ro.hidden = !own;
+    if (rm) rm.hidden = own;
+    if (!own) { if (sesi) renderBon(sesi.id, true); return; }
+
+    /* Owner: total BON semua mitra + daftar per mitra. */
+    var users = data.users.filter(function (u) { return u.role !== 'owner'; });
+    var total = 0;
+    users.forEach(function (u) { total += bonInfo(u.id).remaining; });
+    var ta = $('#kasbonTotalAll');
+    if (ta) ta.textContent = formatIDR(total);
+    var list = $('#kasbonOwnerList');
+    if (list) list.innerHTML = users.length ? users.map(function (u) {
+      var info = bonInfo(u.id);
+      return '<div class="item"><div class="item-body"><div class="item-title">' + esc(u.name) + '</div>'
+        + '<div class="item-sub"><span>Sisa ' + formatIDR(info.remaining) + '</span>'
+        + '<span>Maks ' + formatIDR(BON_MAX) + '</span></div></div></div>';
+    }).join('') : '<div class="empty">Belum ada mitra</div>';
   }
   /* ---------------- Tab: Setting ---------------- */
 
@@ -1274,18 +1346,28 @@
         renderRekap();
       }
     });
-    // Tugas actions (delegated) — mitra lapor selesai, ajukan pembayaran, BON
+    // Tugas actions (delegated) — mitra lapor selesai, ajukan pelunasan, BON
     document.addEventListener('click', function (e) {
       var done = e.target.closest('[data-rt-done]');
       if (done) { selesaiTugas(done.dataset.rtDone); return; }
-      var ma2 = e.target.closest('#mtAjukanAll');
-      if (ma2) { ajukanPembayaran(); return; }
+      var bs = e.target.closest('#mtBtnSelesai');
+      if (bs) {
+        var ls2 = $('#mtListSelesai');
+        if (ls2) {
+          var show = ls2.dataset.show === '1';
+          ls2.dataset.show = show ? '0' : '1';
+        }
+        renderTugasMitra();
+        return;
+      }
+      var mj = e.target.closest('#mtAjukan');
+      if (mj) { ajukanPembayaran(); return; }
       var bonBtn = e.target.closest('[data-bon-ajukan]');
       if (bonBtn) {
         var amt = nomorBonDari(bonBtn);
         if (amt <= 0) { w.App.toast('Isi nominal BON dulu'); return; }
         ajukanBon(bonBtn.dataset.bonAjukan, amt);
-        renderRekap();
+        renderKasbon();
         return;
       }
       var bj = e.target.closest('[data-bon-jasa]');
@@ -1293,7 +1375,7 @@
         var amtJ = nomorBonDari(bj);
         if (amtJ <= 0) { w.App.toast('Isi nominal BON dulu'); return; }
         lunasiBon(bj.dataset.bonJasa, amtJ, 'jasa');
-        renderRekap();
+        renderKasbon();
         return;
       }
       var bc = e.target.closest('[data-bon-cash]');
@@ -1301,12 +1383,23 @@
         var amtC = nomorBonDari(bc);
         if (amtC <= 0) { w.App.toast('Isi nominal BON dulu'); return; }
         lunasiBon(bc.dataset.bonCash, amtC, 'cash');
-        renderRekap();
+        renderKasbon();
         return;
       }
     });
-        // Filter mitra dropdown di tab Rekap
+        // Filter mitra dropdown di tab Rekap + ceklist garapan selesai (mitra)
     document.addEventListener('change', function (e) {
+      var c = e.target.closest('.mt-pilih');
+      if (c) {
+        if (c.checked) terpilih[c.dataset.pid] = 1; else delete terpilih[c.dataset.pid];
+        var aj = $('#mtAjukan');
+        if (aj) {
+          var n = document.querySelectorAll('.mt-pilih:checked').length;
+          aj.hidden = !document.querySelector('.mt-pilih');
+          aj.textContent = n > 0 ? ('Ajukan Pelunasan (' + n + ')') : 'Ajukan Pelunasan';
+        }
+        return;
+      }
       var mf = e.target.closest('#ronceMitraFilter');
       if (mf) { selectedMitraFilter = mf.value; renderRekap(); }
     });

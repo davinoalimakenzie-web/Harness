@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261018m">
+<link rel="stylesheet" href="assets/css/style.css?v=20261018n">
 </head>
 <body>
 
@@ -465,6 +465,7 @@
         <button class="seg-btn" data-rtab="tugas">Dashboard</button>
         <button class="seg-btn active" data-rtab="input">Input</button>
         <button class="seg-btn" data-rtab="rekap">Rekap</button>
+        <button class="seg-btn" data-rtab="kasbon">Kasbon</button>
         <button class="seg-btn" data-rtab="servis">Servis HP</button>
         <button class="seg-btn" data-rtab="setting">Setting</button>
       </div>
@@ -555,6 +556,12 @@
             <strong>GARAPAN SEDANG PROSES</strong>
           </div>
           <div id="mtListProses" class="list"></div>
+
+          <!-- Tombol "Sudah Selesai" memunculkan checklist garapan selesai. -->
+          <button class="btn primary block" id="mtBtnSelesai" hidden>Sudah Selesai</button>
+          <div id="mtListSelesai" class="list" hidden></div>
+          <button class="btn primary block" id="mtAjukan" hidden>Ajukan Pelunasan</button>
+          <p class="hint xs" style="margin-top:8px">Syarat ajukan: min. 1 minggu atau nilai garapan Rp200.000.</p>
         </div>
       </div>
 
@@ -586,14 +593,34 @@
 
           <div class="list-head"><strong>Pengajuan Pembayaran Mitra</strong></div>
           <div id="roncePayReq" class="list"></div>
-
-          <div id="ronceBonSection"></div>
         </div>
 
         <!-- ============ MITRA ============ -->
         <div id="ronceRekapMitra" hidden>
           <div class="list-head"><strong>GARAPAN SELESAI</strong></div>
           <div id="ronceRekapList" class="list"></div>
+        </div>
+      </div>
+
+      <!-- Tab: Kasbon (terpisah dari totalan garapan biar fokus) -->
+      <div id="ronceTab-kasbon" class="ronce-tab" hidden>
+
+        <!-- ============ OWNER ============ -->
+        <div id="ronceKasbonOwner" hidden>
+          <div class="card">
+            <div class="list-head tight"><strong>BON (Kasbon Mitra)</strong></div>
+            <div class="item">
+              <div class="item-body">
+                <div class="item-title">Total BON Semua Mitra</div>
+                <div class="item-sub"><span id="kasbonTotalAll">Rp0</span></div>
+              </div>
+            </div>
+          </div>
+          <div id="kasbonOwnerList" class="list"></div>
+        </div>
+
+        <!-- ============ MITRA ============ -->
+        <div id="ronceKasbonMitra" hidden>
           <div id="ronceBonMitra"></div>
         </div>
       </div>
@@ -813,6 +840,6 @@
 <script src="assets/js/nava-trader-quote.js?v=20261015d"></script>
 <script src="assets/js/nava-trader.js?v=20261015a"></script>
 <script src="assets/js/backup.js?v=20261014l"></script>
-<script src="assets/js/app.js?v=20261018m"></script>
+<script src="assets/js/app.js?v=20261018n"></script>
 </body>
 </html>
