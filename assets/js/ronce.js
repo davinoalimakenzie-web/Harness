@@ -430,10 +430,10 @@
     var h = '<option value="">-- Pilih Mitra --</option>', i;
     for (i = 0; i < data.users.length; i++) {
       var u = data.users[i];
-      var owner = u.role === 'owner';
-      if (hanyaAktif && !owner && !u.aktif) continue;
+      if (u.role === 'owner') continue;   /* owner bukan penerima tugas */
+      if (hanyaAktif && !u.aktif) continue;
       h += '<option value="' + esc(u.id) + '">' + esc(u.name) +
-        (owner || u.aktif ? '' : ' (belum aktif)') + '</option>';
+        (u.aktif ? '' : ' (belum aktif)') + '</option>';
     }
     return h;
   }
