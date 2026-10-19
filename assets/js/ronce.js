@@ -1,7 +1,7 @@
 /* ===================================================================
    ronce.js - Kalkulator Ronce, native view di Project Nava.
 
-   Lima tab: Input, Tugas, Rekap, Servis HP, Setting.
+   Empat tab: Input, Rekap, Servis HP, Setting.
   Tab Log diganti Kalkulator Servis HP. Setiap Mitra punya link
   akses sendiri (?m=ID) + PIN; akses mitra terbatas pada datanya sendiri.
    Data tersimpan di localStorage. Auto-seed Davino Alima PIN 1234.
@@ -50,7 +50,6 @@
   var pinTempu = '';
   var pesanPin = '';
   var pilihPin = null;
-  var taskItems = [{ serviceId: '', quantity: '', note: '' }];
 
   /* ---------------- Utils ---------------- */
 
@@ -307,11 +306,7 @@
       return dSenin.getTime() === nSenin.getTime();
     }
     if (filter === 'month') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-    if (filter === 'year') {
-      if (d.getFullYear() !== now.getFullYear()) return false;
-      if (selectedMonth !== -1) return d.getMonth() === selectedMonth;
-      return true;
-    }
+
     return true;
   }
 
@@ -352,7 +347,7 @@
   /* ---------------- Option builders ---------------- */
 
   /* hanyaAktif = true: hanya mitra yang sudah ganti PIN (aktif) yang muncul.
-     Dipakai di tab Tugas supaya mitra belum aktif tidak bisa diberi tugas. */
+     Dipakai di tab Input supaya mitra belum aktif tidak bisa diberi tugas. */
   function optsMitra(hanyaAktif) {
     var h = '<option value="">-- Pilih Mitra --</option>', i;
     for (i = 0; i < data.users.length; i++) {
@@ -494,24 +489,26 @@
   function renderTab() {
     if (!sesi) { showLogin(); return; }
     var own = adalahOwner();
-    /* Owner: semua tab (Setting khusus owner). Mitra: HANYA tab Tugas —
-       satu layar berisi daftar garapan + ringkasan jasa. Tab bar-nya
-       sekalian disembunyikan karena cuma ada satu tab. */
+    /* Owner: semua tab (Setting khusus owner). Mitra: dashboard garapan saja,
+       tab bar disembunyikan. */
     if (!own) tabAktif = 'tugas';
     var bar = $('#ronceTabs');
     if (bar) bar.style.display = own ? '' : 'none';
     document.querySelectorAll('#ronceTabs .seg-btn').forEach(function (b) {
       var t = b.dataset.rtab;
-      b.style.display = own ? '' : (t === 'tugas' ? '' : 'none');
+      b.style.display = own ? '' : 'none';
       b.classList.toggle('active', t === tabAktif);
     });
-    var tabs = ['input','tugas','rekap','servis','setting'];
+    /* Tab Tugas sudah dihapus dari navigasi — mitra tetap dapat dashboardnya. */
+    var tabs = ['input','rekap','servis','setting'];
     tabs.forEach(function (t) {
       var el = $('#ronceTab-' + t);
       if (el) el.hidden = (t !== tabAktif);
     });
+    var tugasEl = $('#ronceTab-tugas');
+    if (tugasEl) tugasEl.hidden = own;
     if (tabAktif === 'input') renderInput();
-    else if (tabAktif === 'tugas') renderTugas();
+    else if (tabAktif === 'tugas') renderTugasMitra();
     else if (tabAktif === 'rekap') renderRekap();
     else if (tabAktif === 'servis') renderServis();
     else renderSetting();
@@ -539,7 +536,7 @@
     var tasks = data.tasks.slice().sort(function (a, b) {
       return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
     });
-    var proses = tasks.filter(function (t) { return t.status !== 'completed'; });
+    var proses = tasks.filter(function (t) { return t.status === 'terkirim' || t.status === 'pending'; });
     var titip = tasks.filter(function (t) { return t.status === 'completed' && !sudahLunas(t); });
     var jml = function (a) { return a.reduce(function (s, t) { return s + num(t.deliveryFee); }, 0); };
     var set = function (sel, v) { var e = $(sel); if (e) e.textContent = v; };
@@ -597,40 +594,7 @@
 
   /* ---------------- Tab: Tugas ---------------- */
 
-  function renderTugas() {
-    var own = adalahOwner();
-    var ov = $('#rtOwnerView'), mv = $('#rtMitraView');
-    if (ov) ov.hidden = !own;
-    if (mv) mv.hidden = own;
-    /* Mitra punya dashboard sendiri: daftar garapan + ringkasan jasa. */
-    if (!own) { renderTugasMitra(); return; }
 
-    var m = $('#rtMitra'), t = $('#rtTanggal');
-    if (m) m.innerHTML = optsMitra(true);
-    if (t) t.value = hariIni();
-
-    var items = $('#rtItems');
-    if (!items) return;
-    items.innerHTML = taskItems.map(function (it, i) {
-      return '<div style="display:flex;gap:6px;margin-bottom:6px">'
-        + '<select class="grow" data-rt-sv="' + i + '" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg)">' + optsGarapan() + '</select>'
-        + '<input class="grow" data-rt-qty="' + i + '" placeholder="Qty" inputmode="numeric" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg)">'
-        + '<input class="grow" data-rt-note="' + i + '" placeholder="Catatan" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg)">'
-        + '</div>';
-    }).join('');
-
-    var pending = data.tasks.filter(function (t) { return t.status !== 'completed'; });
-    var p = $('#rtPending');
-    if (!p) return;
-    if (!pending.length) { p.innerHTML = '<div class="empty">Tidak ada tugas belum selesai</div>'; return; }
-    p.innerHTML = pending.map(function (t) {
-      return '<div class="item">'
-        + '<div class="item-body"><div class="item-title">' + esc(t.employeeName) + '</div>'
-        + '<div class="item-sub"><span>' + formatTanggal(t.date) + '</span><span>' + t.quantity + ' Pcs ' + esc(namaGarapan(t.serviceId)) + '</span></div></div>'
-        + '<button class="mini-btn danger" data-rt-done="' + esc(t.id) + '">Selesai</button>'
-        + '<button class="mini-btn danger" data-rt-del="' + esc(t.id) + '">Hapus</button></div>';
-    }).join('');
-  }
 
   /* ---------------- Dashboard Mitra (tab Tugas, tampilan mitra) ----------------
      Satu layar saja: ringkasan jasa + tabel garapan proses/selesai +
@@ -780,14 +744,6 @@
     document.querySelectorAll('#ronceFilters .chip').forEach(function (c) {
       c.classList.toggle('on', c.dataset.rfilter === filter);
     });
-    var mw = $('#ronceMonthWrap');
-    if (mw) mw.style.display = filter === 'year' ? '' : 'none';
-    var sb = $('#rreBulan');
-    if (sb) {
-      sb.innerHTML = '<option value="-1">Semua Bulan</option>' + BULAN.map(function (b, i) {
-        return '<option value="' + i + '"' + (selectedMonth === i ? ' selected' : '') + '>' + b + '</option>';
-      }).join('');
-    }
     var tk = $('#ronceTotalKomisi');
     if (tk) tk.textContent = formatIDR(totalKomisiSemua());
 
@@ -886,7 +842,7 @@
       id: uid(), employeeId: employeeId, employeeName: u.name,
       serviceId: serviceId, quantity: num(quantity),
       deliveryFee: feeOtomatis(serviceId, quantity),
-      date: hariIni(), note: catatan, status: 'pending',
+      date: hariIni(), note: catatan, status: 'terkirim',
       createdAt: new Date().toISOString()
     });
     catat('Tugas ' + namaGarapan(serviceId) + ' x' + quantity + ' dikirim ke ' + u.name);
@@ -897,31 +853,7 @@
     renderInput();
   }
 
-  function serahkanTugas() {
-    var employeeId = ($('#rtMitra') || {}).value || '';
-    var tanggal = ($('#rtTanggal') || {}).value || hariIni();
-    if (!employeeId) { w.App.toast('Pilih mitra tujuan.'); return; }
-    var u = cariMitra(employeeId);
-    if (!u) { w.App.toast('Data mitra tidak ditemukan.'); return; }
-    taskItems = taskItems.map(function (item, i) {
-      return {
-        serviceId: (document.querySelector('[data-rt-sv="' + i + '"]') || {}).value || '',
-        quantity: (document.querySelector('[data-rt-qty="' + i + '"]') || {}).value || '',
-        note: (document.querySelector('[data-rt-note="' + i + '"]') || {}).value || ''
-      };
-    });
-    var valid = taskItems.filter(function (it) { return it.serviceId && num(it.quantity) > 0; });
-    if (!valid.length) { w.App.toast('Minimal satu garapan dengan jumlah > 0.'); return; }
-    for (var i = 0; i < valid.length; i++) {
-      var it = valid[i];
-      data.tasks.unshift({ id: uid(), employeeId: employeeId, employeeName: u.name, serviceId: it.serviceId, quantity: num(it.quantity), deliveryFee: feeOtomatis(it.serviceId, it.quantity), date: tanggal, note: it.note, status: 'pending', createdAt: new Date().toISOString() });
-      catat('Tugas ' + namaGarapan(it.serviceId) + ' x' + it.quantity + ' ke ' + u.name);
-    }
-    simpan();
-    taskItems = [{ serviceId: '', quantity: '', note: '' }];
-    w.App.toast('Tugas diserahkan');
-    renderTugas();
-  }
+
 
   function selesaiTugas(id) {
     for (var i = 0; i < data.tasks.length; i++) {
@@ -933,14 +865,7 @@
       }
     }
     simpan();
-    renderTugas();
-  }
-
-  function hapusTugas(id) {
-    data.tasks = data.tasks.filter(function (x) { return x.id !== id; });
-    data.hapus.tasks.push({ id: id, t: new Date().toISOString() });
-    simpan();
-    renderTugas();
+    renderTugasMitra();
   }
 
   function tambahGarapan() {
@@ -1203,32 +1128,14 @@
     // Input tab
     var sj = $('#rjSimpan');
     if (sj) sj.addEventListener('click', tambahJob);
-    var g = $('#rjGarapan');
-    if (g) g.addEventListener('change', function () {
-      var fee = feeOtomatis(this.value, ($('#rjQty') || {}).value);
-      var f = $('#rjFee'); if (f) f.value = fee > 0 ? String(fee) : '';
-    });
-    var q = $('#rjQty');
-    if (q) q.addEventListener('input', function () {
-      var fee = feeOtomatis(($('#rjGarapan') || {}).value, this.value);
-      var f = $('#rjFee'); if (f) f.value = fee > 0 ? String(fee) : '';
-    });
 
-    // Tugas tab
-    var tambah = $('#rtTambah');
-    if (tambah) tambah.addEventListener('click', function () {
-      taskItems.push({ serviceId: '', quantity: '', note: '' });
-      renderTugas();
-    });
-    var kirim = $('#rtKirim');
-    if (kirim) kirim.addEventListener('click', serahkanTugas);
+
 
     // Rekap filter
     document.addEventListener('click', function (e) {
       var f = e.target.closest('[data-rfilter]');
       if (f) {
         filter = f.dataset.rfilter;
-        if (filter !== 'year') selectedMonth = -1;
         renderRekap();
       }
       var b = e.target.closest('[data-rn-bayar]');
@@ -1247,15 +1154,10 @@
         w.App.toast('Pembayaran dicatat ' + formatIDR(nominal));
       }
     });
-    var mb = $('#rreBulan');
-    if (mb) mb.addEventListener('change', function () { selectedMonth = num(this.value); renderRekap(); });
-
-    // Tugas actions (delegated)
+    // Tugas actions (delegated) — mitra lapor selesai
     document.addEventListener('click', function (e) {
       var done = e.target.closest('[data-rt-done]');
       if (done) { selesaiTugas(done.dataset.rtDone); return; }
-      var del = e.target.closest('[data-rt-del]');
-      if (del) { hapusTugas(del.dataset.rtDel); return; }
     });
 
     // Setting actions
