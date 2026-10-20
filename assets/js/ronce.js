@@ -60,6 +60,9 @@
   var kasbonMitraPick = '';
   /* Rincian pelunasan BON yang menunggu konfirmasi mitra. */
   var bonKonfirmasi = null;
+  /* Nominal yang sudah diedit mitra per garapan (supaya tidak hilang saat
+     kartu digambar ulang, mis. setelah menekan Batal). */
+  var bonEdit = {};
 
   /* ---------------- Utils ---------------- */
 
@@ -460,6 +463,8 @@
     bonKonfirmasi = null;
     if (k.nilai > 0) lunasiBon(k.mitraId, k.nilai, 'jasa', k.dipakai.map(function (x) { return x.id; }));
     if (k.cash > 0) lunasiBon(k.mitraId, k.cash, 'cash');
+    /* Editan nominal sudah terpakai -> bersihkan. */
+    k.dipakai.forEach(function (x) { delete bonEdit[x.id]; });
     w.App.toast(k.mode === 'cash'
       ? 'BON lunas — jasa ' + formatIDR(k.nilai) + ' + cash ' + formatIDR(k.cash)
       : 'Dicicil ' + formatIDR(k.nilai) + ' — sisa ' + formatIDR(bonInfo(k.mitraId).remaining));
@@ -528,7 +533,8 @@
                 + '<span class="bon-row-info"><b>' + esc(namaGarapan(t.serviceId)) + ' x' + t.quantity + '</b>'
                 + '<i>' + formatTanggal(t.date) + ' &middot; jasa ' + formatIDR(t.deliveryFee) + '</i></span>'
                 + '<input type="number" class="bon-row-inp" data-pid="' + esc(t.id) + '"'
-                +   ' value="' + num(t.deliveryFee) + '" inputmode="numeric" aria-label="Nominal dipotong">'
+                +   ' value="' + num(bonEdit[t.id] != null ? bonEdit[t.id] : t.deliveryFee) + '"'
+                +   ' inputmode="numeric" aria-label="Nominal dipotong">'
                 + '</label>';
             }).join('')
           + '</div>';
@@ -1761,7 +1767,10 @@
        menggambar ulang kartu, supaya fokus ketikan tidak hilang). */
     document.addEventListener('input', function (e) {
       var bi = e.target.closest('.bon-row-inp');
-      if (bi && sesi) { hitungBonSettle(sesi.id); }
+      if (bi && sesi) {
+        bonEdit[bi.dataset.pid] = num(bi.value);
+        hitungBonSettle(sesi.id);
+      }
     });
 
     // Setting actions
