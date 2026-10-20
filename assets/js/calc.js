@@ -200,6 +200,38 @@
     updatePickLabels();
   }
 
+  /* Daftar seri HP untuk satu brand, satu sumber untuk semua modul.
+     Urutan: seri yang SUDAH DISIMPAN di Kalkulator (Store.state.templates)
+     dulu, lalu katalog bawaan (SERIES) yang belum ada di daftar.
+     Dipakai bersama oleh Kalkulator dan form Mas Cim supaya seri yang baru
+     dibuat di Kalkulator langsung muncul di form tambah service — dulu Mas
+     Cim cuma membaca SERIES (katalog mati), jadi seri baru tidak pernah
+     ikut. Katalog bawaan tetap dipertahankan sebagai cadangan supaya brand
+     yang belum punya harga tetap bisa dipilih. */
+  function daftarSeri(brandId) {
+    var list = [];
+    (w.Store.state.templates || []).forEach(function (t) {
+      var p = t && (t.payload || t);
+      if (!p || p.brandId !== brandId || !p.series) return;
+      if (list.indexOf(p.series) === -1) list.push(p.series);
+    });
+    (SERIES[brandId] || []).forEach(function (s) {
+      if (list.indexOf(s) === -1) list.push(s);
+    });
+    return list;
+  }
+
+  /* Seri yang punya harga tersimpan di Kalkulator untuk brand ini. */
+  function seriTersimpan(brandId) {
+    var out = [];
+    (w.Store.state.templates || []).forEach(function (t) {
+      var p = t && (t.payload || t);
+      if (!p || p.brandId !== brandId || !p.series) return;
+      if (out.indexOf(p.series) === -1) out.push(p.series);
+    });
+    return out;
+  }
+
   function renderSeries() {
     var saved = {};
     (w.Store.state.templates || []).forEach(function (t) {
@@ -870,6 +902,9 @@
     RULES: RULES,
     BRANDS: BRANDS,
     SERIES: SERIES,
+    /* Satu sumber daftar seri untuk modul lain (Mas Cim). */
+    daftarSeri: daftarSeri,
+    seriTersimpan: seriTersimpan,
     hitung: hitung,
     parsePart: parsePart,
     applyTpl: applyTpl

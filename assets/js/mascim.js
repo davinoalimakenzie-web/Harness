@@ -822,14 +822,41 @@
      dropdown seri tidak pernah terisi DAN sheet sparepart tidak pernah terbuka. */
   function isiSeri(brandSel, seriSel, seriDipilih) {
     if (!brandSel || !seriSel) return;
-    var list = (w.CalcUI.SERIES[brandSel.value] || []);
-    seriSel.innerHTML = '<option value="">Pilih seri</option>' +
-      list.map(function (s) {
-        return '<option value="' + esc(s) + '"' +
-          (s === seriDipilih ? ' selected' : '') + '>' + esc(s) + '</option>';
-      }).join('') +
-      '<option value="Lainnya"' + (seriDipilih && list.indexOf(seriDipilih) < 0
-        ? ' selected' : '') + '>Lainnya…</option>';
+    /* Seri diambil dari KALKULATOR SERVICE HP (CalcUI.daftarSeri), bukan lagi
+       dari katalog mati CalcUI.SERIES. Dulu form ini cuma membaca katalog
+       bawaan, jadi seri yang baru disimpan di Kalkulator tidak pernah ikut —
+       itulah yang dikeluhkan "masih pakai data lama". Urutannya: seri yang
+       sudah punya harga di Kalkulator dulu (grup sendiri), lalu katalog HP
+       sebagai cadangan, lalu "Lainnya…". */
+    var CalcUI = w.CalcUI || {};
+    var dariKalkulator = (CalcUI.seriTersimpan
+      ? CalcUI.seriTersimpan(brandSel.value)
+      : []);
+    var semua = (CalcUI.daftarSeri
+      ? CalcUI.daftarSeri(brandSel.value)
+      : (CalcUI.SERIES[brandSel.value] || []));
+    var opsi = function (s) {
+      return '<option value="' + esc(s) + '"' +
+        (s === seriDipilih ? ' selected' : '') + '>' + esc(s) + '</option>';
+    };
+    var html = '<option value="">Pilih seri</option>';
+    if (dariKalkulator.length) {
+      html += '<optgroup label="Dari Kalkulator Service">' +
+        dariKalkulator.map(opsi).join('') + '</optgroup>';
+    }
+    var sisa = semua.filter(function (s) {
+      return dariKalkulator.indexOf(s) === -1;
+    });
+    if (sisa.length) {
+      html += '<optgroup label="Katalog HP">' +
+        sisa.map(opsi).join('') + '</optgroup>';
+    }
+    /* "Lainnya…" dipilih kalau seri tersimpan tidak ada di daftar mana pun,
+       supaya model di luar katalog tetap bisa dicatat lewat #fSeriLain. */
+    html += '<option value="Lainnya"' +
+      (seriDipilih && semua.indexOf(seriDipilih) === -1 ? ' selected' : '') +
+      '>Lainnya…</option>';
+    seriSel.innerHTML = html;
   }
 
   /* Pecah device yang tersimpan jadi [idBrand, seri] supaya form edit bisa
