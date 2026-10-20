@@ -282,7 +282,11 @@
   function totalKomisiSemua() {
     var t = 0, i;
     for (i = 0; i < data.jobs.length; i++) t += num(data.jobs[i].deliveryFee);
-    for (i = 0; i < data.tasks.length; i++) if (data.tasks[i].status === 'completed') t += num(data.tasks[i].deliveryFee);
+    /* Garapan pribadi owner bukan komisi mitra, jadi tidak dihitung. */
+    for (i = 0; i < data.tasks.length; i++) {
+      if (data.tasks[i].pribadi) continue;
+      if (data.tasks[i].status === 'completed') t += num(data.tasks[i].deliveryFee);
+    }
     return t;
   }
   function rekapMitra() {
@@ -1518,7 +1522,7 @@
     if (!card) return;
     var list = $('#roncePribadiList');
     var pribadi = data.tasks.filter(function (t) { return t.pribadi && t.status === 'completed'; })
-      .sort(function (a, b) { return String(b.completedAt || '').localeCompare(String(a.createdAt || '')); });
+      .sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
     if (!pribadi.length) {
       card.hidden = true;
       if (list) list.innerHTML = '';
