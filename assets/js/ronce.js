@@ -664,22 +664,27 @@
   /* hanyaAktif = true: hanya mitra yang sudah ganti PIN (aktif) yang muncul.
      Dipakai di tab Input supaya mitra belum aktif tidak bisa diberi tugas. */
   function optsMitra(hanyaAktif) {
+    var pil = ($('#rjMitra') || {}).value || '';
     var h = '<option value="">-- Pilih Mitra --</option>', i;
     for (i = 0; i < data.users.length; i++) {
       var u = data.users[i];
       if (u.role === 'owner') continue;   /* owner bukan penerima tugas */
       if (hanyaAktif && !u.aktif) continue;
-      h += '<option value="' + esc(u.id) + '">' + esc(u.name) +
+      h += '<option value="' + esc(u.id) + '"' + (pil === u.id ? ' selected' : '') + '>' + esc(u.name) +
         (u.aktif ? '' : ' (belum aktif)') + '</option>';
     }
     return h;
   }
+  /* Pilihan yang sedang terpilih HARUS bertahan saat daftar opsi digambar
+     ulang — tanpa ini dropdown mitra & garapan diam-diam kembali ke
+     "-- Pilih --" setiap render, sehingga input berikutnya gagal. */
   function optsGarapan() {
+    var pil = ($('#rjGarapan') || {}).value || '';
     var h = '<option value="">-- Pilih Garapan --</option>', i;
     for (i = 0; i < data.services.length; i++) {
       var g = data.services[i];
       var harga = g.isSetEnabled ? hargaPerSet(g) : num(g.price);
-      h += '<option value="' + esc(g.id) + '">' + esc(g.name) + ' (' + formatIDR(harga) + ')' + (g.isSetEnabled ? ' / Set' : '') + '</option>';
+      h += '<option value="' + esc(g.id) + '"' + (pil === g.id ? ' selected' : '') + '>' + esc(g.name) + ' (' + formatIDR(harga) + ')' + (g.isSetEnabled ? ' / Set' : '') + '</option>';
     }
     return h;
   }
