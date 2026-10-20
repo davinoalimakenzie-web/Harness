@@ -576,17 +576,10 @@
     var editing = !!M.editing;
     setBar(editing ? 'Edit Servis' : 'Servis Baru');
 
-    // Hitung preview angka turunan supaya pemilik langsung melihat
-    // jasa & sisa pelunasan sebelum menekan Simpan.
-    var total = parseInt(String(d.total_cost).replace(/\D/g, ''), 10) || 0;
-    var modal = d.parts.reduce(function (a, p) { return a + (parseInt(String(p.capital_cost).replace(/\D/g, ''), 10) || 0); }, 0);
-    var jasa = total - modal;
-    var warn = jasa < 0;
-    // Modal dibekukan untuk render ini. Saat teknisi mengubah Total Biaya,
-    // Perkiraan Jasa dihitung ulang dari angka beku ini, bukan dari
-    // menghitung ulang baris sparepart — supaya Total Modal Part tidak
-    // ikut bergeser sendiri saat yang diedit sebenarnya hanya total.
-    d.modalFrozen = modal;
+    /* Form ini hanya mencatat PENERIMAAN unit. Angka biaya (Total Biaya,
+       Modal Part, Perkiraan Jasa) tidak dihitung di sini lagi: sparepart
+       diisi lewat sheet "+ Tambah Sparepart" di layar detail, dan Total
+       Biaya diisi di layar detail. Lihat catatan di bawah. */
 
     var html = '<div class="mc-pad">';
 
@@ -636,27 +629,12 @@
     // kunci layar, dan penanganan. Ketiganya karena itu diletakkan di
     // bawah blok Perkiraan Jasa, bukan di bawah Device.
 
-    // Sparepart
-    html += '<div class="mc-sec">Sparepart <span class="mc-sec-note">boleh kosong</span></div>';
-    html += renderPemilihHarga(d);
-    if (d.parts.length) {
-      html += '<div class="mc-parts">';
-      d.parts.forEach(function (p, i) {
-        html += '<div class="mc-part">' +
-          '<input class="mc-inp sm" data-pi="' + i + '" data-pf="part_name" value="' + esc(p.part_name) + '" placeholder="Nama part">' +
-          '<input class="mc-inp sm" data-pi="' + i + '" data-pf="capital_cost" inputmode="numeric" value="' + esc(p.capital_cost) + '" placeholder="Modal">' +
-          '<button class="mc-x" data-delpart="' + i + '" aria-label="Hapus">✕</button>' +
-        '</div>';
-      });
-      html += '</div>';
-    }
-    /* Tombol "+ Tambah Sparepart" DIHAPUS dari form ini.
-       Dulu tombol itu menyisipkan baris kosong (nama part + modal diketik
-       manual), jadi ada DUA sumber harga: Kalkulator Service HP dan isian
-       bebas di form ini. Sekarang satu pintu saja — sparepart diambil lewat
-       pemilih harga di atas ("✓ Pakai harga ini"), yang selalu membawa modal
-       dan estimasi dari Kalkulator. Baris yang sudah masuk tetap bisa
-       dikoreksi/dihapus di bawah. */
+    /* SPAREPART dan BIAYA TIDAK ada di form ini. Form Tambah Servis hanya
+       mengisi: Nama Pelanggan, No. WA, Brand HP, Seri HP, Kunci Layar, dan
+       Keluhan/Kondisi. Sparepart diisi setelah nota dibuat lewat tombol
+       "+ Tambah Sparepart" di layar detail (saat status Progress) — di sana
+       harga selalu diambil dari Kalkulator Service HP dan Total Biaya ikut
+       terakumulasi otomatis. */
 
     // Biaya. Ketiganya satu kotak dengan gaya sama supaya tidak terlihat
     // seperti kolom isian yang kebetulan berada di antara dua angka hasil
@@ -2435,11 +2413,13 @@
   }
 
   function openPartSheet() {
-    // Dua sumber, tapi tujuannya nol ketik: kalau harga untuk device ini sudah
-    // pernah tersimpan di Kalkulator, modal dan estimasi terisi otomatis
-    // begitu jenis sparepart dipilih. Kalau belum pernah, form membuka isian
-    // manual — dan begitu disimpan, harga itu otomatis masuk Kalkulator
-    // sehingga nota berikutnya untuk device yang sama tinggal pilih.
+    // Satu sumber harga: Kalkulator Service HP. Kalau harga untuk device ini
+    // sudah pernah tersimpan di sana, modal dan estimasi terisi otomatis begitu
+    // jenis sparepart dipilih — tapi tetap BISA diketik ulang karena harga dari
+    // Kalkulator hanya titik awal, bukan angka beku. Kalau belum pernah ada,
+    // kolomnya kosong dan diisi manual; begitu disimpan, harga itu otomatis
+    // masuk Kalkulator sehingga nota berikutnya untuk device yang sama tinggal
+    // pilih.
     var deviceBits = pisahDevice(M.current && M.current.device);
     var brandId = deviceBits[0], seri = deviceBits[1];
     var RULES = w.CalcUI.RULES || [];
@@ -2489,7 +2469,9 @@
           // PERSIS seperti yang tampil di Kalkulator Service HP: modal dari
           // `part`, estimasi dari `est` yang tersimpan (bukan dihitung ulang),
           // supaya angka di nota tidak pernah beda dengan Kalkulator.
-          // Lalu dikunci agar tidak berubah tak sengaja. Ini inti "nol ketik".
+          // TIDAK dikunci: harga dari Kalkulator hanya titik awal. Kolomnya
+          // tetap bisa diketik ulang (mis. hasil negosiasi) sebelum disimpan —
+          // jadi harga Kalkulator tidak pernah mematikan koreksi manual.
           var tpl = cariTplBrandSeri(brandId, seri, rule.id);
           var tp = tpl.payload || tpl;
           if (!tpl || !(tp.part > 0)) return false;
@@ -2498,8 +2480,8 @@
           estIn.value = estTersimpan > 0
             ? estTersimpan
             : w.CalcUI.hitung(tp.part, rule).est;
-          costIn.readOnly = true;
-          estIn.readOnly = true;
+          costIn.readOnly = false;
+          estIn.readOnly = false;
           return true;
         }
 
@@ -2517,8 +2499,8 @@
               return;
             }
             if (terisiOtomatis(rule)) {
-              hint.textContent = 'Terisi otomatis dari Kalkulator — harga ini tersimpan untuk ' +
-                seri + '. Bisa dibuka dengan edit.';
+              hint.textContent = 'Terisi otomatis dari Kalkulator (' + seri +
+                ') — boleh diubah lagi kalau perlu.';
             } else {
               hint.textContent = 'Belum ada harga tersimpan untuk ' + seri +
                 '. Isi modal dan estimasinya manual — nanti tersimpan otomatis untuk nota berikutnya.';
