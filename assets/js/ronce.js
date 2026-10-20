@@ -58,6 +58,8 @@
   var draftJobs = [];
   /* Mitra yang dipilih owner di tab Kasbon (untuk catat BON langsung). */
   var kasbonMitraPick = '';
+  /* Rincian pelunasan BON yang menunggu konfirmasi mitra. */
+  var bonKonfirmasi = null;
 
   /* ---------------- Utils ---------------- */
 
@@ -425,34 +427,64 @@
 
   /* Pelunasan BON dari JASA: pakai garapan selesai yang diceklis.
      pakaiCash=true -> sisa BON langsung dibayar cash (BON lunas).
-     pakaiCash=false -> dicicil: hanya bagian jasa yang dilunasi sekarang. */
-  function bayarBonJasa(mitraId, pakaiCash) {
+     pakaiCash=false -> dicicil: hanya bagian jasa yang dilunasi sekarang.
+
+     Alur dibuat DUA LANGKAH supaya tidak terasa "kepencet lalu hilang":
+     (1) siapkanBonSettle() hanya MENYIAPKAN rincian + menampilkan kartu
+         konfirmasi; (2) jalankanBonSettle() baru benar-benar mencatat. */
+  function siapkanBonSettle(mitraId, pakaiCash) {
     var info = bonInfo(mitraId);
     if (info.remaining <= 0) { w.App.toast('BON sudah lunas'); return; }
-    var cek = document.querySelectorAll('#bonSettleList .bon-pilih:checked');
-    var sisa = info.remaining, dipakai = [], nilai = 0;
-    for (var i = 0; i < cek.length && sisa > 0; i++) {
-      var t = cariTugas(cek[i].dataset.pid);
-      if (!t) continue;
-      var f = num(t.deliveryFee);
-      if (f <= 0) continue;
-      dipakai.push(t.id);
-      var ambil = Math.min(f, sisa);
-      nilai += ambil;
-      sisa -= ambil;
-    }
+    var d = bonSettleNilai();
     /* "Cicil Dulu" butuh jasa terceklis; "Bayar Sisa via Cash" tetap jalan
        walau tidak ada garapan (sisa dibayar penuh cash). */
-    if (!pakaiCash && nilai <= 0) { w.App.toast('Ceklis garapan yang mau dipakai'); return; }
-    if (nilai > 0) lunasiBon(mitraId, nilai, 'jasa', dipakai);
-    if (pakaiCash) {
-      var sisaAkhir = bonInfo(mitraId).remaining;
-      if (sisaAkhir > 0) lunasiBon(mitraId, sisaAkhir, 'cash');
-      w.App.toast('BON lunas — jasa ' + formatIDR(nilai) + ' + cash ' + formatIDR(sisaAkhir));
-    } else {
-      w.App.toast('Dicicil ' + formatIDR(nilai) + ' — sisa ' + formatIDR(bonInfo(mitraId).remaining));
-    }
+    if (!pakaiCash && d.nilai <= 0) { w.App.toast('Ceklis garapan yang mau dipakai'); return; }
+    var dipakaiNilai = Math.min(d.nilai, info.remaining);
+    var sisa = Math.max(0, info.remaining - dipakaiNilai);
+    var cash = pakaiCash ? sisa : 0;
+    bonKonfirmasi = {
+      mitraId: mitraId, mode: pakaiCash ? 'cash' : 'cicil',
+      dipakai: d.dipakai, nilai: dipakaiNilai, cash: cash, sisa: sisa
+    };
     renderKasbon();
+  }
+
+  function batalBonSettle() {
+    bonKonfirmasi = null;
+    renderKasbon();
+  }
+
+  function jalankanBonSettle() {
+    if (!bonKonfirmasi) return;
+    var k = bonKonfirmasi;
+    bonKonfirmasi = null;
+    if (k.nilai > 0) lunasiBon(k.mitraId, k.nilai, 'jasa', k.dipakai.map(function (x) { return x.id; }));
+    if (k.cash > 0) lunasiBon(k.mitraId, k.cash, 'cash');
+    w.App.toast(k.mode === 'cash'
+      ? 'BON lunas — jasa ' + formatIDR(k.nilai) + ' + cash ' + formatIDR(k.cash)
+      : 'Dicicil ' + formatIDR(k.nilai) + ' — sisa ' + formatIDR(bonInfo(k.mitraId).remaining));
+    renderKasbon();
+  }
+
+  /* Baca ceklis + nominal yang DIEDIT mitra. Nilai tiap baris tidak boleh
+     melebihi jasa garapan itu sendiri. */
+  function bonSettleNilai() {
+    var cek = document.querySelectorAll('#bonSettleList .bon-pilih');
+    var dipakai = [], nilai = 0;
+    for (var i = 0; i < cek.length; i++) {
+      var c = cek[i];
+      if (!c.checked) continue;
+      var t = cariTugas(c.dataset.pid);
+      if (!t) continue;
+      var max = num(t.deliveryFee);
+      var inp = document.querySelector('#bonSettleList .bon-row-inp[data-pid="' + c.dataset.pid + '"]');
+      var v = num(inp ? inp.value : max);
+      if (v > max) v = max;
+      if (v <= 0) continue;
+      dipakai.push({ id: t.id, nilai: v });
+      nilai += v;
+    }
+    return { dipakai: dipakai, nilai: nilai };
   }
 
   /* Nominal BON di input dalam kartu BON tempat tombol itu berada. */
@@ -487,14 +519,16 @@
       });
       h += '<div class="bon-settle"><div class="list-head tight"><strong>Pelunasan BON via Jasa</strong></div>';
       if (done.length) {
-        h += '<p class="hint xs">Garapan selesai otomatis terceklis. Buka ceklis yang tidak mau dipakai.</p>'
+        h += '<p class="hint xs">Garapan selesai otomatis terceklis. Buka ceklis yang tidak mau dipakai, '
+          + 'atau ubah nominal yang mau dipotong (maks sesuai jasa).</p>'
           + '<div id="bonSettleList" class="list">'
           + done.map(function (t) {
               return '<label class="bon-row">'
                 + '<input type="checkbox" class="bon-pilih" data-pid="' + esc(t.id) + '" checked>'
                 + '<span class="bon-row-info"><b>' + esc(namaGarapan(t.serviceId)) + ' x' + t.quantity + '</b>'
-                + '<i>' + formatTanggal(t.date) + '</i></span>'
-                + '<b class="bon-row-amt">' + formatIDR(t.deliveryFee) + '</b>'
+                + '<i>' + formatTanggal(t.date) + ' &middot; jasa ' + formatIDR(t.deliveryFee) + '</i></span>'
+                + '<input type="number" class="bon-row-inp" data-pid="' + esc(t.id) + '"'
+                +   ' value="' + num(t.deliveryFee) + '" inputmode="numeric" aria-label="Nominal dipotong">'
                 + '</label>';
             }).join('')
           + '</div>';
@@ -506,13 +540,35 @@
         + '<div class="bon-calc-row"><span>Total BON</span><b id="bonCalcTotal">' + formatIDR(info.remaining) + '</b></div>'
         + '<div class="bon-calc-row"><span>Total jasa terceklis</span><b id="bonCalcJasa">Rp0</b></div>'
         + '<div class="bon-calc-row total"><span>Sisa BON</span><b id="bonCalcSisa">' + formatIDR(info.remaining) + '</b></div>'
-        + '</div>'
-        + '<div class="row-2 mt">'
-        + '<button class="btn primary" data-bon-cashjasa="' + esc(mitraId) + '">Bayar Sisa via Cash</button>'
-        + '<button class="btn ghost" data-bon-cicil="' + esc(mitraId) + '">Cicil Dulu</button>'
-        + '</div>'
-        + '<p class="hint xs" style="margin-top:8px">Cicil = hanya jasa terceklis yang dipotong sekarang; sisanya tetap jadi BON.</p>'
         + '</div>';
+
+      /* Kartu konfirmasi: pelunasan TIDAK langsung dieksekusi. */
+      if (bonKonfirmasi && bonKonfirmasi.mitraId === mitraId) {
+        var k = bonKonfirmasi;
+        h += '<div class="bon-confirm">'
+          + '<div class="bon-confirm-head">⚠️ Periksa dulu sebelum dicatat</div>'
+          + '<div class="bon-confirm-body">'
+          + '<div class="bon-calc-row"><span>Dipotong dari jasa</span><b>' + formatIDR(k.nilai) + '</b></div>'
+          + (k.mode === 'cash'
+              ? '<div class="bon-calc-row"><span>Dibayar cash</span><b>' + formatIDR(k.cash) + '</b></div>'
+              : '')
+          + '<div class="bon-calc-row total"><span>Sisa BON setelah ini</span><b>'
+          +   formatIDR(k.mode === 'cash' ? 0 : k.sisa) + '</b></div>'
+          + '</div>'
+          + '<div class="bon-confirm-acts">'
+          + '<button class="btn primary" data-bon-yakin="1">Ya, Catat Sekarang</button>'
+          + '<button class="btn ghost" data-bon-batal="1">Batal</button>'
+          + '</div>'
+          + '<p class="hint xs">Setelah dicatat, pelunasan masuk ke rekap owner dan tidak bisa dibatalkan dari sini.</p>'
+          + '</div>';
+      } else {
+        h += '<div class="row-2 mt">'
+          + '<button class="btn primary" data-bon-cashjasa="' + esc(mitraId) + '">Bayar Sisa via Cash</button>'
+          + '<button class="btn ghost" data-bon-cicil="' + esc(mitraId) + '">Cicil Dulu</button>'
+          + '</div>'
+          + '<p class="hint xs" style="margin-top:8px">Cicil = hanya jasa terceklis yang dipotong sekarang; sisanya tetap jadi BON.</p>';
+      }
+      h += '</div>';
     }
     h += '</div>';
 
@@ -552,15 +608,11 @@
   }
 
   /* Hitung ulang Total BON - jasa terceklis = sisa BON (dipanggil saat
-     ceklis diubah dan saat kartu BON baru digambar). */
+     ceklis atau nominal diubah, dan saat kartu BON baru digambar). */
   function hitungBonSettle(mitraId) {
     var info = bonInfo(mitraId);
-    var cek = document.querySelectorAll('#bonSettleList .bon-pilih:checked');
-    var total = 0;
-    for (var i = 0; i < cek.length; i++) {
-      var t = cariTugas(cek[i].dataset.pid);
-      if (t) total += num(t.deliveryFee);
-    }
+    var d = bonSettleNilai();
+    var total = d.nilai;
     var dipakai = Math.min(total, info.remaining);
     var sisa = Math.max(0, info.remaining - dipakai);
     var set = function (sel, v) { var e = $(sel); if (e) e.textContent = v; };
@@ -762,6 +814,8 @@
        #ronceTab-tugas hanya disembunyikan untuk owner, sehingga untuk mitra
        dashboard (Total Jasa Kamu + Akun Saya) ikut tampil di tab Rekap/Kasbon. */
     var tabs = ['input','rekap','servis','setting','kasbon','tugas'];
+    /* Konfirmasi pelunasan BON tidak boleh "nyangkut" saat pindah tab. */
+    if (tabAktif !== 'kasbon') bonKonfirmasi = null;
     tabs.forEach(function (t) {
       var el = $('#ronceTab-' + t);
       if (el) el.hidden = (t !== tabAktif);
@@ -1186,10 +1240,38 @@
     var list = $('#kasbonOwnerList');
     if (list) list.innerHTML = users.length ? users.map(function (u) {
       var info = bonInfo(u.id);
+      var adaBON = info.total > 0;
       return '<div class="item"><div class="item-body"><div class="item-title">' + esc(u.name) + '</div>'
-        + '<div class="item-sub"><span>Sisa ' + formatIDR(info.remaining) + '</span>'
-        + '<span>Maks ' + formatIDR(BON_MAX) + '</span></div></div></div>';
+        + '<div class="item-sub"><span>BON ' + formatIDR(info.total) + '</span>'
+        + '<span>Dilunasi ' + formatIDR(info.lunas) + '</span>'
+        + '<span>Sisa <b>' + formatIDR(info.remaining) + '</b></span></div></div>'
+        + (adaBON ? '<span class="mt-tag ' + (info.remaining > 0 ? 'tunggu' : 'done') + '">'
+            + (info.remaining > 0 ? 'ADA BON' : 'LUNAS') + '</span>' : '')
+        + '</div>';
     }).join('') : '<div class="empty">Belum ada mitra</div>';
+
+    /* Rekap pelunasan BON yang masuk dari mitra (jasa / cash) — supaya owner
+       ikut tahu garapan mana yang dipakai dan berapa yang dibayar cash. */
+    var rl = $('#kasbonLunasList');
+    if (rl) {
+      var lunas = (data.transactions || []).filter(function (t) { return t.type === 'bon_lunas'; });
+      rl.innerHTML = lunas.length ? lunas.slice().reverse().map(function (t) {
+        var u2 = cariMitra(t.employeeId);
+        var nama = [];
+        (t.taskIds || []).forEach(function (id) {
+          var tk = cariTugas(id);
+          if (tk) nama.push(namaGarapan(tk.serviceId) + ' x' + tk.quantity);
+        });
+        var viaJasa = nama.length > 0;
+        return '<div class="mt-pay ok">'
+          + '<div class="mt-pay-l"><b>' + esc(u2 ? u2.name : '-') + ' &middot; ' + formatIDR(t.amount) + '</b>'
+          + '<span>' + formatTanggal(t.date) + ' &middot; '
+          + (viaJasa ? 'dipotong dari jasa' : 'dibayar cash') + '</span>'
+          + (viaJasa ? '<span class="bon-used">' + esc(nama.join(', ')) + '</span>' : '')
+          + '</div>'
+          + '<span class="mt-tag done">' + (viaJasa ? 'JASA' : 'CASH') + '</span></div>';
+      }).join('') : '<div class="mt-empty">Belum ada pelunasan BON</div>';
+    }
 
     /* Catat BON langsung: pilih mitra dulu, lalu kartu BON owner digambar. */
     var pick = $('#kasbonMitraPick');
@@ -1644,11 +1726,15 @@
         renderKasbon();
         return;
       }
-      /* Pelunasan BON via jasa: bayar sisa pakai cash, atau cicil dulu. */
+      /* Pelunasan BON via jasa: siapkan rincian -> konfirmasi -> baru dicatat. */
       var bcs = e.target.closest('[data-bon-cashjasa]');
-      if (bcs) { bayarBonJasa(bcs.dataset.bonCashjasa, true); return; }
+      if (bcs) { siapkanBonSettle(bcs.dataset.bonCashjasa, true); return; }
       var bci = e.target.closest('[data-bon-cicil]');
-      if (bci) { bayarBonJasa(bci.dataset.bonCicil, false); return; }
+      if (bci) { siapkanBonSettle(bci.dataset.bonCicil, false); return; }
+      var byk = e.target.closest('[data-bon-yakin]');
+      if (byk) { jalankanBonSettle(); return; }
+      var bbt = e.target.closest('[data-bon-batal]');
+      if (bbt) { batalBonSettle(); return; }
       /* Owner merespons pengajuan BON mitra. */
       var bok = e.target.closest('[data-bon-ok]');
       if (bok) { setujuiBon(bok.dataset.bonOk); return; }
@@ -1669,6 +1755,13 @@
       if (kp) { kasbonMitraPick = kp.value; renderKasbon(); return; }
       var mf = e.target.closest('#ronceMitraFilter');
       if (mf) { selectedMitraFilter = mf.value; renderRekap(); }
+    });
+
+    /* Nominal pelunasan BON diketik -> perhitungan ikut berubah (tanpa
+       menggambar ulang kartu, supaya fokus ketikan tidak hilang). */
+    document.addEventListener('input', function (e) {
+      var bi = e.target.closest('.bon-row-inp');
+      if (bi && sesi) { hitungBonSettle(sesi.id); }
     });
 
     // Setting actions
@@ -1712,10 +1805,14 @@
     hapusDraftJob: hapusDraftJob,
     renderDraft: renderDraft,
     ajukanBon: ajukanBon,
+    catatBonLangsung: catatBonLangsung,
     setujuiBon: setujuiBon,
     tolakBon: tolakBon,
-    bayarBonJasa: bayarBonJasa,
+    siapkanBonSettle: siapkanBonSettle,
+    jalankanBonSettle: jalankanBonSettle,
+    batalBonSettle: batalBonSettle,
     hitungBonSettle: hitungBonSettle,
+    _bonKonfirmasi: function () { return bonKonfirmasi; },
     _draftJobs: function () { return draftJobs; }
   };
 })(window);

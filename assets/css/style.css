@@ -273,6 +273,23 @@ body.mitra-mode #app{ padding-top:0; }
 /* Tombol aksi berpasangan di baris pengajuan BON (owner) */
 .mt-pay-act{ display:flex; gap:6px; flex:0 0 auto; }
 .mini-btn.ok{ background:#12a150; color:#fff; border-color:#12a150; }
+/* Input nominal pelunasan BON yang bisa diedit (maks = jasa garapan) */
+.bon-row-inp{
+  flex:0 0 96px; width:96px; text-align:right; font-size:12.5px; font-weight:700;
+  padding:6px 8px; border-radius:8px; border:1px solid var(--line);
+  background:var(--bg); color:var(--text); min-height:0;
+}
+.bon-row-inp:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+/* Kartu konfirmasi sebelum pelunasan BON dicatat */
+.bon-confirm{
+  margin-top:10px; border:1.5px solid #f59e0b; border-radius:12px;
+  background:rgba(245,158,11,.10); padding:11px 12px;
+}
+.bon-confirm-head{ font-size:12.5px; font-weight:800; color:#b45309; margin-bottom:8px; }
+.bon-confirm-body{ background:var(--bg-elev); border-radius:9px; padding:8px 10px; }
+.bon-confirm-acts{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:6px; margin-top:10px; }
+.bon-confirm-acts .btn{ white-space:normal; font-size:13px; padding:12px 8px; }
+.bon-used{ display:block; font-size:11px; color:var(--text-2); margin-top:2px; overflow-wrap:anywhere; }
 
 .mt-guide{
   background:var(--bg-elev); border:1px dashed var(--line); border-radius:12px;
