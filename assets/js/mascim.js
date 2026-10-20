@@ -937,9 +937,9 @@
         'dari Kalkulator bisa dipakai.</p></div>';
     }
 
-    // Ketiga jenis SELALU ditawarkan, walau belum ada harga tersimpan untuk
-    // device ini — justru itu jalur untuk membuat estimasi baru. Kalau jenis
-    // disembunyikan saat datanya kosong, tidak ada cara membuat harga baru.
+    // HANYA varian yang sudah punya harga di Kalkulator Service HP. Jenis tanpa
+    // harga tetap ditampilkan (supaya kelihatan ada pilihannya) tapi variannya
+    // kosong dan pemakainya dinonaktifkan — pembatasannya ada di bindPemilihHarga.
     var opsiJenis = '<option value="">— jenis sparepart —</option>' +
       '<option value="lcd">LCD' + (kat.lcd.length ? ' (' + kat.lcd.length + ')' : '') + '</option>' +
       '<option value="baterai">Baterai' + (kat.baterai.length ? ' (' + kat.baterai.length + ')' : '') + '</option>' +
@@ -953,20 +953,8 @@
       '<div id="pVarianInfo" class="mc-hint"></div>' +
       '<button class="mc-ghost-btn" id="pPakai" disabled>' +
         '✓ Pakai harga ini</button>' +
-      // Kalkulator mini untuk device ini: dipakai hanya kalau jenis yang
-      // dipilih belum punya harga tersimpan di Kalkulator.
-      '<div id="pBaru" class="mc-harga-baru mc-none">' +
-        '<p class="mc-hint" id="pBaruInfo"></p>' +
-        '<div class="mc-row2">' +
-          '<label class="mc-field"><span class="mc-lbl">Harga part (Rp)</span>' +
-            '<input class="mc-inp sm" id="pBaruPart" inputmode="numeric" placeholder="0"></label>' +
-          '<label class="mc-field"><span class="mc-lbl">Estimasi (Rp)</span>' +
-            '<input class="mc-inp sm" id="pBaruEst" inputmode="numeric" placeholder="otomatis"></label>' +
-        '</div>' +
-        '<button class="mc-ghost-btn" id="pBaruSimpan">✓ Simpan harga ini ke Kalkulator</button>' +
-      '</div>' +
       (ada ? '' : '<p class="mc-hint">Belum ada harga untuk ' + esc(seri) +
-        ' di Kalkulator. Pilih jenis, lalu buat estimasi baru di bawah.</p>') +
+        ' di Kalkulator Service HP. Simpan harganya di Kalkulator dulu, lalu pilih di sini.</p>') +
     '</div>';
   }
 
@@ -980,10 +968,10 @@
     if (!jenis || !varianId) return;
     var kat = katalogUntukDevice(brandId, seri);
     var v = (kat[jenis] || []).filter(function (x) {
-      return (x.tpl.payload.ruleId || '') === varianId;
+      return ((x.tpl.payload || x.tpl).ruleId || '') === varianId;
     })[0];
     if (!v) return;
-    var p = v.tpl.payload;
+    var p = v.tpl.payload || v.tpl;
     dPushPart();
     var part = M.draft.parts[M.draft.parts.length - 1];
     part.part_name = v.rule ? namaPartDariRule(v.rule) : (p.ruleId || 'Sparepart');
@@ -1033,56 +1021,32 @@
     var brandId = pick.dataset.brand, seri = pick.dataset.seri;
     var jenisSel = $('#pJenis'), varianSel = $('#pVarian');
     var info = $('#pVarianInfo'), pakai = $('#pPakai');
-    var baru = $('#pBaru'), baruInfo = $('#pBaruInfo');
+
+    function namaJenis(j) {
+      return j === 'baterai' ? 'Baterai' : (j === 'lain' ? 'Lainnya' : 'LCD');
+    }
 
     function isiVarian() {
       var jenis = jenisSel.value;
-      varianSel.innerHTML = '<option value="">— pilih perhitungan —</option>';
+      varianSel.innerHTML = '<option value="">— pilih varian —</option>';
       info.textContent = '';
       pakai.disabled = true;
-      baru.classList.add('mc-none');
       if (!jenis) return;
 
-      // Varian menampilkan seluruh perhitungan Kalkulator, jadi selalu ada
-      // pilihan. Yang sudah punya harga untuk device ini memakai harga
-      // tersimpan, sisanya menampilkan rumusnya.
-      var semua = (w.CalcUI.RULES || []).filter(function (r) {
-        return jenisDariRule(r) === jenis;
-      });
-      if (!semua.length) {
-        baru.classList.remove('mc-none');
-        baruInfo.textContent = 'Jenis ini tidak punya rumus di Kalkulator.';
+      // HANYA varian yang sudah punya harga di Kalkulator Service HP. Harga
+      // baru dibuat di Kalkulator, bukan di form ini — supaya harga part di
+      // nota selalu sama dengan harga di Kalkulator.
+      var ada = katalogUntukDevice(brandId, seri)[jenis] || [];
+      if (!ada.length) {
+        info.textContent = 'Belum ada harga ' + namaJenis(jenis) + ' untuk ' + seri +
+          ' di Kalkulator Service HP. Simpan dulu di Kalkulator Service HP, ' +
+          'lalu pilih di sini.';
         return;
       }
-
-      var kat = katalogUntukDevice(brandId, seri);
-      var tersimpan = {};
-      (kat[jenis] || []).forEach(function (v) {
-        tersimpan[(v.tpl.payload || v.tpl).ruleId] = v;
+      ada.forEach(function (v) {
+        varianSel.innerHTML += '<option value="' + esc((v.tpl.payload || v.tpl).ruleId) + '">' +
+          esc(labelVarian(v)) + '</option>';
       });
-
-      // Yang punya harga tersimpan ditampilkan paling dulu.
-      semua.sort(function (a, b) {
-        var x = tersimpan[a.id] ? 0 : 1, y = tersimpan[b.id] ? 0 : 1;
-        return x - y;
-      });
-
-      semua.forEach(function (r) {
-        var v = tersimpan[r.id];
-        var label = v ? labelVarian(v)
-          : r.name + ' · belum ada harga (' + rumusLabel(r) + ')';
-        varianSel.innerHTML += '<option value="' + esc(r.id) + '">' +
-          esc(label) + '</option>';
-      });
-
-      if (!kat[jenis].length) {
-        baruInfo.textContent = 'Pilih perhitungan, lalu tulis harga part. ' +
-          'Estimasi dihitung dengan rumus Kalkulator yang sama.';
-      }
-    }
-
-    function rumusLabel(r) {
-      return 'part × 2 + ' + (r.pct != null ? r.pct : 0) + '%';
     }
 
     jenisSel.addEventListener('change', isiVarian);
@@ -1094,62 +1058,15 @@
       var v = all.filter(function (x) {
         return (x.tpl.payload || x.tpl).ruleId === id;
       })[0];
+      if (!v) { info.textContent = ''; pakai.disabled = true; return; }
 
-      if (v) {
-        // Sudah ada harga tersimpan untuk perhitungan ini.
-        var p = v.tpl.payload;
-        baru.classList.add('mc-none');
-        info.textContent = 'Modal ' + rupiah(p.part) + ' · estimasi ' + rupiah(p.est) +
-          ' — masukkan sebagai modal part.';
-        pakai.disabled = false;
-        return;
-      }
-
-      // Belum ada harga: buka kalkulator mini supaya bisa dibuat sekarang
-      // dengan rumus Kalkulator yang sama.
-      pakai.disabled = true;
-      baru.classList.remove('mc-none');
-      hitungBaru();
-      if (partIn) partIn.focus();
+      var p = v.tpl.payload || v.tpl;
+      info.textContent = 'Modal ' + rupiah(p.part) + ' · estimasi ' + rupiah(p.est) +
+        ' — masukkan sebagai modal part.';
+      pakai.disabled = false;
     });
 
     pakai.addEventListener('click', pakaiHargaDariKatalog);
-
-    // Kalkulator kecil: harga part -> estimasi dengan rumus yang sama.
-    var partIn = $('#pBaruPart'), estIn = $('#pBaruEst');
-
-    // Rule yang dipakai adalah varian yang SEDANG DIPILIH di dropdown, bukan
-    // rule representatif per jenis. Kalau tidak, memilih "LCD Bagus" (20%)
-    // tetap dihitung dengan rumus jenis pertama, jadi estimasinya salah.
-    function ruleTerpilih() {
-      var id = varianSel.value;
-      if (!id) return null;
-      return (w.CalcUI.RULES || []).filter(function (r) {
-        return r.id === id;
-      })[0] || null;
-    }
-
-    function hitungBaru() {
-      var part = parseInt(String(partIn.value || '').replace(/\D/g, ''), 10) || 0;
-      var rule = ruleTerpilih();
-      if (!rule || !part) { estIn.value = ''; return; }
-      estIn.value = w.CalcUI.hitung(part, rule).est;
-    }
-    partIn.addEventListener('input', hitungBaru);
-    $('#pBaruSimpan').addEventListener('click', function () {
-      var part = parseInt(String(partIn.value || '').replace(/\D/g, ''), 10) || 0;
-      var est = parseInt(String(estIn.value || '').replace(/\D/g, ''), 10) || 0;
-      var rule = ruleTerpilih();
-      if (!rule) { alertErr('Pilih perhitungan dulu'); return; }
-      if (!part) { alertErr('Isi harga part'); return; }
-      if (!est) est = w.CalcUI.hitung(part, rule).est;
-      var simpan = upsertTplBrandSeri(brandId, seri, rule, part, est);
-      if (!simpan.ok) { alertErr('Gagal menyimpan: ' + simpan.reason); return; }
-      render();
-      toast(simpan.replaced
-        ? 'Harga lama untuk kombinasi ini diganti'
-        : 'Tersimpan di Kalkulator — pakai lagi kapan saja');
-    });
   }
 
   function bindForm() {
