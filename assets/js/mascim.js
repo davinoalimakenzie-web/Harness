@@ -904,7 +904,7 @@
     var out = { lcd: [], baterai: [], lain: [] };
     if (!brandId || !seri) return out;
     (w.Store.state.templates || []).forEach(function (t) {
-      var p = t.payload || {};
+      var p = t.payload || t;
       if (p.brandId !== brandId || p.series !== seri) return;
       var rule = ruleByRuleId(p.ruleId);
       if (!rule) { out.lain.push({ tpl: t, rule: null }); return; }
@@ -914,7 +914,7 @@
   }
 
   function labelVarian(v) {
-    var p = v.tpl.payload || {};
+    var p = v.tpl.payload || v.tpl;
     var nama = v.rule ? (v.rule.name || v.rule.id) : (p.ruleId || 'Lainnya');
     return nama + ' · modal ' + rupiah(p.part) + ' → ' + rupiah(p.est);
   }
@@ -1052,7 +1052,7 @@
       var kat = katalogUntukDevice(brandId, seri);
       var tersimpan = {};
       (kat[jenis] || []).forEach(function (v) {
-        tersimpan[(v.tpl.payload || {}).ruleId] = v;
+        tersimpan[(v.tpl.payload || v.tpl).ruleId] = v;
       });
 
       // Yang punya harga tersimpan ditampilkan paling dulu.
@@ -1086,7 +1086,7 @@
       var kat = katalogUntukDevice(brandId, seri);
       var all = kat.lcd.concat(kat.baterai, kat.lain);
       var v = all.filter(function (x) {
-        return (x.tpl.payload || {}).ruleId === id;
+        return (x.tpl.payload || x.tpl).ruleId === id;
       })[0];
 
       if (v) {
@@ -2501,7 +2501,7 @@
   /* Harga tersimpan untuk device + jenis part tertentu, kalau ada. */
   function cariTplBrandSeri(brandId, seri, ruleId) {
     return (w.Store.state.templates || []).filter(function (t) {
-      var p = t.payload || {};
+      var p = t.payload || t;
       return p.brandId === brandId && p.series === seri && p.ruleId === ruleId;
     })[0] || null;
   }
@@ -2574,12 +2574,13 @@
           // supaya angka di nota tidak pernah beda dengan Kalkulator.
           // Lalu dikunci agar tidak berubah tak sengaja. Ini inti "nol ketik".
           var tpl = cariTplBrandSeri(brandId, seri, rule.id);
-          if (!tpl || !(tpl.payload.part > 0)) return false;
-          costIn.value = tpl.payload.part;
-          var estTersimpan = parseInt(String(tpl.payload.est), 10) || 0;
+          var tp = tpl.payload || tpl;
+          if (!tpl || !(tp.part > 0)) return false;
+          costIn.value = tp.part;
+          var estTersimpan = parseInt(String(tp.est), 10) || 0;
           estIn.value = estTersimpan > 0
             ? estTersimpan
-            : w.CalcUI.hitung(tpl.payload.part, rule).est;
+            : w.CalcUI.hitung(tp.part, rule).est;
           costIn.readOnly = true;
           estIn.readOnly = true;
           return true;
