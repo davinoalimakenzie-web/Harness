@@ -880,10 +880,16 @@
     set('#rjTitipCount', titip.length + ' garapan');
 
     var h = $('#rjHistory');
-    if (!h) return;
-    var tampil = proses.concat(titip);
-    if (!tampil.length) { h.innerHTML = '<div class="empty">Belum ada garapan berjalan</div>'; return; }
-    h.innerHTML = tampil.map(function (t) { return rjRow(t); }).join('');
+    if (h) {
+      var tampil = proses.concat(titip);
+      h.innerHTML = tampil.length
+        ? tampil.map(function (t) { return rjRow(t); }).join('')
+        : '<div class="empty">Belum ada garapan berjalan</div>';
+    }
+    /* Kartu tampungan & garapan pribadi WAJIB selalu digambar ulang. Dulu ada
+       `return` lebih awal di sini, sehingga keduanya terlewat ketika tidak ada
+       garapan mitra yang berjalan — tugas pribadi yang baru dibuat jadi tidak
+       terlihat dan terasa "jumlahnya tidak tersimpan". */
     renderDraft();
     renderPribadiList();
   }
