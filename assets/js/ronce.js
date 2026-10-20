@@ -856,8 +856,9 @@
     var tasks = data.tasks.slice().sort(function (a, b) {
       return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
     });
-    var proses = tasks.filter(function (t) { return t.status === 'terkirim' || t.status === 'pending'; });
-    var titip = tasks.filter(function (t) { return t.status === 'completed' && !sudahLunas(t); });
+    /* Garapan pribadi owner tampil di kartunya sendiri, tidak dicampur. */
+    var proses = tasks.filter(function (t) { return !t.pribadi && (t.status === 'terkirim' || t.status === 'pending'); });
+    var titip = tasks.filter(function (t) { return !t.pribadi && t.status === 'completed' && !sudahLunas(t); });
     var jml = function (a) { return a.reduce(function (s, t) { return s + num(t.deliveryFee); }, 0); };
     var set = function (sel, v) { var e = $(sel); if (e) e.textContent = v; };
     set('#rjProsesTotal', formatIDR(jml(proses)));
@@ -871,6 +872,7 @@
     if (!tampil.length) { h.innerHTML = '<div class="empty">Belum ada garapan berjalan</div>'; return; }
     h.innerHTML = tampil.map(function (t) { return rjRow(t); }).join('');
     renderDraft();
+    renderPribadiList();
   }
 
   /* Satu baris garapan di tab Input (owner). */
@@ -1100,6 +1102,7 @@
     var tk = $('#ronceTotalKomisi');
     if (tk) tk.textContent = formatIDR(totalKomisiSemua());
     renderRekapSummary();
+    renderPribadiRekap();
 
     var pr = $('#roncePayReq');
     if (pr) {
@@ -1183,7 +1186,7 @@
         cek = '<label class="mt-cek"><input type="checkbox" class="mt-pilih" data-pid="'
           + esc(t.id) + '"' + (terpilih[t.id] ? ' checked' : '') + '></label>';
       }
-      return '<div class="mt-row done">'
+      return '<div class="mt-row done' + (terpilih[t.id] ? ' on' : '') + '">'
         + '<div class="mt-row-top">'
         +   '<span class="mt-row-nama">' + esc(namaGarapan(t.serviceId)) + '</span>'
         +   badge
@@ -1197,17 +1200,30 @@
     }).join('') : '<div class="empty">Belum ada garapan selesai</div>';
     list.innerHTML = h;
 
-    /* Tombol Ajukan Pelunasan aktif kalau ada garapan selesai yang belum
-       dibayar & belum diajukan (syarat lama tidak lagi menghambat). */
+    /* Cukup perbarui label tombol & sorotan baris. JANGAN gambar ulang daftar:
+       mengganti innerHTML di HP bisa bikin kelayapan dan klik yang sedang
+       berjalan ikut hilang — itu sumber keluhan "ceklisnya tidak bisa". */
+    updateAjukanBtn();
+  }
+
+  /* Tombol "Ajukan Pelunasan (N)" + sorotan baris yang terceklis. Dipakai
+     ulang kali .mt-pilih berubah (klik langsung atau lewat ketukan baris). */
+  function updateAjukanBtn() {
     var aj = $('#mtAjukan');
     if (aj) {
-      var siap = doneTasks.filter(function (t) {
-        return !sudahLunas(t) && !sudahDiajukan(t.id);
+      var mitraId = sesi ? sesi.id : '';
+      var siap = data.tasks.filter(function (t) {
+        return t.employeeId === mitraId && t.status === 'completed'
+          && !sudahLunas(t) && !sudahDiajukan(t.id);
       }).length;
       var n = document.querySelectorAll('#ronceRekapList .mt-pilih:checked').length;
       aj.hidden = !siap;
       aj.textContent = n > 0 ? ('Ajukan Pelunasan (' + n + ')') : 'Ajukan Pelunasan';
     }
+    document.querySelectorAll('#ronceRekapList .mt-row').forEach(function (r) {
+      var c = r.querySelector('.mt-pilih');
+      r.classList.toggle('on', !!(c && c.checked));
+    });
   }
 
   /* ---------------- Tab: Kasbon (mitra & owner) ----------------
@@ -1413,6 +1429,118 @@
     var c = $('#rjCatatan'); if (c) c.value = '';
     renderDraft();
     renderInput();
+  }
+
+  /* ---------------- Tugas PRIBADI (owner mengerjakan sendiri) ----------------
+     Owner kadang kewalahan karena kekurangan mitra, jadi ia perlu bisa
+     mencatat garapan ronce untuk diri sendiri — TANPA lewat tampungan
+     draft dan TANPA memilih mitra. Alurnya semudah: isi jenis + jumlah ->
+     tekan "Pribadi" -> tugas langsung tercatat -> tekan "SELESAI" saat
+     sudah jadi -> otomatis masuk rekap (tidak perlu ajukan pembayaran). */
+
+  function cariOwnerAkun() {
+    for (var i = 0; i < data.users.length; i++) {
+      if (data.users[i].role === 'owner') return data.users[i];
+    }
+    return null;
+  }
+
+  /* Catat satu garapan untuk owner sendiri, langsung tersimpan. */
+  function catatPribadi() {
+    var serviceId = ($('#rjGarapan') || {}).value || '';
+    var qty = num(($('#rjQty') || {}).value);
+    if (!serviceId) { w.App.toast('Pilih jenis garapan dulu'); return; }
+    if (qty <= 0) { w.App.toast('Jumlah minimal 1'); return; }
+    if (!feeOtomatis(serviceId, qty)) { w.App.toast('Jenis garapan belum aktif atau belum ada harganya'); return; }
+    var o = cariOwnerAkun();
+    if (!o) { w.App.toast('Akun owner tidak ditemukan'); return; }
+    data.tasks.unshift({
+      id: uid(), employeeId: o.id, employeeName: o.name,
+      serviceId: serviceId, quantity: qty,
+      deliveryFee: feeOtomatis(serviceId, qty),
+      date: hariIni(), note: (($('#rjCatatan') || {}).value || '').trim(),
+      status: 'terkirim', pribadi: true,
+      createdAt: new Date().toISOString()
+    });
+    catat('Tugas pribadi tercatat: ' + namaGarapan(serviceId) + ' x' + qty);
+    simpan();
+    w.App.toast('Tugas pribadi tercatat');
+    var q = $('#rjQty'); if (q) q.value = '';
+    var c = $('#rjCatatan'); if (c) c.value = '';
+    renderInput();
+  }
+
+  /* Tandai garapan pribadi owner sudah selesai. */
+  function selesaiPribadi(id) {
+    var t = cariTugas(id);
+    if (!t || !t.pribadi) return;
+    t.status = 'completed';
+    t.completedAt = new Date().toISOString();
+    t._u = new Date().toISOString();
+    catat('Tugas pribadi selesai: ' + namaGarapan(t.serviceId));
+    simpan();
+    w.App.toast('Tugas pribadi selesai');
+    renderInput();
+  }
+
+  /* Daftar garapan pribadi di tab Input: yang masih jalan dapat tombol
+     SELESAI, yang sudah selesai ditandai. */
+  function renderPribadiList() {
+    var el = $('#rjPribadiList');
+    if (!el) return;
+    var pribadi = data.tasks.filter(function (t) { return t.pribadi; })
+      .sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
+    if (!pribadi.length) {
+      el.innerHTML = '<div class="empty">Belum ada garapan pribadi.</div>';
+      return;
+    }
+    el.innerHTML = pribadi.map(function (t) {
+      var selesai = t.status === 'completed';
+      return '<div class="mt-row' + (selesai ? ' done' : '') + '">'
+        + '<div class="mt-row-top">'
+        +   '<span class="mt-row-nama">' + esc(namaGarapan(t.serviceId)) + ' x' + t.quantity + '</span>'
+        +   (selesai ? '<span class="mt-tag done">SELESAI</span>' : '<span class="mt-tag proses">PROSES</span>')
+        + '</div>'
+        + '<div class="mt-row-mid">' + esc(t.note ? t.note + ' · ' : '') + formatTanggal(t.date) + '</div>'
+        + '<div class="mt-row-bottom">'
+        +   '<span class="mt-row-jasa">' + formatIDR(t.deliveryFee) + '</span>'
+        +   (selesai
+        ?     '<span class="mt-row-ok">Sudah dikerjakan</span>'
+        :     '<button class="mini-btn ok" data-pribadi-selesai="' + esc(t.id) + '">SELESAI</button>')
+        + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  /* Rekap garapan pribadi owner di tab Rekap. */
+  function renderPribadiRekap() {
+    var card = $('#roncePribadiCard');
+    if (!card) return;
+    var list = $('#roncePribadiList');
+    var pribadi = data.tasks.filter(function (t) { return t.pribadi && t.status === 'completed'; })
+      .sort(function (a, b) { return String(b.completedAt || '').localeCompare(String(a.createdAt || '')); });
+    if (!pribadi.length) {
+      card.hidden = true;
+      if (list) list.innerHTML = '';
+      return;
+    }
+    card.hidden = false;
+    var total = pribadi.reduce(function (s, t) { return s + num(t.deliveryFee); }, 0);
+    var set = function (sel, v) { var e = $(sel); if (e) e.textContent = v; };
+    set('#pribDoneN', String(pribadi.length));
+    set('#pribDoneTotal', formatIDR(total));
+    if (list) {
+      list.innerHTML = pribadi.map(function (t) {
+        return '<div class="mt-row done">'
+          + '<div class="mt-row-top">'
+          +   '<span class="mt-row-nama">' + esc(namaGarapan(t.serviceId)) + ' x' + t.quantity + '</span>'
+          +   '<span class="mt-tag done">SELESAI</span>'
+          + '</div>'
+          + '<div class="mt-row-mid">' + formatTanggal(t.date) + '</div>'
+          + '<div class="mt-row-bottom"><span class="mt-row-jasa">' + formatIDR(t.deliveryFee) + '</span></div>'
+          + '</div>';
+      }).join('');
+    }
   }
 
 
@@ -1702,6 +1830,8 @@
       if (tambah) { w.Ronce.tambahDraftJob(); return; }
       var kirim = e.target.closest('#rjSimpan');
       if (kirim) { w.Ronce.kirimDraftJobs(); return; }
+      var pribadi = e.target.closest('#rjPribadi');
+      if (pribadi) { w.Ronce.catatPribadi(); return; }
       var del = e.target.closest('[data-draft-del]');
       if (del) { w.Ronce.hapusDraftJob(parseInt(del.dataset.draftDel, 10)); return; }
     });
@@ -1716,10 +1846,23 @@
         renderRekap();
       }
     });
+    /* Ketuk baris mana pun di daftar garapan selesai = centang / batalkan
+       ceklis. Itu inti penyederhanaan: tidak perlu membidik kotak kecil. */
+    document.addEventListener('click', function (e) {
+      var row = e.target.closest('#ronceRekapList .mt-row');
+      if (!row) return;
+      if (e.target.closest('.mt-pilih')) return;  /* klik tepat di ceklis: serah ke native */
+      var c = row.querySelector('.mt-pilih');
+      if (!c) return;
+      c.checked = !c.checked;
+      c.dispatchEvent(new Event('change', { bubbles: true }));
+    });
     // Tugas actions (delegated) — mitra lapor selesai, ajukan pelunasan, BON
     document.addEventListener('click', function (e) {
       var done = e.target.closest('[data-rt-done]');
       if (done) { selesaiTugas(done.dataset.rtDone); return; }
+      var ps = e.target.closest('[data-pribadi-selesai]');
+      if (ps) { w.Ronce.selesaiPribadi(ps.dataset.pribadiSelesai); return; }
       var mj = e.target.closest('#mtAjukan');
       if (mj) { ajukanPembayaran(); return; }
       var bonBtn = e.target.closest('[data-bon-ajukan]');
@@ -1752,7 +1895,7 @@
       var c = e.target.closest('.mt-pilih');
       if (c) {
         if (c.checked) terpilih[c.dataset.pid] = 1; else delete terpilih[c.dataset.pid];
-        renderRekapMitra();   /* perbarui label "Ajukan Pelunasan (N)" */
+        updateAjukanBtn();   /* perbarui label "Ajukan Pelunasan (N)" + sorotan baris */
         return;
       }
       var bp = e.target.closest('.bon-pilih');
@@ -1813,6 +1956,8 @@
     kirimDraftJobs: kirimDraftJobs,
     hapusDraftJob: hapusDraftJob,
     renderDraft: renderDraft,
+    catatPribadi: catatPribadi,
+    selesaiPribadi: selesaiPribadi,
     ajukanBon: ajukanBon,
     catatBonLangsung: catatBonLangsung,
     setujuiBon: setujuiBon,

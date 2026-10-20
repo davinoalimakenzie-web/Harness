@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261019f">
+<link rel="stylesheet" href="assets/css/style.css?v=20261020a">
 </head>
 <body>
 
@@ -496,7 +496,10 @@
           </div>
           <button class="btn block" id="rjTambahGarapan">+ Tambah Garapan</button>
           <div id="rjDraftList" class="list" style="margin-top:10px"></div>
-          <button class="btn primary block" id="rjSimpan" style="margin-top:10px">Kirim Tugas</button>
+          <div class="field-row" style="margin-top:10px">
+            <button class="btn block" id="rjPribadi">Pribadi</button>
+            <button class="btn primary block grow" id="rjSimpan">Kirim Tugas</button>
+          </div>
           <p class="hint xs">Tanggal otomatis hari ini &middot; jasa dihitung otomatis dari komisi garapan. Tambahkan beberapa garapan lalu kirim sekaligus ke mitra.</p>
         </div>
 
@@ -513,6 +516,12 @@
           </div>
         </div>
         <p class="hint xs">Garapan yang sudah lunas otomatis keluar dari daftar ini.</p>
+
+        <div class="card" style="margin-top:10px">
+          <div class="list-head tight"><strong>Garapan Pribadi</strong></div>
+          <p class="hint xs">Tugas ronce yang kamu kerjakan sendiri. Tekan <b>SELESAI</b> kalau sudah jadi &mdash; otomatis masuk rekap.</p>
+          <div id="rjPribadiList" class="list"></div>
+        </div>
 
         <div class="list-head"><strong>Garapan Berjalan</strong></div>
         <div id="rjHistory" class="list"></div>
@@ -562,6 +571,25 @@
 
         <!-- ============ OWNER ============ -->
         <div id="ronceRekapOwner">
+          <!-- Garapan yang dikerjakan owner sendiri (tanpa mitra) -->
+          <div class="card" id="roncePribadiCard" hidden>
+            <div class="list-head tight"><strong>Garapan Pribadi</strong></div>
+            <p class="hint xs">Tugas ronce yang kamu kerjakan sendiri &mdash; tercatat otomatis, tidak perlu ajukan pembayaran.</p>
+            <div class="mt-sum" style="margin-bottom:10px">
+              <div class="mt-sum-card done">
+                <span>SELESAI</span>
+                <b id="pribDoneN">0</b>
+                <i>garapan</i>
+              </div>
+              <div class="mt-sum-card titip">
+                <span>TOTAL JASA</span>
+                <b id="pribDoneTotal">Rp0</b>
+                <i>pribadi</i>
+              </div>
+            </div>
+            <div id="roncePribadiList" class="list"></div>
+          </div>
+
           <div class="card">
             <div class="list-head tight"><strong>Rekap Garapan Mitra</strong></div>
             <div class="chips" id="ronceFilters">
@@ -606,7 +634,7 @@
           <div class="list-head"><strong>GARAPAN SELESAI</strong></div>
           <div id="ronceRekapList" class="list"></div>
           <button class="btn primary block" id="mtAjukan" hidden>Ajukan Pelunasan</button>
-          <p class="hint xs" style="margin-top:8px">Ceklis garapan yang mau diajukan. Syarat: min. 1 minggu atau nilai garapan Rp200.000.</p>
+          <p class="hint xs" style="margin-top:8px">Ketuk garapan untuk mencentang, lalu tekan <b>Ajukan Pelunasan</b>.</p>
         </div>
       </div>
 
@@ -872,7 +900,7 @@
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
 <script src="assets/js/transactions.js?v=20261014l"></script>
-<script src="assets/js/ronce.js?v=20261019j"></script>
+<script src="assets/js/ronce.js?v=20261020a"></script>
 <script src="assets/js/ronce-sync.js?v=20261019c"></script>
 <script src="assets/js/calc.js?v=20261019c"></script>
 <script src="assets/js/calc-sync.js?v=20261017u"></script>

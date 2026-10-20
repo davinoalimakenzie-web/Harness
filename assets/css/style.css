@@ -366,9 +366,26 @@ body.mitra-mode #app{ padding-top:0; }
 }
 .mt-btn-done:active{ transform:scale(.96); }
 .mt-row-ok{ font-size:11px; font-weight:700; color:#15803d; }
-/* Ceklist garapan selesai (mitra) untuk pengajuan pelunasan */
-.mt-cek{ display:inline-flex; align-items:center; margin:0; cursor:pointer; }
-.mt-pilih{ width:22px; height:22px; margin:0; accent-color:#16a34a; flex:0 0 auto; }
+/* Ceklist garapan selesai (mitra) untuk pengajuan pelunasan.
+   Target sengaja besar & barisnya bisa diketuk mana pun — ceklis 22px
+   dulu sering "tidak bisa dicentang" di HP. */
+.mt-cek{
+  display:inline-flex; align-items:center; gap:8px; margin:0; cursor:pointer;
+  padding:10px 12px; border-radius:10px; background:rgba(34,197,94,.14);
+  flex:1 1 auto; min-width:0; justify-content:flex-start;
+}
+.mt-pilih{ width:30px; height:30px; margin:0; accent-color:#16a34a; flex:0 0 auto; cursor:pointer; }
+.mt-row{ cursor:pointer; }
+.mt-row:active{ filter:brightness(.97); }
+.mt-row.on{ background:rgba(34,197,94,.08); }
+#ronceRekapList{ padding-bottom:72px; }   /* ruang untuk tombol yang menempel */
+
+/* Tombol Ajukan Pelunasan menempel di bawah layar supaya selalu terlihat */
+#mtAjukan{
+  position:sticky; bottom:10px; z-index:5;
+  box-shadow:0 8px 20px rgba(0,0,0,.22);
+}
+#mtAjukan:active{ transform:scale(.97); }
 
 .mt-pay{
   display:flex; align-items:center; justify-content:space-between; gap:8px;
