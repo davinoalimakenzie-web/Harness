@@ -650,7 +650,13 @@
       });
       html += '</div>';
     }
-    html += '<button class="mc-ghost-btn" id="fAddPart">+ Tambah Sparepart</button>';
+    /* Tombol "+ Tambah Sparepart" DIHAPUS dari form ini.
+       Dulu tombol itu menyisipkan baris kosong (nama part + modal diketik
+       manual), jadi ada DUA sumber harga: Kalkulator Service HP dan isian
+       bebas di form ini. Sekarang satu pintu saja — sparepart diambil lewat
+       pemilih harga di atas ("✓ Pakai harga ini"), yang selalu membawa modal
+       dan estimasi dari Kalkulator. Baris yang sudah masuk tetap bisa
+       dikoreksi/dihapus di bawah. */
 
     // Biaya. Ketiganya satu kotak dengan gaya sama supaya tidak terlihat
     // seperti kolom isian yang kebetulan berada di antara dua angka hasil
@@ -1312,15 +1318,9 @@
     // Perekam pola (hanya saat jenis kunci = Pola)
     if (document.getElementById('fPat')) bindPatternPad($('#fPatSecret'));
 
-    // Part: tambah
-    var add = $('#fAddPart');
-    if (add) {
-      add.addEventListener('click', function () {
-        readDraft();
-        dPushPart();
-        render();
-      });
-    }
+    // Part: tombol tambah manual sudah dihapus dari form (lihat renderForm).
+    // Satu-satunya jalan menambah sparepart di sini adalah pemilih harga
+    // Kalkulator di atas, jadi tidak ada lagi baris kosong tanpa sumber harga.
     // Part: ubah & hapus
     var pw = s.querySelectorAll('[data-pi]');
     for (var i = 0; i < pw.length; i++) {
