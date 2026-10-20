@@ -56,6 +56,10 @@
   var terpilih = {};
   /* Tampungan sementara garapan sebelum dikirim ke mitra. */
   var draftJobs = [];
+  /* Jumlah terakhir yang dipakai. Field #rjQty ikut terkosong setelah garapan
+     masuk tampungan, jadi tanpa ini tombol "Pribadi" SELALU gagal dengan
+     "Jumlah minimal 1" — itu keluhan Alima. */
+  var qtyTerakhir = 1;
   /* Mitra yang dipilih owner di tab Kasbon (untuk catat BON langsung). */
   var kasbonMitraPick = '';
   /* Rincian pelunasan BON yang menunggu konfirmasi mitra. */
@@ -1372,12 +1376,17 @@
     var quantity = ($('#rjQty') || {}).value || '';
     if (!serviceId) { w.App.toast('Pilih jenis garapan!'); return; }
     if (num(quantity) <= 0) { w.App.toast('Jumlah minimal 1!'); return; }
+    var qtyNum = num(quantity);
     draftJobs.push({
       serviceId: serviceId,
-      quantity: num(quantity),
-      deliveryFee: feeOtomatis(serviceId, num(quantity))
+      quantity: qtyNum,
+      deliveryFee: feeOtomatis(serviceId, qtyNum)
     });
-    var q = $('#rjQty'); if (q) q.value = '';
+    /* Jumlah sengaja TIDAK dikosongkan. Pengguna sering langsung menekan
+       "Pribadi" setelah menambah ke tampungan; dulu field kosong sehingga
+       "Pribadi" gagal "Jumlah minimal 1". Nilainya tetap diingat sebagai
+       cadangan bila field memang terkosong. */
+    qtyTerakhir = qtyNum;
     w.App.toast('Garapan ditambahkan ke tampungan');
     renderDraft();
   }
@@ -1452,8 +1461,9 @@
   /* Catat satu garapan untuk owner sendiri, langsung tersimpan. */
   function catatPribadi() {
     var serviceId = ($('#rjGarapan') || {}).value || '';
-    var qty = num(($('#rjQty') || {}).value);
+    var qty = num(($('#rjQty') || {}).value) || qtyTerakhir;
     if (!serviceId) { w.App.toast('Pilih jenis garapan dulu'); return; }
+    if (qty <= 0) qty = qtyTerakhir;
     if (qty <= 0) { w.App.toast('Jumlah minimal 1'); return; }
     if (!feeOtomatis(serviceId, qty)) { w.App.toast('Jenis garapan belum aktif atau belum ada harganya'); return; }
     var o = cariOwnerAkun();
@@ -1471,6 +1481,7 @@
     w.App.toast('Tugas pribadi tercatat');
     var q = $('#rjQty'); if (q) q.value = '';
     var c = $('#rjCatatan'); if (c) c.value = '';
+    qtyTerakhir = qty;
     renderInput();
   }
 
