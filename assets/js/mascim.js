@@ -822,19 +822,16 @@
      dropdown seri tidak pernah terisi DAN sheet sparepart tidak pernah terbuka. */
   function isiSeri(brandSel, seriSel, seriDipilih) {
     if (!brandSel || !seriSel) return;
-    /* Seri diambil dari KALKULATOR SERVICE HP (CalcUI.daftarSeri), bukan lagi
-       dari katalog mati CalcUI.SERIES. Dulu form ini cuma membaca katalog
-       bawaan, jadi seri yang baru disimpan di Kalkulator tidak pernah ikut —
-       itulah yang dikeluhkan "masih pakai data lama". Urutannya: seri yang
-       sudah punya harga di Kalkulator dulu (grup sendiri), lalu katalog HP
-       sebagai cadangan, lalu "Lainnya…". */
+    /* Seri HANYA diambil dari KALKULATOR SERVICE HP (CalcUI.seriTersimpan),
+       yaitu seri yang benar-benar punya harga tersimpan di sana. Grup
+       "Katalog HP" (katalog bawaan CalcUI.SERIES) sudah DIHAPUS supaya daftar
+       seri di form ini tidak pernah menampilkan model yang tidak ada
+       harganya di Kalkulator. Urutannya: seri dari Kalkulator, lalu
+       "Lainnya…" untuk model yang diketik manual. */
     var CalcUI = w.CalcUI || {};
     var dariKalkulator = (CalcUI.seriTersimpan
       ? CalcUI.seriTersimpan(brandSel.value)
       : []);
-    var semua = (CalcUI.daftarSeri
-      ? CalcUI.daftarSeri(brandSel.value)
-      : (CalcUI.SERIES[brandSel.value] || []));
     var opsi = function (s) {
       return '<option value="' + esc(s) + '"' +
         (s === seriDipilih ? ' selected' : '') + '>' + esc(s) + '</option>';
@@ -844,17 +841,10 @@
       html += '<optgroup label="Dari Kalkulator Service">' +
         dariKalkulator.map(opsi).join('') + '</optgroup>';
     }
-    var sisa = semua.filter(function (s) {
-      return dariKalkulator.indexOf(s) === -1;
-    });
-    if (sisa.length) {
-      html += '<optgroup label="Katalog HP">' +
-        sisa.map(opsi).join('') + '</optgroup>';
-    }
     /* "Lainnya…" dipilih kalau seri tersimpan tidak ada di daftar mana pun,
-       supaya model di luar katalog tetap bisa dicatat lewat #fSeriLain. */
+       supaya model di luar daftar tetap bisa dicatat lewat #fSeriLain. */
     html += '<option value="Lainnya"' +
-      (seriDipilih && semua.indexOf(seriDipilih) === -1 ? ' selected' : '') +
+      (seriDipilih && dariKalkulator.indexOf(seriDipilih) === -1 ? ' selected' : '') +
       '>Lainnya…</option>';
     seriSel.innerHTML = html;
   }
@@ -2579,11 +2569,17 @@
 
         function terisiOtomatis(rule) {
           // Kalau harga device ini sudah pernah tersimpan, isi modal + estimasi
-          // dan kunci agar tidak berubah tak sengaja. Ini inti "nol ketik".
+          // PERSIS seperti yang tampil di Kalkulator Service HP: modal dari
+          // `part`, estimasi dari `est` yang tersimpan (bukan dihitung ulang),
+          // supaya angka di nota tidak pernah beda dengan Kalkulator.
+          // Lalu dikunci agar tidak berubah tak sengaja. Ini inti "nol ketik".
           var tpl = cariTplBrandSeri(brandId, seri, rule.id);
           if (!tpl || !(tpl.payload.part > 0)) return false;
           costIn.value = tpl.payload.part;
-          estIn.value = w.CalcUI.hitung(tpl.payload.part, rule).est;
+          var estTersimpan = parseInt(String(tpl.payload.est), 10) || 0;
+          estIn.value = estTersimpan > 0
+            ? estTersimpan
+            : w.CalcUI.hitung(tpl.payload.part, rule).est;
           costIn.readOnly = true;
           estIn.readOnly = true;
           return true;
