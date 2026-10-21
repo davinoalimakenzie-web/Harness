@@ -561,6 +561,36 @@
   /* =========================================================
      FORM — satu kolom, isian sesingkat mungkin
      ========================================================= */
+  /* Menjalankan perubahan draft + gambar ulang form TANPA merebut fokus dari
+     kolom yang sedang diketik.
+
+     Kenapa perlu: chip "Kunci Layar" adalah <button>. Di HP, tombol yang
+     baru diklik TETAP memegang fokus, dan selama fokus ada di chip, tombol
+     SPASI pada keyboard mengaktifkan chip itu — spasi tidak pernah masuk ke
+     kolom Kendala & kondisi unit ("tulisannya menyatu"). blur() lama
+     dijalankan SESUDAH render(), padahal render() sudah membuang elemen
+     chip-nya, jadi blur() tidak berefek sama sekali.
+
+     Helper ini: simpan kolom + posisi kursor -> lepas fokus -> jalankan
+     perubahan -> pasang kembali fokus dan kursornya. Dipakai SEMUA jalur yang
+     menggambar ulang form (chip kunci, pilihan brand, pilihan estimasi). */
+  function dgnFokus(ubah) {
+    var a = document.activeElement;
+    var id = (a && a.id && (a.tagName === 'TEXTAREA' || a.tagName === 'INPUT')) ? a.id : '';
+    var pos = null;
+    if (id) { try { pos = a.selectionStart; } catch (e) { pos = null; } }
+    if (a && a.blur) a.blur();
+    ubah();
+    // Jangan biarkan chip memegang fokus setelah form digambar ulang.
+    var z = document.activeElement;
+    if (z && z.classList && z.classList.contains('mc-lockchip')) z.blur();
+    if (!id) return;
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.focus();
+    if (pos != null) { try { el.setSelectionRange(pos, pos); } catch (e2) { /* abaikan */ } }
+  }
+
   function blankDraft() {
     return {
       customer_name: '', whatsapp: '', device: '', complaint: '',
@@ -1062,18 +1092,18 @@
       estManualAwal = (($('#fEstManual') || {}).value || '').trim();
 
       brandSel.addEventListener('change', function () {
-        // Dropdown estimasi diisi ulang dari brand yang baru; "Lainnya"
-        // ditandai otomatis kalau brand itu belum punya harga di Kalkulator.
-        isiEstimasi(brandSel, estSel, brandSel.value, '');
-        // readDraft() dulu supaya M.draft.device terisi dari select yang barusan
-        // berubah, dan field lain yang sudah diketik tidak ikut hilang saat
-        // form digambar ulang.
-        readDraft();
-        render();
+        dgnFokus(function () {
+          // Dropdown estimasi diisi ulang dari brand yang baru; "Lainnya"
+          // ditandai otomatis kalau brand itu belum punya harga di Kalkulator.
+          isiEstimasi(brandSel, estSel, brandSel.value, '');
+          // readDraft() dulu supaya M.draft.device terisi dari select yang
+          // barusan berubah, dan field lain yang sudah diketik tidak hilang.
+          readDraft();
+          render();
+        });
       });
       estSel.addEventListener('change', function () {
-        readDraft();
-        render();
+        dgnFokus(function () { readDraft(); render(); });
       });
       // Mengetik di kolom manual tidak perlu menggambar ulang form (kursor
       // akan hilang), cukup disalin ke draft supaya ikut tersimpan.
@@ -1140,6 +1170,11 @@
     }
 
     for (var ci = 0; ci < chips.length; ci++) {
+      /* Jangan pernah memberi fokus ke chip: mousedown dicegah, jadi chip
+         tidak menjadi document.activeElement dan tombol SPASI tetap milik
+         kolom teks yang sedang diketik. Klik-nya sendiri tetap jalan. */
+      chips[ci].addEventListener('mousedown', function (e) { e.preventDefault(); });
+
       chips[ci].addEventListener('click', function () {
         var pilih = this.dataset.lock;
         // Chip yang sama dicentang lagi berarti membatalkan kunci.
@@ -1149,28 +1184,30 @@
            ulang textarea dari draft yang masih basi dan teks yang baru
            diketik hilang — keluhan "ketik Kendala lalu tekan spasi, tulisan
            hilang". */
-        readDraft();
-        M.draft.screen_lock_type = aktif ? 'Tanpa Kunci' : pilih;
-        M.draft.screen_lock_secret = '';
-        // Form digambar ulang, BUKAN hanya mengubah kelas chip. Setiap jenis
-        // kunci punya isian yang berbeda: PIN dan Password memakai kolom
-        // teks, Pola memakai area gambar. Tanpa menggambar ulang, memilih
-        // Pola hanya menampilkan kolom teks dan area gambarnya tidak pernah
-        // muncul — karena juga bindPatternPad tidak pernah menemukan
-        // elemen #fPat untuk dipasangkan.
-        render();
-        /* Lepas fokus dari chip: di HP tombol yang masih ter-fokus
-           diaktifkan lagi oleh tombol SPASI pada keyboard, sehingga tiap
-           spasi menjalankan ulang handler ini (form digambar ulang + pilihan
-           kunci terbalik) dan teks Kendala ikut terhapus. */
-        this.blur();
+        /* Form digambar ulang, BUKAN hanya mengubah kelas chip. Setiap jenis
+           kunci punya isian yang berbeda: PIN dan Password memakai kolom
+           teks, Pola memakai area gambar. Tanpa menggambar ulang, memilih
+           Pola hanya menampilkan kolom teks dan area gambarnya tidak pernah
+           muncul — karena juga bindPatternPad tidak pernah menemukan
+           elemen #fPat untuk dipasangkan.
+           dgnFokus() menjaga teks yang sedang diketik tetap ada DAN fokus
+           kembali ke kolom itu, jadi pemakai bisa langsung lanjut mengetik
+           (termasuk spasi) setelah menekan chip. */
+        dgnFokus(function () {
+          readDraft();
+          M.draft.screen_lock_type = aktif ? 'Tanpa Kunci' : pilih;
+          M.draft.screen_lock_secret = '';
+          render();
+        });
       });
       /* Tombol SPASI pada keyboard HP tidak boleh mengaktifkan chip ini:
          chip yang masih ter-fokus akan terpicu tiap spasi, menggambar ulang
          form, membalik pilihan kunci, dan (sebelum perbaikan draft) menghapus
          teks Kendala yang sedang diketik. Enter tetap berfungsi. */
       chips[ci].addEventListener('keydown', function (e) {
-        if (e.key === ' ' || e.key === 'Spacebar' || e.keyCode === 32) e.preventDefault();
+        var k = e.key, c = e.keyCode;
+        // 229 = tombol keyboard HP/IME yang tidak melaporkan keyCode asli.
+        if (k === ' ' || k === 'Spacebar' || c === 32 || c === 229) e.preventDefault();
       });
     }
 
@@ -1187,10 +1224,11 @@
     var clear = $('#fLockClear');
     if (clear) {
       clear.addEventListener('click', function () {
-        readDraft();
-        M.draft.screen_lock_secret = '';
-        render();
-        this.blur();
+        dgnFokus(function () {
+          readDraft();
+          M.draft.screen_lock_secret = '';
+          render();
+        });
       });
     }
 
@@ -1200,6 +1238,18 @@
         syncLockUI();
       });
     }
+
+    /* SEMUA tombol di form ini tidak boleh merebut fokus dari kolom teks.
+       Alasannya sama dengan chip kunci: selama sebuah <button> memegang
+       fokus, tombol SPASI pada keyboard HP menjalankan tombol itu — spasi
+       tidak pernah masuk ke kolom Kendala & kondisi unit dan tulisannya
+       tampak menyatu. mousedown dicegah (bukan click), jadi tombolnya tetap
+       berfungsi normal. */
+    [].forEach.call(document.querySelectorAll('#mcScreen button'), function (b) {
+      if (b.__tanpaFokus) return;
+      b.__tanpaFokus = true;
+      b.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    });
 
     /* Kolom teks menyalin isinya ke draft setiap ketikan — TANPA menggambar
        ulang, jadi kursor tidak hilang. Dengan begitu tidak ada jalur render()
