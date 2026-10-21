@@ -686,7 +686,7 @@
     html += field('Device *',
       '<div class="mc-row2">' +
         '<select class="mc-inp" id="fBrand"><option value="">Pilih brand</option>' +
-          w.CalcUI.BRANDS.map(function (b) {
+          (w.CalcUI && w.CalcUI.BRANDS ? w.CalcUI.BRANDS : []).map(function (b) {
             return '<option value="' + esc(b.id) + '">' + esc(b.name) + '</option>';
           }).join('') +
           // Brand di luar daftar tetap bisa dicatat: pilih "Lainnya…" lalu
