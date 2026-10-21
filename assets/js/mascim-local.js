@@ -72,25 +72,28 @@
   */
   var STATUS_TRANS = {
     'Progress': ['Done', 'Cancel'],
-    // Dari "Done" masih boleh dibatalkan: pekerjaan selesai tapi ternyata
-    // pelanggan berubah pikiran atau unit tidak diambil. Tanpa ini, nota
-    // yang salah masuk Done tidak punya jalan keluar selain membiarkan
-    // nota tetap menggantung.
+    // Dari "Done" masih boleh dibatalkan: pekerjaan selesai tapi pelanggan
+    // berubah pikiran atau unit tidak diambil. Tanpa ini, nota yang salah
+    // masuk Done tidak punya jalan keluar selain membiarkan nota menggantung.
     'Done': ['Done Diambil', 'Cancel'],
     // Dari "Cancel" hanya boleh ke "Cancel Diambil": barang tetap keluar
-    // meski dibatalkan, jadi tanggal pengambilan tetap harus tercatat.
+    // meskipun dibatalkan, jadi tanggal pengambilan tetap tercatat.
     'Cancel': ['Cancel Diambil'],
-    // Dari "Done Diambil" masih ada dua jalan keluar nyata:
-    //   Cancel  -> pelanggan batal SETELAH-unit diambil dan sudah membayar
-    //   Return  -> trouble dalam masa garansi, unit kembali diperbaiki
-    // Tanpa ini, nota yang sudah diambil tidak punya jalan keluar selain
-    // dibiarkan menggantung selamanya.
-    'Done Diambil': ['Cancel', 'Return'],
+    // Dari "Done Diambil" (pelanggan sudah ambil & bayar) satu jalan keluar
+    // nyata saja: Return bila trouble dalam masa garansi. Cancel DIHAPUS di
+    // sini — aturan umum: tombol Cancel HANYA muncul untuk status Done &
+    // Progress. Seharusnya tidak ada jalan batal semata-mata dari kondisi
+    // sudah-lunas/atur.
+    'Done Diambil': ['Return'],
     'Cancel Diambil': [],
-    // Unit yang sedang dikerjakan ulang boleh diselesaikan, dibatalkan,
-    // atau diambil tanpa lewat Done.
-    'Return': ['Done', 'Cancel', 'Done Diambil'],
-    'Nggandul': ['Progress', 'Done', 'Cancel', 'Done Diambil', 'Cancel Diambil', 'Return']
+    // Unit yang sedang dikerjakan ulang (Return) boleh diselesaikan atau
+    // diambil kembali tanpa lewat Done. Cancel juga dihapus dari sini
+    // (Cancel hanya untuk Done & Progress).
+    'Return': ['Done', 'Done Diambil'],
+    // Nggandul: nota belum lunas & butuh ditinjau. Semua status kecuali
+    // Cancel (Cancel hanya untuk Done & Progress) tersedia sebagai
+    // penyelesaian peninjauan teknisi.
+    'Nggandul': ['Progress', 'Done', 'Done Diambil', 'Cancel Diambil', 'Return']
   };
 
   var PAYMENT_STATUSES = ['Belum Bayar', 'DP', 'Lunas'];

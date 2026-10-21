@@ -103,15 +103,16 @@
   // pernah berbeda: hanya status yang masuk akal secara bisnis yang ditawarkan.
   var STATUS_TRANS = L.STATUS_TRANS || {
     'Progress': ['Done', 'Cancel'],
-    'Done': ['Done Diambil'],
+    'Done': ['Done Diambil', 'Cancel'],
     'Cancel': ['Cancel Diambil'],
-    // Dari "Done Diambil" masih ada dua jalan keluar nyata: Cancel bila
-    // pelanggan batal setelah membayar, dan Return bila trouble dalam masa
-    // garansi. Tanpa ini nota yang sudah diambil tidak punya jalan keluar.
-    'Done Diambil': ['Cancel', 'Return'],
+    // Dari "Done Diambil" masih ada satu jalan keluar nyata: Return bila
+    // trouble dalam masa garansi. Cancel DIHAPUS dari sini.
+    // Aturan umum: tombol "Cancel" HANYA muncul untuk status Done & Progress
+    // (cancel juga tidak muncul di Return / Nggandul / Done Diambil).
+    'Done Diambil': ['Return'],
     'Cancel Diambil': [],
-    'Return': ['Done', 'Cancel', 'Done Diambil'],
-    'Nggandul': ['Progress', 'Done', 'Cancel', 'Done Diambil', 'Cancel Diambil', 'Return']
+    'Return': ['Done', 'Done Diambil'],
+    'Nggandul': ['Progress', 'Done', 'Done Diambil', 'Cancel Diambil', 'Return']
   };
   // Garansi & metode pembayaran juga ikut dari mesin data.
   var WARRANTY_OPTIONS = L.WARRANTY_OPTIONS || ['30 Hari', '60 Hari', 'Non Garansi'];
@@ -2505,11 +2506,26 @@
        dihitung otomatis dari akumulasi daftar itu. */
     var deviceBits = pisahDevice(M.current && M.current.device);
     var brandId = deviceBits[0], seri = deviceBits[1];
+    // Nama brand dari id — dipakai di label Unit & di datalist Brand HP.
+    var namaBrand = function (id) {
+      var b = w.CalcUI && (w.CalcUI.BRANDS || []).filter(function (x) { return x.id === id; })[0];
+      return b ? b.name : '';
+    };
 
-    var head = '';
-    if (brandId && seri) {
-      head = '<p class="mc-hint">Unit: ' + esc(seri) + '</p>';
-    }
+    // Task 4: Brand HP & Seri HP jadi box pencarian (combobox). Daftar harga di
+    // bawah dibangun ulang lewat bangunOpsi() setiap kali brand/seri berubah.
+    var head = '<p class="mc-hint" id="spUnitHint">' +
+      (brandId ? (namaBrand(brandId) + ' ') : '') + (seri || '') +
+      '</p>' +
+      '<p class="mc-hint">Brand &amp; seri HP — ketik untuk mencari di Kalkulator Service HP</p>' +
+      '<div class="mc-row2">' +
+        '<label class="mc-field"><span class="mc-lbl">Brand HP</span>' +
+          '<input class="mc-inp" id="spBrand" list="spBrandList" placeholder="mis. Samsung"></label>' +
+        '<label class="mc-field"><span class="mc-lbl">Seri HP</span>' +
+          '<input class="mc-inp" id="spSeri" list="spSeriList" placeholder="mis. Galaxy A05"></label>' +
+      '</div>' +
+      '<datalist id="spBrandList"></datalist>' +
+      '<datalist id="spSeriList"></datalist>';
 
     sheetOrWarn('Tambah Sparepart',
       '<div class="mc-pad">' + head +
@@ -2687,9 +2703,10 @@
           } else {
             listBox.innerHTML = tambah.map(function (p, i) {
               return '<div class="mc-part">' +
-                '<input class="mc-inp sm" value="' + esc(p.name) + '" readonly>' +
-                '<input class="mc-inp sm" value="' + esc(rupiah(p.cost)) + '" readonly>' +
+                '<input class="mc-inp sm" data-spname="' + i + '" value="' + esc(p.name) + '" placeholder="Nama sparepart">' +
+                '<input class="mc-inp sm" data-spcost="' + i + '" inputmode="numeric" value="' + (p.cost || '') + '" placeholder="Harga (Rp)">' +
                 '<button class="mc-x" data-spdel="' + i + '" aria-label="Hapus">\u2715</button>' +
+                '<button class="mc-save" data-spsave="' + i + '" aria-label="Simpan">\u2713</button>' +
               '</div>';
             }).join('');
           }
@@ -2699,13 +2716,35 @@
           totalEl.textContent = rupiah(total);
         }
 
-        function pasangHapus() {
+        function pasangBaris() {
           var del = listBox.querySelectorAll('[data-spdel]');
           for (var i = 0; i < del.length; i++) {
             del[i].addEventListener('click', function () {
               tambah.splice(+this.dataset.spdel, 1);
               gambarDaftar();
-              pasangHapus();
+              pasangBaris();
+            });
+          }
+          // Task 3: edit nama / harga sparepart yang sudah ditambahkan —
+          // tidak perlu hapus lalu tambah ulang (antisipasi salah harga part).
+          var saves = listBox.querySelectorAll('[data-spsave]');
+          for (var j = 0; j < saves.length; j++) {
+            saves[j].addEventListener('click', function () {
+              var idx = +this.dataset.spsave;
+              if (idx < 0 || idx >= tambah.length) return;
+              var nmEl = listBox.querySelector('[data-spname="' + idx + '"]');
+              var csEl = listBox.querySelector('[data-spcost="' + idx + '"]');
+              var nm = nmEl ? (nmEl.value || '').trim() : '';
+              var cs = csEl ? (parseInt(String(csEl.value).replace(/\D/g, ''), 10) || 0) : 0;
+              if (!nm || cs <= 0) { alertErr('Isi nama & harga yang valid'); return; }
+              var p = tambah[idx];
+              var prev = p.rule;
+              p.name = nm;
+              p.cost = cs;
+              p.est = prev ? (w.CalcUI && w.CalcUI.hitung ? w.CalcUI.hitung(cs, prev).est : cs * 2) : cs * 2;
+              gambarDaftar();
+              pasangBaris();
+              toast('Sparepart diperbarui');
             });
           }
         }
@@ -2795,13 +2834,103 @@
             });
           }
           gambarDaftar();
-          pasangHapus();
+          pasangBaris();
           resetPilihan();
           if (w.TG && w.TG.haptic) w.TG.haptic('success');
         });
 
         gambarDaftar();
-        pasangHapus();
+        pasangBaris();
+
+        /* Task 4: box pencarian Brand HP & Seri HP di sheet Tambah Sparepart.
+           Ketik seri -> muncul saran seri tersimpan di Kalkulator untuk brand
+           yang dipilih; seri tak ada dianggap input manual. */
+        var brandIn = $('#spBrand', body);
+        var seriIn = $('#spSeri', body);
+        var brandListD = $('#spBrandList');
+        var seriListD = $('#spSeriList');
+        var unitHint = $('#spUnitHint');
+        function matchBrand(nama) {
+          var n = normSeri(nama);
+          var bs = (w.CalcUI && w.CalcUI.BRANDS) || [];
+          for (var i = 0; i < bs.length; i++) if (normSeri(bs[i].name) === n) return bs[i];
+          return null;
+        }
+        function isiBrandList() {
+          var bs = (w.CalcUI && w.CalcUI.BRANDS) || [];
+          if (brandListD) brandListD.innerHTML = bs.map(function (b) {
+            return '<option value="' + esc(b.name) + '">';
+          }).join('');
+        }
+        function isiSeriList(br) {
+          var seen = {}, arr = [];
+          (w.Store.state.templates || []).forEach(function (t) {
+            var p = t.payload || t;
+            if (br && p.brandId !== br) return;
+            var k = normSeri(p.series);
+            if (p.series && !seen[k]) { seen[k] = true; arr.push(p.series); }
+          });
+          if (seriListD) seriListD.innerHTML = arr.map(function (s) {
+            return '<option value="' + esc(s) + '">';
+          }).join('');
+        }
+        function refreshHead() {
+          if (unitHint) unitHint.textContent = (brandId ? (namaBrand(brandId) + ' ') : '') + (seri || '');
+        }
+        function syncBrandSeri() {
+          refreshHead();
+          if (brandIn) brandIn.value = namaBrand(brandId) || '';
+          if (seriIn) seriIn.value = seri || '';
+          bangunOpsi(brandId, seri);
+        }
+        function bangunOpsi(b, s) {
+          opsi = [];
+          var kat = katalogUntukDevice(b, s);
+          kat.lcd.concat(kat.baterai, kat.lain).forEach(function (v) { opsi.push(v); });
+          opsiUnit = opsi.slice();
+          katalogBrandLain(b, s).forEach(function (v) { opsi.push(v); });
+          opsiLain = opsi.slice(opsiUnit.length);
+          pilihSel.innerHTML = '<option value="">\u2014 pilih harga di Kalkulator Service HP \u2014</option>' +
+            (opsiUnit.length
+              ? '<optgroup label="Untuk unit ini (' + esc(s) + ')">' +
+                opsiUnit.map(function (v) { return '<option value="' + opsiVal(v) + '">' + esc(labelVarian(v)) + '</option>'; }).join('') + '</optgroup>'
+              : '') +
+            (opsiLain.length
+              ? '<optgroup label="Harga tersimpan lain di Kalkulator">' +
+                opsiLain.map(function (v) { return '<option value="' + opsiVal(v) + '">' + esc(labelVarianSeri(v)) + '</option>'; }).join('') + '</optgroup>'
+              : '') +
+            '<option value="atur">Atur aturan part (seperti Kalkulator Service HP)</option>' +
+            '<option value="manual">Lainnya (input manual)</option>';
+          pilihSel.value = '';
+          if (!opsiUnit.length) {
+            info.textContent = (opsiLain.length
+              ? 'Unit ini belum punya harga tersimpan, tapi ada ' + opsiLain.length + ' harga tersimpan lain di Kalkulator. '
+              : 'Belum ada harga tersimpan di Kalkulator untuk brand + seri ini. ') +
+              'Ketik seri, atau pilih "Atur aturan" untuk menghitung sendiri.';
+          } else {
+            info.textContent = '';
+          }
+        }
+        isiBrandList();
+        if (brandId) isiSeriList(brandId);
+        syncBrandSeri();
+        brandIn.addEventListener('input', function () {
+          var m = matchBrand(brandIn.value);
+          if (m) {
+            brandId = m.id; seri = '';
+            isiSeriList(brandId);
+            if (seriIn) seriIn.value = '';
+          } else {
+            brandId = '';
+            if (seriListD) seriListD.innerHTML = '';
+          }
+          syncBrandSeri();
+        });
+        if (seriIn) seriIn.addEventListener('change', function () {
+          seri = (seriIn.value || '').trim();
+          syncBrandSeri();
+        });
+
 
         var b = document.createElement('button');
         b.className = 'mc-primary';

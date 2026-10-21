@@ -1279,13 +1279,19 @@ select.mc-inp{ appearance:none; }
          letter-spacing:.6px; margin:16px 0 8px; font-weight:700; }
 .mc-sec-note{ text-transform:none; letter-spacing:0; font-weight:400; opacity:.8; }
 .mc-parts{ display:grid; gap:6px; margin-bottom:8px; }
-.mc-part{ display:grid; grid-template-columns:1fr 1fr 34px; gap:5px; align-items:center; }
+.mc-part{ display:grid; grid-template-columns:1fr 1fr 34px 34px; gap:5px; align-items:center; }
 /* Kolom modal dibuat setinggi kolom nama supaya keduanya benar-benar
    sama, bukan hanya sama lebar. */
 .mc-part .mc-inp{ width:100%; min-width:0; }
 .mc-x{
   height:40px; border:1px solid var(--mc-line); border-radius:10px;
   background:transparent; color:var(--mc-red); font-size:15px; cursor:pointer;
+}
+/* Tombol simpan per‑baris di daftar sparepart (tombol edit). Hijau tema
+   supaya tidak bingung dengan tombol hapus merah. */
+.mc-save{
+  height:40px; border:1px solid var(--mc-line); border-radius:10px;
+  background:var(--mc-grn); color:#fff; font-size:15px; cursor:pointer;
 }
 .mc-calc{ background:var(--mc-card); border:1px solid var(--mc-line); border-radius:12px; margin:6px 0 10px; }
 .mc-calc>div{ display:flex; justify-content:space-between; padding:9px 12px; font-size:13px; }
