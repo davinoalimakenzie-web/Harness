@@ -749,18 +749,16 @@
           '" id="fLockWrap">' +
         (d.screen_lock_type === 'Pola'
           ? patternPad(d.screen_lock_secret)
-          : '<input class="mc-inp" id="fSecret" type="password" inputmode="' +
+          : '<div class="mc-lockrow">' +
+              '<input class="mc-inp" id="fSecret" type="password" inputmode="' +
               (d.screen_lock_type === 'PIN' ? 'numeric' : 'text') +
-              // autocorrect dan otomatis kapital di keyboard Android bisa
-              // mengubah password yang diketik menjadi teks yang berbeda,
-              // sehingga kunci yang tersimpan tidak sama dengan yang diketik.
               '" autocapitalize="off" autocomplete="new-password"' +
               ' autocorrect="off" spellcheck="false"' +
               '" value="' + esc(d.screen_lock_secret) + '" placeholder="' +
               (d.screen_lock_type === 'PIN' ? 'misal: 1234' : 'isi kunci layar') + '">' +
-            '<button class="mc-eye" id="fEye" type="button" aria-label="Tampilkan">👁</button>') +
-        '<span class="mc-lockok" id="fLockOk"' +
-          (d.screen_lock_secret ? '' : ' hidden') + '>✓ tersimpan</span>' +
+              '<button class="mc-eye" id="fEye" type="button" aria-label="Tampilkan/Sembunyikan">👁</button>' +
+              '<button class="mc-locksave" id="fLockSave" type="button" aria-label="Simpan kunci">💾 Simpan</button>' +
+            '</div>') +
       '</div>' +
       // Kalau sudah ada kunci yang tersimpan, tampilkan rangkuman supaya
       // teknisi tahu ada kunci tanpa perlu membongkar area gambar pola.
@@ -1305,6 +1303,16 @@
         if (!i) return;
         i.type = i.type === 'password' ? 'text' : 'password';
         eye.textContent = i.type === 'password' ? '👁' : '🙈';
+      });
+    }
+    var lockSave = $('#fLockSave');
+    if (lockSave) {
+      lockSave.addEventListener('click', function () {
+        var i = $('#fSecret');
+        if (!i) return;
+        M.draft.screen_lock_secret = i.value;
+        M.draft.screenLockSaved = true;
+        render();
       });
     }
 
