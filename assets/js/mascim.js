@@ -624,7 +624,7 @@
     return {
       customer_name: o.customerName, whatsapp: o.whatsapp, device: o.device,
       complaint: o.complaint, intake_condition: o.intakeCondition || '',
-      screen_lock_type: o.screenLockType, screen_lock_secret: '',
+      screen_lock_type: o.screenLockType, screen_lock_secret: o.screenLockSecret || '',
       handling: o.handling, total_cost: o.totalCost ? String(o.totalCost) : '',
       service_status: o.serviceStatus,
       // Pilihan Estimasi Biaya tidak disimpan mesin data (field tetap), jadi
