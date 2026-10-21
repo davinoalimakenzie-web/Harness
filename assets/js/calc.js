@@ -739,7 +739,6 @@
     el.kSeriesPick = $('#kSeriesPick');
     el.kSeriesVal = $('#kSeriesVal');
 
-    seedIfNeeded();
     renderBrands();
     renderSeries();
     renderRules();
@@ -750,6 +749,20 @@
     /* Sinkronisasi harga tersimpan antar tautan/perangkat (real-time). */
     if (w.CalcSync) w.CalcSync.mulai();
     pasangTombolSync();
+
+    /* Entri contoh dipasang SETELAH sinkronisasi pertama dan hanya kalau
+       daftar masih kosong. Dulu seed dipasang lebih dulu, sehingga
+       perangkat baru ikut mengirim entri contoh ke server dan daftar harga
+       tumbuh sendiri (73 -> 79). */
+    if (w.CalcSync && typeof w.CalcSync.tarik === 'function') {
+      w.CalcSync.tarik(true).then(function () {
+        var sebelum = (S.state.templates || []).length;
+        seedIfNeeded();
+        if ((S.state.templates || []).length !== sebelum) { renderSeries(); renderTpl(); }
+      });
+    } else {
+      seedIfNeeded();
+    }
 
     if ($('#kEditCancel')) {
       $('#kEditCancel').addEventListener('click', function () {
