@@ -1645,7 +1645,12 @@
         ? kv('WhatsApp', '<a class="mc-link" href="https://wa.me/' + waNum(o.whatsapp) + '" target="_blank" rel="noopener">' + esc(o.whatsapp) + '</a>')
         : '') +
       kv('Device', o.device) +
-      kv('Kunci Layar', o.screenLockType + (o.hasScreenLock ? ' (tersimpan)' : ''));
+      kv('Kunci Layar', o.screenLockType + (o.hasScreenLock ? ' (tersimpan)' : '')) +
+      (o.screenLockType === 'Pola' && o.screenLockSecret
+        ? '<div class="mc-detail-lock">' + patternPad(o.screenLockSecret) + '</div>'
+        : (o.screenLockType !== 'Tanpa Kunci' && o.screenLockSecret
+            ? '<div class="mc-detail-lock"><input class="mc-inp" type="text" readonly value="' + esc(o.screenLockSecret) + '"></div>'
+            : ''));
 
     /* Kendala & kondisi unit digabung jadi SATU baris. Penanganan TIDAK
        ditampilkan di sini: penanganan baru diisi saat status diubah ke Done,
@@ -1863,6 +1868,25 @@
     html += '</div>';
     s.innerHTML = html;
     bindDetail();
+    // Restore pola tersimpan di layar detail (read-only visual)
+    var detailPat = document.querySelector('.mc-detail-lock .mc-pcanvas');
+    var detailSec = document.querySelector('.mc-detail-lock #fPatSecret');
+    if (detailPat && detailSec && detailSec.value) {
+      var _saved = (window.MascimLocal && MascimLocal.parsePattern) ? MascimLocal.parsePattern(detailSec.value) : [];
+      if (_saved.length > 0) {
+        var _grid = detailPat.parentElement.querySelector('.mc-pgrid');
+        var _d = '';
+        for (var _i = 0; _i < _saved.length; _i++) {
+          var _x = _saved[_i].x * 100;
+          var _y = _saved[_i].y * 100;
+          _d += (_i ? 'L' : 'M') + _x.toFixed(2) + ' ' + _y.toFixed(2) + ' ';
+          var _idx = Math.round(_saved[_i].y * 2) * 3 + Math.round(_saved[_i].x * 2);
+          var _dot = document.querySelector('.mc-detail-lock [data-dot="' + _idx + '"]');
+          if (_dot) _dot.classList.add('hit');
+        }
+        detailPat.innerHTML = '<path d="' + _d + '" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
+      }
+    }
   }
 
   function kv(k, v) {
