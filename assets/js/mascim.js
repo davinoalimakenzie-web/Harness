@@ -2138,12 +2138,12 @@
       // peramban, dan yang tertinggal hanyalah alamat halaman tanpa isi
       // nota. Query string lolos utuh. Halaman nota menerima keduanya,
       // jadi tautan lama versi pagar tidak jadi rusak.
-      return dir + 'nota.html?s=' + muatan;
+      return dir + 'nota?s=' + muatan;
     }
     if (!wn.token) return '';
     // Link lokal berbasis token: bisa dicabut, tapi hanya berlaku di
     // perangkat ini.
-    return dir + 'nota.html?t=' + wn.token;
+    return dir + 'nota?t=' + wn.token;
   }
 
   // Satu-satunya sumber isi nota. Dipakai LIHAT, SALIN, WHATSAPP, dan CETAK
