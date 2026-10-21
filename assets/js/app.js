@@ -986,12 +986,16 @@
       function pasang(el) {
         if (!el || el.dataset.caps) return;
         el.dataset.caps = '1';
-        el.addEventListener('input', function () {
+        /* Huruf besar tidak perlu disimpan TIAP ketikan. MENGGANTI
+           el.value pada tiap event input (seperti sebelumnya) merusak
+           IME Android: kursor loncat/nilai disusun ulang, sehingga spasi
+           dan huruf berikutnya menyatu dan "tulisannya ilang". Cukup
+           huruf-besar-kan saat field mengeluar (blur); tampilannya tetap
+           kapital via CSS (text-transform:uppercase). */
+        el.addEventListener('blur', function () {
           var v = el.value;
-          if (v === v.toUpperCase()) return;
-          var pos = el.selectionStart;
+          if (!v || v === v.toUpperCase()) return;
           el.value = v.toUpperCase();
-          try { el.setSelectionRange(pos, pos); } catch (e) {}
         });
       }
       document.querySelectorAll(seler).forEach(pasang);
