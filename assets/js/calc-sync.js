@@ -101,14 +101,27 @@
   /* Gabungkan data lokal & server per entri (yang lebih baru menang).
      Dipakai saat sinkronisasi PERTAMA kali (belum ada rev) supaya data
      lokal yang sudah ada tidak tertimpa data server. */
+  /* Entri contoh bawaan (seed) Kalkulator: ditandai `seed: true`, atau
+     entri lama yang id-nya masih 'seed-...'. */
+  function entriSeed(t) {
+    return !!(t && (t.seed === true || /^seed-/.test(String(t.id || ''))));
+  }
+
   function gabung(lokal, jauh) {
     var peta = {};
     function kunci(t) {
       return (w.Store && w.Store.templateKey) ? w.Store.templateKey(t.payload || t) : (t.id || '');
     }
     function waktu(t) { return Date.parse(t.updatedAt || t.createdAt || 0) || 0; }
-    (lokal || []).forEach(function (t) { peta[kunci(t)] = t; });
+    /* Kalau di salah satu sisi sudah ada harga nyata, entri contoh tidak
+       perlu ikut. Tanpa aturan ini, tiap perangkat baru menambah seed lalu
+       mengirimnya ke server sehingga daftar harga bertambah sendiri. */
+    var adaNyata = (lokal || []).concat(jauh || []).some(function (t) { return !entriSeed(t); });
+    function pakai(t) { return !(adaNyata && entriSeed(t)); }
+
+    (lokal || []).forEach(function (t) { if (pakai(t)) peta[kunci(t)] = t; });
     (jauh || []).forEach(function (t) {
+      if (!pakai(t)) return;
       var k = kunci(t);
       if (!peta[k] || waktu(t) > waktu(peta[k])) peta[k] = t;
     });

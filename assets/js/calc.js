@@ -150,6 +150,9 @@
       if (!exists) {
         var rule = ruleById(s.ruleId);
         t.push({
+          /* `seed` = entri contoh bawaan. Ditandai supaya modul sinkronisasi
+             bisa membuangnya kalau server sudah punya daftar harga nyata. */
+          seed: true,
           id: 'seed-' + s.brandId,
           payload: {
             brandId: s.brandId, brandName: s.brandName, series: s.series,
@@ -881,8 +884,10 @@
       var del = e.target.closest('[data-tpldel]');
       if (brandBtn) {
         var bid = brandBtn.dataset.tplbrand;
-        // Klik brand → filter brand itu; klik lain → ganti filter
-        filterBrand = bid;
+        /* Toggle: klik brand yang sedang aktif → tampilkan SEMUA lagi
+           (unhide); klik brand lain → tampilkan brand itu saja (hide yang
+           lain). Ini perilaku yang dipakai sebelum commit f2685f9. */
+        filterBrand = (filterBrand === bid) ? '' : bid;
         renderTpl();
         TG.haptic('select');
         return;
