@@ -737,7 +737,7 @@
           esc(t) + '</button>';
       }).join('') +
       '</div>' +
-      '<button type="button" class="mc-locktoggle' + (d.screen_lock_type === 'Pola' ? '' : ' mc-none') + '" id="fLockToggle">' +
+      '<button type="button" class="mc-locktoggle mc-none" id="fLockToggle">' +
         (d.lockHidden ? '\u25B8 Tampilkan isi kunci' : '\u25BE Sembunyikan isi kunci') +
       '</button>' +
       // Kolom isian menyesuaikan jenis kunci. Untuk "Pola" yang yang tampil
@@ -1157,15 +1157,7 @@
       // belum ada yang tersimpan, padahal tombol Simpan justru berada DI
       // DALAM pad itu — jadi tidak ada jalan masuk sama sekali.
       // Sembunyikan hanya lewat tombol yang ditekan pengguna.
-      var tampil;
-      if (tipe === 'PIN' || tipe === 'Password') {
-        // PIN/Password selalu terlihat (tidak disembunyikan)
-        tampil = true;
-      } else if (tipe === 'Pola') {
-        tampil = !M.draft.lockHidden;
-      } else {
-        tampil = false;
-      }
+      var tampil = tipe !== 'Tanpa Kunci';
       wrap.classList.toggle('mc-none', !tampil);
       if (lockOk) lockOk.hidden = !(tipe !== 'Tanpa Kunci' && !!isi);
       var tog = $('#fLockToggle');
