@@ -430,6 +430,7 @@
       intakeCondition: o.intakeCondition || '',
       screenLockType: o.screenLockType,
       hasScreenLock: !!o.screenLockSecret,
+      screenLockSecret: o.screenLockSecret || '',
       handling: o.handling,
       totalCost: totalCost,
       serviceStatus: o.serviceStatus,
