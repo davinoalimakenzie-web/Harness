@@ -2429,6 +2429,15 @@
           '</div>' +
           '<p class="mc-hint" id="spManualInfo"></p>' +
         '</div>' +
+        '<div id="spRule" class="mc-none">' +
+          '<p class="mc-hint">Atur aturan part seperti di Kalkulator Service HP:</p>' +
+          '<div id="spRuleBtns" class="mc-rules"></div>' +
+          '<div class="mc-row2">' +
+            '<label class="mc-field"><span class="mc-lbl">Harga part (Rp) *</span>' +
+              '<input class="mc-inp" id="spRuleCost" inputmode="numeric" placeholder="0"></label>' +
+          '</div>' +
+          '<p class="mc-hint" id="spRuleInfo"></p>' +
+        '</div>' +
         '<button class="mc-ghost-btn" id="spAdd" disabled>+ Tambah ke daftar</button>' +
         '<div class="mc-sec">Daftar sparepart</div>' +
         '<div class="mc-parts" id="spList"></div>' +
@@ -2446,6 +2455,91 @@
         var addBtn = $('#spAdd', body);
         var listBox = $('#spList', body);
         var totalEl = $('#spTotal', body);
+
+        /* Aturan part (mode atur): struktur sama dengan Kalkulator Service HP:
+           tombol aturan LCD/OLED/Baterai + harga part => estimasi otomatis lewat
+           CalcUI.hitung. Bekerja walaupun belum ada harga tersimpan untuk unit ini
+           (misalnya saat status Progress / service baru) — saat itu mode
+           "Dari Kalkulator" justru kosong, inilah sebabnya kamu gagal. */
+        var ruleIn = $('#spRuleCost', body);
+        var ruleBtns = $('#spRuleBtns', body);
+        var ruleInfo = $('#spRuleInfo', body);
+        var ruleCur = null;
+
+        function openRuleMode() {
+          manual.classList.add('mc-none');
+          var ruleBox = $('#spRule', body);
+          ruleBox.classList.remove('mc-none');
+          ruleCur = null;
+          ruleBtns.innerHTML = '';
+          var RULES = (w.CalcUI && w.CalcUI.RULES) || [];
+          RULES.forEach(function (r) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'mc-rule-btn';
+            b.style.cssText = 'display:inline-block;margin:4px 8px 0 0;padding:8px 12px;border:1px solid #bbb;border-radius:8px;background:#f5f5f5;cursor:pointer;font-size:13px;';
+            b.textContent = r.name + (r.pct ? ' +' + r.pct + '%' : '');
+            b.dataset.rule = r.id;
+            b.addEventListener('click', function () {
+              var btns = ruleBtns.querySelectorAll('.mc-rule-btn');
+              for (var i = 0; i < btns.length; i++) {
+                btns[i].classList.remove('on');
+                btns[i].style.background = '';
+                btns[i].style.borderColor = '';
+              }
+              b.classList.add('on');
+              b.style.background = '#e2f0ff';
+              b.style.borderColor = '#3b82f6';
+              ruleCur = r;
+              syncRuleCost();
+              hitungLive();
+              addBtn.disabled = !canAddRule();
+            });
+            ruleBtns.appendChild(b);
+          });
+          syncRuleCost();
+          addBtn.disabled = true;
+          ruleInfo.textContent = 'Pilih aturan, lalu isi harga part.';
+        }
+
+        function syncRuleCost() {
+          if (!ruleCur) return;
+          var existing = cariTplBrandSeri(brandId, seri, ruleCur.id);
+          ruleIn.value = existing ? String(existing.part) : '';
+        }
+
+        function hitungLive() {
+          if (!ruleCur) return;
+          var part = parseInt(String(ruleIn.value).replace(/\D/g, ''), 10) || 0;
+          var h = (w.CalcUI && w.CalcUI.hitung) ? w.CalcUI.hitung(part, ruleCur)
+            : { dasar: part * 2, est: part * 2 };
+          if (part > 0) {
+            ruleInfo.textContent = 'Modal part ' + rupiah(part) + ' -> dasar x2 ' + rupiah(h.dasar) +
+              (ruleCur.pct ? ' +' + ruleCur.pct + '%' : '') + ' = estimasi ' + rupiah(h.est);
+          } else {
+            ruleInfo.textContent = 'Isi harga part.';
+          }
+        }
+
+        function canAddRule() {
+          if (!ruleCur) return false;
+          var part = parseInt(String(ruleIn.value).replace(/\D/g, ''), 10) || 0;
+          return part > 0;
+        }
+
+        function resetRule() {
+          var ruleBox = $('#spRule', body);
+          ruleBox.classList.add('mc-none');
+          ruleBtns.innerHTML = '';
+          ruleIn.value = '';
+          ruleInfo.textContent = '';
+          ruleCur = null;
+        }
+
+        ruleIn.addEventListener('input', function () {
+          hitungLive();
+          addBtn.disabled = !canAddRule();
+        });
 
         function varianDipilih(id) {
           if (!id) return null;
@@ -2468,6 +2562,7 @@
             return '<option value="' + esc((v.tpl.payload || v.tpl).ruleId) + '">' +
               esc(labelVarian(v)) + '</option>';
           }).join('') +
+          '<option value="atur">Atur aturan part (seperti Kalkulator Service HP)</option>' +
           '<option value="manual">Lainnya (input manual)</option>';
         if (!semua.length) {
           info.textContent = 'Belum ada harga untuk ' + seri +
@@ -2506,6 +2601,7 @@
         function resetPilihan() {
           pilihSel.value = '';
           manual.classList.add('mc-none');
+          resetRule();
           nameIn.value = '';
           costIn.value = '';
           info.textContent = '';
@@ -2521,6 +2617,14 @@
             manual.classList.remove('mc-none');
             info.textContent = 'Isi nama sparepart dan harga part di bawah.';
             cekManual();
+            return;
+          }
+          if (id === 'atur') {
+            // Struktur sama dengan Kalkulator Service HP: aturan (LCD/OLED/
+            // Baterai) + harga part => estimasi otomatis. Berlaku juga saat
+            // belum ada harga tersimpan untuk unit ini (mis. status Progress),
+            // saat mode "Dari Kalkulator" justru kosong dan gagal.
+            openRuleMode();
             return;
           }
           manual.classList.add('mc-none');
@@ -2554,6 +2658,17 @@
             var harga = parseInt(String(costIn.value).replace(/\D/g, ''), 10) || 0;
             if (!nama || harga <= 0) return;
             tambah.push({ name: nama, cost: harga, est: harga * 2, rule: null });
+          } else if (id === 'atur') {
+            if (!canAddRule()) return;
+            var part = parseInt(String(ruleIn.value).replace(/\D/g, ''), 10) || 0;
+            var h = w.CalcUI.hitung(part, ruleCur);
+            tambah.push({
+              name: namaPartDariRule(ruleCur),
+              cost: part, est: h.est, rule: ruleCur
+            });
+            // Simpan ke Kalkulator supaya "Dari Kalkulator" bisa dipakai untuk
+            // unit + aturan ini di nota berikutnya.
+            upsertTplBrandSeri(brandId, seri, ruleCur, part, h.est);
           } else {
             var v = varianDipilih(id);
             if (!v) return;
