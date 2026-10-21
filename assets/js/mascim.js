@@ -960,15 +960,39 @@
   }
 
   /* Semua entri Kalkulator untuk device ini, dikelompokkan per jenis. */
+  /* Pembanding nama seri yang tahan beda HURUF BESAR/kecil + spasi ganda.
+     Alima sering menyimpan harga dengan seri huruf besar ("GALAXY A05") lalu
+     device di nota tertulis biasa ("Galaxy A05"). Dengan perbandingan persis,
+     harga yang sudah tersimpan tidak pernah ketemu sehingga sheet sparepart
+     terlihat kosong ("tidak menampilkan harga yang tersimpan"). */
+  function normSeri(s) {
+    return String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
   function katalogUntukDevice(brandId, seri) {
     var out = { lcd: [], baterai: [], lain: [] };
     if (!brandId || !seri) return out;
     (w.Store.state.templates || []).forEach(function (t) {
       var p = t.payload || t;
-      if (p.brandId !== brandId || p.series !== seri) return;
+      if (p.brandId !== brandId || normSeri(p.series) !== normSeri(seri)) return;
       var rule = ruleByRuleId(p.ruleId);
       if (!rule) { out.lain.push({ tpl: t, rule: null }); return; }
       out[jenisDariRule(rule)].push({ tpl: t, rule: rule });
+    });
+    return out;
+  }
+
+  /* Semua harga tersimpan BRAND ini untuk seri LAIN. Dipakai sheet Tambah
+     Sparepart supaya pemakai bisa MELIHAT (dan memilih) harga yang benar-benar
+     tersimpan di Kalkulator walaupun unit di nota belum punya harga sendiri. */
+  function katalogBrandLain(brandId, seri) {
+    var out = [];
+    if (!brandId) return out;
+    (w.Store.state.templates || []).forEach(function (t) {
+      var p = t.payload || t;
+      if (p.brandId !== brandId) return;
+      if (normSeri(p.series) === normSeri(seri)) return;
+      out.push({ tpl: t, rule: ruleByRuleId(p.ruleId) });
     });
     return out;
   }
@@ -977,6 +1001,13 @@
     var p = v.tpl.payload || v.tpl;
     var nama = v.rule ? (v.rule.name || v.rule.id) : (p.ruleId || 'Lainnya');
     return nama + ' · modal ' + rupiah(p.part) + ' → ' + rupiah(p.est);
+  }
+
+  /* Label untuk harga milik seri LAIN: nama serinya ditulis di depan supaya
+     pemakai tahu harga itu bukan untuk unit yang sedang dinotakan. */
+  function labelVarianSeri(v) {
+    var p = v.tpl.payload || v.tpl;
+    return (p.series || '-') + ' · ' + labelVarian(v);
   }
 
 
@@ -1523,11 +1554,17 @@
       kv('Device', o.device) +
       kv('Kunci Layar', o.screenLockType + (o.hasScreenLock ? ' (tersimpan)' : ''));
 
-    // Kendala & penanganan
-    html += '<div class="mc-sec">Kendala &amp; Penanganan</div>' +
-      kv('Kendala', o.complaint) +
-      (o.intakeCondition ? kv('Kondisi saat Diterima', o.intakeCondition) : '') +
-      kv('Penanganan', o.handling || '-');
+    /* Kendala & kondisi unit digabung jadi SATU baris. Penanganan TIDAK
+       ditampilkan di sini: penanganan baru diisi saat status diubah ke Done,
+       jadi pada nota yang masih Progress baris itu hanya berisi "-". */
+    var kendalaTeks = String(o.complaint || '').trim();
+    var kondisiTeks = String(o.intakeCondition || '').trim();
+    if (kondisiTeks === 'undefined' || kondisiTeks === 'null') kondisiTeks = '';
+    if (kondisiTeks && kondisiTeks !== kendalaTeks) {
+      kendalaTeks = kendalaTeks ? (kendalaTeks + ' · ' + kondisiTeks) : kondisiTeks;
+    }
+    html += '<div class="mc-sec">Kendala &amp; kondisi unit</div>' +
+      kv('Kendala & kondisi unit', esc(kendalaTeks) || '-');
 
     // Sparepart
     html += '<div class="mc-sec">Sparepart</div>';
@@ -1543,20 +1580,31 @@
     }
     html += '<button class="mc-ghost-btn" id="dAddPart">+ Tambah Sparepart</button>';
 
-    // Angka
+    /* Rincian Biaya.
+       "Sudah Dibayar" dan "Sisa Pelunasan" HANYA ditampilkan saat nota sudah
+       masuk tahap bayar (Done / Done Diambil). Aturan Alima: pelunasan
+       dilakukan saat pengambilan unit, jadi di status Progress dua baris itu
+       hanya menampilkan Rp0 dan mengganggu. */
+    var tampilBayar = (o.serviceStatus === 'Done' || o.serviceStatus === 'Done Diambil');
     html += '<div class="mc-sec">Rincian Biaya</div>' +
       '<div class="mc-money"><div><span>Total Biaya</span><b>' + rupiah(o.totalCost) + '</b></div>' +
       '<div><span>Modal Sparepart</span><b class="neg">' + rupiah(o.totalPart) + '</b></div></div>' +
       '<div class="mc-money"><div><span>Jasa</span><b class="pos">' + rupiah(o.serviceFee) + '</b></div>' +
-      '<div><span>Sudah Dibayar</span><b class="pos">' + rupiah(o.paid) + '</b></div></div>' +
-      '<div class="mc-money big"><div><span>Sisa Pelunasan</span><b class="' + (o.remaining > 0 ? 'neg' : 'pos') + '">' +
-      rupiah(o.remaining) + '</b></div></div>';
+      (tampilBayar
+        ? '<div><span>Sudah Dibayar</span><b class="pos">' + rupiah(o.paid) + '</b></div>'
+        : '') + '</div>';
+    if (tampilBayar) {
+      html += '<div class="mc-money big"><div><span>Sisa Pelunasan</span><b class="' +
+        (o.remaining > 0 ? 'neg' : 'pos') + '">' + rupiah(o.remaining) + '</b></div></div>';
+    }
     if (o.serviceFeeWarning) html += '<p class="mc-warn">' + esc(o.serviceFeeWarning) + '</p>';
     if (o.overpaidAmount) {
       html += '<p class="mc-warn">Kelebihan bayar ' + rupiah(o.overpaidAmount) + '. Catat sebagai refund atau koreksi.</p>';
     }
 
-    // Pembayaran
+    /* Pembayaran: pembayaran/biaya baru diisi sebagai syarat mengubah status
+       ke Done, jadi bagian ini hanya relevan setelah tahap bayar tercapai. */
+    if (tampilBayar) {
     html += '<div class="mc-sec">Pembayaran</div>';
     if (o.payments.length) {
       html += '<div class="mc-ptable">';
@@ -1571,6 +1619,7 @@
       html += '</div>';
     } else {
       html += '<p class="mc-empty sm">Belum ada pembayaran.</p>';
+    }
     }
 
     // Garansi & metode pembayaran. Dua tempat: nilai konfirmasi di level nota
@@ -2477,19 +2526,14 @@
             var b = document.createElement('button');
             b.type = 'button';
             b.className = 'mc-rule-btn';
-            b.style.cssText = 'display:inline-block;margin:4px 8px 0 0;padding:8px 12px;border:1px solid #bbb;border-radius:8px;background:#f5f5f5;cursor:pointer;font-size:13px;';
+            /* Warna TIDAK di-set inline: kelas .mc-rule-btn memakai variabel
+               tema, jadi tombol tetap terbaca di tema gelap maupun terang. */
             b.textContent = r.name + (r.pct ? ' +' + r.pct + '%' : '');
             b.dataset.rule = r.id;
             b.addEventListener('click', function () {
               var btns = ruleBtns.querySelectorAll('.mc-rule-btn');
-              for (var i = 0; i < btns.length; i++) {
-                btns[i].classList.remove('on');
-                btns[i].style.background = '';
-                btns[i].style.borderColor = '';
-              }
+              for (var i = 0; i < btns.length; i++) btns[i].classList.remove('on');
               b.classList.add('on');
-              b.style.background = '#e2f0ff';
-              b.style.borderColor = '#3b82f6';
               ruleCur = r;
               syncRuleCost();
               hitungLive();
@@ -2541,32 +2585,50 @@
           addBtn.disabled = !canAddRule();
         });
 
+        /* Nilai opsi dropdown memakai INDEKS ("h0","h1",...) ke daftar `opsi`,
+           bukan ruleId. Dua seri berbeda bisa punya ruleId yang sama
+           ("lcd-biasa"), dan dengan ruleId sebagai nilai, memilih harga seri
+           lain akan mengambil harga unit ini. */
         function varianDipilih(id) {
-          if (!id) return null;
-          var kat = katalogUntukDevice(brandId, seri);
-          return kat.lcd.concat(kat.baterai, kat.lain).filter(function (x) {
-            return (x.tpl.payload || x.tpl).ruleId === id;
-          })[0] || null;
+          if (!id || String(id).charAt(0) !== 'h') return null;
+          return opsi[+String(id).slice(1)] || null;
         }
 
         /* Daftar sparepart yang akan disimpan. Sengaja bisa lebih dari satu. */
         var tambah = [];
 
-        /* Daftar harga di dropdown SELALU dibaca ulang dari Kalkulator
-           Service HP, dan hanya berisi varian yang benar-benar punya harga
-           di sana untuk unit ini. Varian tanpa harga tidak ditampilkan. */
+        /* Daftar harga di dropdown SELALU dibaca ulang dari Kalkulator Service
+           HP: unit ini lebih dulu, lalu harga tersimpan lain dari brand yang
+           sama — supaya pemakai benar-benar bisa MELIHAT harga yang tersimpan
+           di Kalkulator (keluhan Alima: "tidak menampilkan harga tersimpan"). */
+        var opsi = [];
         var kat = katalogUntukDevice(brandId, seri);
-        var semua = kat.lcd.concat(kat.baterai, kat.lain);
+        kat.lcd.concat(kat.baterai, kat.lain).forEach(function (v) { opsi.push(v); });
+        var opsiUnit = opsi.slice();
+        katalogBrandLain(brandId, seri).forEach(function (v) { opsi.push(v); });
+        var opsiLain = opsi.slice(opsiUnit.length);
+        function opsiVal(v) { return 'h' + opsi.indexOf(v); }
         pilihSel.innerHTML = '<option value="">\u2014 pilih harga di Kalkulator Service HP \u2014</option>' +
-          semua.map(function (v) {
-            return '<option value="' + esc((v.tpl.payload || v.tpl).ruleId) + '">' +
-              esc(labelVarian(v)) + '</option>';
-          }).join('') +
+          (opsiUnit.length
+            ? '<optgroup label="Untuk unit ini (' + esc(seri) + ')">' +
+                opsiUnit.map(function (v) {
+                  return '<option value="' + opsiVal(v) + '">' + esc(labelVarian(v)) + '</option>';
+                }).join('') + '</optgroup>'
+            : '') +
+          (opsiLain.length
+            ? '<optgroup label="Harga tersimpan lain di Kalkulator">' +
+                opsiLain.map(function (v) {
+                  return '<option value="' + opsiVal(v) + '">' + esc(labelVarianSeri(v)) + '</option>';
+                }).join('') + '</optgroup>'
+            : '') +
           '<option value="atur">Atur aturan part (seperti Kalkulator Service HP)</option>' +
           '<option value="manual">Lainnya (input manual)</option>';
-        if (!semua.length) {
-          info.textContent = 'Belum ada harga untuk ' + seri +
-            ' di Kalkulator Service HP. Pilih "Lainnya" untuk input manual.';
+        if (!opsiUnit.length) {
+          info.textContent = (opsiLain.length
+            ? 'Unit ini belum punya harga tersimpan, tapi ada ' + opsiLain.length +
+              ' harga tersimpan lain di Kalkulator. '
+            : 'Belum ada harga tersimpan di Kalkulator untuk brand ini. ') +
+            'Pilih "Atur aturan" untuk menghitung sendiri.';
         }
 
         function gambarDaftar() {

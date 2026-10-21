@@ -1116,6 +1116,20 @@ body.mc-open{ overflow:hidden; }
   border-color:transparent;
 }
 .mc-ghost-btn.danger{ color:var(--mc-red); border-color:#4a2325; }
+/* Tombol aturan part di sheet "Tambah Sparepart". WAJIB memakai variabel tema:
+   tombol dengan latar terang hard-code + warna teks yang ikut tema membuat
+   tulisannya hilang total di tema gelap (keluhan Alima: "ada bug putih pada
+   tambah sparepart"). */
+.mc-rules{ display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 10px; }
+.mc-rule-btn{
+  min-height:40px; padding:8px 12px; border-radius:10px; cursor:pointer;
+  border:1px solid var(--mc-line, #26302b); background:var(--mc-card2, #1b231f);
+  color:var(--mc-txt, #e8f0ec); font-size:13px; font-weight:600;
+}
+.mc-rule-btn.on{
+  background:var(--mc-card, #141a17); border-color:var(--mc-grn, #1fbf6b);
+  color:var(--mc-grn, #1fbf6b);
+}
 /* Tanda sudah tersimpan: tombol "Simpan & Buka Detail" berubah kuning setelah
    sukses, jadi progresnya kelihatan tanpa tombol tambahan. */
 /* Warna kuning disamakan dengan status "Progress" yang sudah dipakai proyek

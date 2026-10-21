@@ -323,6 +323,12 @@
       // noteNumberRaw sengaja tidak disentuh supaya nomor nota yang sudah
       // terbit pada nota lama tetap sama seperti sebelumnya.
       if (o.intakeCondition == null) { o.intakeCondition = ''; changed = true; }
+      // Nota lama bisa menyimpan teks "undefined"/"null" karena bug String()
+      // di atas. Bereskan sekali di sini supaya tidak pernah ikut tercetak.
+      if (o.intakeCondition === 'undefined' || o.intakeCondition === 'null') {
+        o.intakeCondition = '';
+        changed = true;
+      }
       if (o.warrantyNote == null) { o.warrantyNote = null; changed = true; }
       // ID internal untuk dipakai pada catatan/journal supaya nota yang belum
       // punya nomor tetap punya pengenal. Hanya diisi kalau kosong; nota lama
@@ -1007,8 +1013,12 @@
 
     // Kondisi & kelengkapan unit saat diterima. Boleh kosong (tidak wajib),
     // tapi kalau diisi tampil di nota pelanggan sebagai bukti serah terima.
+    /* Dua-duanya bisa tidak dikirim klien. Tanpa cabang terakhir, String()
+       mengubah undefined menjadi teks "undefined" dan kondisi unit di nota
+       pelanggan berbunyi "undefined" — pernah terlihat di layar detail. */
     var intake = String(
-      inp.intake_condition != null ? inp.intake_condition : inp.intakeCondition
+      inp.intake_condition != null ? inp.intake_condition
+        : (inp.intakeCondition != null ? inp.intakeCondition : '')
     ).trim();
     if (intake.length > 500) throw bad('Kondisi unit terlalu panjang (maks 500)');
 
