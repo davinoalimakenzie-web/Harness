@@ -1330,7 +1330,7 @@
         var _saved = (window.MascimLocal && MascimLocal.parsePattern) ? MascimLocal.parsePattern(_patSec.value) : [];
         if (_saved.length > 0) {
           for (var _i = 0; _i < _saved.length; _i++) {
-            var _idx = Math.round(_saved[_i].y * 3) * 3 + Math.round(_saved[_i].x * 3);
+            var _idx = Math.round(_saved[_i].y * 2) * 3 + Math.round(_saved[_i].x * 2);
             if (_idx >= 0 && _idx < 9) {
               var _dot = _patPad.querySelector('[data-dot="' + _idx + '"]');
               if (_dot) _dot.classList.add('hit');

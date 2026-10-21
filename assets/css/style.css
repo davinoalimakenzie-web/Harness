@@ -1262,9 +1262,9 @@ select.mc-inp{ appearance:none; }
   font-size:13px; font-weight:600; text-decoration:none;
 }
 .mc-lock{ position:relative; }
-.mc-lockrow{ display:flex; gap:6px; align-items:stretch; }
+.mc-lockrow{ display:flex; gap:6px; align-items:stretch; width:100%; }
 .mc-lockrow .mc-inp{ flex:1 1 auto; min-width:0; }
-.mc-lockrow .mc-eye{ flex:0 0 46px; min-height:46px; border:1px solid var(--mc-line); border-radius:10px; background:var(--mc-card); color:var(--mc-txt); font-size:18px; cursor:pointer; }
+.mc-lockrow .mc-eye{ flex:0 0 46px; min-height:46px; border:1px solid var(--mc-line); border-radius:10px; background:var(--mc-card); color:var(--mc-txt); font-size:18px; cursor:pointer; position:static; }
 .mc-lockrow .mc-locksave{ flex:0 0 auto; min-height:46px; padding:0 12px; border:1px solid var(--mc-grn); border-radius:10px; background:var(--mc-grn); color:#fff; font-size:14px; font-weight:600; cursor:pointer; }
 .mc-eye{
   position:absolute; right:4px; top:4px; width:38px; height:38px;
