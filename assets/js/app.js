@@ -331,7 +331,7 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
     TG.haptic('success');
     App.toast(senyap
-      ? 'Backup otomatis ke HP (nota ke-' + (S.Data.state.notes || []).length + ')'
+      ? 'Backup otomatis ke HP (nota ke-' + ((S.state.notes || []).length) + ')'
       : 'Backup JSON diunduh' + (f.adaMascim ? ' + Mas Cim' : ''));
   }
 
@@ -685,7 +685,9 @@
     App.openAccountSheet = openAccountSheet;
 
     // Data
-    $('#dExport').addEventListener('click', exportJSON);
+    // Dibungkus: tanpa ini objek Event masuk sebagai argumen `senyap`,
+    // sehingga ekspor manual memakai pesan "backup otomatis".
+    $('#dExport').addEventListener('click', function () { exportJSON(); });
     var shareBtn = $('#dShareTelegram');
     if (shareBtn) shareBtn.addEventListener('click', bagikanKeTelegram);
     $('#dImport').addEventListener('click', function () { $('#dFile').click(); });

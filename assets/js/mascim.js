@@ -1113,6 +1113,12 @@
         var pilih = this.dataset.lock;
         // Chip yang sama dicentang lagi berarti membatalkan kunci.
         var aktif = this.classList.contains('on');
+        /* WAJIB: salin dulu isian yang sedang diketik (Kendala, Nama, No. WA)
+           ke draft SEBELUM form digambar ulang. Tanpa ini render() membangun
+           ulang textarea dari draft yang masih basi dan teks yang baru
+           diketik hilang — keluhan "ketik Kendala lalu tekan spasi, tulisan
+           hilang". */
+        readDraft();
         M.draft.screen_lock_type = aktif ? 'Tanpa Kunci' : pilih;
         M.draft.screen_lock_secret = '';
         // Form digambar ulang, BUKAN hanya mengubah kelas chip. Setiap jenis
@@ -1122,6 +1128,18 @@
         // muncul — karena juga bindPatternPad tidak pernah menemukan
         // elemen #fPat untuk dipasangkan.
         render();
+        /* Lepas fokus dari chip: di HP tombol yang masih ter-fokus
+           diaktifkan lagi oleh tombol SPASI pada keyboard, sehingga tiap
+           spasi menjalankan ulang handler ini (form digambar ulang + pilihan
+           kunci terbalik) dan teks Kendala ikut terhapus. */
+        this.blur();
+      });
+      /* Tombol SPASI pada keyboard HP tidak boleh mengaktifkan chip ini:
+         chip yang masih ter-fokus akan terpicu tiap spasi, menggambar ulang
+         form, membalik pilihan kunci, dan (sebelum perbaikan draft) menghapus
+         teks Kendala yang sedang diketik. Enter tetap berfungsi. */
+      chips[ci].addEventListener('keydown', function (e) {
+        if (e.key === ' ' || e.key === 'Spacebar' || e.keyCode === 32) e.preventDefault();
       });
     }
 
@@ -1138,8 +1156,10 @@
     var clear = $('#fLockClear');
     if (clear) {
       clear.addEventListener('click', function () {
+        readDraft();
         M.draft.screen_lock_secret = '';
         render();
+        this.blur();
       });
     }
 
@@ -1149,6 +1169,15 @@
         syncLockUI();
       });
     }
+
+    /* Kolom teks menyalin isinya ke draft setiap ketikan — TANPA menggambar
+       ulang, jadi kursor tidak hilang. Dengan begitu tidak ada jalur render()
+       mana pun (chip kunci, tombol pola, atau kode baru di kemudian hari)
+       yang bisa menghapus teks yang sedang diketik. */
+    ['#fName', '#fWa', '#fComplaint'].forEach(function (sel) {
+      var el = $(sel);
+      if (el) el.addEventListener('input', function () { readDraft(); });
+    });
 
     // Pola: simpan hasil gambar ke draft setiap kali selesai.
     var patSecret = $('#fPatSecret');
@@ -1170,9 +1199,11 @@
       patSave.addEventListener('click', function () {
         var secret = $('#fPatSecret');
         if (!secret || !secret.value) { alertErr('Gambar pola dulu'); return; }
+        readDraft();
         M.draft.screen_lock_secret = secret.value;
         M.draft.screenLockSaved = true;
         render();
+        this.blur();
       });
     }
     syncLockUI();
