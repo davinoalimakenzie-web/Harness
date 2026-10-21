@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#517da2">
+<title>Kalkulator Ronce — Project Nava</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="assets/css/style.css?v=20261020a">
+<style>
+/* Fallback CSS variables untuk halaman standalone */
+:root {
+  --text: #1a1a2e;
+  --text-2: #4a4a68;
+  --text-3: #8a8aa3;
+  --bg: #f0f2f5;
+  --bg-2: #ffffff;
+  --bg-3: #e8eaf0;
+  --line: #d0d3dd;
+  --accent: #517da2;
+  --accent-2: #3a5f7d;
+  --danger: #e74c3c;
+  --success: #27ae60;
+  --tap: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #e8eaf0;
+    --text-2: #b0b3c0;
+    --text-3: #7a7d8a;
+    --bg: #12121e;
+    --bg-2: #1e1e2e;
+    --bg-3: #2a2a3e;
+    --line: #3a3a4e;
+    --accent: #6ba3d6;
+    --accent-2: #4a8ab5;
+    --tap: #1e1e2e;
+  }
+}
+/* Fix dropdown putih */
+.sel-wrap select {
+  color: var(--text) !important;
+  background: var(--bg-2, var(--tap)) !important;
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- ============ HEADER ============ -->
+  <header class="topbar">
+    <div class="topbar-title">
+      <h1 id="pageTitle">Kalkulator Ronce</h1>
+      <span id="pageSub" class="muted">HARGA SERVIS HP &middot; RONCE</span>
+    </div>
+  </header>
+
+  <!-- ============ KALKULATOR (satu-satunya view) ============ -->
+  <section id="view-service" class="view active">
+    <!-- ===== Perhitungan estimasi biaya ===== -->
+    <div class="card">
+      <div class="list-head tight">
+        <strong>Perhitungan estimasi biaya</strong>
+      </div>
+      <div id="kRules" class="k-rules"></div>
+    </div>
+
+    <!-- ===== Panel ringkas: 4 tombol isian + tombol simpan bulat ===== -->
+    <div class="card k-panel-card">
+      <div class="k-edit-note hidden" id="kEditNote" aria-hidden="true">
+        <span>Sedang mengedit: <b id="kEditName">&mdash;</b></span>
+        <button type="button" class="icon-btn sm" id="kEditCancel" title="Batal edit" aria-label="Batal edit">&#10005;</button>
+      </div>
+
+      <div class="k-quad">
+        <div class="q-tile q-part">
+          <span class="q-lbl">Harga part</span>
+          <input type="text" id="kPart" inputmode="numeric" placeholder="150000">
+        </div>
+
+        <div class="q-tile q-est">
+          <span class="q-lbl">Harga estimasi</span>
+          <div class="q-val" id="kEst">Rp0</div>
+        </div>
+
+        <div class="q-tile q-brand">
+          <span class="q-lbl">Brand HP</span>
+          <button type="button" class="q-pick" id="kBrandPick" aria-haspopup="listbox" aria-expanded="false">
+            <span id="kBrandVal">Samsung</span>
+            <span class="q-pick-caret" aria-hidden="true">&#9662;</span>
+          </button>
+          <select id="kBrand" class="q-sr" aria-label="Brand HP" tabindex="-1"></select>
+        </div>
+
+        <div class="q-tile q-series">
+          <span class="q-lbl">Seri HP</span>
+          <button type="button" class="q-pick q-pick-right" id="kSeriesPick" aria-haspopup="listbox" aria-expanded="false">
+            <span id="kSeriesVal">&mdash;</span>
+            <span class="q-pick-caret" aria-hidden="true">&#9662;</span>
+          </button>
+          <select id="kSeries" class="q-sr" aria-label="Seri HP" tabindex="-1"></select>
+          <input type="text" id="kSeriesEdit" class="hidden" aria-hidden="true"
+                 placeholder="Nama seri HP" aria-label="Edit nama seri HP">
+        </div>
+
+        <button id="kSaveTpl" class="q-save" type="button" title="Simpan harga" aria-label="Simpan harga"></button>
+      </div>
+
+      <p class="hint xs" id="kFormulaOut">Isi harga part, lalu pilih perhitungan estimasi biaya.</p>
+
+      <div class="k-in-row hidden" id="kBrandName" aria-hidden="true" tabindex="-1">
+        <label class="field k-in-half">
+          <span class="lbl">Brand manual</span>
+          <input type="text" id="kBrandNameInput" placeholder="Contoh: Advan, Evercoss, dll">
+        </label>
+        <label class="field k-in-half">
+          <span class="lbl">Seri manual</span>
+          <input type="text" id="kSeriesNameInput" placeholder="Contoh: S50, A57, dll">
+        </label>
+      </div>
+      <input type="text" id="kName" class="hidden" aria-hidden="true" tabindex="-1" placeholder="Ketik seri HP di sini…">
+      <div class="k-suggest hidden" id="kSeriesSuggest" aria-hidden="true" role="listbox"></div>
+      <div class="k-suggest hidden" id="kPickList" aria-hidden="true" role="listbox"></div>
+    </div>
+
+    <!-- ===== Harga tersimpan ===== -->
+    <div class="card">
+      <div class="list-head tight">
+        <strong>Harga tersimpan <span class="tpl-total" id="kTotalTpl">0</span></strong>
+      </div>
+      <p class="hint xs">Disimpan dari kombinasi brand, seri, dan estimasi biaya. Tombol
+        <b>&darr;</b> mengambil dari server, <b>&uarr;</b> mengirim ke server.</p>
+      <div id="tplList" class="list"></div>
+    </div>
+
+    <p class="hint xs" style="text-align:center;margin:6px 0 18px">
+      Halaman ini khusus Kalkulator Ronce.
+      <a href="index.html">Buka aplikasi lengkap</a>
+    </p>
+  </section>
+
+  <div id="toast" class="toast hidden"></div>
+</div>
+
+<!-- Dependencies: calc.js butuh Store, TG, App dulu -->
+<script src="assets/js/store.js?v=20261021a"></script>
+<script src="assets/js/tg.js"></script>
+<script src="assets/js/app.js?v=20261021a"></script>
+<script src="assets/js/supabase.js?v=20261017s"></script>
+<script src="assets/js/calc.js?v=20261021a"></script>
+<script src="assets/js/calc-sync.js?v=20261021a"></script>
+
+<script>
+// Auto-init kalkulator (sama seperti Kalkulator Service HP)
+window.addEventListener('DOMContentLoaded', function() {
+  if (window.CalcUI) window.CalcUI.init();
+  if (window.Telegram && window.Telegram.WebApp) {
+    window.Telegram.WebApp.ready();
+    window.Telegram.WebApp.expand();
+  }
+});
+</script>
+</body>
+</html>

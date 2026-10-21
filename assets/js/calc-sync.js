@@ -63,16 +63,11 @@
     });
   }
 
-  /* ---------- Transport: Supabase vault ---------- */
-  function kirim() {
-    if (sedangKirim) return;
-
-    /* Lewat endpoint Serverless (tgcloud.ai). */
-    if (serverlessAktif()) {
-      panggil('savePrices', { rev: rev(), templates: daftar() }).catch(function () {});
-      return;
-    }
-
+  /* ---------- Transport: Supabase vault (cadangan) ---------- */
+  /* Dipakai kalau endpoint Serverless tidak ada ATAU gagal. Sebelum ini
+     kegagalan endpoint membuat kiriman hilang tanpa jejak, sehingga data
+     yang sudah dibuat di perangkat tidak pernah sampai ke server. */
+  function kirimVault() {
     if (!w.Supa || typeof w.Supa.vaultPut !== 'function') return;
     var tunggu = PUSH_GAP - (Date.now() - terakhirKirim);
     if (tunggu > 0) {
@@ -84,6 +79,18 @@
     terakhirKirim = Date.now();
     w.Supa.vaultPut(KEY, { rev: rev(), templates: daftar() });
     w.setTimeout(function () { sedangKirim = false; }, PUSH_GAP);
+  }
+
+  function kirim() {
+    if (sedangKirim) return;
+
+    /* Lewat endpoint Serverless (tgcloud.ai) kalau tersedia. */
+    if (serverlessAktif()) {
+      panggil('savePrices', { rev: rev(), templates: daftar() })
+        .catch(function () { kirimVault(); });
+      return;
+    }
+    kirimVault();
   }
 
   /* Dipanggil setiap data harga berubah di perangkat ini. */
@@ -111,6 +118,36 @@
     return Object.keys(peta).map(function (k) { return peta[k]; });
   }
 
+  /* ---------- Jaring pengaman harga tersimpan ----------
+     Sebelum daftar lokal ditimpa data server, salinan daftar lokal
+     disimpan lebih dulu (3 salinan terakhir). Jadi berapa pun entri yang
+     lenyap, isinya masih bisa dipulihkan lewat CalcSync.pulihkanCadangan(). */
+  var SAFETY = 'nava.templates.safety';
+
+  function cadangkanLokal() {
+    try {
+      var kini = daftar();
+      if (!kini.length) return;
+      var arr;
+      try { arr = JSON.parse(w.localStorage.getItem(SAFETY) || '[]'); } catch (e) { arr = []; }
+      if (!Array.isArray(arr)) arr = [];
+      arr.unshift({ at: cap(), rev: rev(), jumlah: kini.length, templates: kini });
+      while (arr.length > 3) arr.pop();
+      w.localStorage.setItem(SAFETY, JSON.stringify(arr));
+    } catch (e) { /* storage penuh: jangan ganggu jalannya sinkronisasi */ }
+  }
+
+  function kunciEntri(t) {
+    return (w.Store && w.Store.templateKey) ? w.Store.templateKey(t.payload || t) : (t.id || '');
+  }
+
+  /* Entri lokal yang TIDAK ada di daftar server = bakal hilang kalau ditimpa. */
+  function bakalHilang(lokal, jauh) {
+    var ada = {};
+    (jauh || []).forEach(function (t) { ada[kunciEntri(t)] = true; });
+    return (lokal || []).filter(function (t) { return !ada[kunciEntri(t)]; });
+  }
+
   /* Terima data dari server lalu terapkan ke perangkat ini.
      Bentuk yang diterima: { rev, templates } (hasil endpoint langsung,
      atau isi dari baris vault Supabase). */
@@ -136,6 +173,7 @@
     /* Belum pernah sinkron (rev lokal kosong): GABUNG, jangan timpa —
        perangkat lama bisa saja sudah punya data sendiri. */
     if (!rev()) {
+      cadangkanLokal();
       var gabungan = gabung(daftar(), templatesCloud);
       w.Store.state.templates = gabungan;
       w.Store.state.templatesRev = cap();
@@ -149,6 +187,26 @@
     }
 
     if (revCloud <= rev()) return false;   // lokal sama atau lebih baru
+
+    /* PENJAGA: kalau data server akan menghapus BANYAK entri lokal, itu
+       tanda salinan server lebih sedikit/lebih tua (mis. perangkat lain
+       yang datanya belum lengkap). Gabung saja, jangan timpa — supaya
+       harga yang sudah dibuat tidak pernah lenyap tanpa jejak. */
+    var hilang = bakalHilang(daftar(), templatesCloud);
+    if (hilang.length >= 3 && hilang.length > templatesCloud.length * 0.3) {
+      cadangkanLokal();
+      w.Store.state.templates = gabung(daftar(), templatesCloud);
+      w.Store.state.templatesRev = cap();
+      try { w.Store.save(); } catch (e) {}
+      gambarUlang();
+      kirim();
+      if (!diam && w.App && w.App.toast) {
+        w.App.toast('Harga tersimpan digabung — ' + hilang.length + ' harga lokal diselamatkan', 4000, 'ok');
+      }
+      return true;
+    }
+
+    cadangkanLokal();
     w.Store.state.templates = templatesCloud;
     w.Store.state.templatesRev = revCloud;
     try { w.Store.save(); } catch (e) {}
@@ -159,7 +217,23 @@
     return true;
   }
 
-  /* Tarik data server; pakai kalau lebih baru dari versi lokal. */
+  /* Transport cadangan: tabel vault Supabase. */
+  function tarikVault(diam) {
+    if (!w.Supa || typeof w.Supa.vaultGet !== 'function') {
+      sedangTarik = false;
+      return Promise.resolve(false);
+    }
+    return w.Supa.vaultGet(KEY).then(function (baris) {
+      sedangTarik = false;
+      return terapkan(baris && baris.isi, diam);
+    }).catch(function () { sedangTarik = false; return false; });
+  }
+
+  /* Tarik data server; pakai kalau lebih baru dari versi lokal.
+     PENTING: kalau endpoint Serverless gagal (mis. initData tidak
+     tersedia di luar Telegram), tarikan TIDAK boleh menyerah — lanjut
+     lewat vault Supabase. Kegagalan diam-diam di sini dulu membuat harga
+     tersimpan yang ada di server tidak pernah masuk ke perangkat. */
   function tarik(diam) {
     if (sedangTarik) return Promise.resolve(false);
     sedangTarik = true;
@@ -168,16 +242,14 @@
       return panggil('loadPrices', {})
         .then(function (hasil) {
           sedangTarik = false;
-          return terapkan({ rev: hasil.rev || '', templates: hasil.templates }, diam);
+          if (hasil && (hasil.rev || Array.isArray(hasil.templates))) {
+            return terapkan({ rev: hasil.rev || '', templates: hasil.templates }, diam);
+          }
+          return tarikVault(diam);      // endpoint menjawab tapi kosong
         })
-        .catch(function () { sedangTarik = false; return false; });
+        .catch(function () { return tarikVault(diam); });
     }
-
-    if (!w.Supa || typeof w.Supa.vaultGet !== 'function') return Promise.resolve(false);
-    return w.Supa.vaultGet(KEY).then(function (baris) {
-      sedangTarik = false;
-      return terapkan(baris && baris.isi, diam);
-    }).catch(function () { sedangTarik = false; return false; });
+    return tarikVault(diam);
   }
 
   function mulai() {
@@ -200,12 +272,40 @@
     w.setTimeout(function () { tarik(true); }, 1500);
   }
 
+  /* Pulihkan daftar harga dari salinan pengaman lokal.
+     Mengembalikan jumlah entri yang dipulihkan (0 = tidak ada salinan). */
+  function pulihkanCadangan() {
+    try {
+      var arr = JSON.parse(w.localStorage.getItem(SAFETY) || '[]');
+      if (!Array.isArray(arr) || !arr.length) return 0;
+      var isi = arr[0].templates || [];
+      if (!isi.length) return 0;
+      w.Store.state.templates = gabung(daftar(), isi);
+      w.Store.state.templatesRev = cap();
+      try { w.Store.save(); } catch (e) {}
+      gambarUlang();
+      kirim();
+      return isi.length;
+    } catch (e) { return 0; }
+  }
+
+  /* Daftar salinan pengaman yang tersimpan di perangkat ini. */
+  function daftarCadangan() {
+    try {
+      var arr = JSON.parse(w.localStorage.getItem(SAFETY) || '[]');
+      if (!Array.isArray(arr)) return [];
+      return arr.map(function (x) { return { at: x.at, jumlah: x.jumlah }; });
+    } catch (e) { return []; }
+  }
+
   w.CalcSync = {
     KEY: KEY,
     mulai: mulai,
     kirim: kirim,
     tarik: tarik,
     tandaiBerubah: tandaiBerubah,
-    rev: rev
+    rev: rev,
+    pulihkanCadangan: pulihkanCadangan,
+    daftarCadangan: daftarCadangan
   };
 })(window);

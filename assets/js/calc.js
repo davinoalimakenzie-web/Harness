@@ -105,8 +105,45 @@
     { brandId: 'infinix', brandName: 'Infinix', series: 'Smart 5',   ruleId: 'lcd-biasa', part: 105000 }
   ];
 
+  /* Tombol sinkronisasi manual di kartu "Harga tersimpan". Dipasang dari
+     sini supaya halaman mana pun yang memuat kalkulator (index.html,
+     service.html, ronce.html) ikut mendapatkannya. */
+  function pasangTombolSync() {
+    if (!w.CalcSync) return;
+    var total = $('#kTotalTpl');
+    var head = total && total.closest ? total.closest('.list-head') : null;
+    if (!head || head.querySelector('.k-sync-wrap')) return;
+    var wrap = document.createElement('span');
+    wrap.className = 'k-sync-wrap';
+    wrap.style.cssText = 'display:inline-flex;gap:6px;margin-left:8px;vertical-align:middle';
+    function tombol(label, judul, fn) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'icon-btn sm k-sync-btn';
+      b.textContent = label;
+      b.title = judul;
+      b.setAttribute('aria-label', judul);
+      b.addEventListener('click', fn);
+      return b;
+    }
+    wrap.appendChild(tombol('\u2193', 'Tarik harga tersimpan dari server', function () {
+      if (w.App && w.App.toast) w.App.toast('Mencari harga tersimpan di server\u2026', 2200);
+      w.CalcSync.tarik(false);
+    }));
+    wrap.appendChild(tombol('\u2191', 'Kirim harga tersimpan ke server', function () {
+      w.CalcSync.kirim();
+      if (w.App && w.App.toast) w.App.toast('Harga tersimpan dikirim ke server', 2400, 'ok');
+    }));
+    head.appendChild(wrap);
+  }
+
   function seedIfNeeded() {
     var t = S.state.templates || [];
+    /* Hanya untuk pemasangan baru (daftar masih kosong). Kalau sudah ada
+       harga tersimpan, seed TIDAK boleh ikut menambah atau menimpanya —
+       dulu seed selalu dipaksa masuk untuk setiap brand yang belum ada
+       isinya, sehingga daftar bisa berubah sendiri. */
+    if (t.length) return;
     SEED_DATA.forEach(function (s) {
       // Paksa seed: tambah kalau brand ini belum punya data
       var exists = t.some(function (x) { return (x.payload || {}).brandId === s.brandId; });
@@ -709,6 +746,7 @@
 
     /* Sinkronisasi harga tersimpan antar tautan/perangkat (real-time). */
     if (w.CalcSync) w.CalcSync.mulai();
+    pasangTombolSync();
 
     if ($('#kEditCancel')) {
       $('#kEditCancel').addEventListener('click', function () {

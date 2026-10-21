@@ -243,7 +243,12 @@
       txs: Array.isArray(p.txs) ? p.txs : [],
       pool: Array.isArray(p.pool) ? p.pool : [],
       pendingPush: Array.isArray(p.pendingPush) ? p.pendingPush : [],
-      templates: Array.isArray(p.templates) ? p.templates : []
+      templates: Array.isArray(p.templates) ? p.templates : [],
+      /* Penanda versi sinkronisasi harga tersimpan. WAJIB ikut dimuat:
+         tanpa ini rev lokal selalu kosong setiap halaman dibuka ulang,
+         sehingga modul sinkronisasi selalu mengira perangkat ini belum
+         pernah sinkron dan memakai jalur gabung terus-menerus. */
+      templatesRev: typeof p.templatesRev === 'string' ? p.templatesRev : ''
     };
     if (!Array.isArray(out.settings.categories) || !out.settings.categories.length) {
       out.settings.categories = defaultCategories();

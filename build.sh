@@ -7,7 +7,7 @@ cd "$(dirname "$0")"
 rm -rf dist
 mkdir -p dist
 
-cp index.html service.html dist/
+cp index.html service.html ronce.html dist/
 cp -r assets dist/
 
 echo "dist/ siap: $(find dist -type f | wc -l) file"
