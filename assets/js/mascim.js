@@ -737,7 +737,7 @@
           esc(t) + '</button>';
       }).join('') +
       '</div>' +
-      '<button type="button" class="mc-locktoggle" id="fLockToggle">' +
+      '<button type="button" class="mc-locktoggle' + (d.screen_lock_type === 'Pola' ? '' : ' mc-none') + '" id="fLockToggle">' +
         (d.lockHidden ? '\u25B8 Tampilkan isi kunci' : '\u25BE Sembunyikan isi kunci') +
       '</button>' +
       // Kolom isian menyesuaikan jenis kunci. Untuk "Pola" yang yang tampil
@@ -1159,7 +1159,15 @@
       // belum ada yang tersimpan, padahal tombol Simpan justru berada DI
       // DALAM pad itu — jadi tidak ada jalan masuk sama sekali.
       // Sembunyikan hanya lewat tombol yang ditekan pengguna.
-      var tampil = tipe !== 'Tanpa Kunci' && !M.draft.lockHidden;
+      var tampil;
+      if (tipe === 'PIN' || tipe === 'Password') {
+        // PIN/Password selalu terlihat (tidak disembunyikan)
+        tampil = true;
+      } else if (tipe === 'Pola') {
+        tampil = !M.draft.lockHidden;
+      } else {
+        tampil = false;
+      }
       wrap.classList.toggle('mc-none', !tampil);
       if (lockOk) lockOk.hidden = !(tipe !== 'Tanpa Kunci' && !!isi);
       var tog = $('#fLockToggle');
@@ -1301,7 +1309,41 @@
     }
 
     // Perekam pola (hanya saat jenis kunci = Pola)
-    if (document.getElementById('fPat')) bindPatternPad($('#fPatSecret'));
+    if (document.getElementById('fPat')) {
+      bindPatternPad($('#fPatSecret'));
+      // Restore pola yang sudah tersimpan agar terlihat (bukan kosong)
+      var _patSec = $('#fPatSecret');
+      var _patPad = document.getElementById('fPat');
+      if (_patSec && _patSec.value && _patPad) {
+        var _line = _patPad.querySelector('.mc-pcanvas');
+        var _grid = _patPad.querySelector('.mc-pgrid');
+        var _nodes = _patPad.querySelectorAll('.mc-pdot');
+        var _hint = _patPad.querySelector('.mc-phint');
+        var _saved = (window.MascimLocal && MascimLocal.parsePattern) ? MascimLocal.parsePattern(_patSec.value) : [];
+        if (_saved.length > 0) {
+          for (var _i = 0; _i < _saved.length; _i++) {
+            var _idx = Math.round(_saved[_i].y * 3) * 3 + Math.round(_saved[_i].x * 3);
+            if (_idx >= 0 && _idx < 9) {
+              var _dot = _patPad.querySelector('[data-dot="' + _idx + '"]');
+              if (_dot) _dot.classList.add('hit');
+            }
+          }
+          if (_saved.length >= 2 && _line && _grid) {
+            var _r = _grid.getBoundingClientRect();
+            if (_r.width && _r.height) {
+              var _d = '';
+              for (var _i = 0; _i < _saved.length; _i++) {
+                var _x = _saved[_i].x * 100;
+                var _y = _saved[_i].y * 100;
+                _d += (_i ? 'L' : 'M') + _x.toFixed(2) + ' ' + _y.toFixed(2) + ' ';
+              }
+              _line.innerHTML = '<path d="' + _d + '" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
+            }
+          }
+          if (_hint) _hint.textContent = 'Pola tersimpan: ' + _saved.length + ' titik. Ketuk ulang untuk mengganti.';
+        }
+      }
+    }
 
     // Sparepart dan Total Biaya tidak lagi ada di form ini (lihat renderForm),
     // jadi tidak ada baris part maupun kolom total yang perlu dipasangi
