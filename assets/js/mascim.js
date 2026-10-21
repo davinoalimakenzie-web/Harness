@@ -51,6 +51,22 @@
   // setiap kali layar detail dirender ulang.
   var dropOutsideBound = false;
 
+  /* Pilihan Estimasi Biaya yang sedang tertampil di form saat form ini
+     digambar. readDraft() membandingkannya dengan pilihan sekarang supaya
+     Total Biaya hanya diturunkan ulang dari Kalkulator bila pemakai benar-
+     benar MENGGANTI pilihannya; kalau tidak, angka yang tersimpan (mis.
+     hasil koreksi manual di layar detail) dibiarkan utuh. Disimpan di luar
+     M.draft supaya tidak ikut dibandingkan isDirty(). */
+  var estAwalForm = '';
+
+  /* Isi kolom "Estimasi biaya (Rp)" saat form terakhir digambar. Dipakai
+     readDraft() untuk tahu apakah angka manual benar-benar DIKETIK ULANG:
+     tanpa ini, mengetik angka satu per satu (event `input` memicu readDraft
+     tiap karakter) membuat Total Biaya tersbeken di digit pertama saja —
+     "350000" jadi "3" karena penjaga "hanya isi kalau masih kosong" melihat
+     total yang sudah terisi digit pertama. */
+  var estManualAwal = '';
+
   var M = {
     view: 'home',        // home | list | form | detail | money
     tab: 'cashflow',     // cashflow | bank
@@ -196,12 +212,12 @@
           '<button data-mv="money"><b>Keuangan</b><span>Cashflow servis</span></button>' +
         '</div>' +
 
-        '<button class="mc-primary" data-mv="form">+&nbsp; Tambah Servis</button>' +
+        '<button class="mc-primary" data-mv="form">+&nbsp; Input Servis</button>' +
 
         '<div class="mc-sec">5 Servis Terbaru</div>' +
         (d.recent.length
           ? d.recent.map(orderCard).join('')
-          : '<p class="mc-empty">Belum ada servis. Tekan <b>Tambah Servis</b> untuk mulai.</p>') +
+          : '<p class="mc-empty">Belum ada servis. Tekan <b>Input Servis</b> untuk mulai.</p>') +
       '</div>';
   }
 
@@ -547,24 +563,46 @@
      ========================================================= */
   function blankDraft() {
     return {
-      customer_name: '', whatsapp: '', device: '', complaint: '', seri_lain: '',
+      customer_name: '', whatsapp: '', device: '', complaint: '',
       intake_condition: '',
       screen_lock_type: 'Tanpa Kunci', screen_lock_secret: '', screenLockSaved: false,
       // Status buka/tutup area kunci disimpan di draft, bukan di DOM,
       // supaya bertahan meski form digambar ulang.
       lockHidden: false,
       handling: '', total_cost: '', service_status: INITIAL_STATUS,
+      // Estimasi Biaya: brand manual (dropdown brand "Lainnya…"),
+      // pilihan harga (nilai "SERI|ruleId" dari Kalkulator, atau "Lainnya"),
+      // dan model/estimasi yang diketik sendiri pada pilihan "Lainnya".
+      // brand_manual diisi readDraft() supaya bindForm() tahu bahwa dropdown
+      // brand harus dikembalikan ke "Lainnya…" setelah form digambar ulang —
+      // tanpa itu brand kembali ke "Pilih brand" dan kolom nama brand yang
+      // sedang diisi ikut tertutup.
+      brand_lain: '', brand_manual: false, est_sel: '', seri_lain: '', est_manual: '',
       parts: [],
     };
   }
 
   function draftFromOrder(o) {
+    /* Brand yang tidak ada di katalog Kalkulator tidak bisa dikenali dari
+       string device saja (pisahDevice mengembalikan brand kosong). Nama itu
+       disimpan sebagai brand_lain + brand_manual supaya form edit menampilkan
+       dropdown "Lainnya…" beserta kolomnya, bukan menebak brand katalog yang
+       kebetulan sama persis. */
+    var db = pisahDevice(o.device);
+    var brandManual = !db[0];
     return {
       customer_name: o.customerName, whatsapp: o.whatsapp, device: o.device,
       complaint: o.complaint, intake_condition: o.intakeCondition || '',
       screen_lock_type: o.screenLockType, screen_lock_secret: '',
       handling: o.handling, total_cost: o.totalCost ? String(o.totalCost) : '',
       service_status: o.serviceStatus,
+      // Pilihan Estimasi Biaya tidak disimpan mesin data (field tetap), jadi
+      // saat edit dropdown diisi ulang dari device + Kalkulator lewat
+      // bindForm(). Yang penting di sini adalah TOTAL LAMA: kalau dropdown
+      // tidak menghasilkan angka, readDraft memakai angka ini kembali.
+      brand_lain: brandManual ? db[1] : '',
+      brand_manual: brandManual,
+      est_sel: '', seri_lain: '', est_manual: '',
       parts: o.parts.map(function (p) {
         return { part_name: p.partName, capital_cost: String(p.capitalCost) };
       }),
@@ -576,10 +614,11 @@
     var editing = !!M.editing;
     setBar(editing ? 'Edit Servis' : 'Servis Baru');
 
-    /* Form ini hanya mencatat PENERIMAAN unit. Angka biaya (Total Biaya,
-       Modal Part, Perkiraan Jasa) tidak dihitung di sini lagi: sparepart
-       diisi lewat sheet "+ Tambah Sparepart" di layar detail, dan Total
-       Biaya diisi di layar detail. Lihat catatan di bawah. */
+    /* Form ini hanya mencatat PENERIMAAN unit + Estimasi Biaya.
+       Estimasi Biaya diambil dari dropdown (harga tersimpan di Kalkulator
+       Service HP) dan langsung jadi Total Biaya nota. Modal part TIDAK
+       dihitung di sini: modal lahir dari sparepart yang ditambahkan lewat
+       sheet "+ Tambah Sparepart" di layar detail. */
 
     var html = '<div class="mc-pad">';
 
@@ -606,20 +645,33 @@
         '</div>' +
       '</div></div>';
 
-    // Unit
+    // Unit — brand + Estimasi Biaya.
+    // Estimasi biaya TIDAK diketik sebagai angka bebas: isinya harga yang
+    // benar-benar tersimpan di Kalkulator Service HP untuk brand itu, dan
+    // labelnya memuat seri + jenis part + estimasi. Memilih salah satu
+    // membawa seri itu sendiri (device tetap "Brand Seri") sekaligus
+    // menetapkan Total Biaya nota dari angka Kalkulator — bukan angka yang
+    // diketik ulang di sini.
     html += field('Device *',
       '<div class="mc-row2">' +
         '<select class="mc-inp" id="fBrand"><option value="">Pilih brand</option>' +
           w.CalcUI.BRANDS.map(function (b) {
             return '<option value="' + esc(b.id) + '">' + esc(b.name) + '</option>';
           }).join('') +
+          // Brand di luar daftar tetap bisa dicatat: pilih "Lainnya…" lalu
+          // tulis namanya di kolom di bawah.
+          '<option value="Lainnya">Lainnya\u2026</option>' +
         '</select>' +
-        '<select class="mc-inp" id="fSeries"><option value="">Pilih seri</option></select>' +
+        '<select class="mc-inp" id="fEstimasi"><option value="">Estimasi Biaya</option>' +
+          '<option value="Lainnya">Lainnya (isi sendiri)\u2026</option></select>' +
       '</div>' +
-      // Kolom ini hanya dipakai kalau seri dipilih "Lainnya…", supaya model yang
-      // tidak ada di katalog tetap bisa dicatat sebagai "Brand + model".
-      '<input class="mc-inp sm" id="fSeriLain" value="' + esc(d.seri_lain || '') +
-      '" placeholder="Model lain (hanya jika pilih Lainnya…)">');
+      '<input class="mc-inp sm mc-none" id="fBrandLain" value="' + esc(d.brand_lain || '') +
+      '" placeholder="Nama brand (hanya jika pilih Lainnya\u2026)">' +
+      // Dua kolom ini hanya terbuka kalau harganya belum ada di Kalkulator.
+      '<input class="mc-inp sm mc-none" id="fSeriLain" value="' + esc(d.seri_lain || '') +
+      '" placeholder="Model HP">' +
+      '<input class="mc-inp sm mc-none" id="fEstManual" inputmode="numeric" value="' +
+      esc(d.est_manual || '') + '" placeholder="Estimasi biaya (Rp)">');
     // Kendala dan kondisi unit digabung jadi satu isian. Memisahkannya hanya
     // menambah tinggi form tanpa menambah informasi: yang dicari teknisi tetap
     // "apa yang rusak dan kondisi barang saat masuk". Satu teks ini disimpan di
@@ -629,12 +681,11 @@
     // Urutan itu yang dipakai form ini, jadi setiap isian diletakkan sesuai
     // urutan langkah teknisi saat menerima unit.
 
-    /* SPAREPART dan BIAYA TIDAK ada di form ini. Form Tambah Servis hanya
-       mengisi: Nama Pelanggan, No. WA, Brand HP, Seri HP, Kunci Layar, dan
-       Keluhan/Kondisi. Sparepart diisi setelah nota dibuat lewat tombol
-       "+ Tambah Sparepart" di layar detail (saat status Progress) — di sana
-       harga selalu diambil dari Kalkulator Service HP dan Total Biaya ikut
-       terakumulasi otomatis. */
+    /* Estimasi biaya HANYA dari Kalkulator Service HP (dropdown Estimasi
+       Biaya di atas). Kalau harganya belum ada di Kalkulator, pemakai memilih
+       "Lainnya (isi sendiri)" dan mengetik model + estimasi manual. Sparepart
+       diisi setelah nota dibuat lewat tombol "+ Tambah Sparepart" di layar
+       detail, dan di sana semua harga selalu mengambil dari Kalkulator. */
 
     // Kendala & kondisi unit
     html += field('Kendala &amp; kondisi unit *' +
@@ -741,21 +792,61 @@
     d.whatsapp = ($('#fWa') || {}).value || '';
     // Device disusun dari dua dropdown, lalu digabung jadi satu string
     // "Brand Seri" supaya seluruh kode lain yang membaca o.device tetap utuh.
-    var bSel = $('#fBrand'), sSel = $('#fSeries');
+    // Dropdown kedua adalah "Estimasi Biaya": isinya harga dari Kalkulator
+    // Service HP, dan nilai yang dipilih membawa seri device-nya.
+    var bSel = $('#fBrand'), eSel = $('#fEstimasi');
+    var brandId = (bSel && bSel.value) || '';
     var brandName = '';
-    if (bSel && bSel.value) {
-      var b = w.CalcUI.BRANDS.filter(function (x) { return x.id === bSel.value; })[0];
+    d.brand_lain = (($('#fBrandLain') || {}).value || '').trim();
+    // Diisi di sini (bukan di blankDraft) supaya bindForm() tahu dropdown brand
+    // harus dikembalikan ke "Lainnya…" setelah form digambar ulang.
+    d.brand_manual = brandId === 'Lainnya';
+    if (brandId === 'Lainnya') {
+      // Brand di luar daftar CalcUI: namanya diketik sendiri, dan tidak ada
+      // harga Kalkulator untuk brand ini sehingga estimasinya manual.
+      brandName = d.brand_lain;
+    } else if (brandId) {
+      var b = w.CalcUI.BRANDS.filter(function (x) { return x.id === brandId; })[0];
       brandName = b ? b.name : '';
     }
-    var seri = (sSel && sSel.value) || '';
-    // "Lainnya…" berarti modelnya diketik sendiri di kolom tambahan, bukan
-    // nama seri dari katalog.
+    d.est_sel = (eSel && eSel.value) || '';
     d.seri_lain = (($('#fSeriLain') || {}).value || '').trim();
-    // Model yang diketik di kolom "Lainnya…" harus tetap dipakai walau
-    // dropdown seri sedang menunjuk "Pilih seri" (dropdown bisa ter-reset
-    // saat form digambar ulang). Tanpa ini nama model hilang dan device
-    // yang disimpan cuma berisi brand.
-    if (seri === 'Lainnya' || (!seri && d.seri_lain)) seri = d.seri_lain;
+    d.est_manual = (($('#fEstManual') || {}).value || '').trim();
+    var seri = '', est = '';
+    if (d.est_sel && d.est_sel !== 'Lainnya') {
+      /* Nilai dropdown = "SERI|ruleId". Estimasi diambil ULANG dari data
+         Kalkulator (bukan dari teks label) supaya Total Biaya nota persis
+         sama dengan angka Kalkulator walau labelnya dirapikan nanti. */
+      var bits = String(d.est_sel).split('|');
+      seri = bits[0] || '';
+      var pilih = ((w.Store && w.Store.state && w.Store.state.templates) || [])
+        .map(function (t) { return t.payload || t; })
+        .filter(function (p) {
+          return p && p.brandId === brandId && p.series === seri && p.ruleId === bits[1];
+        })[0];
+      if (pilih) est = String(parseInt(pilih.est, 10) || 0);
+    } else if (d.est_sel === 'Lainnya') {
+      // Model + estimasi diketik manual: harga ini yang jadi Total Biaya nota.
+      seri = d.seri_lain;
+      if (d.est_manual) est = String(parseInt(String(d.est_manual).replace(/\D/g, ''), 10) || 0);
+    }
+    /* Nota lama yang tidak menyimpan pilihan estimasi (est_sel kosong) tetap
+       harus menyimpan nama modelnya: ambil dari device yang tersimpan. Kunci
+       brand-nya harus sama dengan dropdown sekarang supaya seri lama tidak
+       ikut pindah saat pemakai memang MENGGANTI brand. */
+    if (!seri) {
+      var lama = pisahDevice(d.device);
+      if (lama[0] && lama[0] === brandId && lama[1]) seri = lama[1];
+    }
+    /* Total Biaya mengikuti pilihan Estimasi Biaya HANYA kalau sumber
+       angkanya benar-benar berubah sejak form digambar (dropdown diganti
+       ATAU angka manual diketik ulang). Kalau tidak berubah, angka yang
+       tersimpan dibiarkan apa adanya — pemakai boleh mengoreksinya manual
+       di layar detail, dan mengedit hal lain di form ini tidak boleh
+       menghapus koreksi itu. */
+    if (d.est_sel !== estAwalForm || d.est_manual !== estManualAwal) {
+      d.total_cost = est;
+    } else if (d.total_cost === '' && est) d.total_cost = est;
     d.device = brandName ? (seri && seri !== 'Lainnya' ? brandName + ' ' + seri : brandName) : '';
 
     d.complaint = ($('#fComplaint') || {}).value || '';
@@ -787,38 +878,39 @@
     return d;
   }
 
-  /* Isi dropdown seri sesuai brand terpilih.
-     WAJIB berada di scope modul: dipanggil dari bindForm() dan
-     openPartSheet(), bukan hanya dari renderForm(). Kalau dideklarasikan di
-     dalam renderForm, kedua pemanggil itu dapat ReferenceError — gejalanya
-     dropdown seri tidak pernah terisi DAN sheet sparepart tidak pernah terbuka. */
-  function isiSeri(brandSel, seriSel, seriDipilih) {
-    if (!brandSel || !seriSel) return;
-    /* Seri HANYA diambil dari KALKULATOR SERVICE HP (CalcUI.seriTersimpan),
-       yaitu seri yang benar-benar punya harga tersimpan di sana. Grup
-       "Katalog HP" (katalog bawaan CalcUI.SERIES) sudah DIHAPUS supaya daftar
-       seri di form ini tidak pernah menampilkan model yang tidak ada
-       harganya di Kalkulator. Urutannya: seri dari Kalkulator, lalu
-       "Lainnya…" untuk model yang diketik manual. */
-    var CalcUI = w.CalcUI || {};
-    var dariKalkulator = (CalcUI.seriTersimpan
-      ? CalcUI.seriTersimpan(brandSel.value)
-      : []);
-    var opsi = function (s) {
-      return '<option value="' + esc(s) + '"' +
-        (s === seriDipilih ? ' selected' : '') + '>' + esc(s) + '</option>';
-    };
-    var html = '<option value="">Pilih seri</option>';
-    if (dariKalkulator.length) {
-      html += '<optgroup label="Dari Kalkulator Service">' +
-        dariKalkulator.map(opsi).join('') + '</optgroup>';
-    }
-    /* "Lainnya…" dipilih kalau seri tersimpan tidak ada di daftar mana pun,
-       supaya model di luar daftar tetap bisa dicatat lewat #fSeriLain. */
-    html += '<option value="Lainnya"' +
-      (seriDipilih && dariKalkulator.indexOf(seriDipilih) === -1 ? ' selected' : '') +
-      '>Lainnya…</option>';
-    seriSel.innerHTML = html;
+  /* WAJIB berada di scope modul: dipanggil dari bindForm(), bukan hanya dari
+     renderForm(). Kalau dideklarasikan di dalam renderForm, pemanggilnya
+     dapat ReferenceError dan dropdown estimasi tidak pernah terisi. */
+  /* Dropdown "Estimasi Biaya" di form Input Servis.
+     Isinya HANYA harga yang benar-benar tersimpan di Kalkulator Service HP
+     untuk brand yang dipilih (Store.state.templates) — jadi angka estimasi di
+     nota selalu sama dengan Kalkulator, tidak diketik ulang dari nol.
+     Label tiap baris memuat seri + jenis part + estimasi supaya teknisi bisa
+     memilih langsung dari harganya; nilai yang dipilih membawa seri itu
+     sendiri ("SERI|ruleId") sehingga device tetap tersimpan "Brand Seri".
+     Model/harga yang belum ada di Kalkulator lewat opsi "Lainnya". */
+  function isiEstimasi(brandSel, estSel, brandId, dipilih) {
+    if (!estSel) return;
+    var tpl = ((w.Store && w.Store.state && w.Store.state.templates) || [])
+      .map(function (t) { return t.payload || t; })
+      .filter(function (p) {
+        return p && p.series && brandId && brandId !== 'Lainnya' && p.brandId === brandId;
+      });
+    var html = '<option value="">Estimasi Biaya</option>';
+    tpl.forEach(function (p) {
+      var r = ruleByRuleId(p.ruleId);
+      var val = p.series + '|' + p.ruleId;
+      html += '<option value="' + esc(val) + '"' + (val === dipilih ? ' selected' : '') + '>' +
+        esc(p.series + ' \u00b7 ' + ((r && (r.name || r.id)) || p.ruleId) +
+          ' \u2014 ' + rupiah(p.est)) + '</option>';
+    });
+    html += '<option value="Lainnya"' + (dipilih === 'Lainnya' ? ' selected' : '') +
+      '>Lainnya (isi sendiri)\u2026</option>';
+    estSel.innerHTML = html;
+    /* Brand baru (atau model yang belum punya harga di Kalkulator) tidak
+       punya satu baris harga pun, jadi "Lainnya" langsung ditandai supaya
+       kolom model + estimasi manual terbuka tanpa satu ketukan tambahan. */
+    if (!tpl.length && brandId && !dipilih) estSel.value = 'Lainnya';
   }
 
   /* Pecah device yang tersimpan jadi [idBrand, seri] supaya form edit bisa
@@ -891,34 +983,73 @@
   function bindForm() {
     var s = screen();
 
-    // Brand -> seri. Seri hanya menampilkan model milik brand yang dipilih,
-    // jadi tidak mungkin memilih seri yang tidak cocok. Saat form dibuka untuk
-    // edit, device yang sudah tersimpan dipecah lalu ditandai ulang.
-    var brandSel = $('#fBrand'), seriSel = $('#fSeries');
-    if (brandSel && seriSel) {
+    // Brand -> Estimasi Biaya. Dropdown estimasi hanya menampilkan harga yang
+    // benar-benar tersimpan di Kalkulator Service HP untuk brand terpilih,
+    // jadi tidak mungkin memilih harga milik brand lain. Saat form dibuka
+    // untuk edit, device yang sudah tersimpan dipecah lalu ditandai ulang.
+    var brandSel = $('#fBrand'), estSel = $('#fEstimasi');
+    if (brandSel && estSel) {
       var sudah = pisahDevice(M.draft && M.draft.device);
-      if (sudah[0]) brandSel.value = sudah[0];
-      /* Kalau model diketik lewat "Lainnya…" (model yang belum punya harga di
-         Kalkulator), pilihan "Lainnya…" harus tetap ditandai setelah form
-         digambar ulang. Tanpa ini dropdown kembali ke "Pilih seri", lalu
-         readDraft membaca seri = '' dan nama model yang sudah diketik hilang
-         dari device yang disimpan — device akhirnya cuma berisi brand. */
-      var seriAktif = sudah[1] || (M.draft && M.draft.seri_lain ? 'Lainnya' : '');
-      isiSeri(brandSel, seriSel, seriAktif);
+      /* Brand yang diketik manual ("Lainnya…") harus tetap ditandai setelah
+         form digambar ulang. Tanpa ini dropdown kembali ke "Pilih brand",
+         kolom nama brand ikut tertutup, dan nama yang sedang diketik hilang
+         dari device yang disimpan. */
+      var manualBrand = !!(M.draft && (M.draft.brand_manual || M.draft.brand_lain));
+      if (manualBrand) brandSel.value = 'Lainnya';
+      else if (sudah[0]) brandSel.value = sudah[0];
+      var estAktif = (M.draft && M.draft.est_sel) || '';
+      if (!estAktif && sudah[1]) {
+        // Nota lama yang cuma menyimpan "Brand Seri": tandai baris harga
+        // pertama untuk seri itu supaya estimasinya ikut terisi kembali.
+        var kandidat = ((w.Store && w.Store.state && w.Store.state.templates) || [])
+          .map(function (t) { return t.payload || t; })
+          .filter(function (p) {
+            return p && p.brandId === brandSel.value && p.series === sudah[1];
+          })[0];
+        if (kandidat) estAktif = kandidat.series + '|' + kandidat.ruleId;
+      }
+      isiEstimasi(brandSel, estSel, brandSel.value, estAktif);
+
+      /* Kolom manual (nama brand, model, estimasi) hanya dibuka saat memang
+         dipakai, supaya form tetap 6 isian seperti yang diminta. */
+      function syncUnitUI() {
+        var brandLainIn = $('#fBrandLain');
+        if (brandLainIn) brandLainIn.classList.toggle('mc-none', brandSel.value !== 'Lainnya');
+        var manual = estSel.value === 'Lainnya';
+        var seriLainIn = $('#fSeriLain'), estManIn = $('#fEstManual');
+        if (seriLainIn) seriLainIn.classList.toggle('mc-none', !manual);
+        if (estManIn) estManIn.classList.toggle('mc-none', !manual);
+      }
+      syncUnitUI();
+      /* Baris harga yang sedang tertampil menjadi patokan readDraft(): selama
+         pemakai tidak mengubahnya, Total Biaya nota tidak diturunkan ulang
+         dari Kalkulator. */
+      estAwalForm = estSel.value || '';
+      /* Angka manual ikut dicatat sebagai patokan yang sama, supaya Total
+         Biaya di layar detail tidak dianggap "berubah" hanya karena kolom
+         ini belum pernah disentuh. */
+      estManualAwal = (($('#fEstManual') || {}).value || '').trim();
+
       brandSel.addEventListener('change', function () {
-        isiSeri(brandSel, seriSel, '');
+        // Dropdown estimasi diisi ulang dari brand yang baru; "Lainnya"
+        // ditandai otomatis kalau brand itu belum punya harga di Kalkulator.
+        isiEstimasi(brandSel, estSel, brandSel.value, '');
         // readDraft() dulu supaya M.draft.device terisi dari select yang barusan
         // berubah, dan field lain yang sudah diketik tidak ikut hilang saat
-        // form digambar ulang. Sebelumnya device dikosongkan di sini, lalu
-        // bindForm() membaca pisahDevice('') dan me-reset brand ke kosong —
-        // itu yang membuat dropdown seri selalu terisi lalu langsung hilang.
+        // form digambar ulang.
         readDraft();
         render();
       });
-      seriSel.addEventListener('change', function () {
+      estSel.addEventListener('change', function () {
         readDraft();
         render();
       });
+      // Mengetik di kolom manual tidak perlu menggambar ulang form (kursor
+      // akan hilang), cukup disalin ke draft supaya ikut tersimpan.
+      var brandLainIn = $('#fBrandLain');
+      if (brandLainIn) brandLainIn.addEventListener('input', function () { readDraft(); });
+      var estManIn = $('#fEstManual');
+      if (estManIn) estManIn.addEventListener('input', function () { readDraft(); });
     }
 
     // Tombol Chat WhatsApp muncul begitu nomornya valid, tanpa perlu
@@ -2429,11 +2560,18 @@
               { part_name: p.name, capital_cost: p.cost });
           }))
             .then(function () {
-              // Total Biaya otomatis terakumulasi dari estimasi harga jual
-              // sparepart yang ditambahkan.
-              var baru = ((M.current && M.current.totalCost) || 0) + totalEst;
+              /* Total Biaya nota SUDAH diisi dari Estimasi Biaya saat nota
+                 dibuat, jadi sparepart TIDAK menambahkannya lagi — kalau
+                 ditambahkan, harga part terhitung dua kali (sekali di
+                 estimasi, sekali di sini). Yang diakumulasi sparepart adalah
+                 MODAL PART (capital_cost tiap part dijumlahkan mesin data).
+                 Pengecualian: kalau nota belum punya Estimasi Biaya sama
+                 sekali (Total Biaya masih 0), totalnya diisi dari estimasi
+                 jual part supaya nota tidak berisi 0. */
+              var kini = (M.current && M.current.totalCost) || 0;
+              if (kini > 0) return null;
               return api('PATCH', '/api/mascim/services/' + encodeURIComponent(orderId),
-                { total_cost: baru });
+                { total_cost: totalEst });
             })
             .then(function () {
               // Harga dari Kalkulator disimpan balik supaya nota berikutnya
