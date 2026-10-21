@@ -63,33 +63,30 @@
     });
   }
 
-  /* ---------- Transport: Supabase vault (cadangan) ---------- */
-  /* Dipakai kalau endpoint Serverless tidak ada ATAU gagal. Sebelum ini
-     kegagalan endpoint membuat kiriman hilang tanpa jejak, sehingga data
-     yang sudah dibuat di perangkat tidak pernah sampai ke server. */
+  /* ---------- Transport: Supabase vault ---------- */
+  /* Dua penyimpanan server yang dipakai bergantian: tabel `priceLists` di
+     tgcloud (lewat endpoint Serverless) dan tabel `vault` di Supabase.
+     Keduanya adalah salinan TERPISAH, dan salah satunya bisa berisi data
+     lama — pernah kejadian: endpoint berisi 6 sedangkan vault berisi 73.
+     Karena itu kiriman selalu ditulis ke DUA-DUANYA (bukan salah satu),
+     dan tarikan selalu membaca DUA-DUANYA lalu digabung. */
   function kirimVault() {
     if (!w.Supa || typeof w.Supa.vaultPut !== 'function') return;
-    var tunggu = PUSH_GAP - (Date.now() - terakhirKirim);
-    if (tunggu > 0) {
-      w.clearTimeout(kirim._t);
-      kirim._t = w.setTimeout(function () { sedangKirim = false; kirim(); }, tunggu + 50);
-      return;
-    }
-    sedangKirim = true;
-    terakhirKirim = Date.now();
     w.Supa.vaultPut(KEY, { rev: rev(), templates: daftar() });
-    w.setTimeout(function () { sedangKirim = false; }, PUSH_GAP);
   }
 
   function kirim() {
     if (sedangKirim) return;
+    sedangKirim = true;
+    terakhirKirim = Date.now();
+    w.setTimeout(function () { sedangKirim = false; }, PUSH_GAP);
 
     /* Lewat endpoint Serverless (tgcloud.ai) kalau tersedia. */
     if (serverlessAktif()) {
-      panggil('savePrices', { rev: rev(), templates: daftar() })
-        .catch(function () { kirimVault(); });
-      return;
+      panggil('savePrices', { rev: rev(), templates: daftar() }).catch(function () {});
     }
+    /* Selalu tulis juga ke vault Supabase: dua salinan server membuat
+       data harga tetap bisa dipulihkan walau satu jalur bermasalah. */
     kirimVault();
   }
 
@@ -217,39 +214,53 @@
     return true;
   }
 
-  /* Transport cadangan: tabel vault Supabase. */
-  function tarikVault(diam) {
-    if (!w.Supa || typeof w.Supa.vaultGet !== 'function') {
-      sedangTarik = false;
-      return Promise.resolve(false);
-    }
-    return w.Supa.vaultGet(KEY).then(function (baris) {
-      sedangTarik = false;
-      return terapkan(baris && baris.isi, diam);
-    }).catch(function () { sedangTarik = false; return false; });
+  /* Baca SATU jalur cadangan: tabel vault Supabase. Mengembalikan isi
+     atau null (tanpa pernah melempar). */
+  function tarikVault() {
+    if (!w.Supa || typeof w.Supa.vaultGet !== 'function') return Promise.resolve(null);
+    return w.Supa.vaultGet(KEY)
+      .then(function (baris) { return (baris && baris.isi) || null; })
+      .catch(function () { return null; });
   }
 
-  /* Tarik data server; pakai kalau lebih baru dari versi lokal.
-     PENTING: kalau endpoint Serverless gagal (mis. initData tidak
-     tersedia di luar Telegram), tarikan TIDAK boleh menyerah — lanjut
-     lewat vault Supabase. Kegagalan diam-diam di sini dulu membuat harga
-     tersimpan yang ada di server tidak pernah masuk ke perangkat. */
+  /* Ambil isi dari SEMUA jalur yang tersedia lalu gabungkan daftarnya.
+     Tidak ada jalur yang boleh dilewati: endpoint Serverless bisa saja
+     menjawab dengan salinan lama/lebih sedikit, dan itu dulu membuat harga
+     di layar tinggal 6 walaupun vault berisi 73. */
+  function ambilSemua() {
+    var janjiServerless = serverlessAktif()
+      ? panggil('loadPrices', {})
+          .then(function (h) { return h || null; })
+          .catch(function () { return null; })
+      : Promise.resolve(null);
+
+    return Promise.all([janjiServerless, tarikVault()]).then(function (hasil) {
+      var tpl = [], revPakai = '';
+      hasil.forEach(function (x) {
+        if (!x) return;
+        if (Array.isArray(x.templates) && x.templates.length) tpl = tpl.concat(x.templates);
+        if (x.rev && String(x.rev) > revPakai) revPakai = String(x.rev);
+      });
+      return { rev: revPakai, templates: tpl };
+    });
+  }
+
+  /* Tarik data server (kedua jalur) lalu terapkan ke perangkat ini. */
   function tarik(diam) {
     if (sedangTarik) return Promise.resolve(false);
     sedangTarik = true;
 
-    if (serverlessAktif()) {
-      return panggil('loadPrices', {})
-        .then(function (hasil) {
-          sedangTarik = false;
-          if (hasil && (hasil.rev || Array.isArray(hasil.templates))) {
-            return terapkan({ rev: hasil.rev || '', templates: hasil.templates }, diam);
-          }
-          return tarikVault(diam);      // endpoint menjawab tapi kosong
-        })
-        .catch(function () { return tarikVault(diam); });
-    }
-    return tarikVault(diam);
+    return ambilSemua().then(function (g) {
+      sedangTarik = false;
+      if (!g.templates.length) {
+        /* Kosong di semua jalur: kirim data lokal (migrasi pertama). */
+        return terapkan({ rev: '', templates: undefined }, diam);
+      }
+      /* rev kosong tapi ada isi: pakai rev baru supaya isi server tetap
+         dipakai (tanpa ini isi server diabaikan dan yang dikirim justru
+         salinan lokal yang lebih sedikit). */
+      return terapkan({ rev: g.rev || cap(), templates: g.templates }, diam);
+    }).catch(function () { sedangTarik = false; return false; });
   }
 
   function mulai() {
