@@ -241,7 +241,7 @@
         '<div class="mc-pgrid">' + dots + '</div>' +
         '<div class="mc-phint" id="fPatHint">Ketuk lalu tarik untuk menggambar pola</div>' +
       '</div>' +
-      '<button type="button" class="mc-primary full" id="fPatSave">Simpan Pola</button>' +
+      '<button type="button" class="mc-locksave" id="fPatSave" aria-label="Simpan pola">💾</button>' +
     '</div>';
   }
 
@@ -324,7 +324,6 @@
       drawLine();
     }
     function selesai() {
-      if (hint) hint.textContent = 'Pola tersimpan: ' + drawn.length + ' titik. Ketuk ulang untuk mengganti.';
       pad.dispatchEvent(new Event('patternchange'));
     }
     function up() {
@@ -1340,7 +1339,7 @@
               _line.innerHTML = '<path d="' + _d + '" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
             }
           }
-          if (_hint) _hint.textContent = 'Pola tersimpan: ' + _saved.length + ' titik. Ketuk ulang untuk mengganti.';
+          // area pola tetap rapi — tanpa tulisan "simpan"
         }
       }
     }

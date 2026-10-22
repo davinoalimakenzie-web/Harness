@@ -1194,6 +1194,12 @@ body.mc-open{ overflow:hidden; }
   background: rgba(255,255,255,.25);
   color: #fff;
 }
+/* Caret penanda buka/tutup daftar harga tersimpan pada brand aktif. */
+.tpl-caret {
+  font-size: 11px;
+  line-height: 1;
+  opacity: .85;
+}
 
 /* Kunci layar: daftar centang, bukan dropdown, supaya teknisi tidak perlu
    membuka menu. Kolom isian muncul hanya setelah ada yang dicentang dan

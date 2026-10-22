@@ -29,6 +29,7 @@
   var brandId = 'samsung';
   var seriesId = '';
   var filterBrand = 'samsung'; // brand filter untuk daftar harga tersimpan
+  var tplHidden = false;       // daftar harga tersimpan disembunyikan (klik brand aktif 2x)
   var editingKey = null;       // entri lama yang sedang diedit (lewat tombol ↺)
   var justSavedKey = null;     // entri yang barusan tersimpan (kilatan hijau)
   var _justSavedT = null;
@@ -609,8 +610,11 @@
       var btns = pair.map(function (bid) {
         var b = brandById(bid);
         var count = t.filter(function (x) { return (x.payload || {}).brandId === bid; }).length;
-        return '<button class="tpl-brand-btn' + (bid === filterBrand ? ' on' : '') + '" data-tplbrand="' + esc(bid) + '">' +
-          esc(b.name) + (count ? ' <span class="tpl-count">' + count + '</span>' : '') + '</button>';
+        var aktif = bid === filterBrand;
+        var caret = aktif ? (tplHidden ? '▸' : '▾') : '';
+        return '<button class="tpl-brand-btn' + (aktif ? ' on' : '') + '" data-tplbrand="' + esc(bid) + '">' +
+          esc(b.name) + (count ? ' <span class="tpl-count">' + count + '</span>' : '') +
+          (caret ? ' <span class="tpl-caret">' + caret + '</span>' : '') + '</button>';
       }).join('');
       return '<div class="tpl-brand-pair">' + btns + '</div>';
     }).join('');
@@ -620,7 +624,10 @@
     var list = filterBrand
       ? t.filter(function (x) { return (x.payload || {}).brandId === filterBrand; })
       : t;
-      if (!list.length) {
+      if (tplHidden) {
+        /* Klik brand aktif 2x → daftar disembunyikan, brand tetap terpilih. */
+        html += '<p class="hint xs">Ketuk brand untuk melihat harga tersimpan.</p>';
+      } else if (!list.length) {
         html += '<p class="hint xs">Belum ada harga tersimpan untuk brand ini.</p>';
       } else {
         html += list.map(function (x) {
@@ -678,6 +685,7 @@
        hijau langsung terlihat (kalau tidak, daftarnya masih tersaring
        brand lain dan pengguna mengira tidak ada yang berubah). */
     filterBrand = payload.brandId;
+    tplHidden = false;
     justSavedKey = newKey;
     clearTimeout(_justSavedT);
     _justSavedT = setTimeout(function () { justSavedKey = null; }, 2600);
@@ -897,10 +905,15 @@
       var del = e.target.closest('[data-tpldel]');
       if (brandBtn) {
         var bid = brandBtn.dataset.tplbrand;
-        /* Toggle: klik brand yang sedang aktif → tampilkan SEMUA lagi
-           (unhide); klik brand lain → tampilkan brand itu saja (hide yang
-           lain). Ini perilaku yang dipakai sebelum commit f2685f9. */
-        filterBrand = (filterBrand === bid) ? '' : bid;
+        /* Klik brand → tampilkan daftar harga tersimpan brand itu.
+           Klik brand yang SAMA sekali lagi → sembunyikan daftar (brand tetap
+           terpilih, jadi tidak balik menampilkan semua brand). */
+        if (filterBrand === bid) {
+          tplHidden = !tplHidden;
+        } else {
+          filterBrand = bid;
+          tplHidden = false;
+        }
         renderTpl();
         TG.haptic('select');
         return;
