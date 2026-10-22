@@ -230,18 +230,21 @@
      sebagai alat bantu visual + penangkap titik; yang dibandingkan
      nanti adalah jarak antar titik (lihat matchPattern di mesin data).
   ------------------------------------------------------------------ */
-  function patternPad(value) {
+  function patternPad(value, ro) {
     var saved = (window.MascimLocal && MascimLocal.parsePattern) ? MascimLocal.parsePattern(value || '') : [];
     var dots = '';
     for (var i = 0; i < 9; i++) dots += '<i class="mc-pdot" data-dot="' + i + '"></i>';
-    return '<div class="mc-pat-wrap">' +
+    /* `ro` (read-only) dipakai layar detail: pola hanya DILIHAT, tidak bisa
+       digambar ulang dan tidak perlu tombol simpan. Dulu tombol "Simpan Pola"
+       ikut tampil di sana dan hanya memakan tempat (keluhan Alima). */
+    return '<div class="mc-pat-wrap' + (ro ? ' ro' : '') + '">' +
       '<input type="hidden" id="fPatSecret" value="' + esc(value || '') + '">' +
       '<div class="mc-pat" id="fPat" role="group" aria-label="Area pola">' +
         '<svg class="mc-pcanvas" id="fPatLine" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>' +
         '<div class="mc-pgrid">' + dots + '</div>' +
-        '<div class="mc-phint" id="fPatHint">Ketuk lalu tarik untuk menggambar pola</div>' +
+        (ro ? '' : '<div class="mc-phint" id="fPatHint">Ketuk lalu tarik untuk menggambar pola</div>') +
       '</div>' +
-      '<button type="button" class="mc-locksave" id="fPatSave" aria-label="Simpan pola">💾</button>' +
+      (ro ? '' : '<button type="button" class="mc-locksave" id="fPatSave" aria-label="Simpan pola">\u{1F4BE}</button>') +
     '</div>';
   }
 
@@ -756,7 +759,7 @@
               '" value="' + esc(d.screen_lock_secret) + '" placeholder="' +
               (d.screen_lock_type === 'PIN' ? 'misal: 1234' : 'isi kunci layar') + '">' +
               '<button class="mc-eye" id="fEye" type="button" aria-label="Tampilkan/Sembunyikan">👁</button>' +
-              '<button class="mc-locksave" id="fLockSave" type="button" aria-label="Simpan kunci">💾 Simpan</button>' +
+              '<button class="mc-locksave" id="fLockSave" type="button" aria-label="Simpan kunci">\u{1F4BE}</button>' +
             '</div>') +
       '</div>' +
       // Kalau sudah ada kunci yang tersimpan, tampilkan rangkuman supaya
@@ -1613,6 +1616,16 @@
       '</div>' +
     '</div>';
 
+    // Navigasi cepat antar-seksi. Halaman detail panjang (pelanggan → status),
+    // jadi chip ini menghemat gulir jauh hanya untuk mengubah status.
+    html += '<div class="mc-quicknav">' +
+      '<button type="button" data-qn="qnPelanggan">Pelanggan</button>' +
+      '<button type="button" data-qn="qnSparepart">Sparepart</button>' +
+      '<button type="button" data-qn="qnBiaya">Biaya</button>' +
+      '<button type="button" data-qn="qnNota">Nota</button>' +
+      '<button type="button" data-qn="qnStatus">Status</button>' +
+    '</div>';
+
     // No. Nota dan Tanggal Masuk selalu tampil di semua status. Nomor resmi
     // baru ada setelah nota garansi diterbitkan; sebelum itu yang ditampilkan
     // adalah ref internal, tetap memakai kolom yang sama.
@@ -1638,7 +1651,7 @@
     }
 
     // Pelanggan & unit
-    html += '<div class="mc-sec">Pelanggan &amp; Unit</div>' +
+    html += '<div class="mc-sec" id="qnPelanggan">Pelanggan &amp; Unit</div>' +
       kv('Nama', o.customerName) +
       (o.whatsapp
         ? kv('WhatsApp', '<a class="mc-link" href="https://wa.me/' + waNum(o.whatsapp) + '" target="_blank" rel="noopener">' + esc(o.whatsapp) + '</a>')
@@ -1646,7 +1659,7 @@
       kv('Device', o.device) +
       kv('Kunci Layar', o.screenLockType + (o.hasScreenLock ? ' (tersimpan)' : '')) +
       (o.screenLockType === 'Pola' && o.screenLockSecret
-        ? '<div class="mc-detail-lock">' + patternPad(o.screenLockSecret) + '</div>'
+        ? '<div class="mc-detail-lock">' + patternPad(o.screenLockSecret, true) + '</div>'
         : (o.screenLockType !== 'Tanpa Kunci' && o.screenLockSecret
             ? '<div class="mc-detail-lock"><input class="mc-inp" type="text" readonly value="' + esc(o.screenLockSecret) + '"></div>'
             : ''));
@@ -1664,7 +1677,7 @@
       kv('Kendala & kondisi unit', esc(kendalaTeks) || '-');
 
     // Sparepart
-    html += '<div class="mc-sec">Sparepart</div>';
+    html += '<div class="mc-sec" id="qnSparepart">Sparepart</div>';
     if (o.parts.length) {
       html += '<div class="mc-ptable">';
       o.parts.forEach(function (p) {
@@ -1683,7 +1696,7 @@
        dilakukan saat pengambilan unit, jadi di status Progress dua baris itu
        hanya menampilkan Rp0 dan mengganggu. */
     var tampilBayar = (o.serviceStatus === 'Done' || o.serviceStatus === 'Done Diambil');
-    html += '<div class="mc-sec">Rincian Biaya</div>' +
+    html += '<div class="mc-sec" id="qnBiaya">Rincian Biaya</div>' +
       '<div class="mc-money"><div><span>Total Biaya</span><b>' + rupiah(o.totalCost) + '</b></div>' +
       '<div><span>Modal Sparepart</span><b class="neg">' + rupiah(o.totalPart) + '</b></div></div>' +
       '<div class="mc-money"><div><span>Jasa</span><b class="pos">' + rupiah(o.serviceFee) + '</b></div>' +
@@ -1764,7 +1777,7 @@
     // pembayaran belum lunas, nota ini BELUM punya nomor dan belum punya
     // link. Tombol terbit baru muncul setelah syaratnya benar-benar terpenuhi,
     // dan mesin data menegakkannya juga.
-    html += '<div class="mc-sec">Nota Garansi</div>';
+    html += '<div class="mc-sec" id="qnNota">Nota Garansi</div>';
     if (o.noteIssued && o.warrantyNote) {
       var wn = o.warrantyNote;
       html += '<div class="mc-noteok">' +
@@ -1835,7 +1848,7 @@
     // Hapus sudah dihapus di SEMUA status. Status hanya berubah lewat dropdown
     // "Ubah Status" di bawah, supaya tidak ada lagi dua jalan mengubah status
     // yang bisa berbeda satu sama lain.
-    html += '<div class="mc-sec">Ubah Status</div>';
+    html += '<div class="mc-sec" id="qnStatus">Ubah Status</div>';
     html += '<div class="mc-acts mc-side">' +
       // Simpan dan Ubah Status berdampingan. kejelasan tombol simpan
       // khusus: penanganan harus benar-benar tersimpan sebelum status diubah, dan
@@ -1906,6 +1919,24 @@
   }
 
   function bindDetail() {
+    /* Navigasi cepat antar-seksi. Hanya menggulir — tidak menyentuh status
+       atau data apa pun, jadi aman dipasang di layar detail. */
+    var _qn = document.querySelector('.mc-quicknav');
+    if (_qn) {
+      _qn.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-qn]');
+        if (!b) return;
+        var target = document.getElementById(b.dataset.qn);
+        if (!target) return;
+        Array.prototype.forEach.call(_qn.querySelectorAll('button'), function (x) {
+          x.classList.remove('on');
+        });
+        b.classList.add('on');
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        TG.haptic('select');
+      });
+    }
+
     // Penyimpanan otomatis: nilai dikirim saat kursor berpindah dari kolom,
     // bukan lewat tombol. Dua kolom memakai satu jalur supaya tidak ada
     // permintaan yang saling menimpa ketika keduanya berubah berdekatan.

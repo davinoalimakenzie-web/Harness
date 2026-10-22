@@ -2787,3 +2787,177 @@ select.mc-inp{ appearance:none; }
 button, .btn, .tool, .mini-btn, .tpl-brand-btn, .k-pick-btn, .nav-btn, .seg button{
   text-transform:uppercase;
 }
+
+/* =========================================================
+   POLISH VISUAL MAS CIM (2026-10-22)
+   Tema gelap futuristik, hanya menyentuh elemen ber-prefix .mc-*
+   supaya Beranda/Kalkulator tidak ikut berubah.
+   ========================================================= */
+.mc{
+  --mc-cy:#22d3ee;          /* aksen cyan: info sekunder, garis aktif */
+  --mc-vi:#a371f7;          /* aksen violet: Nggandul / penanda khusus */
+  --mc-glow-grn:0 0 0 1px rgba(31,191,107,.28), 0 8px 26px rgba(31,191,107,.16);
+  --mc-glow-cy:0 0 0 1px rgba(34,211,238,.22), 0 8px 24px rgba(34,211,238,.12);
+  background:
+    radial-gradient(1200px 420px at 50% -140px, rgba(34,211,238,.10), transparent 70%),
+    radial-gradient(900px 380px at 110% 10%, rgba(163,113,247,.08), transparent 70%),
+    var(--mc-bg);
+}
+
+/* --- kartu ringkasan: gradien hidup + kilau tipis --- */
+.mc-hero{
+  position:relative; overflow:hidden;
+  background:linear-gradient(140deg,#0f3a29 0%,#0d1f18 45%,#101b2b 100%);
+  border:1px solid rgba(34,211,238,.22);
+  box-shadow:0 10px 30px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.mc-hero::after{
+  content:''; position:absolute; inset:-40% -10%;
+  background:linear-gradient(115deg, transparent 38%, rgba(34,211,238,.16) 50%, transparent 62%);
+  transform:translateX(-120%);
+  animation:mcSheen 7s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes mcSheen{
+  0%,55%{ transform:translateX(-120%); }
+  85%,100%{ transform:translateX(120%); }
+}
+.mc-hero-lbl{ letter-spacing:1.2px; }
+.mc-hero-val{ text-shadow:0 0 22px rgba(31,191,107,.35); }
+
+/* --- KPI: garis aksen di atas, kaca gelap --- */
+.mc-kpi-i{
+  position:relative; overflow:hidden;
+  background:linear-gradient(180deg, rgba(34,211,238,.07), rgba(20,26,23,.9));
+  border:1px solid rgba(34,211,238,.14);
+  transition:transform .16s ease, border-color .16s ease;
+}
+.mc-kpi-i::before{
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg, var(--mc-cy), var(--mc-grn));
+  opacity:.65;
+}
+.mc-kpi-i:active{ transform:scale(.985); border-color:rgba(34,211,238,.4); }
+
+/* --- kartu servis: kaca + masuk halus --- */
+.mc-card{
+  background:linear-gradient(180deg, rgba(27,35,31,.96), rgba(17,23,20,.96));
+  border:1px solid var(--mc-line);
+  box-shadow:0 1px 0 rgba(255,255,255,.03), 0 8px 22px rgba(0,0,0,.28);
+  transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+  animation:mcIn .26s ease both;
+}
+.mc-card:active{
+  transform:translateY(-1px) scale(.995);
+  border-color:rgba(34,211,238,.35);
+  box-shadow:0 0 0 1px rgba(34,211,238,.18), 0 10px 26px rgba(0,0,0,.4);
+}
+.mc-card:nth-child(2){ animation-delay:.03s; }
+.mc-card:nth-child(3){ animation-delay:.06s; }
+.mc-card:nth-child(4){ animation-delay:.09s; }
+.mc-card:nth-child(5){ animation-delay:.12s; }
+@keyframes mcIn{
+  from{ opacity:0; transform:translateY(6px); }
+  to{ opacity:1; transform:none; }
+}
+
+/* --- badge status: pil dengan pendar warna sendiri --- */
+.mc-badge{ letter-spacing:.3px; font-weight:700; }
+.mc-badge.st-prog  { box-shadow:0 0 12px rgba(210,153,34,.28); }
+.mc-badge.st-done  { box-shadow:0 0 12px rgba(46,160,67,.30); }
+.mc-badge.st-ambil { box-shadow:0 0 12px rgba(47,129,247,.30); }
+.mc-badge.st-ngg   { box-shadow:0 0 12px rgba(163,113,247,.30); }
+.mc-badge.st-cancel{ box-shadow:0 0 12px rgba(240,136,62,.26); }
+.mc-badge.st-cambil{ box-shadow:0 0 12px rgba(229,83,75,.28); }
+
+/* --- tombol utama: gradien + kilau --- */
+.mc-primary{
+  position:relative; overflow:hidden;
+  background:linear-gradient(135deg,#22c55e 0%,#16a34a 55%,#0e8f4b 100%) !important;
+  color:#04140b !important;
+  box-shadow:0 6px 20px rgba(34,197,94,.32), inset 0 1px 0 rgba(255,255,255,.35);
+  letter-spacing:.3px;
+}
+.mc-primary::after{
+  content:''; position:absolute; top:0; bottom:0; width:40%;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
+  transform:translateX(-160%) skewX(-18deg);
+  animation:mcSheen 4.6s ease-in-out infinite;
+  pointer-events:none;
+}
+.mc-ghost-btn{
+  background:linear-gradient(180deg, rgba(34,211,238,.06), rgba(27,35,31,.95));
+  border-color:rgba(34,211,238,.16);
+  transition:border-color .15s ease, transform .15s ease;
+}
+.mc-ghost-btn:active{ transform:scale(.99); border-color:rgba(34,211,238,.42); }
+
+/* --- judul seksi: batang aksen --- */
+.mc-sec{
+  display:flex; align-items:center; gap:8px;
+  letter-spacing:1.1px;
+}
+.mc-sec::before{
+  content:''; width:3px; height:13px; border-radius:2px;
+  background:linear-gradient(180deg, var(--mc-cy), var(--mc-grn));
+  box-shadow:0 0 8px rgba(34,211,238,.5);
+  flex:0 0 3px;
+}
+
+/* --- panel alur: garis penghubung antar langkah --- */
+.mc-flow{
+  background:linear-gradient(180deg, rgba(34,211,238,.05), rgba(20,26,23,.92));
+  border:1px solid rgba(34,211,238,.16);
+}
+.mc-steps{ position:relative; }
+.mc-step{
+  background:rgba(27,35,31,.85);
+  transition:border-color .16s ease, background .16s ease;
+}
+.mc-step.on{
+  box-shadow:0 0 0 1px rgba(31,191,107,.35), 0 0 16px rgba(31,191,107,.18);
+}
+.mc-step.ok i{ box-shadow:0 0 10px rgba(31,191,107,.4); }
+
+/* --- kepala detail & kartu uang: kaca tipis --- */
+.mc-dhead, .mc-money{
+  background:linear-gradient(180deg, rgba(27,35,31,.95), rgba(18,24,21,.95));
+  border-color:rgba(34,211,238,.12);
+}
+.mc-money.big{
+  border-color:rgba(34,211,238,.3);
+  box-shadow:var(--mc-glow-cy);
+}
+
+/* --- navigasi cepat antar seksi di layar detail --- */
+.mc-quicknav{
+  display:flex; gap:6px; overflow-x:auto; padding:2px 0 10px;
+  scrollbar-width:none; -webkit-overflow-scrolling:touch;
+}
+.mc-quicknav::-webkit-scrollbar{ display:none; }
+.mc-quicknav button{
+  flex:0 0 auto; min-height:34px; padding:0 12px;
+  border-radius:999px; cursor:pointer;
+  border:1px solid rgba(34,211,238,.18);
+  background:rgba(27,35,31,.9); color:var(--mc-txt2);
+  font:inherit; font-size:12px; font-weight:700; letter-spacing:.4px;
+  text-transform:uppercase;
+}
+.mc-quicknav button.on{
+  color:#04140b; border-color:transparent;
+  background:linear-gradient(135deg, var(--mc-cy), #34d399);
+  box-shadow:0 0 14px rgba(34,211,238,.35);
+}
+/* target gulir jangan tertutup bar atas */
+.mc-sec[id]{ scroll-margin-top:12px; }
+
+/* --- area pola read-only (layar detail): rapat, tanpa tombol simpan --- */
+.mc-pat-wrap.ro{ margin-top:2px; }
+.mc-pat-wrap.ro .mc-pat{ min-height:0; }
+.mc-pat-wrap.ro .mc-pgrid{ padding:6px 0; }
+
+/* --- hormati pengaturan kurangi gerak --- */
+@media (prefers-reduced-motion: reduce){
+  .mc-hero::after, .mc-primary::after{ animation:none; }
+  .mc-card{ animation:none; }
+}
