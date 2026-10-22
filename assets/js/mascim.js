@@ -1593,6 +1593,11 @@
 
     var html = '<div class="mc-pad">';
 
+    /* Kepala statis: panel alur + navigasi cepat TIDAK ikut tergulir.
+       Halaman detail panjang, jadi "saya di langkah berapa" harus selalu
+       kelihatan tanpa menggulir balik ke atas. */
+    html += '<div class="mc-sticky">';
+
     // Panel alur: dua baris info (langkah sekarang + sisa tagihan) dan tiga
     // chip langkah. Ini yang membuat alur tidak membingungkan — user selalu
     // tahu "saya di mana, dan selanjutnya apa".
@@ -1626,6 +1631,8 @@
       '<button type="button" data-qn="qnStatus">Status</button>' +
     '</div>';
 
+    html += '</div>'; // tutup .mc-sticky
+
     // No. Nota dan Tanggal Masuk selalu tampil di semua status. Nomor resmi
     // baru ada setelah nota garansi diterbitkan; sebelum itu yang ditampilkan
     // adalah ref internal, tetap memakai kolom yang sama.
@@ -1658,11 +1665,18 @@
         : '') +
       kv('Device', o.device) +
       kv('Kunci Layar', o.screenLockType + (o.hasScreenLock ? ' (tersimpan)' : '')) +
-      (o.screenLockType === 'Pola' && o.screenLockSecret
-        ? '<div class="mc-detail-lock">' + patternPad(o.screenLockSecret, true) + '</div>'
-        : (o.screenLockType !== 'Tanpa Kunci' && o.screenLockSecret
-            ? '<div class="mc-detail-lock"><input class="mc-inp" type="text" readonly value="' + esc(o.screenLockSecret) + '"></div>'
-            : ''));
+      /* Kunci tersimpan = satu baris yang bisa dibuka-tutup. Tertutup secara
+         bawaan supaya hemat tempat; sekali ketuk langsung terlihat. */
+      (o.screenLockType !== 'Tanpa Kunci' && o.screenLockSecret
+        ? '<button type="button" class="mc-locktoggle" id="dLockToggle" aria-expanded="false" aria-controls="dLockBox">' +
+            '<span>' + esc(o.screenLockType === 'Pola' ? 'Pola tersimpan' : 'Kunci tersimpan') + '</span>' +
+            '<i aria-hidden="true">\u25b8</i></button>' +
+          '<div class="mc-detail-lock mc-none" id="dLockBox">' +
+            (o.screenLockType === 'Pola'
+              ? patternPad(o.screenLockSecret, true)
+              : '<input class="mc-inp" type="text" readonly value="' + esc(o.screenLockSecret) + '">') +
+          '</div>'
+        : '');
 
     /* Kendala & kondisi unit digabung jadi SATU baris. Penanganan TIDAK
        ditampilkan di sini: penanganan baru diisi saat status diubah ke Done,
@@ -1933,7 +1947,22 @@
       .catch(function (er) { alertErr(er.message); });
   }
 
+  /* Kepala detail mengecil saat digulir: tiga chip langkah disembunyikan,
+     tinggal "Langkah x dari 3 + Sisa" dan navigasi cepat. Dipasang sekali
+     di layar (bukan per render) supaya tidak menumpuk listener. */
+  function bindStickySlim() {
+    var scr = document.getElementById('mcScreen');
+    if (!scr || scr.dataset.slimBound) return;
+    scr.dataset.slimBound = '1';
+    scr.addEventListener('scroll', function () {
+      var st = scr.querySelector('.mc-sticky');
+      if (!st) return;
+      st.classList.toggle('mc-slim', scr.scrollTop > 28);
+    }, { passive: true });
+  }
+
   function bindDetail() {
+    bindStickySlim();
     /* Navigasi cepat antar-seksi. Hanya menggulir — tidak menyentuh status
        atau data apa pun, jadi aman dipasang di layar detail. */
     var _qn = document.querySelector('.mc-quicknav');
@@ -1947,7 +1976,34 @@
           x.classList.remove('on');
         });
         b.classList.add('on');
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        /* Gulir sendiri, jangan scrollIntoView: kepala detail menempel
+           (sticky) dan mengecil saat digulir, jadi posisi tujuan dihitung
+           dari tinggi kepala versi ringkas supaya judul seksi tidak
+           tertutup. */
+        var scrEl = document.getElementById('mcScreen');
+        var headEl = scrEl && scrEl.querySelector('.mc-sticky');
+        var headH = 110;
+        if (scrEl) {
+          var y = target.getBoundingClientRect().top -
+                  scrEl.getBoundingClientRect().top + scrEl.scrollTop - headH;
+          scrEl.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+        } else {
+          target.scrollIntoView({ block: 'start' });
+        }
+        TG.haptic('select');
+      });
+    }
+
+    /* Buka/tutup kunci tersimpan di layar detail. Hanya soal tampilan. */
+    var lockTgl = $('#dLockToggle');
+    if (lockTgl) {
+      lockTgl.addEventListener('click', function () {
+        var box = $('#dLockBox');
+        if (!box) return;
+        var tutup = box.classList.toggle('mc-none');
+        lockTgl.setAttribute('aria-expanded', tutup ? 'false' : 'true');
+        var ic = lockTgl.querySelector('i');
+        if (ic) ic.textContent = tutup ? '\u25b8' : '\u25be';
         TG.haptic('select');
       });
     }

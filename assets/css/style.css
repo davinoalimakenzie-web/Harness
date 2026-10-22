@@ -3006,3 +3006,180 @@ button, .btn, .tool, .mini-btn, .tpl-brand-btn, .k-pick-btn, .nav-btn, .seg butt
 .mc-prow .mc-x-sm{ height:30px; width:30px; flex:0 0 30px; font-size:13px; margin-left:-2px; }
 /* tombol status satu ketuk */
 .mc-next{ display:block; width:100%; margin:0 0 8px; }
+
+/* ==========================================================================
+   NAVA FUTURISTIC SKIN (2026-10-22)
+   Bahasa visual Mas Cim dipakai di modul lain: Kalkulator Servis HP,
+   Nava Trader, dan Pengingat. Murni CSS — markup & logika tidak diubah.
+   Trik utamanya: variabel tema di-remap per modul, jadi komponen lama
+   (card, item, chip, input, k-rule, nt-card) otomatis ikut warnanya.
+   ========================================================================== */
+
+.fx-kalk, #nt, .fx-notes{
+  --fx-cy:#22d3ee; --fx-vi:#a371f7; --fx-grn:#22c55e;
+  --fx-bg:#070c0b; --fx-card:#101a17; --fx-card2:#16211d;
+  --fx-line:rgba(34,211,238,.14); --fx-txt:#e9f1ed; --fx-txt2:#95a8a1;
+
+  --bg:var(--fx-bg); --bg-2:var(--fx-card); --bg-3:var(--fx-card2);
+  --bg-elev:var(--fx-card); --line:var(--fx-line);
+  --text:var(--fx-txt); --text-2:var(--fx-txt2); --text-3:#6f847c; --hint:#6f847c;
+  --accent:var(--fx-cy); --accent-2:#0ea5b7; --tap:var(--fx-card2);
+  /* Aksen sekarang cyan terang, jadi teks di atas aksen harus gelap. */
+  --accent-text:#04140b;
+  --shadow:0 10px 26px rgba(0,0,0,.35);
+  color:var(--fx-txt);
+  background:
+    radial-gradient(900px 320px at 50% -140px, rgba(34,211,238,.10), transparent 70%),
+    radial-gradient(700px 300px at 115% 6%, rgba(163,113,247,.09), transparent 70%),
+    var(--fx-bg);
+}
+body.fx-kalk{ min-height:100vh; }
+
+/* ---- kartu: kaca gelap + garis cyan tipis ---- */
+.fx-kalk .card,
+.fx-notes .card,
+#nt .nt-card{
+  background:linear-gradient(180deg, rgba(23,35,30,.97), rgba(13,20,17,.98));
+  border:1px solid var(--fx-line);
+  border-radius:16px;
+  box-shadow:0 1px 0 rgba(255,255,255,.04), 0 10px 26px rgba(0,0,0,.34);
+}
+
+/* ---- judul seksi: garis aksen cyan→violet ---- */
+.fx-kalk .list-head strong,
+.fx-notes .list-head strong,
+#nt .nt-card-title{
+  position:relative; padding-left:11px;
+}
+.fx-kalk .list-head strong::before,
+.fx-notes .list-head strong::before,
+#nt .nt-card-title::before{
+  content:''; position:absolute; left:0; top:50%; transform:translateY(-50%);
+  width:3px; height:13px; border-radius:2px;
+  background:linear-gradient(180deg,var(--fx-cy),var(--fx-vi));
+  box-shadow:0 0 8px rgba(34,211,238,.55);
+}
+
+/* ---- tombol utama: hijau berkilau (sama dengan Mas Cim) ---- */
+.fx-kalk .btn.primary,
+.fx-notes .btn.primary,
+#nt .nt-b-primary,
+#nt .nt-btn.primary{
+  background:linear-gradient(135deg,#3ee6a0,#22c55e 55%,#0e8f4b);
+  color:#04140b; border-color:transparent; font-weight:800;
+  box-shadow:0 6px 18px rgba(34,197,94,.26), inset 0 1px 0 rgba(255,255,255,.28);
+}
+.fx-kalk .btn.primary:active,
+.fx-notes .btn.primary:active{ transform:scale(.98); }
+
+/* ---- Kalkulator: aturan biaya + tile isian ---- */
+.fx-kalk .k-rule{
+  background:linear-gradient(180deg, rgba(22,33,29,.95), rgba(14,21,18,.95));
+  border-color:var(--fx-line);
+}
+.fx-kalk .k-rule.on{
+  background:linear-gradient(135deg, rgba(34,211,238,.16), rgba(163,113,247,.14));
+  border-color:rgba(34,211,238,.5);
+  box-shadow:0 0 0 1px rgba(34,211,238,.25), 0 6px 18px rgba(34,211,238,.14);
+}
+.fx-kalk .k-est{
+  background:linear-gradient(135deg, rgba(34,211,238,.10), rgba(163,113,247,.10));
+  border-color:rgba(34,211,238,.22);
+}
+.fx-kalk .q-tile{
+  background:linear-gradient(180deg, rgba(20,30,26,.96), rgba(13,20,17,.96));
+  border-color:var(--fx-line);
+}
+.fx-kalk .q-tile:focus-within{ border-color:rgba(34,211,238,.45); }
+.fx-kalk .q-lbl{ color:var(--fx-txt2); }
+
+/* ---- Nava Trader: hero harga + sel ringkasan ---- */
+#nt .nt-bar{
+  background:linear-gradient(180deg, rgba(16,26,23,.99), rgba(9,14,12,.94));
+  border-bottom:1px solid var(--fx-line);
+}
+#nt .nt-ihsg-price{ text-shadow:0 0 22px rgba(34,211,238,.35); }
+#nt .nt-sumcell{
+  background:rgba(20,30,26,.85); border-color:var(--fx-line); border-radius:12px;
+}
+#nt .nt-chg.up{ color:#3ee6a0; text-shadow:0 0 12px rgba(62,230,160,.35); }
+#nt .nt-chg.down{ color:#ff6b6b; text-shadow:0 0 12px rgba(255,107,107,.3); }
+#nt .nt-b{ background:rgba(22,33,29,.9); }
+#nt .nt-b-soft{ background:rgba(34,211,238,.10); border-color:rgba(34,211,238,.3); color:var(--fx-cy); }
+
+/* ---- Pengingat: kartu catatan + chip ---- */
+.fx-notes .compose{ border-color:rgba(34,211,238,.18); }
+.fx-notes .item{
+  background:linear-gradient(180deg, rgba(23,35,30,.96), rgba(13,20,17,.97));
+  border-color:var(--fx-line); border-radius:14px;
+}
+.fx-notes .chip{ background:rgba(22,33,29,.9); border-color:var(--fx-line); color:var(--fx-txt2); }
+.fx-notes .chip.on{
+  background:linear-gradient(135deg,var(--fx-cy),#0ea5b7);
+  color:#04140b; border-color:transparent;
+  box-shadow:0 0 14px rgba(34,211,238,.3);
+}
+.fx-notes .fab{
+  background:linear-gradient(135deg,#3ee6a0,#22c55e 60%,#0e8f4b);
+  box-shadow:0 10px 26px rgba(34,197,94,.35);
+}
+
+/* ---- input/select di modul ini: gelap, garis cyan saat fokus ---- */
+.fx-kalk .card textarea,
+.fx-notes .card textarea,
+#nt .nt-inp{
+  background:rgba(9,15,13,.92); color:var(--fx-txt);
+  border:1px solid var(--fx-line); border-radius:11px;
+}
+.fx-kalk .card textarea:focus,
+.fx-notes .card textarea:focus,
+#nt .nt-inp:focus{
+  outline:none; border-color:rgba(34,211,238,.5);
+  box-shadow:0 0 0 3px rgba(34,211,238,.10);
+}
+@media (prefers-reduced-motion:reduce){
+  .fx-kalk *, .fx-notes *, #nt *{ animation:none !important; transition:none !important; }
+}
+
+/* ==========================================================================
+   DETAIL MAS CIM: kepala statis + kunci tersimpan yang bisa dibuka-tutup
+   ========================================================================== */
+
+/* Panel alur + navigasi cepat menempel di atas; isi nota yang bergulir. */
+.mc-sticky{
+  position:sticky; top:0; z-index:8;
+  margin:-12px -12px 10px; padding:12px 12px 0;
+  background:var(--mc-bg,#0b0f0d);
+  box-shadow:0 12px 18px -14px rgba(0,0,0,.9);
+}
+.mc-sticky .mc-flow{ margin-bottom:8px; }
+.mc-sticky .mc-quicknav{ padding-bottom:6px; }
+.mc-sticky .mc-quicknav button{ backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+
+/* Satu baris "Pola tersimpan" — ketuk untuk lihat, ketuk lagi untuk sembunyi. */
+.mc-locktoggle{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  width:100%; margin:-2px 0 10px; padding:9px 12px;
+  background:rgba(22,33,29,.72); border:1px dashed rgba(34,211,238,.28);
+  border-radius:11px; color:var(--mc-txt); font:inherit; font-size:13px;
+  font-weight:600; cursor:pointer; -webkit-tap-highlight-color:transparent;
+}
+.mc-locktoggle span{ color:var(--mc-txt2); }
+.mc-locktoggle i{
+  font-style:normal; color:var(--mc-cy,#22d3ee); font-size:12px;
+  transition:transform .18s ease;
+}
+.mc-locktoggle[aria-expanded="true"]{ border-style:solid; border-color:rgba(34,211,238,.4); }
+.mc-locktoggle:active{ transform:scale(.995); }
+.mc-detail-lock{ margin:-4px 0 12px; }
+
+/* Mode ringkas kepala detail saat digulir (lihat bindStickySlim). */
+.mc-sticky{ transition:padding .18s ease; }
+.mc-sticky.mc-slim .mc-steps{ display:none; }
+.mc-sticky.mc-slim .mc-flow{ padding:8px 12px; margin-bottom:6px; }
+.mc-sticky.mc-slim .mc-quicknav{ padding-bottom:4px; }
+
+/* Lompatan navigasi cepat harus berhenti di bawah kepala statis, bukan
+   tersembunyi di baliknya (tinggi kepala ringkas ~97px, penuh ~172px). */
+.mc-sec, .mc-dhead, .mc-nggbox{ scroll-margin-top:184px; }
+.mc-sticky.mc-slim ~ .mc-dhead, .mc-sticky.mc-slim ~ .mc-sec{ scroll-margin-top:112px; }
