@@ -1471,7 +1471,10 @@
       });
     }
     // Modal part dihapus -> hitungan jasa berubah -> status jadi tidak pasti.
-    markNggandul(order, 'Modal part "' + p.partName + '" dihapus, jasa berubah — konfirmasi status');
+    // Saat masih Progress, jasa memang belum final — tidak perlu Nggandul.
+    if (order.serviceStatus !== 'Progress') {
+      markNggandul(order, 'Modal part "' + p.partName + '" dihapus, jasa berubah — konfirmasi status');
+    }
     save();
     // Kalau nota sudah Done, jasanya ikut naik karena modal part berkurang.
     // Dicatat ulang (bukan dicabut): nota sudah final, jadi jasanya tetap sah

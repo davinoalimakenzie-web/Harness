@@ -2961,3 +2961,48 @@ button, .btn, .tool, .mini-btn, .tpl-brand-btn, .k-pick-btn, .nav-btn, .seg butt
   .mc-hero::after, .mc-primary::after{ animation:none; }
   .mc-card{ animation:none; }
 }
+
+/* =========================================================
+   TAMBAH SPAREPART v2 + STATUS SATU KETUK (2026-10-22)
+   Sheet dirender di luar #mc: semua warna wajib var(--mc-*, cadangan).
+   ========================================================= */
+.mc-seg3{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:4px;
+  padding:4px; margin:2px 0 12px; border-radius:12px;
+  background:var(--mc-card, #141a17); border:1px solid var(--mc-line, #26302b);
+}
+.mc-seg3 button{
+  min-height:38px; border:0; border-radius:9px; cursor:pointer;
+  background:transparent; color:var(--mc-txt2, #8fa39a);
+  font:inherit; font-size:12.5px; font-weight:700; letter-spacing:.4px;
+}
+.mc-seg3 button.on{
+  color:#04140b;
+  background:linear-gradient(135deg, var(--mc-cy, #22d3ee), #34d399);
+  box-shadow:0 0 12px rgba(34,211,238,.3);
+}
+.mc-spgrid{ display:grid; gap:6px; margin-bottom:6px; }
+.mc-spgrp{
+  font-size:11px; font-weight:700; letter-spacing:.8px; text-transform:uppercase;
+  color:var(--mc-txt2, #8fa39a); margin:6px 0 0;
+}
+.mc-spcard{
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
+  width:100%; min-height:48px; padding:8px 12px; cursor:pointer; text-align:left;
+  border-radius:12px; border:1px solid var(--mc-line, #26302b);
+  background:var(--mc-card2, #1b231f); color:var(--mc-txt, #e8f0ec); font:inherit;
+  transition:border-color .15s ease, transform .12s ease, background .2s ease;
+}
+.mc-spcard:active{ transform:scale(.99); border-color:rgba(34,211,238,.45); }
+.mc-spcard.added{ border-color:var(--mc-grn, #1fbf6b); background:rgba(31,191,107,.16); }
+.mc-spcard-t{ font-size:14px; font-weight:700; }
+.mc-spcard-t em{ display:block; font-style:normal; font-size:11px; font-weight:500; color:var(--mc-txt2, #8fa39a); }
+.mc-spcard-v{ font-size:11px; color:var(--mc-txt2, #8fa39a); text-align:right; white-space:nowrap; }
+.mc-spcard-v b{ display:block; font-size:14px; color:var(--mc-grn, #1fbf6b); }
+.mc-part.mc-part2{ grid-template-columns:1.3fr 1fr 40px; }
+.mc-spx .mc-calc, .mc-spx .mc-hint, .mc-spx .mc-lbl, .mc-spx .mc-empty{ color:var(--mc-txt2, #8fa39a); }
+.mc-spx .mc-calc b{ color:var(--mc-txt, #e8f0ec); }
+/* hapus part di layar detail */
+.mc-prow .mc-x-sm{ height:30px; width:30px; flex:0 0 30px; font-size:13px; margin-left:-2px; }
+/* tombol status satu ketuk */
+.mc-next{ display:block; width:100%; margin:0 0 8px; }
