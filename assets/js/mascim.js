@@ -2518,7 +2518,7 @@
       L.push('_Tautan nota belum tersedia._');
     }
     L.push('');
-    L.push('⏳ *Masa Berlaku Tautan dan Garansi:* 60 × 24 jam (60 hari) sejak diterbitkan.');
+    L.push('⏳ *Masa Berlaku Tautan dan Garansi:* ' + (wn.warrantyDays || 60) + ' × 24 jam (' + (wn.warrantyDays || 60) + ' hari) sejak diterbitkan.');
     L.push('');
     L.push('');
     L.push('⭐️ *BANTU KAMI MENJADI LEBIH BAIK*');
