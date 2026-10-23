@@ -2498,31 +2498,42 @@
   function pesanWhatsapp(wn) {
     if (!wn || wn.revoked) return null;
     var link = noteLink(wn, 'mandiri') || noteLink(wn, 'lokal');
-    var hari = Number(wn.warrantyDays) || 0;
+    var namaPelanggan = (M.current && M.current.name) ? M.current.name : (wn.customerName || 'Pelanggan');
 
-    // Format pesan mengikuti contoh yang diminta: sapaan, ucapan terima
-    // kasih, tautan bukti transaksi, masa berlaku tautan, lalu nama usaha
-    // dan nomor telepon. Ringkasan nota tetap ada di halaman tautannya,
-    // bukan di dalam pesan, supaya pesan tetap ringkas.
     var L = [];
-    L.push('*Hai, Pelanggan Setia!*');
+    L.push('Hai, Kak *' + namaPelanggan + '* 👋😊');
     L.push('');
-    L.push('Terima kasih atas kepercayaan Anda,');
-    L.push('kejujuran dan kepuasan Anda adalah prioritas kami.');
+    L.push('Terima kasih telah mempercayakan perbaikan perangkat Kakak kepada *Mas Cim Service HP*.');
     L.push('');
-    L.push('Silahkan download bukti transaksi Anda melalui tautan di bawah ini.');
+    L.push('Kepuasan pelanggan adalah prioritas kami. Kami selalu berusaha memberikan pelayanan terbaik dengan mengutamakan kualitas pengerjaan, transparansi, dan kenyamanan pelanggan. 🙏');
+    L.push('');
+    L.push('📄 *BUKTI TRANSAKSI & GARANSI*');
+    L.push('');
+    L.push('Silakan klik tautan berikut untuk melihat atau mengunduh bukti transaksi Kakak.');
+    L.push('');
+    L.push('🔗 *Link Bukti Transaksi:*');
     if (link) {
       L.push(link);
-      L.push('');
-      L.push(hari > 0
-        ? '_Tautan akan kadaluarsa dalam waktu ' + hari + 'x24 jam._'
-        : '_Tautan berlaku selamanya._');
     } else {
       L.push('_Tautan nota belum tersedia._');
     }
     L.push('');
-    L.push('*' + (NOTA_NAMA_USAHA || 'Mas Cim Service HP') + '*  ' +
-      (NOTA_TELP_USAHA || '08976990006'));
+    L.push('⏳ *Masa Berlaku Tautan dan Garansi:* 60 × 24 jam (60 hari) sejak diterbitkan.');
+    L.push('');
+    L.push('');
+    L.push('⭐️ *BANTU KAMI MENJADI LEBIH BAIK*');
+    L.push('');
+    L.push('Jika Kakak merasa puas dengan pelayanan kami, kami akan sangat berterima kasih apabila Kakak bersedia memberikan ulasan jujur di Google Maps. Masukan Kakak sangat berarti bagi perkembangan layanan kami dan membantu calon pelanggan lain mengenal Mas Cim Service HP.');
+    L.push('');
+    L.push('📍 *Google Maps Mas Cim Service HP:*');
+    L.push('https://maps.app.goo.gl/Q7ATScHNYQgJ55Kc7');
+    L.push('');
+    L.push('Ulasan diberikan secara sukarela sesuai pengalaman Kakak. ❤️');
+    L.push('');
+    L.push('Terima kasih atas kepercayaan Kakak.');
+    L.push('');
+    L.push('*MAS CIM SERVICE HP*');
+    L.push('📱 WhatsApp: 08976990006');
     return L.join('\n');
   }
 
