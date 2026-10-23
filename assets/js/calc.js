@@ -49,8 +49,37 @@
     { id: 'realme', name: 'Realme' },
     { id: 'vivo', name: 'Vivo' },
     { id: 'xiaomi', name: 'Xiaomi' },
-    { id: 'infinix', name: 'Infinix' }
+    { id: 'infinix', name: 'Infinix' },
+    { id: 'apple', name: 'Apple' },
+    { id: 'huawei', name: 'Huawei' },
+    { id: 'honor', name: 'Honor' },
+    { id: 'oneplus', name: 'OnePlus' },
+    { id: 'tecno', name: 'Tecno' },
+    { id: 'itel', name: 'Itel' },
+    { id: 'asus', name: 'Asus' },
+    { id: 'lenovo', name: 'Lenovo' },
+    { id: 'motorola', name: 'Motorola' },
+    { id: 'nokia', name: 'Nokia' },
+    { id: 'sony', name: 'Sony' },
+    { id: 'zte', name: 'ZTE' },
+    { id: 'meizu', name: 'Meizu' },
+    { id: 'google', name: 'Google' },
+    { id: 'sharp', name: 'Sharp' },
+    { id: 'advan', name: 'Advan' },
+    { id: 'polytron', name: 'Polytron' },
+    { id: 'evercoss', name: 'Evercoss' }
   ];
+
+  /* Nama lain yang sering dipakai teknisi untuk brand yang sama. Dipakai
+     saat menebak brand dari teks device ("iPhone 13" -> Apple). */
+  var ALIASES = {
+    apple: ['iphone', 'ipad', 'ios', 'apple'],
+    samsung: ['galaxy'],
+    xiaomi: ['redmi', 'poco', 'mi'],
+    oppo: ['find', 'reno'],
+    vivo: ['iqoo'],
+    huawei: ['honor']
+  };
 
   var CUSTOM_BRAND = '__custom_brand__';
 
@@ -93,6 +122,32 @@
       'GT 20', 'GT 30'
     ]
   };
+
+  /* Seri bawaan untuk brand baru. Brand lain boleh kosong: seri tetap bisa
+     diketik sendiri lewat opsi "Lainnya / ketik manual". */
+  SERIES.apple = [
+    'iPhone 7', 'iPhone 8', 'iPhone X', 'iPhone XR', 'iPhone XS', 'iPhone XS Max',
+    'iPhone 11', 'iPhone 11 Pro', 'iPhone 12', 'iPhone 12 Pro', 'iPhone 13',
+    'iPhone 13 Pro', 'iPhone 14', 'iPhone 14 Pro', 'iPhone 15', 'iPhone 15 Pro',
+    'iPhone 16', 'iPhone 16 Pro', 'iPhone SE'
+  ];
+  SERIES.huawei = ['Y6', 'Y7', 'Y9', 'Nova 5', 'Nova 7', 'Nova 9', 'P30', 'P40'];
+  SERIES.honor = ['9X', 'X7', 'X8', 'X9', 'Magic 4', 'Magic 5'];
+  SERIES.oneplus = ['6', '7', '8', '9', '10', '11', '12', 'Nord'];
+  SERIES.tecno = ['Spark 7', 'Spark 8', 'Spark 9', 'Spark 10', 'Camon 18', 'Camon 20'];
+  SERIES.itel = ['A23', 'A48', 'A58', 'A60', 'P38', 'P55'];
+  SERIES.asus = ['Zenfone 5', 'Zenfone 6', 'Zenfone 8', 'Zenfone 9', 'Zenfone 10', 'ROG Phone 5'];
+  SERIES.lenovo = ['K5', 'K6', 'A6000', 'A7000'];
+  SERIES.motorola = ['Moto G5', 'Moto G6', 'Moto G7', 'Moto G8', 'Moto G9', 'Moto E6'];
+  SERIES.nokia = ['2.2', '3.4', '5.3', '6.1', '7.2', '8.1'];
+  SERIES.sony = ['Xperia XA', 'Xperia XZ', 'Xperia 10', 'Xperia 1'];
+  SERIES.zte = ['Blade A3', 'Blade A5', 'Blade V10'];
+  SERIES.meizu = ['M3 Note', 'M5', 'M6 Note'];
+  SERIES.google = ['Pixel 4', 'Pixel 5', 'Pixel 6', 'Pixel 7', 'Pixel 8'];
+  SERIES.sharp = ['Aquos R2', 'Aquos R3'];
+  SERIES.advan = ['G2', 'G3', 'i5', 'M10'];
+  SERIES.polytron = ['Wizard 1', 'Wizard 2', 'Quadra'];
+  SERIES.evercoss = ['A75', 'M50', 'Winner'];
 
   var CUSTOM_SERIES = '__custom__';
 
@@ -955,6 +1010,8 @@
     RULES: RULES,
     BRANDS: BRANDS,
     SERIES: SERIES,
+    ALIASES: ALIASES,
+    CUSTOM_BRAND: CUSTOM_BRAND,
     /* Satu sumber daftar seri untuk modul lain (Mas Cim). Hanya seri yang
        punya harga tersimpan di Kalkulator — tanpa katalog bawaan. */
     seriTersimpan: seriTersimpan,

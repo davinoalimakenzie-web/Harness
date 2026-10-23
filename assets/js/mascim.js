@@ -610,7 +610,8 @@
       // brand harus dikembalikan ke "Lainnya…" setelah form digambar ulang —
       // tanpa itu brand kembali ke "Pilih brand" dan kolom nama brand yang
       // sedang diisi ikut tertutup.
-      brand_lain: '', brand_manual: false, est_sel: '', seri_lain: '', est_manual: '',
+      brand_id: '', brand_lain: '', brand_manual: false,
+      est_sel: '', seri_lain: '', est_manual: '',
       parts: [],
     };
   }
@@ -633,6 +634,7 @@
       // saat edit dropdown diisi ulang dari device + Kalkulator lewat
       // bindForm(). Yang penting di sini adalah TOTAL LAMA: kalau dropdown
       // tidak menghasilkan angka, readDraft memakai angka ini kembali.
+      brand_id: brandManual ? 'Lainnya' : db[0],
       brand_lain: brandManual ? db[1] : '',
       brand_manual: brandManual,
       est_sel: '', seri_lain: '', est_manual: '',
@@ -689,16 +691,19 @@
       '<div class="mc-row2">' +
         '<select class="mc-inp" id="fBrand"><option value="">Pilih brand</option>' +
           (w.CalcUI && w.CalcUI.BRANDS ? w.CalcUI.BRANDS : []).map(function (b) {
-            return '<option value="' + esc(b.id) + '">' + esc(b.name) + '</option>';
+            return '<option value="' + esc(b.id) + '"' +
+              (d.brand_id === b.id ? ' selected' : '') + '>' + esc(b.name) + '</option>';
           }).join('') +
           // Brand di luar daftar tetap bisa dicatat: pilih "Lainnya…" lalu
           // tulis namanya di kolom di bawah.
-          '<option value="Lainnya">Lainnya\u2026</option>' +
+          '<option value="Lainnya"' + (d.brand_id === 'Lainnya' ? ' selected' : '') +
+          '>Lainnya\u2026</option>' +
         '</select>' +
         '<select class="mc-inp" id="fEstimasi"><option value="">Estimasi Biaya</option>' +
           '<option value="Lainnya">Lainnya (isi sendiri)\u2026</option></select>' +
       '</div>' +
-      '<input class="mc-inp sm mc-none" id="fBrandLain" value="' + esc(d.brand_lain || '') +
+      '<input class="mc-inp sm' + (d.brand_id === 'Lainnya' ? '' : ' mc-none') +
+      '" id="fBrandLain" value="' + esc(d.brand_lain || '') +
       '" placeholder="Nama brand (hanya jika pilih Lainnya\u2026)">' +
       // Dua kolom ini hanya terbuka kalau harganya belum ada di Kalkulator.
       '<input class="mc-inp sm mc-none" id="fSeriLain" value="' + esc(d.seri_lain || '') +
@@ -832,6 +837,11 @@
     // Diisi di sini (bukan di blankDraft) supaya bindForm() tahu dropdown brand
     // harus dikembalikan ke "Lainnya…" setelah form digambar ulang.
     d.brand_manual = brandId === 'Lainnya';
+    /* Brand yang dipilih ikut disimpan di draft: dropdown digambar ulang
+       setiap kali form berubah (chip kunci, ganti estimasi, fokus kembali),
+       dan tanpa nilai ini pilihan brand — termasuk "Lainnya…" — hilang dan
+       kembali ke "Pilih brand". */
+    d.brand_id = brandId;
     if (brandId === 'Lainnya') {
       // Brand di luar daftar CalcUI: namanya diketik sendiri, dan tidak ada
       // harga Kalkulator untuk brand ini sehingga estimasinya manual.
@@ -951,15 +961,32 @@
      pecah di spasi pertama saja akan menganggap "Samsung" bukan brand sama
      sekali. Kalau tidak ada yang cocok, kembalikan string utuh sebagai seri
      supaya tidak ada yang terpotong. */
+  /* Brand kustom: brand yang belum ada di daftar Kalkulator. Disimpan dengan
+     id khusus + nama bebas, supaya harga tersimpan untuk brand apa pun
+     (iPhone, Advan, merek baru) tetap bisa dipakai lagi. */
+  var CUSTOM_BRAND_ID = '__custom_brand__';
+
+  /* Cocokkan satu potongan teks dengan brand yang dikenal — nama resmi
+     maupun nama lain yang biasa dipakai teknisi ("iphone" -> Apple,
+     "redmi" -> Xiaomi). */
+  function brandDariTeks(teks) {
+    var t = normSeri(teks);
+    if (!t) return null;
+    var BR = (w.CalcUI && w.CalcUI.BRANDS) || [];
+    var AL = (w.CalcUI && w.CalcUI.ALIASES) || {};
+    var ketemu = BR.filter(function (b) {
+      if (normSeri(b.name) === t) return true;
+      return (AL[b.id] || []).some(function (a) { return normSeri(a) === t; });
+    })[0];
+    return ketemu || null;
+  }
+
   function pisahDevice(device) {
     var d = String(device || '').trim();
     if (!d) return ['', ''];
     var kata = d.split(/\s+/);
     for (var n = Math.min(3, kata.length); n >= 1; n--) {
-      var kandidat = kata.slice(0, n).join(' ');
-      var brand = w.CalcUI.BRANDS.filter(function (b) {
-        return b.name.toLowerCase() === kandidat.toLowerCase();
-      })[0];
+      var brand = brandDariTeks(kata.slice(0, n).join(' '));
       if (brand) return [brand.id, kata.slice(n).join(' ')];
     }
     return ['', d];
@@ -1000,12 +1027,20 @@
     return String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' ');
   }
 
-  function katalogUntukDevice(brandId, seri) {
+  /* Cocokkan brand entri Kalkulator dengan brand yang sedang dipakai.
+     Brand kustom semuanya ber-id sama, jadi namanya yang membedakan. */
+  function brandCocok(p, brandId, brandNama) {
+    if (p.brandId !== brandId) return false;
+    if (brandId !== CUSTOM_BRAND_ID) return true;
+    return normSeri(p.brandName || '') === normSeri(brandNama || '');
+  }
+
+  function katalogUntukDevice(brandId, seri, brandNama) {
     var out = { lcd: [], baterai: [], lain: [] };
     if (!brandId || !seri) return out;
     (w.Store.state.templates || []).forEach(function (t) {
       var p = t.payload || t;
-      if (p.brandId !== brandId || normSeri(p.series) !== normSeri(seri)) return;
+      if (!brandCocok(p, brandId, brandNama) || normSeri(p.series) !== normSeri(seri)) return;
       var rule = ruleByRuleId(p.ruleId);
       if (!rule) { out.lain.push({ tpl: t, rule: null }); return; }
       out[jenisDariRule(rule)].push({ tpl: t, rule: rule });
@@ -1016,12 +1051,12 @@
   /* Semua harga tersimpan BRAND ini untuk seri LAIN. Dipakai sheet Tambah
      Sparepart supaya pemakai bisa MELIHAT (dan memilih) harga yang benar-benar
      tersimpan di Kalkulator walaupun unit di nota belum punya harga sendiri. */
-  function katalogBrandLain(brandId, seri) {
+  function katalogBrandLain(brandId, seri, brandNama) {
     var out = [];
     if (!brandId) return out;
     (w.Store.state.templates || []).forEach(function (t) {
       var p = t.payload || t;
-      if (p.brandId !== brandId) return;
+      if (!brandCocok(p, brandId, brandNama)) return;
       if (normSeri(p.series) === normSeri(seri)) return;
       out.push({ tpl: t, rule: ruleByRuleId(p.ruleId) });
     });
@@ -1623,11 +1658,15 @@
 
     // Navigasi cepat antar-seksi. Halaman detail panjang (pelanggan → status),
     // jadi chip ini menghemat gulir jauh hanya untuk mengubah status.
+    /* Seksi Nota hanya ada kalau notanya sudah terbit atau memang sudah bisa
+       diterbitkan. Di status Progress (belum selesai / belum lunas) seluruh
+       bagian itu tidak ditampilkan, jadi chip "Nota" juga tidak perlu ada. */
+    var tampilNota = !!(o.noteIssued && o.warrantyNote) || !!o.canIssueNote;
     html += '<div class="mc-quicknav">' +
       '<button type="button" data-qn="qnPelanggan">Pelanggan</button>' +
       '<button type="button" data-qn="qnSparepart">Sparepart</button>' +
       '<button type="button" data-qn="qnBiaya">Biaya</button>' +
-      '<button type="button" data-qn="qnNota">Nota</button>' +
+      (tampilNota ? '<button type="button" data-qn="qnNota">Nota</button>' : '') +
       '<button type="button" data-qn="qnStatus">Status</button>' +
     '</div>';
 
@@ -1637,8 +1676,7 @@
     // baru ada setelah nota garansi diterbitkan; sebelum itu yang ditampilkan
     // adalah ref internal, tetap memakai kolom yang sama.
     html += '<div class="mc-dhead">' +
-      '<div class="mc-dnote' + (o.noteIssued ? '' : ' ref') + '"' +
-        (o.noteIssued ? '' : ' title="Nomor nota terbit setelah nota garansi diterbitkan"') + '>' +
+      '<div class="mc-dnote' + (o.noteIssued ? '' : ' ref') + '">' +
         '<span class="mc-dlbl">No. Nota</span>' +
         (o.noteIssued ? '#' + esc(o.noteNumber) : esc(o.internalRef || 'Tanpa ref')) +
       '</div>' +
@@ -1796,7 +1834,7 @@
     // pembayaran belum lunas, nota ini BELUM punya nomor dan belum punya
     // link. Tombol terbit baru muncul setelah syaratnya benar-benar terpenuhi,
     // dan mesin data menegakkannya juga.
-    html += '<div class="mc-sec" id="qnNota">Nota Garansi</div>';
+    if (tampilNota) html += '<div class="mc-sec" id="qnNota">Nota Garansi</div>';
     if (o.noteIssued && o.warrantyNote) {
       var wn = o.warrantyNote;
       html += '<div class="mc-noteok">' +
@@ -1824,14 +1862,10 @@
           ? '<button class="mc-ghost-btn danger" id="nRevoke" style="margin-top:6px">Batalkan Pencabutan</button>'
           : '<button class="mc-ghost-btn danger" id="nRevoke" style="margin-top:6px">Cabut Link Nota</button>') +
       '</div>';
-    } else {
-      html += '<p class="mc-hint sm">Nomor nota terbit setelah pekerjaan selesai dan pembayaran lunas. ' +
-        'Sampai saat itu nota ini hanya memakai ID internal.</p>' +
-        '<button class="mc-next" id="nIssue"' + (o.canIssueNote ? '' : ' disabled') + '>' +
-        (o.canIssueNote
-          ? 'Terbitkan Nota Garansi <em>\u00b7 buat nomor, garansi 60 hari, dan link</em>'
-          : 'Terbitkan Nota Garansi <em>\u00b7 ' + esc(o.noteIssueBlock || 'belum bisa') + '</em>') +
-        '</button>';
+    } else if (o.canIssueNote) {
+      /* Tanpa keterangan panjang: tombolnya sudah menjelaskan dirinya. */
+      html += '<button class="mc-next" id="nIssue">Terbitkan Nota Garansi ' +
+        '<em>\u00b7 buat nomor, garansi 60 hari, dan link</em></button>';
     }
 
     // Aksi. Hanya dropdown "Ubah Status"
@@ -2641,14 +2675,22 @@
      brand|seri|rule yang deterministik: kombinasi sama SELALU mengganti
      harga lamanya, tidak pernah menumpuk. Hasilnya dikembalikan supaya
      kegagalan bisaditunjukkan ke pengguna, bukan diam-diam hilang. */
-  function upsertTplBrandSeri(brandId, seri, rule, part, est) {
+  function upsertTplBrandSeri(brandId, seri, rule, part, est, brandNama) {
     if (!brandId || !seri || !rule) {
       return { ok: false, reason: 'Pilih brand, seri, dan perhitungan dulu' };
     }
     var brand = (w.CalcUI.BRANDS || []).filter(function (b) {
       return b.id === brandId;
     })[0];
-    if (!brand) return { ok: false, reason: 'Brand tidak dikenal' };
+    /* Brand yang belum ada di daftar Kalkulator tetap boleh disimpan: masuk
+       sebagai brand kustom dengan nama yang diketik pemakai. Tanpa ini,
+       "iPhone" gagal disimpan hanya karena namanya belum terdaftar. */
+    if (!brand) {
+      var namaKustom = String(brandNama || '').trim();
+      if (!namaKustom) return { ok: false, reason: 'Isi nama brand dulu' };
+      brand = { id: CUSTOM_BRAND_ID, name: namaKustom };
+      brandId = CUSTOM_BRAND_ID;
+    }
     // Pakai ejaan seri yang SUDAH ada di Kalkulator ("GALAXY A15") supaya
     // tidak lahir entri kembar beda huruf besar/kecil ("Galaxy A15").
     (w.Store.state.templates || []).some(function (t) {
@@ -2664,10 +2706,10 @@
 
 
   /* Harga tersimpan untuk device + jenis part tertentu, kalau ada. */
-  function cariTplBrandSeri(brandId, seri, ruleId) {
+  function cariTplBrandSeri(brandId, seri, ruleId, brandNama) {
     return (w.Store.state.templates || []).filter(function (t) {
       var p = t.payload || t;
-      return p.brandId === brandId && p.series === seri && p.ruleId === ruleId;
+      return brandCocok(p, brandId, brandNama) && p.series === seri && p.ruleId === ruleId;
     })[0] || null;
   }
 
@@ -2699,7 +2741,32 @@
     var brandId = bits[0], seri = bits[1];
     var BR = (w.CalcUI && w.CalcUI.BRANDS) || [];
     var RULES = (w.CalcUI && w.CalcUI.RULES) || [];
+    /* Nama brand yang sedang dipakai. Brand yang belum terdaftar di
+       Kalkulator disimpan sebagai brand kustom: id tetap, namanya bebas. */
+    var brandNama = '';
+    if (brandId) {
+      var _b0 = BR.filter(function (x) { return x.id === brandId; })[0];
+      brandNama = _b0 ? _b0.name : '';
+    }
+    /* Device dengan brand yang belum dikenal (mis. "Zuk Z2"): kalau seri itu
+       pernah disimpan di Kalkulator, pakai brand dari entri lama supaya harga
+       tersimpannya langsung muncul tanpa mengetik brand lagi. */
+    if (!brandId && seri) {
+      (w.Store && w.Store.state.templates || []).some(function (t) {
+        var p2 = t.payload || t;
+        if (!p2.series || normSeri(p2.series) !== normSeri(seri)) return false;
+        brandId = p2.brandId;
+        brandNama = p2.brandName || '';
+        if (brandId !== CUSTOM_BRAND_ID) {
+          var _b1 = BR.filter(function (x) { return x.id === brandId; })[0];
+          brandNama = _b1 ? _b1.name : brandNama;
+        }
+        seri = p2.series;
+        return true;
+      });
+    }
     function namaBrand(id) {
+      if (id === CUSTOM_BRAND_ID) return brandNama;
       var b = BR.filter(function (x) { return x.id === id; })[0];
       return b ? b.name : '';
     }
@@ -2721,6 +2788,8 @@
           '<input class="mc-inp" id="spSeri" list="spSeriList" placeholder="mis. Galaxy A05"></label>' +
       '</div>' +
       '<datalist id="spBrandList"></datalist><datalist id="spSeriList"></datalist>' +
+      '<p class="mc-hint sm">Brand atau seri belum ada di daftar? Ketik saja bebas \u2014 ' +
+        'langsung tersimpan dan muncul lagi di nota berikutnya.</p>' +
       '<div class="mc-seg3" id="spMode" role="tablist">' +
         '<button type="button" data-mode="kalk" class="on">Kalkulator</button>' +
         '<button type="button" data-mode="atur">Hitung</button>' +
@@ -2744,14 +2813,14 @@
           '<label class="mc-field"><span class="mc-lbl">Harga part (Rp)</span>' +
             '<input class="mc-inp" id="spCost" inputmode="numeric" placeholder="0"></label>' +
         '</div>' +
-        '<p class="mc-hint" id="spManualInfo">Estimasi harga jual = harga part \u00d7 2.</p>' +
+        '<p class="mc-hint" id="spManualInfo">Estimasi jasa = harga part \u00d7 2.</p>' +
         '<button type="button" class="mc-ghost-btn" id="spManAdd" disabled>+ Tambah ke daftar</button>' +
       '</div>' +
       '<div class="mc-sec">Daftar sparepart <span class="mc-sec-note" id="spCount"></span></div>' +
       '<div class="mc-parts" id="spList"></div>' +
       '<div class="mc-calc">' +
         '<div><span>Total Modal Part</span><b id="spTotal">Rp0</b></div>' +
-        '<div><span>Estimasi harga jual</span><b id="spTotalEst">Rp0</b></div>' +
+        '<div><span>Estimasi Jasa</span><b id="spTotalEst">Rp0</b></div>' +
       '</div>' +
     '</div>';
 
@@ -2782,24 +2851,48 @@
       }
 
       /* ---- unit (brand + seri) ---- */
-      brandListD.innerHTML = BR.map(function (b) { return '<option value="' + esc(b.name) + '">'; }).join('');
+      /* Daftar saran brand = brand bawaan Kalkulator + brand kustom yang
+         sudah pernah tersimpan, supaya nama yang sudah dipakai muncul lagi
+         dan tidak lahir ejaan kembar. */
+      function isiBrandList() {
+        var nama = {}, arr = [];
+        BR.forEach(function (b) {
+          var k = normSeri(b.name);
+          if (!nama[k]) { nama[k] = true; arr.push(b.name); }
+        });
+        (w.Store && w.Store.state.templates || []).forEach(function (t) {
+          var p = t.payload || t;
+          if (p.brandId !== CUSTOM_BRAND_ID || !p.brandName) return;
+          var k = normSeri(p.brandName);
+          if (!nama[k]) { nama[k] = true; arr.push(p.brandName); }
+        });
+        brandListD.innerHTML = arr.map(function (x) { return '<option value="' + esc(x) + '">'; }).join('');
+      }
       function isiSeriList() {
         var seen = {}, arr = [];
         (w.Store && w.Store.state.templates || []).forEach(function (t) {
           var p = t.payload || t;
-          if (!brandId || p.brandId !== brandId || !p.series) return;
+          if (!brandId || !brandCocok(p, brandId, brandNama) || !p.series) return;
           var k = normSeri(p.series);
           if (!seen[k]) { seen[k] = true; arr.push(p.series); }
         });
         seriListD.innerHTML = arr.map(function (s) { return '<option value="' + esc(s) + '">'; }).join('');
       }
+      isiBrandList();
       brandIn.value = namaBrand(brandId);
       seriIn.value = seri || '';
       brandIn.addEventListener('input', function () {
-        var n = normSeri(brandIn.value);
-        var m = BR.filter(function (b) { return normSeri(b.name) === n; })[0];
-        var baru = m ? m.id : '';
-        if (baru !== brandId) { brandId = baru; seri = ''; seriIn.value = ''; }
+        var teks = (brandIn.value || '').trim();
+        var kenal = brandDariTeks(teks);
+        var idBaru = kenal ? kenal.id : (teks ? CUSTOM_BRAND_ID : '');
+        var namaBaru = kenal ? kenal.name : teks;
+        /* Seri hanya dikosongkan kalau brand BENAR-BENAR berganti ke brand
+           lain yang dikenal. Mengetik nama brand baru huruf demi huruf tidak
+           boleh menghapus seri yang sudah diisi. */
+        var ganti = (idBaru !== brandId) && (brandId !== '' || !!kenal);
+        brandId = idBaru;
+        brandNama = namaBaru;
+        if (ganti) { seri = ''; seriIn.value = ''; }
         isiSeriList();
         gambarKalk();
       });
@@ -2822,9 +2915,9 @@
       }
       function gambarKalk() {
         opsi = [];
-        var kat = katalogUntukDevice(brandId, seri);
+        var kat = katalogUntukDevice(brandId, seri, brandNama);
         var unit = kat.lcd.concat(kat.baterai, kat.lain);
-        var lain = katalogBrandLain(brandId, seri);
+        var lain = katalogBrandLain(brandId, seri, brandNama);
         opsi = unit.concat(lain);
         var h = '';
         if (unit.length) {
@@ -2837,10 +2930,11 @@
         }
         kalkBox.innerHTML = h;
         if (!brandId) {
-          info.textContent = 'Isi Brand HP dulu supaya harga tersimpan di Kalkulator muncul.';
+          info.textContent = 'Isi Brand HP dan Seri HP dulu — brand apa saja boleh, ' +
+            'termasuk yang belum ada di daftar.';
         } else if (!opsi.length) {
-          info.textContent = 'Belum ada harga tersimpan di Kalkulator untuk ' + namaBrand(brandId) +
-            '. Pakai tab Hitung atau Manual.';
+          info.textContent = 'Belum ada harga tersimpan untuk ' + (namaBrand(brandId) || 'brand ini') +
+            '. Pakai tab Hitung: harganya otomatis ikut tersimpan.';
         } else {
           info.textContent = 'Ketuk harga untuk menambahkan ke daftar.';
         }
@@ -2882,7 +2976,7 @@
       });
       function syncRuleCost() {
         if (!ruleCur || ruleIn.value) return;
-        var ada = cariTplBrandSeri(brandId, seri, ruleCur.id);
+        var ada = cariTplBrandSeri(brandId, seri, ruleCur.id, brandNama);
         if (ada) ruleIn.value = String(angka((ada.payload || ada).part) || '');
         hitungRule();
       }
@@ -2893,7 +2987,7 @@
         if (!part) { ruleInfo.textContent = 'Isi harga part.'; return; }
         var h = w.CalcUI && w.CalcUI.hitung ? w.CalcUI.hitung(part, ruleCur) : { dasar: part * 2, est: part * 2 };
         ruleInfo.textContent = rupiah(part) + ' \u00d7 2 = ' + rupiah(h.dasar) +
-          (ruleCur.pct ? ' +' + ruleCur.pct + '%' : '') + ' \u2192 estimasi ' + rupiah(h.est);
+          (ruleCur.pct ? ' +' + ruleCur.pct + '%' : '') + ' \u2192 estimasi jasa ' + rupiah(h.est);
       }
       ruleIn.addEventListener('input', hitungRule);
       ruleAdd.addEventListener('click', function () {
@@ -2914,8 +3008,8 @@
         var harga = angka(costIn.value);
         manAdd.disabled = !((nameIn.value || '').trim() && harga > 0);
         manInfo.textContent = harga > 0
-          ? 'Estimasi harga jual: ' + rupiah(harga * 2) + ' (harga part \u00d7 2).'
-          : 'Estimasi harga jual = harga part \u00d7 2.';
+          ? 'Estimasi jasa: ' + rupiah(harga * 2) + ' (harga part \u00d7 2).'
+          : 'Estimasi jasa = harga part \u00d7 2.';
       }
       nameIn.addEventListener('input', cekManual);
       costIn.addEventListener('input', cekManual);
@@ -2993,7 +3087,7 @@
           return { name: String(p.name).trim(), cost: p.cost, est: p.est, rule: p.rule, simpanKalk: p.simpanKalk };
         });
         var totalEst = daftar.reduce(function (a, p) { return a + (p.est || 0); }, 0);
-        var bId = brandId, sr = seri;
+        var bId = brandId, sr = seri, bNama = brandNama;
         saveBtn.disabled = true;
         saveBtn.textContent = 'Menyimpan\u2026';
         // Berurutan, bukan Promise.all: kalau satu gagal, yang sudah masuk
@@ -3011,7 +3105,7 @@
             /* Total Biaya nota sudah berasal dari Estimasi Biaya saat nota
                dibuat; sparepart tidak menambahkannya lagi (harga part bisa
                terhitung dua kali). Hanya bila Total Biaya masih 0 totalnya
-               diisi dari estimasi jual part. */
+               diisi dari estimasi jasa part. */
             var kini = (M.current && M.current.totalCost) || 0;
             if (kini > 0) return null;
             return api('PATCH', '/api/mascim/services/' + encodeURIComponent(orderId), { total_cost: totalEst });
@@ -3022,12 +3116,13 @@
             var gagalKalk = 0;
             daftar.forEach(function (p) {
               if (!p.simpanKalk || !p.rule) return;
-              var r = upsertTplBrandSeri(bId, sr, p.rule, p.cost, p.est);
+              var r = upsertTplBrandSeri(bId, sr, p.rule, p.cost, p.est, bNama);
               if (!r || r.ok === false) gagalKalk++;
             });
             tutupSheet();
             toast(masuk + ' sparepart ditambahkan' +
               (gagalKalk ? ' (harga belum tersimpan ke Kalkulator: isi brand & seri)' : ''));
+            if (bId && !gagalKalk) isiBrandList();
             loadDetail(orderId);
             reload();
           })
