@@ -2294,9 +2294,9 @@
       var wn = M.current.warrantyNote;
       if (!wn) return;
       if (wn.revoked) { toast('Link sudah dicabut, tidak bisa disalin'); return; }
-      // Tombol "salin" memakai link mandiri supaya bisa langsung dikirim
-      // ke pelanggan dan tetap terbuka di HP-nya.
-      var link = noteLink(wn, 'mandiri') || noteLink(wn, 'lokal');
+      // Tombol "salin" memakai link token online ringkas (atau mandiri sebagai cadangan)
+      // supaya tautan tidak terpotong dan bisa dibuka dari HP mana pun.
+      var link = (wn.token ? noteLink(wn, 'token') : '') || noteLink(wn, 'mandiri') || noteLink(wn, 'lokal');
       copyText(link, 'Link nota disalin');
     });
     var noteWa = $('#nWa');
@@ -2440,12 +2440,19 @@
   // ditambah link supaya bisa disalin.
   function openNoteSheet(wn) {
     if (!wn) return;
+    var linkToken = wn.token ? noteLink(wn, 'token') : '';
     var linkMandiri = noteLink(wn, 'mandiri');
     var linkLokal = noteLink(wn, 'lokal');
 
     var body = '';
     if (!wn.revoked) {
-      if (linkMandiri) {
+      if (linkToken) {
+        body += '<div class="mc-note-link">' +
+          '<span>Link online ringkas &mdash; untuk dikirim ke pelanggan</span>' +
+          '<code id="nLinkText">' + esc(linkToken) + '</code>' +
+          '<small>Ringkas, tidak terpotong WhatsApp, dan bisa dibuka dari HP mana pun.</small>' +
+        '</div>';
+      } else if (linkMandiri) {
         body += '<div class="mc-note-link">' +
           '<span>Link mandiri &mdash; untuk dikirim ke pelanggan</span>' +
           '<code id="nLinkText">' + esc(linkMandiri) + '</code>' +
@@ -2477,9 +2484,10 @@
       var wrap = document.querySelector('.mc-sheet-foot') || document.querySelector('.mc-sheet-body') || null;
       function taruh(b) { if (wrap) wrap.appendChild(b); else b.style.display = 'block'; }
 
-      if (linkMandiri) {
-        taruh(tombol('Salin Link Mandiri', function () {
-          copyText(linkMandiri, 'Link mandiri disalin');
+      var linkUtama = linkToken || linkMandiri;
+      if (linkUtama) {
+        taruh(tombol('Salin Link Nota', function () {
+          copyText(linkUtama, 'Link nota disalin');
         }, wn.revoked));
       }
       if (linkLokal) {
@@ -2500,7 +2508,8 @@
   function pesanWhatsapp(wn) {
     if (!wn || wn.revoked) return null;
     var link = (wn.token ? noteLink(wn, 'token') : '') || noteLink(wn, 'mandiri');
-    var namaPelanggan = (M.current && M.current.name) ? M.current.name : (wn.customerName || 'Pelanggan');
+    var namaPelanggan = (M.current && (M.current.customerName || M.current.customer_name || M.current.name)) || (wn && wn.customerName) || 'Pelanggan';
+    namaPelanggan = String(namaPelanggan).trim() || 'Pelanggan';
 
     var L = [];
     L.push('Hai, Kak *' + namaPelanggan + '* 👋😊');
@@ -2539,32 +2548,35 @@
     return L.join('\n');
   }
 
-  /* Salin teks ke papan klip. navigator.clipboard sering tidak ada di
-     WebView Telegram atau hanya boleh jalan di konteks aman, jadi ada
-     jalur cadangan berbasis textarea. */
+  /* Salin teks ke papan klip.
+     Coba document.execCommand('copy') secara sinkron terlebih dahulu karena
+     ini paling stabil dan diizinkan dalam event klik WebView Telegram Android,
+     lalu fallback ke navigator.clipboard jika tersedia. */
   function salin(teks) {
     if (!teks) return false;
-    try {
-      if (navigator.clipboard && w.isSecureContext) {
-        navigator.clipboard.writeText(teks);
-        return true;
-      }
-    } catch (e) { /* lanjut ke jalur cadangan */ }
+    var ok = false;
     try {
       var ta = document.createElement('textarea');
       ta.value = teks;
       ta.setAttribute('readonly', '');
       ta.style.position = 'fixed';
       ta.style.top = '-1000px';
+      ta.style.left = '-1000px';
+      ta.style.opacity = '0';
       document.body.appendChild(ta);
+      ta.focus();
       ta.select();
       ta.setSelectionRange(0, ta.value.length);
-      var ok = document.execCommand('copy');
-      ta.remove();
-      return ok;
-    } catch (e) {
-      return false;
+      ok = !!(document.execCommand && document.execCommand('copy'));
+      document.body.removeChild(ta);
+    } catch (e) { ok = false; }
+    if (!ok && navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        navigator.clipboard.writeText(teks).catch(function () {});
+        ok = true;
+      } catch (e2) {}
     }
+    return ok;
   }
 
   function bagikanWhatsapp(wn) {
@@ -2581,7 +2593,9 @@
     // Encode aman: pastikan %26 di-escape ganda (%2526) supaya intent Android
     // tidak memotong parameter teks di karakter ampersand.
     var safeText = encodeURIComponent(pesan).replace(/%26/g, '%2526');
-    var url = 'https://api.whatsapp.com/send?phone=' + (target || '') + '&text=' + safeText;
+    var url = target
+      ? 'https://api.whatsapp.com/send?phone=' + encodeURIComponent(target) + '&text=' + safeText
+      : 'https://api.whatsapp.com/send?text=' + safeText;
 
     var belumTerbuka = setTimeout(function () {
       var msg = 'Pesan + link nota sudah disalin ke papan klip — tempel di chat pelanggan.';
