@@ -2436,6 +2436,13 @@
     } catch (e) { no(); }
   }
 
+  // Konversi format teks WhatsApp (*tebal*) ke HTML (<b>tebal</b>) untuk pratinjau
+  function waKeHtml(text) {
+    if (!text) return '';
+    var s = esc(text);
+    return s.replace(/(^|[\s_~])\*([^\s*][^*]*?[^\s*]|[^\s*])\*(?=[\s_~.,:;!?]|$)/g, '$1<b>$2</b>');
+  }
+
   // Sheet "Lihat Nota": pratinjau persis seperti yang dilihat pelanggan,
   // ditambah link supaya bisa disalin.
   function openNoteSheet(wn) {
@@ -2471,6 +2478,15 @@
     }
     body += noteHtml(wn);
 
+    // Pratinjau pesan WhatsApp lengkap dengan teks tebal (bold) yang dirender nyata
+    var pesanWA = pesanWhatsapp(wn);
+    if (pesanWA && !wn.revoked) {
+      body += '<div class="mc-sec" style="margin-top:16px">Pratinjau Pesan WhatsApp (Format Bold Aktif)</div>' +
+        '<div class="mc-wa-preview-box">' +
+          waKeHtml(pesanWA) +
+        '</div>';
+    }
+
     sheetOrWarn('Nota #' + wn.numberLabel, body, function () {
       function tombol(teks, fn, mati) {
         var b = document.createElement('button');
@@ -2483,6 +2499,16 @@
       }
       var wrap = document.querySelector('.mc-sheet-foot') || document.querySelector('.mc-sheet-body') || null;
       function taruh(b) { if (wrap) wrap.appendChild(b); else b.style.display = 'block'; }
+
+      if (pesanWA && !wn.revoked) {
+        taruh(tombol('Bagikan ke WhatsApp', function () {
+          bagikanWhatsapp(wn);
+        }));
+        taruh(tombol('Salin Pesan WhatsApp', function () {
+          if (salin(pesanWA)) toast('Pesan WhatsApp disalin');
+          else copyText(pesanWA, 'Pesan WhatsApp disalin');
+        }));
+      }
 
       var linkUtama = linkToken || linkMandiri;
       if (linkUtama) {
@@ -2518,7 +2544,7 @@
     L.push('');
     L.push('Kepuasan pelanggan adalah prioritas kami. Kami selalu berusaha memberikan pelayanan terbaik dengan mengutamakan kualitas pengerjaan, transparansi, dan kenyamanan pelanggan. 🙏');
     L.push('');
-    L.push('📄 *BUKTI TRANSAKSI ＆ GARANSI*');
+    L.push('📄 *BUKTI TRANSAKSI & GARANSI*');
     L.push('');
     L.push('Silakan klik tautan berikut untuk melihat atau mengunduh bukti transaksi Kakak.');
     L.push('');
@@ -2590,9 +2616,7 @@
     // bisa langsung tempel jika ada aplikasi yang memotong teks intent.
     try { salin(pesan); } catch (e) {}
 
-    // Encode aman: pastikan %26 di-escape ganda (%2526) supaya intent Android
-    // tidak memotong parameter teks di karakter ampersand.
-    var safeText = encodeURIComponent(pesan).replace(/%26/g, '%2526');
+    var safeText = encodeURIComponent(pesan);
     var url = target
       ? 'https://api.whatsapp.com/send?phone=' + encodeURIComponent(target) + '&text=' + safeText
       : 'https://api.whatsapp.com/send?text=' + safeText;

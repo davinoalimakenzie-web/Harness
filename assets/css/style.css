@@ -1755,6 +1755,24 @@ select.mc-inp{ appearance:none; }
 .mc-note-doc-date b{ font-size:13px; color:var(--mc-txt); font-weight:600; }
 .mc-note-doc .mc-money.big b{ font-size:21px; }
 
+.mc-wa-preview-box{
+  background: #0b141a;
+  color: #d1d7db;
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid #222d34;
+  margin-top: 8px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.mc-wa-preview-box b{
+  font-weight: 700;
+  color: #ffffff;
+}
+
 /* Area cetak: disembunyikan di layar, hanya muncul saat dialog cetak. */
 .mc-print{ display:none; }
 
