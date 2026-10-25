@@ -2436,7 +2436,6 @@
     } catch (e) { no(); }
   }
 
-  // Konversi format teks WhatsApp (*tebal*) ke HTML (<b>tebal</b>) untuk pratinjau
   // Sheet "Lihat Nota": pratinjau persis seperti yang dilihat pelanggan,
   // ditambah link supaya bisa disalin.
   function openNoteSheet(wn) {
@@ -2519,7 +2518,7 @@
     L.push('');
     L.push('Kepuasan pelanggan adalah prioritas kami. Kami selalu berusaha memberikan pelayanan terbaik dengan mengutamakan kualitas pengerjaan, transparansi, dan kenyamanan pelanggan. 🙏');
     L.push('');
-    L.push('📄 *BUKTI TRANSAKSI & GARANSI*');
+    L.push('📄 *BUKTI TRANSAKSI ＆ GARANSI*');
     L.push('');
     L.push('Silakan klik tautan berikut untuk melihat atau mengunduh bukti transaksi Kakak.');
     L.push('');
@@ -2591,7 +2590,10 @@
     // bisa langsung tempel jika ada aplikasi yang memotong teks intent.
     try { salin(pesan); } catch (e) {}
 
-    var safeText = encodeURIComponent(pesan);
+    // Ganti ampersand ASCII (&) menjadi fullwidth (＆) pada URL agar parser intent
+    // Android / WhatsApp web-to-app redirect TIDAK memotong teks di karakter &
+    var safePesan = pesan.replace(/&/g, '＆');
+    var safeText = encodeURIComponent(safePesan);
     var url = target
       ? 'https://api.whatsapp.com/send?phone=' + encodeURIComponent(target) + '&text=' + safeText
       : 'https://api.whatsapp.com/send?text=' + safeText;
