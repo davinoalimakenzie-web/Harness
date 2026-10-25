@@ -2347,22 +2347,24 @@
     var dir = '';
     try { dir = w.location.href.split('#')[0].replace(/[^/]+$/, ''); } catch (e) { dir = ''; }
 
+    // Prioritas utama untuk tautan ringkas & stabil: token server Supabase
+    // Token hanya ~76 karakter (bukan 700+ karakter seperti mandiri), sehingga
+    // TIDAK PERNAH terpotong oleh batasan panjang intent/URL WhatsApp di Android.
+    if (jenis === 'token' || (!jenis && wn.token)) {
+      if (wn.token) return dir + 'nota?t=' + wn.token;
+    }
+
     if (jenis === 'mandiri') {
-      // Isi nota ikut di dalam tautan, jadi bisa dibuka dari HP mana pun.
+      // Isi nota ikut di dalam tautan (cadangan bila offline)
       var muatan = '';
       try { muatan = (L && L.encodePublicNote) ? L.encodePublicNote(wn) : ''; } catch (e) { muatan = ''; }
       if (!muatan) return '';
-      // Pakai tanda tanya, bukan pagar. Fragment (#) sering dipangkas
-      // WhatsApp maupun keyboard Android saat tautan dipindah dari chat ke
-      // peramban, dan yang tertinggal hanyalah alamat halaman tanpa isi
-      // nota. Query string lolos utuh. Halaman nota menerima keduanya,
-      // jadi tautan lama versi pagar tidak jadi rusak.
       return dir + 'nota?s=' + muatan;
     }
-    if (!wn.token) return '';
-    // Link lokal berbasis token: bisa dicabut, tapi hanya berlaku di
-    // perangkat ini.
-    return dir + 'nota?t=' + wn.token;
+    if (wn.token) return dir + 'nota?t=' + wn.token;
+    var muatan2 = '';
+    try { muatan2 = (L && L.encodePublicNote) ? L.encodePublicNote(wn) : ''; } catch (e) { muatan2 = ''; }
+    return muatan2 ? (dir + 'nota?s=' + muatan2) : '';
   }
 
   // Satu-satunya sumber isi nota. Dipakai LIHAT, SALIN, WHATSAPP, dan CETAK
@@ -2497,7 +2499,7 @@
 
   function pesanWhatsapp(wn) {
     if (!wn || wn.revoked) return null;
-    var link = noteLink(wn, 'mandiri') || noteLink(wn, 'lokal');
+    var link = (wn.token ? noteLink(wn, 'token') : '') || noteLink(wn, 'mandiri');
     var namaPelanggan = (M.current && M.current.name) ? M.current.name : (wn.customerName || 'Pelanggan');
 
     var L = [];
@@ -2507,7 +2509,7 @@
     L.push('');
     L.push('Kepuasan pelanggan adalah prioritas kami. Kami selalu berusaha memberikan pelayanan terbaik dengan mengutamakan kualitas pengerjaan, transparansi, dan kenyamanan pelanggan. 🙏');
     L.push('');
-    L.push('📄 *BUKTI TRANSAKSI & GARANSI*');
+    L.push('📄 *BUKTI TRANSAKSI ＆ GARANSI*');
     L.push('');
     L.push('Silakan klik tautan berikut untuk melihat atau mengunduh bukti transaksi Kakak.');
     L.push('');
@@ -2571,28 +2573,34 @@
     var pesan = pesanWhatsapp(wn);
     if (!pesan) return;
     var target = (M.current && M.current.whatsapp) ? waNum(M.current.whatsapp) : '';
-    var url = 'https://wa.me/' + (target || '') + '?text=' + encodeURIComponent(pesan);
 
-    // Membuka wa.me dari WebView bisa ditolak tanpa pesan apa pun, jadi
-    // selalu siapkan jalan kedua: salin pesannya ke papan klip sehingga
-    // teknisi cukup menempelkannya di WhatsApp. Peringatan baru muncul setelah jeda singkat, karena tidak ada
-    // cara pasti mengetahui apakah jendela wa.me benar-benar terbuka.
+    // Selalu salin pesan utuh ke papan klip terlebih dahulu agar pengguna
+    // bisa langsung tempel jika ada aplikasi yang memotong teks intent.
+    try { salin(pesan); } catch (e) {}
+
+    // Encode aman: pastikan %26 di-escape ganda (%2526) supaya intent Android
+    // tidak memotong parameter teks di karakter ampersand.
+    var safeText = encodeURIComponent(pesan).replace(/%26/g, '%2526');
+    var url = 'https://api.whatsapp.com/send?phone=' + (target || '') + '&text=' + safeText;
+
     var belumTerbuka = setTimeout(function () {
-      var msg = 'Tidak ada WhatsApp yang terbuka otomatis. '
-        + 'Pesan + link nota sudah disalin — tempel di chat pelanggan.';
-      try { salin(pesan); } catch (e) {}
+      var msg = 'Pesan + link nota sudah disalin ke papan klip — tempel di chat pelanggan.';
       alertErr(msg);
     }, 2500);
     var tandai = function () { clearTimeout(belumTerbuka); };
 
     try {
-      var win = w.open(url, '_blank', 'noopener');
-      if (win) { win.addEventListener('pagehide', tandai); setTimeout(tandai, 2000); }
-      else tandai();
+      if (w.Telegram && w.Telegram.WebApp && typeof w.Telegram.WebApp.openLink === 'function') {
+        w.Telegram.WebApp.openLink(url);
+        tandai();
+      } else {
+        var win = w.open(url, '_blank', 'noopener');
+        if (win) { win.addEventListener('pagehide', tandai); setTimeout(tandai, 2000); }
+        else tandai();
+      }
     } catch (e) {
       tandai();
-      try { salin(pesan); } catch (e2) {}
-      alertErr('Pesan + link nota sudah disalin — tempel di chat pelanggan.');
+      alertErr('Pesan + link nota sudah disalin ke papan klip — tempel di chat pelanggan.');
     }
   }
 

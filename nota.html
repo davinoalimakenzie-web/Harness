@@ -191,9 +191,9 @@
   // Token diambil dari hash (#/nota/<token>) supaya URL tetap bersih.
   function tokenDariUrl() {
     var h = String(window.location.hash || '');
-    var m = h.match(/#\/nota\/([A-Za-z0-9]+)/);
+    var m = h.match(/#\/nota\/([A-Za-z0-9_-]+)/);
     if (m) return m[1];
-    var q = String(window.location.search || '').match(/[?&]t=([A-Za-z0-9]+)/);
+    var q = String(window.location.search || '').match(/[?&]t=([A-Za-z0-9_-]+)/);
     return q ? q[1] : '';
   }
 
