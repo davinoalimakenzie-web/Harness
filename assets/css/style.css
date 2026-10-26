@@ -3200,3 +3200,61 @@ body.fx-kalk{ min-height:100vh; }
    tersembunyi di baliknya (tinggi kepala ringkas ~97px, penuh ~172px). */
 .mc-sec, .mc-dhead, .mc-nggbox{ scroll-margin-top:184px; }
 .mc-sticky.mc-slim ~ .mc-dhead, .mc-sticky.mc-slim ~ .mc-sec{ scroll-margin-top:112px; }
+
+/* Dashboard Mitra & Owner Job Request Styles */
+.mt-hero-btn {
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 8px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255,255,255,0.22);
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+  line-height: 1.2;
+}
+.mt-hero-btn:active { background: rgba(255,255,255,0.35); }
+.mt-hero-btn.danger {
+  background: rgba(239,68,68,0.45);
+  border-color: rgba(239,68,68,0.65);
+}
+.mt-hero-btn.danger:active { background: rgba(239,68,68,0.7); }
+
+.mt-req-status-box {
+  border-radius: 8px;
+  font-size: 11.5px;
+  animation: fadeIn 0.2s ease;
+}
+
+.owner-respon-wrap { position: relative; display: inline-block; }
+.dropdown-respon-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 100;
+  background: var(--bg-card, #1e293b);
+  border: 1px solid var(--line, #334155);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  min-width: 175px;
+  padding: 4px 0;
+  margin-top: 4px;
+}
+.dropdown-opt-btn {
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text, #f8fafc);
+  display: block;
+}
+.dropdown-opt-btn:active, .dropdown-opt-btn:hover {
+  background: rgba(255,255,255,0.08);
+}
+

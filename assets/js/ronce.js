@@ -35,6 +35,7 @@
     tasks: [],
     paymentRequests: [],
     bonRequests: [],
+    jobRequests: [],
     centralBalance: 0,
     log: [],
     bon: { total: 0, remaining: 0, history: [] },
@@ -121,7 +122,7 @@
     if (!Array.isArray(data.users) || !data.users.length) {
       data.users = AKUN_AWAL.map(function (u) { return JSON.parse(JSON.stringify(u)); });
     }
-    ['jobs','transactions','tasks','paymentRequests','log'].forEach(function (k) {
+    ['jobs','transactions','tasks','paymentRequests','jobRequests','log'].forEach(function (k) {
       if (!Array.isArray(data[k])) data[k] = [];
     });
     if (!data.bon || typeof data.bon !== 'object') data.bon = { total: 0, remaining: 0, history: [] };
@@ -886,10 +887,64 @@
     if (w.CalcUI && w.CalcUI.renderList) w.CalcUI.renderList();
   }
 
-  /* ---------------- Tab: Input ---------------- */
+  /* ---------------- Tab: Input & Request Garapan ---------------- */
+
+  function renderOwnerJobRequests() {
+    var card = $('#ownerJobReqCard');
+    var list = $('#ownerJobReqList');
+    var badge = $('#ownerReqCountBadge');
+    var dot = $('#ownerReqDot');
+    if (!card || !list) return;
+    if (!adalahOwner()) { card.style.display = 'none'; return; }
+
+    data.jobRequests = data.jobRequests || [];
+    var reqs = data.jobRequests.slice();
+    var pendingCount = reqs.filter(function (r) { return r.status === 'menunggu'; }).length;
+
+    if (dot) dot.style.display = pendingCount > 0 ? 'inline-block' : 'none';
+    if (badge) badge.textContent = pendingCount + ' Menunggu';
+
+    if (!reqs.length) {
+      card.style.display = 'none';
+      return;
+    }
+    card.style.display = 'block';
+
+    list.innerHTML = reqs.map(function (r) {
+      var statusBadge = '';
+      if (r.status === 'menunggu') {
+        statusBadge = '<span class="tag wait">Menunggu Validasi</span>';
+      } else if (r.status === 'belum_ada') {
+        statusBadge = '<span class="tag danger" style="background:rgba(239,68,68,.18);color:#ef4444">Belum ada garapan</span>';
+      } else if (r.status === 'proses') {
+        statusBadge = '<span class="tag ok">Proses input garapan</span>';
+      }
+
+      return '<div class="item" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);">'
+        + '<div style="flex:1;min-width:0;">'
+        +   '<div style="font-weight:700;font-size:13.5px;overflow-wrap:anywhere;">' + esc(r.mitraName) + '</div>'
+        +   '<div style="font-size:11px;color:var(--text-2);margin-top:2px;">Status: ' + statusBadge + '</div>'
+        + '</div>'
+        + '<div class="owner-respon-wrap">'
+        +   '<button type="button" class="mini-btn primary" data-btn-respon="' + esc(r.id) + '" style="display:flex;align-items:center;gap:4px;cursor:pointer;">'
+        +     'Respon <span style="font-size:8px;">&#9660;</span>'
+        +   '</button>'
+        +   '<div class="dropdown-respon-menu" id="dropdown-req-' + esc(r.id) + '" style="display:none;">'
+        +     '<button type="button" class="dropdown-opt-btn" data-set-respon="belum_ada" data-req-id="' + esc(r.id) + '">'
+        +       '⚠️ Belum ada garapan'
+        +     '</button>'
+        +     '<button type="button" class="dropdown-opt-btn" data-set-respon="proses" data-req-id="' + esc(r.id) + '" style="border-top:1px solid var(--line);">'
+        +       '✅ Proses input garapan'
+        +     '</button>'
+        +   '</div>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+  }
 
   function renderInput() {
     renderAkun();
+    renderOwnerJobRequests();
     var m = $('#rjMitra'), g = $('#rjGarapan');
     if (m) m.innerHTML = optsMitra(true);
     if (g) g.innerHTML = optsGarapan();
@@ -1028,6 +1083,32 @@
     };
   }
 
+  function handleRequestGarapanMitra() {
+    if (!sesi || sesi.role === 'owner') return;
+    data.jobRequests = data.jobRequests || [];
+    var req = data.jobRequests.find(function (r) { return r.mitraId === sesi.id; });
+    if (!req) {
+      req = {
+        id: uid(),
+        mitraId: sesi.id,
+        mitraName: sesi.name,
+        status: 'menunggu',
+        respon: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      data.jobRequests.unshift(req);
+    } else {
+      req.status = 'menunggu';
+      req.respon = '';
+      req.updatedAt = new Date().toISOString();
+    }
+    catat('Mitra ' + sesi.name + ' request garapan');
+    simpan();
+    w.App.toast('Tanda request garapan berhasil dikirim ke Owner!');
+    renderTugasMitra();
+  }
+
   function renderTugasMitra() {
     if (!sesi) return;
     var id = sesi.id;
@@ -1040,6 +1121,25 @@
     set('#mtTotalJasa', formatIDR(jml(proses)));
     set('#mtCntProses', proses.length);
     set('#mtCntDone', done.length);
+
+    /* Status request garapan terkini mitra */
+    var reqBox = $('#mtRequestStatusBox');
+    if (reqBox) {
+      data.jobRequests = data.jobRequests || [];
+      var myReq = data.jobRequests.find(function (r) { return r.mitraId === id; });
+      if (myReq && myReq.status) {
+        reqBox.style.display = 'block';
+        if (myReq.status === 'menunggu') {
+          reqBox.innerHTML = '<div style="padding:6px 10px;background:rgba(245,158,11,0.22);border-radius:8px;font-size:11.5px;font-weight:700;color:#fff;">⏳ Request Garapan: Menunggu validasi owner...</div>';
+        } else if (myReq.status === 'belum_ada') {
+          reqBox.innerHTML = '<div style="padding:6px 10px;background:rgba(239,68,68,0.25);border-radius:8px;font-size:11.5px;font-weight:700;color:#fff;">⚠️ Respon Owner: Belum ada garapan</div>';
+        } else if (myReq.status === 'proses') {
+          reqBox.innerHTML = '<div style="padding:6px 10px;background:rgba(34,197,94,0.3);border-radius:8px;font-size:11.5px;font-weight:700;color:#fff;">✅ Respon Owner: Proses input garapan</div>';
+        }
+      } else {
+        reqBox.style.display = 'none';
+      }
+    }
 
     /* Kasbon (BON) yang masih berjalan ditampilkan di dalam kartu Total Jasa. */
     var info = bonInfo(id);
@@ -1083,6 +1183,33 @@
     catat('Pengajuan pelunasan ' + formatIDR(totalAjukan) + ' oleh ' + sesi.name);
     simpan();
     w.App.toast('Pengajuan terkirim ke owner');
+    renderRekapMitra();
+  }
+
+  /* Mitra mengajukan pelunasan per garapan selesai (langsung dari baris). */
+  function ajukanSatuTugas(taskId) {
+    if (!sesi || sesi.role === 'owner') return;
+    var t = cariTugas(taskId);
+    if (!t) return;
+    if (t.status !== 'completed' || sudahLunas(t) || sudahDiajukan(t.id)) {
+      w.App.toast('Garapan ini sudah diajukan atau sudah lunas');
+      return;
+    }
+    var fee = num(t.deliveryFee);
+    data.paymentRequests.push({
+      id: uid(),
+      employeeId: sesi.id,
+      employeeName: sesi.name,
+      amount: fee,
+      taskIds: [t.id],
+      date: hariIni(),
+      status: 'diajukan',
+      createdAt: new Date().toISOString()
+    });
+    delete terpilih[t.id];
+    catat('Pengajuan pelunasan ' + formatIDR(fee) + ' oleh ' + sesi.name);
+    simpan();
+    w.App.toast('Pengajuan terkirim — Status: MENUNGGU OWNER');
     renderRekapMitra();
   }
 
@@ -1213,30 +1340,23 @@
 
     var h = '';
     h += doneTasks.length ? doneTasks.map(function (t) {
-      var eligibleT = isEligibleForPayment(t);
       var diajukan = sudahDiajukan(t.id);
       var sudahLunasT = sudahLunas(t);
-      var badge, action, cek = '';
+      var badge, action;
       if (sudahLunasT) {
         badge = '<span class="mt-tag done">LUNAS</span>';
         action = '<span class="mt-row-ok">Sudah dibayar</span>';
       } else if (diajukan) {
-        badge = '<span class="mt-tag tunggu">DIAJUKAN</span>';
-        action = '<span class="mt-row-ok">Menunggu owner</span>';
-      } else if (eligibleT) {
-        badge = '<span class="mt-tag proses">SIAP AJUKAN</span>';
-        action = '<span class="mt-row-ok">Ceklis untuk ajukan</span>';
-        cek = '<label class="mt-cek"><input type="checkbox" class="mt-pilih" data-pid="'
-          + esc(t.id) + '"' + (terpilih[t.id] ? ' checked' : '') + '></label>';
+        badge = '<span class="mt-tag tunggu">MENUNGGU OWNER</span>';
+        action = '<span class="mt-row-ok" style="color:var(--warn);font-weight:600">Menunggu owner</span>';
       } else {
-        /* Belum memenuhi syarat lama (1 minggu / Rp200rb), TAPI tetap bisa
-           diceklis — syarat tidak boleh menghambat mitra mengajukan pelunasan. */
-        badge = '<span class="mt-tag">BISA AJUKAN</span>';
-        action = '<span class="mt-row-ok">Ceklis untuk ajukan</span>';
-        cek = '<label class="mt-cek"><input type="checkbox" class="mt-pilih" data-pid="'
-          + esc(t.id) + '"' + (terpilih[t.id] ? ' checked' : '') + '></label>';
+        badge = '<span class="mt-tag proses">SELESAI</span>';
+        action = '<div style="display:flex;align-items:center;gap:6px">'
+          + '<input type="checkbox" class="mt-pilih-direct" data-ajukan-id="' + esc(t.id) + '" style="width:18px;height:18px;cursor:pointer" title="Centang untuk ajukan">'
+          + '<button type="button" class="mini-btn primary" data-ajukan-btn="' + esc(t.id) + '" style="font-size:11px;padding:3px 8px;cursor:pointer">Ajukan Pelunasan</button>'
+          + '</div>';
       }
-      return '<div class="mt-row done' + (terpilih[t.id] ? ' on' : '') + '">'
+      return '<div class="mt-row done' + (diajukan ? ' diajukan' : '') + '">'
         + '<div class="mt-row-top">'
         +   '<span class="mt-row-nama">' + esc(namaGarapan(t.serviceId)) + '</span>'
         +   badge
@@ -1244,16 +1364,14 @@
         + '<div class="mt-row-mid">' + t.quantity + ' &middot; ' + formatTanggal(t.date) + '</div>'
         + '<div class="mt-row-bottom">'
         +   '<span class="mt-row-jasa">' + formatIDR(t.deliveryFee) + '</span>'
-        +   cek + action
+        +   action
         + '</div>'
         + '</div>';
     }).join('') : '<div class="empty">Belum ada garapan selesai</div>';
     list.innerHTML = h;
 
-    /* Cukup perbarui label tombol & sorotan baris. JANGAN gambar ulang daftar:
-       mengganti innerHTML di HP bisa bikin kelayapan dan klik yang sedang
-       berjalan ikut hilang — itu sumber keluhan "ceklisnya tidak bisa". */
-    updateAjukanBtn();
+    var aj = $('#mtAjukan');
+    if (aj) aj.style.display = 'none';
   }
 
   /* Tombol "Ajukan Pelunasan (N)" + sorotan baris yang terceklis. Dipakai
@@ -1696,7 +1814,7 @@
     renderAkun();
   }
 
-  /* Kartu "Akun Saya" — hanya untuk mitra, menampilkan status aktif/belum. */
+  /* Kartu "Akun Saya" — hanya untuk mitra, menampilkan status aktif/belum + tombol Exit. */
   function renderAkun() {
     var wadah = $('#rsSettingMitra');
     if (!wadah) return;
@@ -1705,9 +1823,10 @@
     if (!mitra) return;
     var st = $('#rsAkunStatus');
     if (st) {
-      st.innerHTML = sesi.aktif
+      st.innerHTML = (sesi.aktif
         ? '<span class="tag ok">AKTIF</span> Akunmu aktif — siap terima tugas.'
-        : '<span class="tag wait">BELUM AKTIF</span> Ganti PIN default (0000) untuk mengaktifkan akun.';
+        : '<span class="tag wait">BELUM AKTIF</span> Ganti PIN default (0000) untuk mengaktifkan akun.')
+        + '<div style="margin-top:10px;"><button type="button" class="mini-btn danger" data-rexit="1" style="font-size:11px;padding:4px 12px;font-weight:700;cursor:pointer;">Exit Akun</button></div>';
     }
   }
 
@@ -1761,7 +1880,7 @@
     });
 
     /* 2. Tiap daftar digabung berdasarkan id; stempel lebih baru menang. */
-    ['users','tasks','jobs','transactions','paymentRequests','bonRequests','services','log'].forEach(function (k) {
+    ['users','tasks','jobs','transactions','paymentRequests','bonRequests','jobRequests','services','log'].forEach(function (k) {
       var lokal = Array.isArray(data[k]) ? data[k] : [];
       var jauhArr = Array.isArray(jauh[k]) ? jauh[k] : [];
       if (!jauhArr.length) return;
@@ -1916,24 +2035,56 @@
         renderRekap();
       }
     });
-    /* Ketuk baris mana pun di daftar garapan selesai = centang / batalkan
-       ceklis. Itu inti penyederhanaan: tidak perlu membidik kotak kecil. */
-    document.addEventListener('click', function (e) {
-      var row = e.target.closest('#ronceRekapList .mt-row');
-      if (!row) return;
-      if (e.target.closest('.mt-pilih')) return;  /* klik tepat di ceklis: serah ke native */
-      var c = row.querySelector('.mt-pilih');
-      if (!c) return;
-      c.checked = !c.checked;
-      c.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    // Tugas actions (delegated) — mitra lapor selesai, ajukan pelunasan, BON
+
+    // Tugas actions (delegated) — mitra lapor selesai, request garapan, respon owner, ajukan pelunasan, BON
     document.addEventListener('click', function (e) {
       var done = e.target.closest('[data-rt-done]');
       if (done) { selesaiTugas(done.dataset.rtDone); return; }
       var ps = e.target.closest('[data-pribadi-selesai]');
       if (ps) { w.Ronce.selesaiPribadi(ps.dataset.pribadiSelesai); return; }
+      var reqBtn = e.target.closest('#mtBtnRequestGarapan');
+      if (reqBtn) { handleRequestGarapanMitra(); return; }
+      var ajBtn = e.target.closest('[data-ajukan-btn]');
+      if (ajBtn) { ajukanSatuTugas(ajBtn.dataset.ajukanBtn); return; }
+      var btnResp = e.target.closest('[data-btn-respon]');
+      if (btnResp) {
+        e.stopPropagation();
+        var rid = btnResp.dataset.btnRespon;
+        var menu = $('#dropdown-req-' + rid);
+        var allMenus = document.querySelectorAll('.dropdown-respon-menu');
+        allMenus.forEach(function (m) {
+          if (m !== menu) m.style.display = 'none';
+        });
+        if (menu) {
+          menu.style.display = (menu.style.display === 'none' || !menu.style.display) ? 'block' : 'none';
+        }
+        return;
+      }
+      var optResp = e.target.closest('[data-set-respon]');
+      if (optResp) {
+        e.stopPropagation();
+        var val = optResp.dataset.setRespon;
+        var qid = optResp.dataset.reqId;
+        data.jobRequests = data.jobRequests || [];
+        var r = data.jobRequests.find(function (item) { return item.id === qid; });
+        if (r) {
+          r.status = val;
+          r.respon = (val === 'belum_ada' ? 'Belum ada garapan' : 'Proses input garapan');
+          r.updatedAt = new Date().toISOString();
+          catat('Owner respon ' + r.mitraName + ': ' + r.respon);
+          simpan();
+          w.App.toast('Respon terkirim: ' + r.respon);
+          renderOwnerJobRequests();
+        }
+        document.querySelectorAll('.dropdown-respon-menu').forEach(function (m) { m.style.display = 'none'; });
+        return;
+      }
+      if (!e.target.closest('.owner-respon-wrap')) {
+        document.querySelectorAll('.dropdown-respon-menu').forEach(function (m) { m.style.display = 'none'; });
+      }
       var mj = e.target.closest('#mtAjukan');
+      if (mj) { ajukanPembayaran(); return; }
+      var bonBtn = e.target.closest('[data-bon-ajukan]');
       if (mj) { ajukanPembayaran(); return; }
       var bonBtn = e.target.closest('[data-bon-ajukan]');
       if (bonBtn) {
@@ -1962,6 +2113,13 @@
     });
         // Filter mitra dropdown di tab Rekap + ceklist garapan selesai (mitra)
     document.addEventListener('change', function (e) {
+      var cd = e.target.closest('.mt-pilih-direct');
+      if (cd) {
+        if (cd.checked) {
+          ajukanSatuTugas(cd.dataset.ajukanId);
+        }
+        return;
+      }
       var c = e.target.closest('.mt-pilih');
       if (c) {
         if (c.checked) terpilih[c.dataset.pid] = 1; else delete terpilih[c.dataset.pid];

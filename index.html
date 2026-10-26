@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261026d">
+<link rel="stylesheet" href="assets/css/style.css?v=20261026e">
 </head>
 <body>
 
@@ -472,7 +472,7 @@
         <!-- Sub-tabs Ronce (Input, Rekap, Setting) — Kasbon dihilangkan -->
         <div class="seg" id="ronceTabs">
           <button class="seg-btn" data-rtab="tugas">Dashboard</button>
-          <button class="seg-btn active" data-rtab="input">Input</button>
+          <button class="seg-btn active" data-rtab="input">Input <span id="ownerReqDot" class="badge-dot" style="display:none;width:8px;height:8px;border-radius:50%;background:#ef4444;margin-left:4px;vertical-align:middle;"></span></button>
           <button class="seg-btn" data-rtab="rekap">Rekap</button>
           <button class="seg-btn" data-rtab="setting">Setting</button>
         </div>
@@ -483,6 +483,15 @@
 
       <!-- Tab: Input Garapan (khusus owner) -->
       <div id="ronceTab-input" class="ronce-tab">
+        <!-- Kartu Notifikasi & Respon Request Garapan dari Mitra -->
+        <div id="ownerJobReqCard" class="card" style="margin-bottom:12px;display:none;border-left:4px solid var(--accent);background:rgba(15,118,110,.05);">
+          <div class="list-head tight" style="display:flex;justify-content:space-between;align-items:center;">
+            <strong>🔔 REQUEST GARAPAN DARI MITRA</strong>
+            <span class="tag wait" id="ownerReqCountBadge">0 Menunggu</span>
+          </div>
+          <div id="ownerJobReqList" class="list" style="margin-top:6px;"></div>
+        </div>
+
         <div class="card">
           <div class="list-head tight"><strong>Input Garapan</strong></div>
           <div class="field-row">
@@ -547,7 +556,12 @@
           <div class="mt-hero">
             <div class="mt-hero-top">
               <span class="mt-hero-lbl">TOTAL JASA KAMU</span>
+              <div style="display:flex;align-items:center;gap:6px">
+                <button type="button" class="mt-hero-btn" id="mtBtnRequestGarapan">Request Garapan</button>
+                <button type="button" class="mt-hero-btn danger" data-rexit="1">Exit</button>
+              </div>
             </div>
+            <div id="mtRequestStatusBox" class="mt-req-status-box" style="display:none;margin-top:8px"></div>
             <div class="mt-hero-amt" id="mtTotalJasa">Rp0</div>
             <div class="mt-hero-grid" style="grid-template-columns:1fr 1fr">
               <div class="mt-mini proses">
@@ -637,8 +651,6 @@
 
           <div class="list-head"><strong>GARAPAN SELESAI</strong></div>
           <div id="ronceRekapList" class="list"></div>
-          <button class="btn primary block" id="mtAjukan" hidden>Ajukan Pelunasan</button>
-          <p class="hint xs" style="margin-top:8px">Ketuk garapan untuk mencentang, lalu tekan <b>Ajukan Pelunasan</b>.</p>
         </div>
       </div>
 
@@ -648,7 +660,10 @@
         <!-- ============ MITRA: Akun Saya (wadah fitur mitra berikutnya) ============ -->
         <div id="rsSettingMitra" hidden>
           <div class="card" id="rsAkunCard">
-            <div class="list-head tight"><strong>Akun Saya</strong></div>
+            <div class="list-head tight" style="display:flex;justify-content:space-between;align-items:center;">
+              <strong>Akun Saya</strong>
+              <button type="button" class="mini-btn danger" data-rexit="1" style="font-size:11px;padding:3px 10px;cursor:pointer;">Exit</button>
+            </div>
             <div id="rsAkunStatus" class="mitra-meta" style="margin-bottom:9px"></div>
             <div class="mitra-add">
               <input type="text" id="rsPinBaru" inputmode="numeric" maxlength="4" placeholder="PIN baru (4 digit)" autocomplete="off">
@@ -867,7 +882,7 @@
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
 <script src="assets/js/transactions.js?v=20261014l"></script>
-<script src="assets/js/ronce.js?v=20261026d"></script>
+<script src="assets/js/ronce.js?v=20261026e"></script>
 <script src="assets/js/ronce-sync.js?v=20261019c"></script>
 <script src="assets/js/calc.js?v=20261022a"></script>
 <script src="assets/js/calc-sync.js?v=20261021d"></script>
