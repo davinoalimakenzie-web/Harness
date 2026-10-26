@@ -821,6 +821,11 @@
       });
     }
 
+    var rTabs = $('#ronceTabs');
+    if (rTabs) {
+      rTabs.style.display = (mainTabAktif === 'ronce') ? '' : 'none';
+    }
+
     var paneRonce = $('#kalkPane-ronce');
     var paneServis = $('#ronceTab-servis');
     var paneRiasan = $('#kalkPane-riasan');
@@ -836,7 +841,7 @@
     }
   }
 
-  /* ---------------- Tab rendering (Ronce: Input | Rekap | Kasbon | Setting) ---------------- */
+  /* ---------------- Tab rendering (Ronce: Input | Rekap | Setting) ---------------- */
 
   function renderTab() {
     if (!sesi) { showLogin(); return; }
@@ -844,27 +849,25 @@
     /* Normalisasi tabAktif DULU, sebelum tombol di-highlight — kalau tidak,
        tombol lama tetap tampak aktif padahal isinya sudah tab lain. */
     if (!own) {
-      if (tabAktif === 'input' || tabAktif === 'servis') tabAktif = 'tugas';
-    } else if (tabAktif === 'tugas' || tabAktif === 'servis') {
+      if (tabAktif === 'input' || tabAktif === 'servis' || tabAktif === 'kasbon') tabAktif = 'tugas';
+    } else if (tabAktif === 'tugas' || tabAktif === 'servis' || tabAktif === 'kasbon') {
       tabAktif = 'input';
     }
     var bar = $('#ronceTabs');
-    if (bar) bar.style.display = '';
+    if (bar) bar.style.display = (mainTabAktif === 'ronce') ? '' : 'none';
     document.querySelectorAll('#ronceTabs .seg-btn').forEach(function (b) {
       var t = b.dataset.rtab;
-      /* Owner: Input | Rekap | Kasbon | Setting.
-         Mitra: Dashboard | Rekap | Kasbon | Setting (tab lain disembunyikan). */
+      /* Owner: Input | Rekap | Setting.
+         Mitra: Dashboard | Rekap | Setting (fitur kasbon dihilangkan). */
       var show = own
-        ? (t !== 'tugas' && t !== 'servis')
-        : (t === 'tugas' || t === 'rekap' || t === 'kasbon' || t === 'setting');
+        ? (t !== 'tugas' && t !== 'servis' && t !== 'kasbon')
+        : (t === 'tugas' || t === 'rekap' || t === 'setting');
       b.style.display = show ? '' : 'none';
       if (t === 'tugas') b.textContent = 'Dashboard';
       b.classList.toggle('active', t === tabAktif);
     });
     /* SEMUA sub-tab dikelola di satu loop */
-    var tabs = ['input','rekap','setting','kasbon','tugas'];
-    /* Konfirmasi pelunasan BON tidak boleh "nyangkut" saat pindah tab. */
-    if (tabAktif !== 'kasbon') bonKonfirmasi = null;
+    var tabs = ['input','rekap','setting','tugas'];
     tabs.forEach(function (t) {
       var el = $('#ronceTab-' + t);
       if (el) el.hidden = (t !== tabAktif);
@@ -872,7 +875,6 @@
     if (tabAktif === 'input') renderInput();
     else if (tabAktif === 'tugas') renderTugasMitra();
     else if (tabAktif === 'rekap') renderRekap();
-    else if (tabAktif === 'kasbon') renderKasbon();
     else renderSetting();
   }
 
@@ -1396,7 +1398,12 @@
           +     '<div class="mitra-nama">' + esc(u.name) + '</div>'
           +     '<div class="mitra-meta">' + (u.wa ? 'WA ' + esc(u.wa) : 'No. WA belum diisi') + ' &middot; PIN ' + esc(u.pin || '-') + '</div>'
           +   '</div>'
-          +   '<span class="tag' + badge + '">' + label + '</span>'
+          +   (owner
+          ?     '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">'
+          +       '<span class="tag">' + label + '</span>'
+          +       '<button class="mini-btn danger" data-rexit="1" style="font-size:11px;padding:3px 8px;cursor:pointer">Exit</button>'
+          +     '</div>'
+          :     '<span class="tag' + badge + '">' + label + '</span>')
           + '</div>'
           + (owner ? ''
               : '<div class="mitra-aksi">'
@@ -1586,14 +1593,13 @@
     set('#pribDoneTotal', formatIDR(total));
     if (list) {
       list.innerHTML = pribadi.map(function (t) {
-        return '<div class="mt-row done">'
-          + '<div class="mt-row-top">'
-          +   '<span class="mt-row-nama">' + esc(namaGarapan(t.serviceId)) + ' x' + t.quantity + '</span>'
-          +   '<span class="mt-tag done">SELESAI</span>'
-          + '</div>'
-          + '<div class="mt-row-mid">' + formatTanggal(t.date) + '</div>'
-          + '<div class="mt-row-bottom"><span class="mt-row-jasa">' + formatIDR(t.deliveryFee) + '</span></div>'
-          + '</div>';
+        var mitra = esc(t.employeeName || 'Pribadi');
+        var garapan = esc(namaGarapan(t.serviceId));
+        var jumlah = t.quantity || 1;
+        var tglJadi = t.date ? formatTanggal(t.date) : '-';
+        var status = (t.status === 'completed' || t.status === 'lunas') ? 'SELESAI' : 'PROSES';
+        var line = mitra + '#' + garapan + '#' + jumlah + '#' + tglJadi + '#' + status;
+        return '<div class="pribadi-line" title="' + esc(line) + '">' + esc(line) + '</div>';
       }).join('');
     }
   }
@@ -1988,6 +1994,8 @@
     var gp = $('#rsGantiPin');
     if (gp) gp.addEventListener('click', gantiPin);
     document.addEventListener('click', function (e) {
+      var ex = e.target.closest('[data-rexit]');
+      if (ex) { logout(); return; }
       var rl = e.target.closest('[data-rlink]');
       if (rl) { salinLink(rl.dataset.rlink); return; }
       var rw = e.target.closest('[data-rwa]');

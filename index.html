@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261026c">
+<link rel="stylesheet" href="assets/css/style.css?v=20261026d">
 </head>
 <body>
 
@@ -460,23 +460,26 @@
 
     <!-- App Screen (after login) -->
     <div id="ronceApp" hidden>
-      <!-- Tab Utama Kalkulator: Ronce | Servis HP | Riasan -->
-      <div class="seg" id="kalkMainTabs">
-        <button class="seg-btn active" data-ktab="ronce">Ronce</button>
-        <button class="seg-btn" data-ktab="servis">Servis HP</button>
-        <button class="seg-btn" data-ktab="riasan">Riasan</button>
-      </div>
+      <!-- Sticky / Frozen Tabs Container -->
+      <div class="kalk-sticky-header">
+        <!-- Tab Utama Kalkulator: Ronce | Servis HP | Riasan -->
+        <div class="seg" id="kalkMainTabs">
+          <button class="seg-btn active" data-ktab="ronce">Ronce</button>
+          <button class="seg-btn" data-ktab="servis">Servis HP</button>
+          <button class="seg-btn" data-ktab="riasan">Riasan</button>
+        </div>
 
-      <!-- Wadah Kalkulator Ronce (1 Kesatuan: Input, Rekap, Kasbon, Setting) -->
-      <div id="kalkPane-ronce" class="kalk-pane">
-        <!-- Sub-tabs Ronce -->
+        <!-- Sub-tabs Ronce (Input, Rekap, Setting) — Kasbon dihilangkan -->
         <div class="seg" id="ronceTabs">
           <button class="seg-btn" data-rtab="tugas">Dashboard</button>
           <button class="seg-btn active" data-rtab="input">Input</button>
           <button class="seg-btn" data-rtab="rekap">Rekap</button>
-          <button class="seg-btn" data-rtab="kasbon">Kasbon</button>
           <button class="seg-btn" data-rtab="setting">Setting</button>
         </div>
+      </div>
+
+      <!-- Wadah Kalkulator Ronce (1 Kesatuan: Input, Rekap, Setting) -->
+      <div id="kalkPane-ronce" class="kalk-pane">
 
       <!-- Tab: Input Garapan (khusus owner) -->
       <div id="ronceTab-input" class="ronce-tab">
@@ -497,12 +500,10 @@
               <label class="lbl" for="rjMitra">Mitra</label>
               <select id="rjMitra"></select>
             </div>
-            <div class="field">
-              <label class="lbl" for="rjCatatan">Catatan</label>
-              <input type="text" id="rjCatatan" placeholder="boleh dikosongi">
+            <div class="field" style="display:flex;align-items:flex-end">
+              <button class="btn primary block" id="rjTambahGarapan" style="width:100%;height:42px;margin:0">Input Tugas</button>
             </div>
           </div>
-          <button class="btn block" id="rjTambahGarapan">+ Tambah Garapan</button>
           <div id="rjDraftList" class="list" style="margin-top:10px"></div>
           <div class="field-row" style="margin-top:10px">
             <button class="btn block" id="rjPribadi">Pribadi</button>
@@ -557,11 +558,6 @@
                 <span>Sudah selesai</span>
                 <b id="mtCntDone">0</b>
               </div>
-            </div>
-            <!-- Kasbon (BON) yang masih berjalan — sisa yang belum dilunasi -->
-            <div class="mt-hero-kasbon" id="mtHeroKasbon" hidden>
-              <span>Kasbon berjalan</span>
-              <b id="mtKasbonBerjalan">Rp0</b>
             </div>
           </div>
 
@@ -643,53 +639,6 @@
           <div id="ronceRekapList" class="list"></div>
           <button class="btn primary block" id="mtAjukan" hidden>Ajukan Pelunasan</button>
           <p class="hint xs" style="margin-top:8px">Ketuk garapan untuk mencentang, lalu tekan <b>Ajukan Pelunasan</b>.</p>
-        </div>
-      </div>
-
-      <!-- Tab: Kasbon (terpisah dari totalan garapan biar fokus) -->
-      <div id="ronceTab-kasbon" class="ronce-tab" hidden>
-
-        <!-- ============ OWNER ============ -->
-        <div id="ronceKasbonOwner" hidden>
-          <!-- Pengajuan BON dari mitra yang perlu direspons -->
-          <div class="card">
-            <div class="list-head tight">
-              <strong>Pengajuan BON Mitra <span class="tpl-total" id="kasbonPendingBadge" hidden>0</span></strong>
-            </div>
-            <p class="hint xs">Setujui atau tolak pengajuan kasbon dari mitra. BON baru tercatat setelah disetujui.</p>
-            <div id="kasbonPendingList" class="list"></div>
-          </div>
-
-          <div class="card">
-            <div class="list-head tight"><strong>BON (Kasbon Mitra)</strong></div>
-            <div class="item">
-              <div class="item-body">
-                <div class="item-title">Total BON Semua Mitra</div>
-                <div class="item-sub"><span id="kasbonTotalAll">Rp0</span></div>
-              </div>
-            </div>
-          </div>
-          <div id="kasbonOwnerList" class="list"></div>
-
-          <!-- Rekap pelunasan BON yang masuk dari mitra -->
-          <div class="card">
-            <div class="list-head tight"><strong>Pelunasan BON Masuk</strong></div>
-            <p class="hint xs">Pelunasan yang dilakukan mitra (dipotong dari jasa atau dibayar cash). Garapan yang dipakai otomatis ikut ditandai lunas.</p>
-            <div id="kasbonLunasList" class="list"></div>
-          </div>
-
-          <!-- Catat BON tunai langsung (tanpa pengajuan mitra) -->
-          <div class="card">
-            <div class="list-head tight"><strong>Catat BON Langsung</strong></div>
-            <p class="hint xs">Untuk kasbon tunai yang langsung diserahkan owner ke mitra (tanpa pengajuan).</p>
-            <select id="kasbonMitraPick" class="grow" style="margin-bottom:10px"></select>
-            <div id="ronceBonSection"></div>
-          </div>
-        </div>
-
-        <!-- ============ MITRA ============ -->
-        <div id="ronceKasbonMitra" hidden>
-          <div id="ronceBonMitra"></div>
         </div>
       </div>
 
@@ -918,7 +867,7 @@
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
 <script src="assets/js/transactions.js?v=20261014l"></script>
-<script src="assets/js/ronce.js?v=20261026c"></script>
+<script src="assets/js/ronce.js?v=20261026d"></script>
 <script src="assets/js/ronce-sync.js?v=20261019c"></script>
 <script src="assets/js/calc.js?v=20261022a"></script>
 <script src="assets/js/calc-sync.js?v=20261021d"></script>
@@ -934,6 +883,6 @@
 <script src="assets/js/nava-trader-quote.js?v=20261019e"></script>
 <script src="assets/js/nava-trader.js?v=20261015a"></script>
 <script src="assets/js/backup.js?v=20261014l"></script>
-<script src="assets/js/app.js?v=20261021b"></script>
+<script src="assets/js/app.js?v=20261026d"></script>
 </body>
 </html>

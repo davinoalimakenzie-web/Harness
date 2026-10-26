@@ -81,7 +81,11 @@
          (back) Telegram untuk berpindah. */
       var navbawah = $('.tabbar');
       if (navbawah) navbawah.style.display = (v === 'ronce' || v === 'notes') ? 'none' : '';
-      if (v === 'ronce' && w.Ronce && w.Ronce.onShow) w.Ronce.onShow();
+      if (v === 'ronce') {
+        var tb = $('.topbar');
+        if (tb) document.documentElement.style.setProperty('--topbar-h', tb.offsetHeight + 'px');
+        if (w.Ronce && w.Ronce.onShow) w.Ronce.onShow();
+      }
     },
 
     home: function () { App.go('home'); }

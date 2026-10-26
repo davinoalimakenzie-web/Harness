@@ -155,13 +155,29 @@ input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0
   font-size:13px; font-weight:600; color:var(--text-2); cursor:pointer; white-space:nowrap;
 }
 .seg-btn.active{ background:var(--bg-elev); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.12); }
+/* Container Tab Statis / Freeze (Sticky di atas saat scroll) */
+.kalk-sticky-header{
+  position:sticky; top:var(--topbar-h, 64px); z-index:20;
+  background:var(--bg); padding:6px 14px 6px; margin-left:-14px; margin-right:-14px;
+  margin-bottom:10px; border-bottom:1px solid var(--line);
+}
+body.mitra-mode .kalk-sticky-header{ top:0; }
+
 /* Tab Utama Kalkulator: Ronce | Servis HP | Riasan */
-#kalkMainTabs{ overflow-x:hidden; flex-wrap:nowrap; margin-bottom:12px; }
+#kalkMainTabs{ overflow-x:hidden; flex-wrap:nowrap; margin-bottom:8px; }
 #kalkMainTabs .seg-btn{ font-size:13px; font-weight:700; padding:10px 4px; flex:1 1 0; min-width:0; text-align:center; }
 
-/* Sub-tabs Ronce (Input | Rekap | Kasbon | Setting / Dashboard) */
-#ronceTabs{ overflow-x:hidden; flex-wrap:nowrap; margin-top:2px; margin-bottom:12px; }
+/* Sub-tabs Ronce (Input | Rekap | Setting / Dashboard) */
+#ronceTabs{ overflow-x:hidden; flex-wrap:nowrap; margin-top:2px; margin-bottom:8px; }
 #ronceTabs .seg-btn{ font-size:12px; padding:8px 4px; flex:1 1 0; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* Baris minimalis garapan pribadi di tab Rekap: mitra#garapan#jumlah#tanggal jadi#status */
+.pribadi-line{
+  padding:9px 12px; font-size:12px; font-weight:600; letter-spacing:.2px;
+  background:var(--bg-elev); border:1px solid var(--line); border-radius:10px;
+  margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  color:var(--text);
+}
 
 /* Tampungan sementara garapan (draft) sebelum dikirim ke mitra */
 .rj-draft{
