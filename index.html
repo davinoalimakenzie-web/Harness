@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261022c">
+<link rel="stylesheet" href="assets/css/style.css?v=20261026c">
 </head>
 <body>
 
@@ -235,8 +235,8 @@
         <span class="tool-go">›</span>
       </button>
       <button class="tool" data-goto="ronce">
-        <span class="tool-ico svc">R</span>
-        <span class="tool-body"><b>Kalkulator Servis &amp; Ronce</b><span>Harga HP, komisi &amp; kasbon mitra</span></span>
+        <span class="tool-ico svc">K</span>
+        <span class="tool-body"><b>Kalkulator</b><span>Ronce, servis HP &amp; riasan</span></span>
         <span class="tool-go">›</span>
       </button>
       <button class="tool" data-mascim-open="1">
@@ -426,8 +426,8 @@
     <div id="ronceLogin">
       <div class="card" style="text-align:center;padding:28px 20px">
         <div style="font-size:40px;margin-bottom:8px">🔐</div>
-        <h2 style="margin-bottom:4px">Kalkulator Ronce</h2>
-        <p class="muted" style="margin:0 0 18px">Sistem Pencatatan Finansial &amp; Gaji Mitra</p>
+        <h2 style="margin-bottom:4px">Kalkulator</h2>
+        <p class="muted" style="margin:0 0 18px">Ronce, Servis HP &amp; Riasan</p>
         <p class="lbl" style="text-align:left;margin-bottom:8px">Pilih Akun</p>
         <div id="ronceUserList" class="list"></div>
       </div>
@@ -460,15 +460,23 @@
 
     <!-- App Screen (after login) -->
     <div id="ronceApp" hidden>
-      <!-- Tab bar -->
-      <div class="seg" id="ronceTabs">
-        <button class="seg-btn" data-rtab="tugas">Dashboard</button>
-        <button class="seg-btn active" data-rtab="input">Input</button>
-        <button class="seg-btn" data-rtab="rekap">Rekap</button>
-        <button class="seg-btn" data-rtab="kasbon">Kasbon</button>
-        <button class="seg-btn" data-rtab="servis">Servis HP</button>
-        <button class="seg-btn" data-rtab="setting">Setting</button>
+      <!-- Tab Utama Kalkulator: Ronce | Servis HP | Riasan -->
+      <div class="seg" id="kalkMainTabs">
+        <button class="seg-btn active" data-ktab="ronce">Ronce</button>
+        <button class="seg-btn" data-ktab="servis">Servis HP</button>
+        <button class="seg-btn" data-ktab="riasan">Riasan</button>
       </div>
+
+      <!-- Wadah Kalkulator Ronce (1 Kesatuan: Input, Rekap, Kasbon, Setting) -->
+      <div id="kalkPane-ronce" class="kalk-pane">
+        <!-- Sub-tabs Ronce -->
+        <div class="seg" id="ronceTabs">
+          <button class="seg-btn" data-rtab="tugas">Dashboard</button>
+          <button class="seg-btn active" data-rtab="input">Input</button>
+          <button class="seg-btn" data-rtab="rekap">Rekap</button>
+          <button class="seg-btn" data-rtab="kasbon">Kasbon</button>
+          <button class="seg-btn" data-rtab="setting">Setting</button>
+        </div>
 
       <!-- Tab: Input Garapan (khusus owner) -->
       <div id="ronceTab-input" class="ronce-tab">
@@ -685,8 +693,50 @@
         </div>
       </div>
 
-      <!-- Tab: Kalkulator Servis HP (menggantikan tab Log) -->
-      <div id="ronceTab-servis" class="ronce-tab fx-kalk" hidden>
+      <!-- Tab: Settings -->
+      <div id="ronceTab-setting" class="ronce-tab" hidden>
+
+        <!-- ============ MITRA: Akun Saya (wadah fitur mitra berikutnya) ============ -->
+        <div id="rsSettingMitra" hidden>
+          <div class="card" id="rsAkunCard">
+            <div class="list-head tight"><strong>Akun Saya</strong></div>
+            <div id="rsAkunStatus" class="mitra-meta" style="margin-bottom:9px"></div>
+            <div class="mitra-add">
+              <input type="text" id="rsPinBaru" inputmode="numeric" maxlength="4" placeholder="PIN baru (4 digit)" autocomplete="off">
+              <button class="btn primary" id="rsGantiPin" type="button">Ganti PIN</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ OWNER ============ -->
+        <div id="rsSettingOwner">
+          <div class="card">
+            <div class="list-head tight"><strong>Komisi Garapan</strong></div>
+            <div id="rsServiceList" class="list"></div>
+            <div class="field-row mt">
+              <input type="text" id="rsNama" class="grow" placeholder="Nama garapan">
+              <input type="text" id="rsHarga" class="grow" placeholder="Harga" inputmode="numeric">
+              <button class="btn" id="rsTambah">Tambah</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="list-head tight"><strong>Tambah Mitra</strong></div>
+            <div class="mitra-add">
+              <input type="text" id="rsNamaMitra" placeholder="Nama" autocomplete="off">
+              <input type="tel" id="rsWaMitra" placeholder="No. WA" inputmode="tel" autocomplete="off">
+              <button class="btn primary" id="rsTambahMitra" type="button">Kirim Link</button>
+            </div>
+            <div id="rsUserList" class="list" style="margin-top:10px"></div>
+            <p class="hint" style="margin-top:8px">Isi nama + No. WA, lalu <b>Kirim Link</b>. Mitra masuk dengan <b>PIN 0000</b> — begitu PIN-nya diganti, akun jadi <b>Aktif</b> &amp; siap terima tugas.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Tab: Kalkulator Servis HP (menggantikan tab Log) -->
+    <div id="ronceTab-servis" class="ronce-tab fx-kalk" hidden>
 
         <!-- ===== Perhitungan estimasi biaya — posisi paling atas ===== -->
         <div class="card">
@@ -771,48 +821,16 @@
         </div>
 
 
+    </div>
+
+    <!-- Tab: Kalkulator Riasan (sementara kosong sampai ada revisi selanjutnya) -->
+    <div id="kalkPane-riasan" class="kalk-pane" hidden>
+      <div class="card" style="text-align:center;padding:48px 20px;margin-top:4px">
+        <div style="font-size:42px;margin-bottom:10px">💄</div>
+        <h3 style="margin-bottom:6px">Kalkulator Riasan</h3>
+        <p class="muted" style="font-size:13px;margin:0">Fitur kalkulator riasan segera hadir pada revisi selanjutnya.</p>
       </div>
-
-      <!-- Tab: Settings -->
-      <div id="ronceTab-setting" class="ronce-tab" hidden>
-
-        <!-- ============ MITRA: Akun Saya (wadah fitur mitra berikutnya) ============ -->
-        <div id="rsSettingMitra" hidden>
-          <div class="card" id="rsAkunCard">
-            <div class="list-head tight"><strong>Akun Saya</strong></div>
-            <div id="rsAkunStatus" class="mitra-meta" style="margin-bottom:9px"></div>
-            <div class="mitra-add">
-              <input type="text" id="rsPinBaru" inputmode="numeric" maxlength="4" placeholder="PIN baru (4 digit)" autocomplete="off">
-              <button class="btn primary" id="rsGantiPin" type="button">Ganti PIN</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- ============ OWNER ============ -->
-        <div id="rsSettingOwner">
-          <div class="card">
-            <div class="list-head tight"><strong>Komisi Garapan</strong></div>
-            <div id="rsServiceList" class="list"></div>
-            <div class="field-row mt">
-              <input type="text" id="rsNama" class="grow" placeholder="Nama garapan">
-              <input type="text" id="rsHarga" class="grow" placeholder="Harga" inputmode="numeric">
-              <button class="btn" id="rsTambah">Tambah</button>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="list-head tight"><strong>Tambah Mitra</strong></div>
-            <div class="mitra-add">
-              <input type="text" id="rsNamaMitra" placeholder="Nama" autocomplete="off">
-              <input type="tel" id="rsWaMitra" placeholder="No. WA" inputmode="tel" autocomplete="off">
-              <button class="btn primary" id="rsTambahMitra" type="button">Kirim Link</button>
-            </div>
-            <div id="rsUserList" class="list" style="margin-top:10px"></div>
-            <p class="hint" style="margin-top:8px">Isi nama + No. WA, lalu <b>Kirim Link</b>. Mitra masuk dengan <b>PIN 0000</b> — begitu PIN-nya diganti, akun jadi <b>Aktif</b> &amp; siap terima tugas.</p>
-          </div>
-        </div>
-
-      </div>
+    </div>
     </div>
   </section>
 
@@ -900,7 +918,7 @@
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
 <script src="assets/js/transactions.js?v=20261014l"></script>
-<script src="assets/js/ronce.js?v=20261020e"></script>
+<script src="assets/js/ronce.js?v=20261026c"></script>
 <script src="assets/js/ronce-sync.js?v=20261019c"></script>
 <script src="assets/js/calc.js?v=20261022a"></script>
 <script src="assets/js/calc-sync.js?v=20261021d"></script>

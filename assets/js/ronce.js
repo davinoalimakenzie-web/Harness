@@ -782,7 +782,7 @@
   function showApp() {
     $('#ronceLogin').style.display = 'none';
     $('#ronceApp').hidden = false;
-    renderTab();
+    renderMainTab();
   }
 
   function showLogin() {
@@ -804,7 +804,39 @@
     showLogin();
   }
 
-  /* ---------------- Tab rendering ---------------- */
+  /* ---------------- Main Tab rendering (Kalkulator: Ronce | Servis HP | Riasan) ---------------- */
+
+  var mainTabAktif = 'ronce';
+
+  function renderMainTab() {
+    if (!sesi) { showLogin(); return; }
+    var own = adalahOwner();
+    if (!own) mainTabAktif = 'ronce';
+
+    var bar = $('#kalkMainTabs');
+    if (bar) {
+      bar.style.display = own ? '' : 'none';
+      bar.querySelectorAll('.seg-btn').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.ktab === mainTabAktif);
+      });
+    }
+
+    var paneRonce = $('#kalkPane-ronce');
+    var paneServis = $('#ronceTab-servis');
+    var paneRiasan = $('#kalkPane-riasan');
+
+    if (paneRonce) paneRonce.hidden = (mainTabAktif !== 'ronce');
+    if (paneServis) paneServis.hidden = (mainTabAktif !== 'servis');
+    if (paneRiasan) paneRiasan.hidden = (mainTabAktif !== 'riasan');
+
+    if (mainTabAktif === 'ronce') {
+      renderTab();
+    } else if (mainTabAktif === 'servis') {
+      renderServis();
+    }
+  }
+
+  /* ---------------- Tab rendering (Ronce: Input | Rekap | Kasbon | Setting) ---------------- */
 
   function renderTab() {
     if (!sesi) { showLogin(); return; }
@@ -813,26 +845,24 @@
        tombol lama tetap tampak aktif padahal isinya sudah tab lain. */
     if (!own) {
       if (tabAktif === 'input' || tabAktif === 'servis') tabAktif = 'tugas';
-    } else if (tabAktif === 'tugas') {
+    } else if (tabAktif === 'tugas' || tabAktif === 'servis') {
       tabAktif = 'input';
     }
     var bar = $('#ronceTabs');
     if (bar) bar.style.display = '';
     document.querySelectorAll('#ronceTabs .seg-btn').forEach(function (b) {
       var t = b.dataset.rtab;
-      /* Owner: Input | Rekap | Kasbon | Servis HP | Setting.
+      /* Owner: Input | Rekap | Kasbon | Setting.
          Mitra: Dashboard | Rekap | Kasbon | Setting (tab lain disembunyikan). */
       var show = own
-        ? (t !== 'tugas')
+        ? (t !== 'tugas' && t !== 'servis')
         : (t === 'tugas' || t === 'rekap' || t === 'kasbon' || t === 'setting');
       b.style.display = show ? '' : 'none';
       if (t === 'tugas') b.textContent = 'Dashboard';
       b.classList.toggle('active', t === tabAktif);
     });
-    /* SEMUA tab (termasuk 'tugas') dikelola di satu loop. Sebelumnya
-       #ronceTab-tugas hanya disembunyikan untuk owner, sehingga untuk mitra
-       dashboard (Total Jasa Kamu + Akun Saya) ikut tampil di tab Rekap/Kasbon. */
-    var tabs = ['input','rekap','servis','setting','kasbon','tugas'];
+    /* SEMUA sub-tab dikelola di satu loop */
+    var tabs = ['input','rekap','setting','kasbon','tugas'];
     /* Konfirmasi pelunasan BON tidak boleh "nyangkut" saat pindah tab. */
     if (tabAktif !== 'kasbon') bonKonfirmasi = null;
     tabs.forEach(function (t) {
@@ -842,7 +872,6 @@
     if (tabAktif === 'input') renderInput();
     else if (tabAktif === 'tugas') renderTugasMitra();
     else if (tabAktif === 'rekap') renderRekap();
-    else if (tabAktif === 'servis') renderServis();
     else if (tabAktif === 'kasbon') renderKasbon();
     else renderSetting();
   }
@@ -1844,7 +1873,16 @@
     var pb = $('#roncePinBack');
     if (pb) pb.addEventListener('click', function () { showLogin(); });
 
-    // Tabs
+    // Tabs Utama Kalkulator (Ronce | Servis HP | Riasan)
+    document.addEventListener('click', function (e) {
+      var kb = e.target.closest('[data-ktab]');
+      if (kb) {
+        mainTabAktif = kb.dataset.ktab;
+        renderMainTab();
+      }
+    });
+
+    // Sub-tabs Ronce (Input | Rekap | Kasbon | Setting / Dashboard)
     document.addEventListener('click', function (e) {
       var tb = e.target.closest('[data-rtab]');
       if (tb) { tabAktif = tb.dataset.rtab; renderTab(); }
@@ -1972,6 +2010,8 @@
   w.Ronce = {
     init: init,
     onShow: function () { if (sesi) { showApp(); } else { showLogin(); } },
+    mainTab: function () { return mainTabAktif; },
+    setMainTab: function (k) { mainTabAktif = k; renderMainTab(); },
     _data: function () { return data; },
     _muat: muat, _simpan: simpan,
     _doc: doc, _gabung: gabung, _refresh: refresh,

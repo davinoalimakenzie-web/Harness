@@ -15,7 +15,7 @@
     recap:   ['Rekap', 'Ringkasan & komposisi kategori'],
     more:    ['Lainnya', 'Alat, kategori, akun & data'],
     notes:   ['Catatan', 'Pengingat voice'],
-    ronce:   ['Kalkulator Ronce', 'Rekap komisi & kasbon mitra'],
+    ronce:   ['Kalkulator', 'Ronce, Servis HP & Riasan'],
     mascim:  ['Mas Cim Service HP', 'Servis, kas & Dana Bank']
   };
 
