@@ -1,0 +1,1175 @@
+<!-- Mirror of riasan.html for direct subfolder / standalone index.html access -->
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Aplikasi Rias & Busana Pengantin</title>
+  
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              rose: '#D47A88',
+              rosedark: '#8B4F58',
+              roselight: '#FCECEF',
+              gold: '#D0AF6F',
+              goldlight: '#F8F2E4',
+              bg: '#141217',
+              card: '#1F1B24',
+              card2: '#28232E',
+              line: '#383040',
+              text: '#F5EDF0',
+              muted: '#A59BAA'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #141217;
+      color: #F5EDF0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    }
+    .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #383040; border-radius: 4px; }
+    input, select, textarea { accent-color: #D47A88; }
+    .safe-top { padding-top: env(safe-area-inset-top, 0px); }
+  </style>
+</head>
+<body class="min-h-screen safe-top select-none">
+
+  <!-- TOP BAR -->
+  <header class="sticky top-0 z-30 bg-[#141217]/90 backdrop-blur border-b border-brand-line px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-rose to-brand-gold flex items-center justify-center text-lg shadow-md shadow-brand-rose/20">
+        💄
+      </div>
+      <div>
+        <h1 class="text-base font-bold text-brand-text tracking-wide flex items-center gap-1.5">
+          <span>ALIMA RIAS</span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded font-medium bg-brand-gold/20 text-brand-gold border border-brand-gold/30">PRO</span>
+        </h1>
+        <p class="text-xs text-brand-muted" id="headerSubtitle">Jadwal & Manajemen Pengantin</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <button onclick="RiasApp.openClientModal()" class="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-brand-rose to-brand-gold text-white text-xs font-semibold flex items-center gap-1 shadow-sm active:scale-95 transition-transform">
+        <span>+ Klien</span>
+      </button>
+      <button onclick="RiasApp.openClothModal()" class="px-2.5 py-1.5 rounded-lg bg-brand-card2 text-brand-gold hover:text-white border border-brand-line text-xs font-semibold flex items-center gap-1 active:scale-95 transition-transform">
+        <span>+ Busana</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-md mx-auto p-4 space-y-4">
+
+    <!-- TAB 1: JADWAL -->
+    <section id="tab-jadwal" class="tab-pane space-y-4">
+      <div id="jadwalAlertBox" class="hidden"></div>
+
+      <div class="grid grid-cols-2 gap-2.5">
+        <div class="bg-brand-card border border-brand-line rounded-xl p-3">
+          <span class="text-xs text-brand-muted block">Total Acara</span>
+          <strong class="text-lg font-bold text-brand-text mt-0.5 block" id="statTotalAcara">0</strong>
+          <span class="text-[11px] text-brand-gold">Bulan ini & mendatang</span>
+        </div>
+        <div class="bg-brand-card border border-brand-line rounded-xl p-3">
+          <span class="text-xs text-brand-muted block">Acara Terdekat</span>
+          <strong class="text-sm font-semibold text-brand-rose mt-1 block truncate" id="statAcaraTerdekat">-</strong>
+          <span class="text-[11px] text-brand-muted" id="statAcaraTerdekatTgl">-</span>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-brand-gold flex items-center gap-1.5">
+            <span>📅 Jadwal Acara Terdekat</span>
+          </h2>
+          <span class="text-xs text-brand-muted" id="jadwalCount">0 jadwal</span>
+        </div>
+        <div id="jadwalList" class="space-y-3"></div>
+      </div>
+    </section>
+
+    <!-- TAB 2: KLIEN -->
+    <section id="tab-klien" class="tab-pane hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-brand-gold">
+          👰 Daftar Klien & Pengantin
+        </h2>
+        <span class="text-xs text-brand-muted" id="klienCount">0 klien</span>
+      </div>
+
+      <div class="relative">
+        <input type="text" id="klienSearchInput" oninput="RiasApp.renderClients()" placeholder="Cari nama pengantin atau No HP..." 
+          class="w-full bg-brand-card border border-brand-line rounded-xl px-3.5 py-2.5 text-xs text-brand-text placeholder-brand-muted focus:outline-none focus:border-brand-rose">
+      </div>
+
+      <div id="klienList" class="space-y-3"></div>
+    </section>
+
+    <!-- TAB 3: BUSANA & ANTI-BENTROK -->
+    <section id="tab-busana" class="tab-pane hidden space-y-4">
+      <div class="bg-brand-card border border-brand-gold/30 rounded-xl p-3.5 flex items-start gap-3">
+        <div class="text-xl">🛡️</div>
+        <div class="text-xs">
+          <strong class="text-brand-gold block font-semibold">Sistem Proteksi Anti-Bentrok (H-2 s/d H+2)</strong>
+          <p class="text-brand-muted mt-0.5 leading-relaxed">
+            Busana yang dipasang ke klien otomatis <span class="text-brand-rose font-medium">terkunci 5 hari</span> (2 hari sebelum acara untuk fitting & 2 hari sesudah acara untuk laundry/perawatan).
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-brand-gold">
+          👗 Koleksi Busana & Stok
+        </h2>
+        <select id="busanaFilterCat" onchange="RiasApp.renderClothes()" class="bg-brand-card border border-brand-line text-xs rounded-lg px-2.5 py-1 text-brand-text focus:outline-none">
+          <option value="ALL">Semua Kategori</option>
+          <option value="Kebaya">Kebaya</option>
+          <option value="Jas">Jas / Beskap</option>
+          <option value="Gaun">Gaun</option>
+          <option value="Aksesoris">Aksesoris</option>
+        </select>
+      </div>
+
+      <div id="busanaList" class="space-y-3"></div>
+    </section>
+
+    <!-- TAB 4: KEUANGAN (REKAP TAGIHAN) -->
+    <section id="tab-keuangan" class="tab-pane hidden space-y-4">
+      <div class="bg-gradient-to-br from-brand-card to-brand-card2 border border-brand-line rounded-2xl p-4 shadow-lg space-y-3">
+        <div class="flex items-center justify-between border-b border-brand-line/60 pb-2.5">
+          <span class="text-xs text-brand-muted font-medium">Total Omset Acara</span>
+          <strong class="text-base font-bold text-brand-gold" id="statOmsetTotal">Rp0</strong>
+        </div>
+        <div class="grid grid-cols-2 gap-3 pt-1">
+          <div>
+            <span class="text-[11px] text-brand-muted block">Sudah Diterima (DP/Cicilan)</span>
+            <strong class="text-sm font-bold text-emerald-400 mt-0.5 block" id="statTotalMasuk">Rp0</strong>
+          </div>
+          <div>
+            <span class="text-[11px] text-brand-muted block">Sisa Tagihan (Piutang)</span>
+            <strong class="text-sm font-bold text-amber-400 mt-0.5 block" id="statTotalSisa">Rp0</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-brand-gold">
+          💰 Rekap Tagihan Klien
+        </h2>
+        <span class="text-xs text-brand-muted" id="billingCount">0 klien</span>
+      </div>
+
+      <div id="billingList" class="space-y-3"></div>
+    </section>
+
+  </main>
+
+  <!-- BOTTOM NAVIGATION (4 MENUS) -->
+  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-[#141217]/95 backdrop-blur border-t border-brand-line px-2 py-1.5 flex justify-around max-w-md mx-auto">
+    <button onclick="RiasApp.switchTab('jadwal')" class="nav-btn flex flex-col items-center justify-center flex-1 py-1.5 text-brand-rose active" data-tab="jadwal">
+      <span class="text-xl">📅</span>
+      <span class="text-[10px] font-medium mt-0.5">Jadwal</span>
+    </button>
+    <button onclick="RiasApp.switchTab('klien')" class="nav-btn flex flex-col items-center justify-center flex-1 py-1.5 text-brand-muted" data-tab="klien">
+      <span class="text-xl">👰</span>
+      <span class="text-[10px] font-medium mt-0.5">Klien</span>
+    </button>
+    <button onclick="RiasApp.switchTab('busana')" class="nav-btn flex flex-col items-center justify-center flex-1 py-1.5 text-brand-muted" data-tab="busana">
+      <span class="text-xl">👗</span>
+      <span class="text-[10px] font-medium mt-0.5">Busana</span>
+    </button>
+    <button onclick="RiasApp.switchTab('keuangan')" class="nav-btn flex flex-col items-center justify-center flex-1 py-1.5 text-brand-muted" data-tab="keuangan">
+      <span class="text-xl">💰</span>
+      <span class="text-[10px] font-medium mt-0.5">Keuangan</span>
+    </button>
+  </nav>
+
+  <!-- MODALS -->
+  <div id="modalClient" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-brand-card border border-brand-line rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-slideUp">
+      <div class="px-4 py-3 border-b border-brand-line flex items-center justify-between">
+        <h3 class="text-sm font-bold text-brand-gold" id="modalClientTitle">Tambah Klien Baru</h3>
+        <button onclick="RiasApp.closeModals()" class="text-brand-muted hover:text-white text-lg p-1">✕</button>
+      </div>
+      <form id="formClient" onsubmit="RiasApp.saveClient(event)" class="p-4 space-y-3.5 overflow-y-auto custom-scroll text-xs">
+        <input type="hidden" id="clientId">
+
+        <div>
+          <label class="block text-brand-muted mb-1 font-medium">Nama Klien / Pengantin *</label>
+          <input type="text" id="clientName" required placeholder="Contoh: Dinda & Rian" 
+            class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-brand-muted mb-1 font-medium">No HP / WhatsApp *</label>
+            <input type="tel" id="clientPhone" required placeholder="08123456789" 
+              class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
+          </div>
+          <div>
+            <label class="block text-brand-muted mb-1 font-medium">Tanggal Acara *</label>
+            <input type="date" id="clientEventDate" required 
+              class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-brand-muted mb-1 font-medium">Catatan Rias & Ukuran Fitting</label>
+          <textarea id="clientNotes" rows="2" placeholder="Look makeup, adat, ukuran kebaya (LD/LP), permintaan khusus..." 
+            class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-brand-muted mb-1 font-medium">Total Harga Paket (Rp) *</label>
+            <input type="number" id="clientPackagePrice" required min="0" step="50000" placeholder="5000000" 
+              class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
+          </div>
+          <div>
+            <label class="block text-brand-muted mb-1 font-medium">Nominal DP Awal (Rp)</label>
+            <input type="number" id="clientDownPayment" min="0" step="50000" placeholder="1500000" 
+              class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
+          </div>
+        </div>
+
+        <div class="pt-2 flex gap-2">
+          <button type="button" onclick="RiasApp.closeModals()" class="flex-1 py-2.5 rounded-xl border border-brand-line text-brand-muted font-medium hover:bg-brand-card2">Batal</button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-brand-rose to-brand-gold text-white font-bold shadow-md shadow-brand-rose/20">Simpan Klien</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalCloth" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-brand-card border border-brand-line rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-slideUp">
+      <div class="px-4 py-3 border-b border-brand-line flex items-center justify-between">
+        <h3 class="text-sm font-bold text-brand-gold" id="modalClothTitle">Tambah Koleksi Busana</h3>
+        <button onclick="RiasApp.closeModals()" class="text-brand-muted hover:text-white text-lg p-1">✕</button>
+      </div>
+      <form id="formCloth" onsubmit="RiasApp.saveCloth(event)" class="p-4 space-y-3.5 overflow-y-auto custom-scroll text-xs">
+        <input type="hidden" id="clothId">
+
+        <div>
+          <label class="block text-brand-muted mb-1 font-medium">Nama Busana *</label>
+          <input type="text" id="clothName" required placeholder="Contoh: Kebaya Brokat Rose Gold" 
+            class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-brand-muted mb-1 font-medium">Kategori *</label>
+            <select id="clothCategory" required class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
+              <option value="Kebaya">Kebaya</option>
+              <option value="Jas">Jas / Beskap</option>
+              <option value="Gaun">Gaun</option>
+              <option value="Aksesoris">Aksesoris</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-brand-muted mb-1 font-medium">Ukuran</label>
+            <input type="text" id="clothSize" placeholder="M / L / All Size" 
+              class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-brand-muted mb-1 font-medium">Warna & Deskripsi Detail</label>
+          <input type="text" id="clothColor" placeholder="Contoh: Ivory Gold, Payet Mutiara" 
+            class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
+        </div>
+
+        <div class="pt-2 flex gap-2">
+          <button type="button" onclick="RiasApp.closeModals()" class="flex-1 py-2.5 rounded-xl border border-brand-line text-brand-muted font-medium hover:bg-brand-card2">Batal</button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-brand-rose to-brand-gold text-white font-bold">Simpan Busana</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalAssignCloth" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-brand-card border border-brand-line rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-slideUp">
+      <div class="px-4 py-3 border-b border-brand-line flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-bold text-brand-gold">Pilih Busana untuk Klien</h3>
+          <p class="text-[11px] text-brand-muted" id="assignClothSub">-</p>
+        </div>
+        <button onclick="RiasApp.closeModals()" class="text-brand-muted hover:text-white text-lg p-1">✕</button>
+      </div>
+
+      <div class="p-4 space-y-3 overflow-y-auto custom-scroll flex-1 text-xs">
+        <p class="text-brand-muted text-[11px] bg-brand-card2 p-2.5 rounded-xl border border-brand-line">
+          ℹ️ Busana yang terpilih akan dikunci selama <b class="text-brand-gold">H-2 s/d H+2</b> dari tanggal acara klien. Jika ada bentrok dengan klien lain, peringatan merah akan muncul di bawah.
+        </p>
+
+        <div id="assignClothList" class="space-y-2"></div>
+      </div>
+
+      <div class="p-3 border-t border-brand-line flex justify-end">
+        <button onclick="RiasApp.closeModals()" class="px-5 py-2 rounded-xl bg-gradient-to-r from-brand-rose to-brand-gold text-white font-bold text-xs">Selesai</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalPayment" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-brand-card border border-brand-line rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-slideUp">
+      <div class="px-4 py-3 border-b border-brand-line flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-bold text-brand-gold">Update Pembayaran</h3>
+          <p class="text-[11px] text-brand-muted" id="paymentModalSub">-</p>
+        </div>
+        <button onclick="RiasApp.closeModals()" class="text-brand-muted hover:text-white text-lg p-1">✕</button>
+      </div>
+
+      <div class="p-4 space-y-4 overflow-y-auto custom-scroll flex-1 text-xs">
+        <div class="bg-brand-card2 rounded-xl p-3 border border-brand-line space-y-1.5">
+          <div class="flex justify-between">
+            <span class="text-brand-muted">Total Tagihan:</span>
+            <b class="text-brand-text font-bold" id="paySummaryTotal">Rp0</b>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-brand-muted">Sudah Dibayar:</span>
+            <b class="text-emerald-400 font-bold" id="paySummaryPaid">Rp0</b>
+          </div>
+          <div class="flex justify-between border-t border-brand-line/60 pt-1.5">
+            <span class="text-brand-gold font-medium">Sisa Tagihan:</span>
+            <b class="text-amber-400 font-bold text-sm" id="paySummaryRemaining">Rp0</b>
+          </div>
+        </div>
+
+        <form id="formAddPayment" onsubmit="RiasApp.submitPayment(event)" class="space-y-3">
+          <input type="hidden" id="payClientId">
+
+          <div>
+            <label class="block text-brand-muted mb-1 font-medium">Nominal Pembayaran Baru (Rp) *</label>
+            <div class="flex gap-2">
+              <input type="number" id="payAmount" required min="10000" step="50000" placeholder="Contoh: 1000000" 
+                class="flex-1 bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
+              <button type="button" onclick="RiasApp.fillFullPayment()" class="px-2.5 py-2 bg-brand-gold/20 text-brand-gold border border-brand-gold/30 rounded-xl text-[11px] font-semibold whitespace-nowrap active:scale-95">
+                Lunasi Semua
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-brand-muted mb-1 font-medium">Tanggal Bayar *</label>
+              <input type="date" id="payDate" required 
+                class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
+            </div>
+            <div>
+              <label class="block text-brand-muted mb-1 font-medium">Keterangan</label>
+              <input type="text" id="payNote" placeholder="Cicilan 2 / Pelunasan" 
+                class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
+            </div>
+          </div>
+
+          <button type="submit" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold shadow-md shadow-emerald-500/20 active:scale-95 transition-transform">
+            + Simpan Pembayaran
+          </button>
+        </form>
+
+        <div class="space-y-2 pt-2 border-t border-brand-line">
+          <h4 class="text-xs font-semibold text-brand-gold">Riwayat Transaksi Masuk:</h4>
+          <div id="paymentHistoryList" class="space-y-1.5"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-brand-card2 border border-brand-line text-brand-text px-4 py-2 rounded-xl text-xs font-medium shadow-xl opacity-0 pointer-events-none transition-opacity duration-300">
+  </div>
+
+  <script>
+    var STORAGE_KEY = 'nava_rias_db_v1';
+
+    var defaultData = {
+      clients: [
+        {
+          id: 'c1',
+          name: 'Anisa & Farhan',
+          phone: '081234567890',
+          eventDate: '2026-11-05',
+          notes: 'Akad Sunda Siger, look glowing soft glam. Fitting kebaya M (Ld 88).',
+          packagePrice: 6500000,
+          downPayment: 2000000,
+          payments: [
+            { id: 'p1', date: '2026-10-01', amount: 2000000, note: 'DP Booking' }
+          ],
+          clothes: ['b1', 'b4']
+        },
+        {
+          id: 'c2',
+          name: 'Dinda & Yoga',
+          phone: '082198765432',
+          eventDate: '2026-11-05',
+          notes: 'Resepsi Modern Hijab, lipstik nude pink. Gaun Champagne L.',
+          packagePrice: 5000000,
+          downPayment: 1500000,
+          payments: [
+            { id: 'p2', date: '2026-10-15', amount: 1500000, note: 'DP Booking' },
+            { id: 'p3', date: '2026-10-25', amount: 2000000, note: 'Cicilan 1' }
+          ],
+          clothes: ['b2']
+        },
+        {
+          id: 'c3',
+          name: 'Siti & Ilham',
+          phone: '085712345678',
+          eventDate: '2026-11-05',
+          notes: 'Rias akad minimalis modern di rumah.',
+          packagePrice: 3000000,
+          downPayment: 3000000,
+          payments: [
+            { id: 'p4', date: '2026-10-20', amount: 3000000, note: 'Lunas Langsung' }
+          ],
+          clothes: ['b5']
+        },
+        {
+          id: 'c4',
+          name: 'Citra & Dimas',
+          phone: '081388889999',
+          eventDate: '2026-11-12',
+          notes: 'Rias Jawa Solo Putri klasik. Beskap pria L.',
+          packagePrice: 4500000,
+          downPayment: 1500000,
+          payments: [
+            { id: 'p5', date: '2026-10-22', amount: 1500000, note: 'DP Booking' }
+          ],
+          clothes: ['b3']
+        }
+      ],
+      clothes: [
+        {
+          id: 'b1',
+          name: 'Kebaya Sunda Siger Ivory Rose',
+          category: 'Kebaya',
+          size: 'M',
+          color: 'Ivory / Rose Gold'
+        },
+        {
+          id: 'b2',
+          name: 'Gaun Ballgown Champagne Swarovski',
+          category: 'Gaun',
+          size: 'L',
+          color: 'Champagne Gold'
+        },
+        {
+          id: 'b3',
+          name: 'Kebaya Bludru Solo Putri Hitam Emas',
+          category: 'Kebaya',
+          size: 'S - M',
+          color: 'Hitam & Gold'
+        },
+        {
+          id: 'b4',
+          name: 'Beskap Pengantin Pria Rose Gold',
+          category: 'Jas',
+          size: 'L',
+          color: 'Rose Gold'
+        },
+        {
+          id: 'b5',
+          name: 'Mahkota Siger Kencana Melati',
+          category: 'Aksesoris',
+          size: 'All Size',
+          color: 'Gold'
+        }
+      ]
+    };
+
+    var DB = {
+      load: function () {
+        try {
+          var raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) return JSON.parse(raw);
+        } catch (e) {}
+        this.save(defaultData);
+        return defaultData;
+      },
+      save: function (data) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {}
+      }
+    };
+
+    var RiasApp = {
+      db: null,
+      activeTab: 'jadwal',
+      activeAssignClientId: null,
+      activePaymentClientId: null,
+
+      init: function () {
+        this.db = DB.load();
+
+        if (window.Telegram && window.Telegram.WebApp) {
+          window.Telegram.WebApp.ready();
+          window.Telegram.WebApp.expand();
+        }
+
+        var today = new Date().toISOString().split('T')[0];
+        document.getElementById('clientEventDate').value = today;
+        document.getElementById('payDate').value = today;
+
+        this.renderAll();
+      },
+
+      renderAll: function () {
+        this.renderSchedules();
+        this.renderClients();
+        this.renderClothes();
+        this.renderBilling();
+      },
+
+      formatIDR: function (n) {
+        var num = parseInt(n, 10) || 0;
+        return 'Rp' + num.toLocaleString('id-ID');
+      },
+
+      formatDate: function (dateStr) {
+        if (!dateStr) return '-';
+        var d = new Date(dateStr + 'T00:00:00');
+        if (isNaN(d.getTime())) return dateStr;
+        return d.toLocaleDateString('id-ID', {
+          weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
+        });
+      },
+
+      addDays: function (dateStr, days) {
+        var d = new Date(dateStr + 'T00:00:00');
+        d.setDate(d.getDate() + days);
+        return d.toISOString().split('T')[0];
+      },
+
+      toast: function (msg) {
+        var t = document.getElementById('toast');
+        if (!t) return;
+        t.textContent = msg;
+        t.style.opacity = '1';
+        t.style.pointerEvents = 'auto';
+        clearTimeout(this._tTimer);
+        this._tTimer = setTimeout(function () {
+          t.style.opacity = '0';
+          t.style.pointerEvents = 'none';
+        }, 2500);
+      },
+
+      switchTab: function (tabName) {
+        this.activeTab = tabName;
+        document.querySelectorAll('.tab-pane').forEach(function (p) {
+          p.classList.add('hidden');
+        });
+        var activePane = document.getElementById('tab-' + tabName);
+        if (activePane) activePane.classList.remove('hidden');
+
+        document.querySelectorAll('.nav-btn').forEach(function (b) {
+          var isAct = b.dataset.tab === tabName;
+          b.classList.toggle('text-brand-rose', isAct);
+          b.classList.toggle('text-brand-muted', !isAct);
+        });
+
+        var subs = {
+          jadwal: 'Jadwal & Acara Terdekat',
+          klien: 'Daftar Klien Pengantin',
+          busana: 'Koleksi Busana & Anti-Bentrok',
+          keuangan: 'Rekap Tagihan & Pembayaran'
+        };
+        document.getElementById('headerSubtitle').textContent = subs[tabName] || 'Manajemen Rias';
+        window.scrollTo(0, 0);
+      },
+
+      renderSchedules: function () {
+        var clients = this.db.clients.slice().sort(function (a, b) {
+          return a.eventDate.localeCompare(b.eventDate);
+        });
+
+        document.getElementById('jadwalCount').textContent = clients.length + ' jadwal';
+        document.getElementById('statTotalAcara').textContent = clients.length + ' Acara';
+
+        var today = new Date().toISOString().split('T')[0];
+        var upcoming = clients.filter(function (c) { return c.eventDate >= today; });
+        var next = upcoming[0] || clients[0];
+        if (next) {
+          document.getElementById('statAcaraTerdekat').textContent = next.name;
+          document.getElementById('statAcaraTerdekatTgl').textContent = this.formatDate(next.eventDate);
+        } else {
+          document.getElementById('statAcaraTerdekat').textContent = 'Belum ada';
+          document.getElementById('statAcaraTerdekatTgl').textContent = '-';
+        }
+
+        var dateCounts = {};
+        clients.forEach(function (c) {
+          dateCounts[c.eventDate] = (dateCounts[c.eventDate] || 0) + 1;
+        });
+
+        var crowdedDates = Object.keys(dateCounts).filter(function (d) {
+          return dateCounts[d] > 2;
+        });
+
+        var alertBox = document.getElementById('jadwalAlertBox');
+        if (crowdedDates.length) {
+          alertBox.classList.remove('hidden');
+          alertBox.innerHTML = crowdedDates.map(function (d) {
+            return '<div class="bg-red-500/15 border border-red-500/40 rounded-xl p-3 flex items-start gap-2.5 text-xs text-red-200">' +
+              '<span class="text-lg">⚠️</span>' +
+              '<div>' +
+                '<strong class="text-red-300 font-bold block">Peringatan Jadwal Padat!</strong>' +
+                '<span>Ada <b>' + dateCounts[d] + ' acara</b> pada tanggal <b>' + RiasApp.formatDate(d) + '</b>. Pastikan tim rias & busana siap.</span>' +
+              '</div>' +
+            '</div>';
+          }).join('');
+        } else {
+          alertBox.classList.add('hidden');
+          alertBox.innerHTML = '';
+        }
+
+        var list = document.getElementById('jadwalList');
+        if (!clients.length) {
+          list.innerHTML = '<div class="text-center py-10 text-brand-muted text-xs bg-brand-card rounded-2xl border border-brand-line">Belum ada jadwal acara. Tekan <b>+ Klien</b> untuk mencatat acara baru.</div>';
+          return;
+        }
+
+        list.innerHTML = clients.map(function (c) {
+          var isCrowded = dateCounts[c.eventDate] > 2;
+          var clothCount = (c.clothes || []).length;
+
+          return '<div class="bg-brand-card border ' + (isCrowded ? 'border-red-500/40' : 'border-brand-line') + ' rounded-2xl p-4 space-y-2.5 shadow-sm">' +
+            '<div class="flex items-start justify-between gap-2">' +
+              '<div>' +
+                '<div class="flex items-center gap-1.5 flex-wrap">' +
+                  '<strong class="text-sm font-bold text-brand-text">' + c.name + '</strong>' +
+                  (isCrowded ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/30 font-semibold">⚠️ ' + dateCounts[c.eventDate] + ' Acara Sama</span>' : '') +
+                '</div>' +
+                '<p class="text-xs text-brand-gold font-medium mt-0.5">🗓️ ' + RiasApp.formatDate(c.eventDate) + '</p>' +
+              '</div>' +
+              '<a href="https://wa.me/' + c.phone.replace(/[^0-9]/g, '') + '" target="_blank" class="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold flex items-center gap-1 active:scale-95">' +
+                '<span>💬 WA</span>' +
+              '</a>' +
+            '</div>' +
+
+            (c.notes ? '<p class="text-xs text-brand-muted bg-brand-card2/80 rounded-xl p-2.5 border border-brand-line/50 leading-relaxed">' + c.notes + '</p>' : '') +
+
+            '<div class="flex items-center justify-between text-xs pt-1 border-t border-brand-line/50">' +
+              '<span class="text-brand-muted">Busana: <b class="text-brand-text">' + clothCount + ' dipilih</b></span>' +
+              '<button onclick="RiasApp.openAssignClothModal(\'' + c.id + '\')" class="text-brand-rose font-semibold hover:underline">' +
+                (clothCount ? 'Ubah Busana 👗' : '+ Pasang Busana 👗') +
+              '</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      },
+
+      renderClients: function () {
+        var query = (document.getElementById('klienSearchInput').value || '').toLowerCase();
+        var clients = this.db.clients.filter(function (c) {
+          return c.name.toLowerCase().indexOf(query) !== -1 || c.phone.indexOf(query) !== -1;
+        });
+
+        document.getElementById('klienCount').textContent = clients.length + ' klien';
+        var list = document.getElementById('klienList');
+
+        if (!clients.length) {
+          list.innerHTML = '<div class="text-center py-10 text-brand-muted text-xs bg-brand-card rounded-2xl border border-brand-line">Tidak ada klien ditemukan.</div>';
+          return;
+        }
+
+        list.innerHTML = clients.map(function (c) {
+          var totalPaid = (c.payments || []).reduce(function (s, p) { return s + p.amount; }, 0);
+          var remain = c.packagePrice - totalPaid;
+          var isLunas = remain <= 0;
+
+          return '<div class="bg-brand-card border border-brand-line rounded-2xl p-4 space-y-3">' +
+            '<div class="flex items-start justify-between gap-2">' +
+              '<div>' +
+                '<h3 class="text-sm font-bold text-brand-text">' + c.name + '</h3>' +
+                '<p class="text-xs text-brand-muted">📞 ' + c.phone + ' &middot; Acara: <b class="text-brand-gold">' + RiasApp.formatDate(c.eventDate) + '</b></p>' +
+              '</div>' +
+              '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold ' + 
+                (isLunas ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30') + '">' +
+                (isLunas ? 'LUNAS' : 'SISA ' + RiasApp.formatIDR(remain)) +
+              '</span>' +
+            '</div>' +
+
+            (c.notes ? '<div class="text-xs text-brand-muted bg-brand-card2 p-2.5 rounded-xl border border-brand-line/50">' + c.notes + '</div>' : '') +
+
+            '<div class="flex items-center justify-between text-xs pt-1 border-t border-brand-line/50">' +
+              '<div class="space-x-1">' +
+                '<button onclick="RiasApp.openClientModal(\'' + c.id + '\')" class="text-brand-gold font-medium px-2 py-1 rounded bg-brand-card2 border border-brand-line hover:text-white">Edit</button>' +
+                '<button onclick="RiasApp.deleteClient(\'' + c.id + '\')" class="text-red-400 font-medium px-2 py-1 rounded bg-brand-card2 border border-brand-line hover:text-red-300">Hapus</button>' +
+              '</div>' +
+              '<button onclick="RiasApp.openAssignClothModal(\'' + c.id + '\')" class="px-2.5 py-1 rounded-lg bg-brand-rose/20 text-brand-rose border border-brand-rose/30 font-semibold">' +
+                '👗 Busana (' + (c.clothes || []).length + ')' +
+              '</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      },
+
+      checkClothConflict: function (clothId, targetDateStr, excludeClientId) {
+        var startTarget = this.addDays(targetDateStr, -2);
+        var endTarget = this.addDays(targetDateStr, 2);
+
+        for (var i = 0; i < this.db.clients.length; i++) {
+          var c = this.db.clients[i];
+          if (c.id === excludeClientId) continue;
+          if ((c.clothes || []).indexOf(clothId) !== -1) {
+            var cStart = this.addDays(c.eventDate, -2);
+            var cEnd = this.addDays(c.eventDate, 2);
+
+            if (startTarget <= cEnd && cStart <= endTarget) {
+              return {
+                conflict: true,
+                client: c,
+                lockStart: cStart,
+                lockEnd: cEnd
+              };
+            }
+          }
+        }
+        return { conflict: false };
+      },
+
+      renderClothes: function () {
+        var filter = document.getElementById('busanaFilterCat').value;
+        var clothes = this.db.clothes.filter(function (b) {
+          return filter === 'ALL' || b.category === filter;
+        });
+
+        var list = document.getElementById('busanaList');
+        if (!clothes.length) {
+          list.innerHTML = '<div class="text-center py-10 text-brand-muted text-xs bg-brand-card rounded-2xl border border-brand-line">Belum ada koleksi busana di kategori ini. Tekan <b>+ Busana</b> untuk menambah.</div>';
+          return;
+        }
+
+        list.innerHTML = clothes.map(function (b) {
+          var users = RiasApp.db.clients.filter(function (c) {
+            return (c.clothes || []).indexOf(b.id) !== -1;
+          }).sort(function (x, y) { return x.eventDate.localeCompare(y.eventDate); });
+
+          var statusBadge = '';
+          if (users.length) {
+            statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full bg-brand-rose/20 text-brand-rose border border-brand-rose/30 font-semibold">' +
+              users.length + ' Booking Terjadwal' +
+            '</span>';
+          } else {
+            statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold">Tersedia</span>';
+          }
+
+          var scheduleLines = users.map(function (u) {
+            var lockStart = RiasApp.addDays(u.eventDate, -2);
+            var lockEnd = RiasApp.addDays(u.eventDate, 2);
+            return '<div class="text-[11px] text-brand-muted flex items-center justify-between bg-brand-card2/70 px-2.5 py-1.5 rounded-lg border border-brand-line/40">' +
+              '<span>🔒 Klien: <b class="text-brand-text">' + u.name + '</b></span>' +
+              '<span class="text-brand-gold font-medium">' + RiasApp.formatDate(u.eventDate) + ' (Kunci: ' + lockStart.slice(5) + ' s/d ' + lockEnd.slice(5) + ')</span>' +
+            '</div>';
+          }).join('');
+
+          return '<div class="bg-brand-card border border-brand-line rounded-2xl p-4 space-y-2.5">' +
+            '<div class="flex items-start justify-between gap-2">' +
+              '<div>' +
+                '<div class="flex items-center gap-2 flex-wrap">' +
+                  '<h3 class="text-sm font-bold text-brand-text">' + b.name + '</h3>' +
+                  '<span class="text-[10px] px-1.5 py-0.5 rounded bg-brand-card2 text-brand-gold border border-brand-line">' + b.category + '</span>' +
+                '</div>' +
+                '<p class="text-xs text-brand-muted mt-0.5">' + (b.size ? 'Ukuran: ' + b.size + ' &middot; ' : '') + (b.color || '') + '</p>' +
+              '</div>' +
+              statusBadge +
+            '</div>' +
+
+            (scheduleLines ? '<div class="space-y-1.5 pt-1 border-t border-brand-line/50">' +
+              '<span class="text-[10px] font-bold text-brand-muted uppercase tracking-wider block">Jadwal Penguncian (H-2 s/d H+2):</span>' +
+              scheduleLines +
+            '</div>' : '') +
+
+            '<div class="flex justify-end gap-1.5 pt-1 border-t border-brand-line/40 text-xs">' +
+              '<button onclick="RiasApp.openClothModal(\'' + b.id + '\')" class="text-brand-gold hover:text-white px-2.5 py-1 rounded bg-brand-card2 border border-brand-line">Edit</button>' +
+              '<button onclick="RiasApp.deleteCloth(\'' + b.id + '\')" class="text-red-400 hover:text-red-300 px-2.5 py-1 rounded bg-brand-card2 border border-brand-line">Hapus</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      },
+
+      openAssignClothModal: function (clientId) {
+        this.activeAssignClientId = clientId;
+        var client = this.db.clients.find(function (c) { return c.id === clientId; });
+        if (!client) return;
+
+        document.getElementById('assignClothSub').textContent = client.name + ' &middot; Acara: ' + this.formatDate(client.eventDate);
+
+        var list = document.getElementById('assignClothList');
+        var clientClothes = client.clothes || [];
+
+        list.innerHTML = this.db.clothes.map(function (b) {
+          var isAssigned = clientClothes.indexOf(b.id) !== -1;
+          var conflictInfo = RiasApp.checkClothConflict(b.id, client.eventDate, client.id);
+
+          var conflictNotice = '';
+          if (conflictInfo.conflict) {
+            conflictNotice = '<div class="text-[11px] text-red-300 bg-red-500/15 border border-red-500/30 rounded-lg p-2 mt-1.5 flex items-start gap-1.5">' +
+              '<span>⛔</span>' +
+              '<div>' +
+                '<b>BENTROK!</b> Sedang terkunci oleh <b>' + conflictInfo.client.name + '</b><br>' +
+                'Acara: ' + RiasApp.formatDate(conflictInfo.client.eventDate) + ' (Terkunci ' + conflictInfo.lockStart + ' s/d ' + conflictInfo.lockEnd + ')' +
+              '</div>' +
+            '</div>';
+          }
+
+          return '<div class="p-3 rounded-xl border ' + (conflictInfo.conflict ? 'bg-red-950/20 border-red-500/40' : (isAssigned ? 'bg-brand-rose/10 border-brand-rose/50' : 'bg-brand-card2 border-brand-line')) + ' transition-colors">' +
+            '<div class="flex items-center justify-between">' +
+              '<div>' +
+                '<strong class="text-xs font-bold text-brand-text block">' + b.name + '</strong>' +
+                '<span class="text-[11px] text-brand-muted">' + b.category + (b.size ? ' &middot; ' + b.size : '') + '</span>' +
+              '</div>' +
+              '<button onclick="RiasApp.toggleAssignCloth(\'' + b.id + '\')" ' + (conflictInfo.conflict && !isAssigned ? 'disabled' : '') + ' class="px-3 py-1.5 rounded-lg text-xs font-bold transition-transform active:scale-95 ' +
+                (isAssigned 
+                  ? 'bg-brand-rose text-white shadow-sm' 
+                  : (conflictInfo.conflict ? 'bg-brand-line text-brand-muted cursor-not-allowed opacity-50' : 'bg-brand-card text-brand-gold border border-brand-gold/40 hover:bg-brand-gold hover:text-black')) + '">' +
+                (isAssigned ? '✓ Terpilih' : '+ Pilih') +
+              '</button>' +
+            '</div>' +
+            conflictNotice +
+          '</div>';
+        }).join('');
+
+        document.getElementById('modalAssignCloth').classList.remove('hidden');
+      },
+
+      toggleAssignCloth: function (clothId) {
+        var client = this.db.clients.find(function (c) { return c.id === RiasApp.activeAssignClientId; });
+        if (!client) return;
+        if (!client.clothes) client.clothes = [];
+
+        var idx = client.clothes.indexOf(clothId);
+        if (idx !== -1) {
+          client.clothes.splice(idx, 1);
+          this.toast('Busana dilepas dari klien');
+        } else {
+          var conflict = this.checkClothConflict(clothId, client.eventDate, client.id);
+          if (conflict.conflict) {
+            alert('PERINGATAN MERAH ANTI-BENTROK!\n\nBusana ini sedang terkunci untuk klien: ' + conflict.client.name + '\nTanggal Acara: ' + conflict.client.eventDate + '\nRentang Kunci H-2 s/d H+2: ' + conflict.lockStart + ' s/d ' + conflict.lockEnd + '.\n\nTidak dapat dipasang.');
+            return;
+          }
+          client.clothes.push(clothId);
+          this.toast('Busana berhasil dipasang & stok terkunci');
+        }
+
+        DB.save(this.db);
+        this.renderAll();
+        this.openAssignClothModal(client.id);
+      },
+
+      renderBilling: function () {
+        var clients = this.db.clients;
+        document.getElementById('billingCount').textContent = clients.length + ' klien';
+
+        var totalOmset = 0;
+        var totalMasuk = 0;
+
+        clients.forEach(function (c) {
+          totalOmset += (c.packagePrice || 0);
+          var paid = (c.payments || []).reduce(function (s, p) { return s + p.amount; }, 0);
+          totalMasuk += paid;
+        });
+
+        var totalSisa = totalOmset - totalMasuk;
+        document.getElementById('statOmsetTotal').textContent = this.formatIDR(totalOmset);
+        document.getElementById('statTotalMasuk').textContent = this.formatIDR(totalMasuk);
+        document.getElementById('statTotalSisa').textContent = this.formatIDR(totalSisa);
+
+        var list = document.getElementById('billingList');
+        if (!clients.length) {
+          list.innerHTML = '<div class="text-center py-10 text-brand-muted text-xs bg-brand-card rounded-2xl border border-brand-line">Belum ada data tagihan klien.</div>';
+          return;
+        }
+
+        list.innerHTML = clients.map(function (c) {
+          var paid = (c.payments || []).reduce(function (s, p) { return s + p.amount; }, 0);
+          var remain = c.packagePrice - paid;
+          var isLunas = remain <= 0;
+          var pct = Math.min(100, Math.round((paid / (c.packagePrice || 1)) * 100));
+
+          return '<div class="bg-brand-card border border-brand-line rounded-2xl p-4 space-y-3">' +
+            '<div class="flex items-start justify-between gap-2">' +
+              '<div>' +
+                '<h3 class="text-sm font-bold text-brand-text">' + c.name + '</h3>' +
+                '<p class="text-xs text-brand-muted">Acara: <b class="text-brand-gold">' + RiasApp.formatDate(c.eventDate) + '</b></p>' +
+              '</div>' +
+              '<span class="text-[10px] px-2.5 py-1 rounded-full font-bold ' + 
+                (isLunas ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30') + '">' +
+                (isLunas ? '✓ LUNAS' : 'BELUM LUNAS') +
+              '</span>' +
+            '</div>' +
+
+            '<div class="space-y-1">' +
+              '<div class="flex justify-between text-[11px] text-brand-muted">' +
+                '<span>Terbayar: <b class="text-emerald-400">' + RiasApp.formatIDR(paid) + '</b></span>' +
+                '<span>Total: <b class="text-brand-text">' + RiasApp.formatIDR(c.packagePrice) + '</b></span>' +
+              '</div>' +
+              '<div class="h-2 w-full bg-brand-card2 rounded-full overflow-hidden border border-brand-line/50">' +
+                '<div class="h-full bg-gradient-to-r ' + (isLunas ? 'from-emerald-500 to-teal-400' : 'from-brand-rose to-brand-gold') + ' rounded-full" style="width:' + pct + '%"></div>' +
+              '</div>' +
+            '</div>' +
+
+            '<div class="flex items-center justify-between text-xs pt-2 border-t border-brand-line/50">' +
+              '<div>' +
+                '<span class="text-brand-muted block text-[10px]">Sisa Tagihan:</span>' +
+                '<b class="text-sm font-bold ' + (isLunas ? 'text-emerald-400' : 'text-amber-400') + '">' + (isLunas ? 'Rp0' : RiasApp.formatIDR(remain)) + '</b>' +
+              '</div>' +
+              '<button onclick="RiasApp.openPaymentModal(\'' + c.id + '\')" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-brand-rose to-brand-gold text-white font-bold text-xs shadow-sm active:scale-95 transition-transform">' +
+                'Update Pembayaran 💳' +
+              '</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      },
+
+      openPaymentModal: function (clientId) {
+        this.activePaymentClientId = clientId;
+        var client = this.db.clients.find(function (c) { return c.id === clientId; });
+        if (!client) return;
+
+        var totalPaid = (client.payments || []).reduce(function (s, p) { return s + p.amount; }, 0);
+        var remaining = client.packagePrice - totalPaid;
+
+        document.getElementById('paymentModalSub').textContent = client.name + ' &middot; Acara: ' + this.formatDate(client.eventDate);
+        document.getElementById('payClientId').value = client.id;
+        document.getElementById('paySummaryTotal').textContent = this.formatIDR(client.packagePrice);
+        document.getElementById('paySummaryPaid').textContent = this.formatIDR(totalPaid);
+        document.getElementById('paySummaryRemaining').textContent = this.formatIDR(Math.max(0, remaining));
+
+        document.getElementById('payAmount').value = remaining > 0 ? remaining : '';
+        document.getElementById('payNote').value = remaining <= 0 ? 'Pelunasan' : 'Cicilan berikutnya';
+
+        var hist = document.getElementById('paymentHistoryList');
+        if (!client.payments || !client.payments.length) {
+          hist.innerHTML = '<p class="text-brand-muted text-[11px]">Belum ada catatan pembayaran.</p>';
+        } else {
+          hist.innerHTML = client.payments.map(function (p) {
+            return '<div class="flex items-center justify-between p-2 rounded-lg bg-brand-card2 border border-brand-line/50 text-xs">' +
+              '<div>' +
+                '<b class="text-brand-text block">' + (p.note || 'Pembayaran') + '</b>' +
+                '<span class="text-[10px] text-brand-muted">' + RiasApp.formatDate(p.date) + '</span>' +
+              '</div>' +
+              '<span class="font-bold text-emerald-400">+' + RiasApp.formatIDR(p.amount) + '</span>' +
+            '</div>';
+          }).join('');
+        }
+
+        document.getElementById('modalPayment').classList.remove('hidden');
+      },
+
+      fillFullPayment: function () {
+        var client = this.db.clients.find(function (c) { return c.id === RiasApp.activePaymentClientId; });
+        if (!client) return;
+        var totalPaid = (client.payments || []).reduce(function (s, p) { return s + p.amount; }, 0);
+        var remaining = client.packagePrice - totalPaid;
+        document.getElementById('payAmount').value = Math.max(0, remaining);
+        document.getElementById('payNote').value = 'Pelunasan';
+      },
+
+      submitPayment: function (e) {
+        e.preventDefault();
+        var clientId = document.getElementById('payClientId').value;
+        var client = this.db.clients.find(function (c) { return c.id === clientId; });
+        if (!client) return;
+
+        var amount = parseInt(document.getElementById('payAmount').value, 10) || 0;
+        var date = document.getElementById('payDate').value;
+        var note = document.getElementById('payNote').value.trim() || 'Pembayaran';
+
+        if (amount <= 0) {
+          alert('Nominal pembayaran harus lebih dari Rp 0');
+          return;
+        }
+
+        if (!client.payments) client.payments = [];
+        client.payments.push({
+          id: 'pay_' + Date.now(),
+          date: date,
+          amount: amount,
+          note: note
+        });
+
+        DB.save(this.db);
+        this.toast('Pembayaran berhasil ditambahkan!');
+        this.openPaymentModal(client.id);
+        this.renderAll();
+      },
+
+      openClientModal: function (id) {
+        document.getElementById('formClient').reset();
+        document.getElementById('clientId').value = '';
+        var today = new Date().toISOString().split('T')[0];
+        document.getElementById('clientEventDate').value = today;
+
+        if (id) {
+          var c = this.db.clients.find(function (x) { return x.id === id; });
+          if (c) {
+            document.getElementById('modalClientTitle').textContent = 'Edit Data Klien';
+            document.getElementById('clientId').value = c.id;
+            document.getElementById('clientName').value = c.name;
+            document.getElementById('clientPhone').value = c.phone;
+            document.getElementById('clientEventDate').value = c.eventDate;
+            document.getElementById('clientNotes').value = c.notes || '';
+            document.getElementById('clientPackagePrice').value = c.packagePrice;
+            document.getElementById('clientDownPayment').value = c.downPayment || 0;
+          }
+        } else {
+          document.getElementById('modalClientTitle').textContent = 'Tambah Klien Baru';
+        }
+        document.getElementById('modalClient').classList.remove('hidden');
+      },
+
+      saveClient: function (e) {
+        e.preventDefault();
+        var id = document.getElementById('clientId').value;
+        var name = document.getElementById('clientName').value.trim();
+        var phone = document.getElementById('clientPhone').value.trim();
+        var eventDate = document.getElementById('clientEventDate').value;
+        var notes = document.getElementById('clientNotes').value.trim();
+        var price = parseInt(document.getElementById('clientPackagePrice').value, 10) || 0;
+        var dp = parseInt(document.getElementById('clientDownPayment').value, 10) || 0;
+
+        if (id) {
+          var c = this.db.clients.find(function (x) { return x.id === id; });
+          if (c) {
+            c.name = name;
+            c.phone = phone;
+            c.eventDate = eventDate;
+            c.notes = notes;
+            c.packagePrice = price;
+            c.downPayment = dp;
+          }
+        } else {
+          var newId = 'c_' + Date.now();
+          var initialPayments = [];
+          if (dp > 0) {
+            initialPayments.push({
+              id: 'p_' + Date.now(),
+              date: new Date().toISOString().split('T')[0],
+              amount: dp,
+              note: 'DP Booking'
+            });
+          }
+          this.db.clients.push({
+            id: newId,
+            name: name,
+            phone: phone,
+            eventDate: eventDate,
+            notes: notes,
+            packagePrice: price,
+            downPayment: dp,
+            payments: initialPayments,
+            clothes: []
+          });
+        }
+
+        DB.save(this.db);
+        this.closeModals();
+        this.toast('Data klien berhasil disimpan');
+        this.renderAll();
+      },
+
+      deleteClient: function (id) {
+        if (!confirm('Yakin ingin menghapus klien ini beserta seluruh catatan dan jadwalnya?')) return;
+        this.db.clients = this.db.clients.filter(function (c) { return c.id !== id; });
+        DB.save(this.db);
+        this.toast('Klien berhasil dihapus');
+        this.renderAll();
+      },
+
+      openClothModal: function (id) {
+        document.getElementById('formCloth').reset();
+        document.getElementById('clothId').value = '';
+
+        if (id) {
+          var b = this.db.clothes.find(function (x) { return x.id === id; });
+          if (b) {
+            document.getElementById('modalClothTitle').textContent = 'Edit Busana';
+            document.getElementById('clothId').value = b.id;
+            document.getElementById('clothName').value = b.name;
+            document.getElementById('clothCategory').value = b.category;
+            document.getElementById('clothSize').value = b.size || '';
+            document.getElementById('clothColor').value = b.color || '';
+          }
+        } else {
+          document.getElementById('modalClothTitle').textContent = 'Tambah Koleksi Busana';
+        }
+        document.getElementById('modalCloth').classList.remove('hidden');
+      },
+
+      saveCloth: function (e) {
+        e.preventDefault();
+        var id = document.getElementById('clothId').value;
+        var name = document.getElementById('clothName').value.trim();
+        var category = document.getElementById('clothCategory').value;
+        var size = document.getElementById('clothSize').value.trim();
+        var color = document.getElementById('clothColor').value.trim();
+
+        if (id) {
+          var b = this.db.clothes.find(function (x) { return x.id === id; });
+          if (b) {
+            b.name = name;
+            b.category = category;
+            b.size = size;
+            b.color = color;
+          }
+        } else {
+          this.db.clothes.push({
+            id: 'b_' + Date.now(),
+            name: name,
+            category: category,
+            size: size,
+            color: color
+          });
+        }
+
+        DB.save(this.db);
+        this.closeModals();
+        this.toast('Koleksi busana tersimpan');
+        this.renderAll();
+      },
+
+      deleteCloth: function (id) {
+        if (!confirm('Yakin ingin menghapus busana ini dari katalog?')) return;
+        this.db.clothes = this.db.clothes.filter(function (b) { return b.id !== id; });
+        this.db.clients.forEach(function (c) {
+          c.clothes = (c.clothes || []).filter(function (cid) { return cid !== id; });
+        });
+        DB.save(this.db);
+        this.toast('Busana berhasil dihapus');
+        this.renderAll();
+      },
+
+      closeModals: function () {
+        document.querySelectorAll('[id^="modal"]').forEach(function (m) {
+          m.classList.add('hidden');
+        });
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+      RiasApp.init();
+    });
+  </script>
+</body>
+</html>

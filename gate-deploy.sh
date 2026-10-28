@@ -18,7 +18,7 @@ echo "2/3 tgcloud push ..."
 tgcloud push
 
 echo "3/3 verify live:"
-for p in nota.html index.html assets/js/mascim-local.js assets/js/mascim.js assets/css/style.css; do
+for p in nota.html index.html riasan.html assets/js/mascim-local.js assets/js/mascim.js assets/css/style.css; do
   c=$(curl -sL -o /dev/null -w "%{http_code}" "$APP/$p")
   if [ "$c" = "200" ]; then echo "   OK   $p  -> 200"; else echo "   FAIL $p -> $c"; exit 1; fi
 done

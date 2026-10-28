@@ -7,8 +7,11 @@ cd "$(dirname "$0")"
 rm -rf dist
 mkdir -p dist
 
-cp index.html service.html ronce.html nota.html sync.json dist/
+cp index.html service.html ronce.html nota.html riasan.html sync.json dist/
 cp -r assets dist/
+if [ -d riasan ]; then
+  cp -r riasan dist/
+fi
 if [ -d data ]; then
   cp -r data dist/
 fi
