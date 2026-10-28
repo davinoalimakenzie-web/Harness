@@ -36,19 +36,21 @@
       <div id="poolList" class="list"></div>
     </div>
 
-    <!-- Strip Bulan & Saldo Periode Menjadi Satu Kartu -->
-    <div class="card" style="margin-bottom:12px;">
-      <div class="month-strip" style="display:flex;align-items:center;">
-        <button id="rPrev" class="icon-btn sm" aria-label="Sebelumnya">‹</button>
-        <div class="grow center">
-          <strong id="rLabel" style="font-size:16px;">—</strong>
-          <div class="muted xs" id="rCount">—</div>
+    <!-- Strip Bulan & Saldo Periode Sejajar Sebaris -->
+    <div class="card" style="margin-bottom:12px;padding:10px 14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button id="rPrev" class="icon-btn sm" aria-label="Sebelumnya" style="width:30px;height:30px;font-size:18px;">‹</button>
+          <div>
+            <strong id="rLabel" style="font-size:14.5px;font-weight:750;display:block;line-height:1.2;">—</strong>
+            <span class="muted xs" id="rCount" style="font-size:11px;line-height:1;">—</span>
+          </div>
+          <button id="rNext" class="icon-btn sm" aria-label="Berikutnya" style="width:30px;height:30px;font-size:18px;">›</button>
         </div>
-        <button id="rNext" class="icon-btn sm" aria-label="Berikutnya">›</button>
-      </div>
-      <div class="stat net" style="margin-top:10px;text-align:center;padding:10px 12px;background:var(--bg);border-radius:12px;border:1px solid var(--line);">
-        <span class="stat-lbl" style="font-size:11.5px;color:var(--text-2);text-transform:uppercase;letter-spacing:.4px;">Saldo periode</span>
-        <strong id="rNet" class="stat-val" style="font-size:22px;font-weight:750;display:block;margin-top:2px;">Rp0</strong>
+        <div style="text-align:right;">
+          <span style="font-size:10px;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;display:block;">Saldo Periode</span>
+          <strong id="rNet" style="font-size:16.5px;font-weight:750;display:block;line-height:1.2;color:var(--success);">Rp0</strong>
+        </div>
       </div>
     </div>
 
@@ -71,27 +73,9 @@
       <div id="rCats" class="cat-bars"></div>
     </div>
 
-    <!-- Struktur Riwayat Transaksi -->
-    <div class="card" style="margin-bottom:12px;">
-      <input type="text" id="fQ" placeholder="Cari kategori atau catatan…">
-      <div class="field-row mt">
-        <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="all" type="button">Semua</button>
-        <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="today" type="button">Hari ini</button>
-        <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="month" type="button">Bulan ini</button>
-        <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="range" type="button">Rentang tanggal</button>
-      </div>
-      <div class="field-row mt" id="fDateRow" style="display:none">
-        <label class="field grow"><span class="lbl">Dari</span><input type="date" id="fFrom"></label>
-        <label class="field grow"><span class="lbl">Sampai</span><input type="date" id="fTo"></label>
-      </div>
-      <div class="field-row mt">
-        <select id="fType" class="grow" style="display:none">
-          <option value="all">Semua jenis</option>
-          <option value="in">Pemasukan</option>
-          <option value="out">Pengeluaran</option>
-        </select>
-        <select id="fGroup" class="grow" style="display:none"></select>
-      </div>
+    <!-- Riwayat Transaksi (Accordion Harian) -->
+    <div class="list-head tight" style="margin-top:14px;margin-bottom:6px;">
+      <strong>Riwayat Transaksi Harian</strong>
     </div>
     <div id="hList" class="list"></div>
   </section>

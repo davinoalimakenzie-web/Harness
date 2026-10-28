@@ -519,9 +519,91 @@ button.item .item-sub{ margin-top:3px; }
 .stat.in .stat-val{ color:var(--success); }
 .stat.out .stat-val{ color:var(--danger); }
 .month-strip{ display:flex; align-items:center; gap:8px; }
-.day-group{ margin-top:4px; }
-.day-head{ display:flex; justify-content:space-between; align-items:baseline;
-  padding:10px 4px 6px; font-size:12.5px; color:var(--text-2); font-weight:600; }
+/* ---- Accordion Riwayat Transaksi Harian ---- */
+.day-group{
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: border-color .18s ease;
+}
+.day-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 13px;
+  cursor: pointer;
+  user-select: none;
+  background: var(--bg-elev);
+  border: none;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  transition: background .15s ease;
+}
+.day-head:active{
+  background: var(--tap);
+}
+.day-head-left{
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+}
+.day-chevron{
+  display: inline-block;
+  font-size: 10px;
+  color: var(--text-2);
+  transition: transform .2s ease;
+  line-height: 1;
+}
+.day-group.open .day-chevron{
+  transform: rotate(90deg);
+  color: var(--accent);
+}
+.day-title{
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.day-badge{
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: var(--tap);
+  padding: 1px 7px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.day-head-right{
+  text-align: right;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+.day-head-right .amt-pos{ color: var(--success); }
+.day-head-right .amt-neg{ color: var(--danger); }
+.day-items{
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+  padding: 6px;
+}
+.day-items .item.tx-row{
+  margin-bottom: 4px;
+  border-radius: 10px;
+}
+.day-items .item.tx-row:last-child{
+  margin-bottom: 0;
+}
 .tx-icon{ width:34px; height:34px; flex:0 0 auto; border-radius:11px; display:grid;
   place-items:center; font-size:15px; font-weight:700; }
 .tx-icon.in{ background:rgba(18,161,80,.14); color:var(--success); }

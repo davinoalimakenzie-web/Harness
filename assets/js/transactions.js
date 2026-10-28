@@ -24,8 +24,9 @@
   var idemKey = null;
   var saving = false;
   var undoTimer = null, undoId = null;
-  var filter = { type: 'all', group: '', from: '', to: '', q: '' };
   var recapYM = S.ymOf(S.todayStr());
+  var filter = { type: 'all', group: '', from: recapYM + '-01', to: recapYM + '-31', q: '' };
+  var openDays = {};
 
   var PALETTE = ['#2f6fed', '#12a150', '#f5a524', '#e5484d', '#8b5cf6',
                  '#0ea5a5', '#ec4899', '#64748b', '#84cc16', '#f97316'];
@@ -500,6 +501,7 @@
      RIWAYAT
      ========================================================= */
   function renderGroupFilter() {
+    if (!el.fGroup) return;
     var opts = ['<option value="">Semua kategori</option>'];
     Groups.for('in').concat(Groups.for('out')).forEach(function (g) {
       opts.push('<option value="' + esc(g.group) + '">' +
@@ -512,7 +514,7 @@
   function renderHistory() {
     var list = Tx.query(filter);
     if (!list.length) {
-      el.hList.innerHTML = '<div class="empty"><b>Tidak ada transaksi</b>Coba ubah filter atau catat transaksi baru.</div>';
+      el.hList.innerHTML = '<div class="empty"><b>Tidak ada transaksi</b>Belum ada transaksi pada periode ini.</div>';
       return;
     }
     var byDay = Tx.byDay(list);
@@ -520,11 +522,23 @@
     el.hList.innerHTML = dates.map(function (d) {
       var items = byDay[d], rin = 0, rout = 0;
       items.forEach(function (t) { if (t.type === 'in') rin += t.amount; else rout += t.amount; });
-      return '<div class="day-group">' +
-        '<div class="day-head"><span>' + esc(S.dayLabel(d)) + '</span>' +
-        '<span>' + (rin ? '<b style="color:var(--success)">+' + money(rin) + '</b> ' : '') +
-        (rout ? '<b style="color:var(--danger)">−' + money(rout) + '</b>' : '') + '</span></div>' +
-        items.map(txRow).join('') + '</div>';
+      var isOpen = !!openDays[d];
+      return '<div class="day-group' + (isOpen ? ' open' : '') + '" data-day="' + esc(d) + '">' +
+        '<button type="button" class="day-head" data-day-toggle="' + esc(d) + '">' +
+          '<div class="day-head-left">' +
+            '<span class="day-chevron">▶</span>' +
+            '<span class="day-title">' + esc(S.dayLabel(d)) + '</span>' +
+            '<span class="day-badge">' + items.length + '</span>' +
+          '</div>' +
+          '<div class="day-head-right">' +
+            (rin ? '<span class="amt-pos">+' + money(rin) + '</span> ' : '') +
+            (rout ? '<span class="amt-neg">−' + money(rout) + '</span>' : '') +
+          '</div>' +
+        '</button>' +
+        '<div class="day-items"' + (isOpen ? '' : ' style="display:none;"') + '>' +
+          items.map(txRow).join('') +
+        '</div>' +
+      '</div>';
     }).join('');
   }
 
@@ -1321,10 +1335,26 @@
     });
     el.undoBtn.addEventListener('click', doUndo);
 
-    /* --- Buka detail dari daftar --- */
+    /* --- Buka detail dari daftar & Accordion toggle --- */
     function bindOpen(c) {
       if (!c) return;
       c.addEventListener('click', function (e) {
+        var dayToggle = e.target.closest('[data-day-toggle]');
+        if (dayToggle) {
+          var d = dayToggle.dataset.dayToggle;
+          var group = dayToggle.closest('.day-group');
+          if (group) {
+            var itemsEl = group.querySelector('.day-items');
+            var nowOpen = !group.classList.contains('open');
+            openDays[d] = nowOpen;
+            group.classList.toggle('open', nowOpen);
+            if (itemsEl) {
+              itemsEl.style.display = nowOpen ? 'block' : 'none';
+            }
+            TG.haptic('selection');
+          }
+          return;
+        }
         var b = e.target.closest('[data-open]');
         if (b) openDetail(b.dataset.open);
       });
@@ -1332,56 +1362,32 @@
     if (el.hRecent) bindOpen(el.hRecent);
     if (el.hList) bindOpen(el.hList);
 
-    /* --- Filter riwayat --- */
-    var deb = null;
-    el.fQ.addEventListener('input', function () {
-      clearTimeout(deb);
-      var v = this.value;
-      deb = setTimeout(function () { filter.q = v.trim(); renderHistory(); }, 180);
-    });
-    el.fType.addEventListener('change', function () { filter.type = this.value; renderHistory(); });
-    el.fGroup.addEventListener('change', function () { filter.group = this.value; renderHistory(); });
-    el.fFrom.addEventListener('change', function () { filter.from = this.value; renderHistory(); });
-    el.fTo.addEventListener('change', function () { filter.to = this.value; renderHistory(); });
+    /* --- Filter riwayat (jika elemen filter ada) --- */
+    if (el.fQ) {
+      var deb = null;
+      el.fQ.addEventListener('input', function () {
+        clearTimeout(deb);
+        var v = this.value;
+        deb = setTimeout(function () { filter.q = v.trim(); renderHistory(); }, 180);
+      });
+    }
+    if (el.fType) el.fType.addEventListener('change', function () { filter.type = this.value; renderHistory(); });
+    if (el.fGroup) el.fGroup.addEventListener('change', function () { filter.group = this.value; renderHistory(); });
+    if (el.fFrom) el.fFrom.addEventListener('change', function () { filter.from = this.value; renderHistory(); });
+    if (el.fTo) el.fTo.addEventListener('change', function () { filter.to = this.value; renderHistory(); });
     var clearBtn = $('#fClear');
     if (clearBtn) clearBtn.addEventListener('click', function () {
-      el.fQ.value = ''; el.fType.value = 'all'; el.fGroup.value = '';
-      el.fFrom.value = ''; el.fTo.value = '';
-      filter.q = ''; filter.type = 'all'; filter.group = ''; filter.from = ''; filter.to = '';
+      if (el.fQ) el.fQ.value = '';
+      if (el.fType) el.fType.value = 'all';
+      if (el.fGroup) el.fGroup.value = '';
+      if (el.fFrom) el.fFrom.value = '';
+      if (el.fTo) el.fTo.value = '';
+      filter.q = ''; filter.type = 'all'; filter.group = '';
+      filter.from = recapYM + '-01'; filter.to = recapYM + '-31';
       renderHistory();
     });
     var expBtn = $('#btnExportCsv');
     if (expBtn) expBtn.addEventListener('click', exportCSV);
-
-    // Chips filter gaya Mas Cim: ringan dan minimalis.
-    (document.querySelectorAll('[data-hchip]') || []).forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var kind = btn.dataset.hchip;
-        filter.type = 'all'; el.fType.value = 'all';
-        filter.group = el.fGroup.value || '';
-        var today = S.todayStr();
-        var dateRow = $('#fDateRow');
-        if (kind === 'all') {
-          filter.from = ''; filter.to = ''; el.fFrom.value = ''; el.fTo.value = '';
-          if (dateRow) dateRow.style.display = 'none';
-        } else if (kind === 'today') {
-          filter.from = today; filter.to = today; el.fFrom.value = today; el.fTo.value = today;
-          if (dateRow) dateRow.style.display = 'none';
-        } else if (kind === 'month') {
-          var first = today.slice(0, 8) + '01';
-          var d = new Date(today + 'T00:00:00');
-          var last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-          var lastStr = last.getFullYear() + '-' +
-            String(last.getMonth() + 1).padStart(2, '0') + '-' +
-            String(last.getDate()).padStart(2, '0');
-          filter.from = first; filter.to = lastStr; el.fFrom.value = first; el.fTo.value = lastStr;
-          if (dateRow) dateRow.style.display = 'none';
-        } else {
-          if (dateRow) dateRow.style.display = '';
-        }
-        renderHistory();
-      });
-    });
 
     /* --- Rekap Month Switcher & History Sync --- */
     var rPrevBtn = $('#rPrev');
