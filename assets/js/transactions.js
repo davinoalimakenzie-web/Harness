@@ -286,7 +286,7 @@
     bankSheet('Atur Saldo Awal Dana Bank',
       '<label class="field"><span class="lbl">Saldo awal (Rp)</span>' +
       '<input type="number" id="nbInit" inputmode="numeric" value="' + (cur || 0) + '"></label>' +
-      '<p class="muted xs" style="margin-top:6px">Salda awal ditambahkan ke Dana Bank. ' +
+      '<p class="muted xs" style="margin-top:6px">Saldo awal otomatis terbagi 50% Kas Darurat & 50% Kas SDH. ' +
       'Isi 0 bila belum ada.</p>',
       function (body) {
         var b = document.createElement('button');
@@ -297,7 +297,7 @@
           var v = parseInt(String(body.querySelector('#nbInit').value).replace(/\D/g, ''), 10) || 0;
           w.NavaBank.setInitial(v);
           w.App.closeSheet();
-          if (w.App && w.App.toast) w.App.toast('Saldo awal tersimpan');
+          if (w.App && w.App.toast) w.App.toast('Saldo awal tersimpan (50% Darurat + 50% SDH)');
           render();
         });
         body.appendChild(b);
@@ -425,28 +425,16 @@
     var g = w.NavaBank.get();
     bankSheet('Setor Dana Bank',
       '<p class="nb-hint">Setoran menambah Dana Bank. ' +
-      'Setoran kas wajib (10%) akan otomatis terbagi dua: 5% Kas Darurat & 5% Kas SDH.</p>' +
+      'Setiap setoran otomatis terbagi dua: <b>50% Kas Darurat</b> & <b>50% Kas SDH</b>.</p>' +
       (due > 0 && !done
         ? '<button class="btn primary block" data-bkw style="margin-bottom:12px">' +
           '⚡ Setor Kas Wajib 10% (' + money(due) + ')</button>'
         : '') +
-      '<div class="row-2" id="nbSetorFund" style="margin-bottom:10px;">' +
-        '<button class="chip on" data-fund="darurat">Kas Darurat</button>' +
-        '<button class="chip" data-fund="sdh">Kas SDH</button>' +
-      '</div>' +
       '<label class="field"><span class="lbl">Keterangan</span>' +
       '<input type="text" id="nbSDesc" value="Setoran"></label>' +
       '<label class="field"><span class="lbl">Nominal (Rp)</span>' +
       '<input type="number" id="nbSAmt" inputmode="numeric" placeholder="0"></label>',
       function (body) {
-        var fund = 'darurat';
-        body.querySelectorAll('#nbSetorFund [data-fund]').forEach(function (x) {
-          x.addEventListener('click', function () {
-            fund = x.dataset.fund;
-            body.querySelectorAll('#nbSetorFund [data-fund]').forEach(function (y) { y.classList.remove('on'); });
-            x.classList.add('on');
-          });
-        });
         body.addEventListener('click', function (e) {
           if (e.target.closest('[data-bkw]')) {
             w.NavaBank.tambahSetoranWajib(due, ym);
@@ -465,14 +453,13 @@
           var desc = (body.querySelector('#nbSDesc').value || 'Setoran').trim();
           try {
             w.NavaBank.add({
-              description: desc + (fund === 'sdh' ? ' (SDH)' : ' (Darurat)'),
+              description: desc,
               moneyIn: amt,
               moneyOut: 0,
-              date: S.todayStr(),
-              fund: fund
+              date: S.todayStr()
             });
             w.App.closeSheet();
-            if (w.App.toast) w.App.toast('Setoran ' + (fund === 'sdh' ? 'Kas SDH' : 'Kas Darurat') + ' tersimpan');
+            if (w.App.toast) w.App.toast('Setoran tersimpan (50% Darurat + 50% SDH)');
             render();
           } catch (err) { if (w.App.toast) w.App.toast(err.message); }
         });

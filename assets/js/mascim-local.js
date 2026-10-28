@@ -1391,6 +1391,12 @@
         db.orders = db.orders.filter(function (x) { return x.id !== id; });
       }
       db.payments = db.payments.filter(function (p) { return p.orderId !== id; });
+      var toRemoveBank = db.bank.filter(function (b) { return b.orderId === id; });
+      if (w.NavaBank && typeof w.NavaBank.remove === 'function') {
+        toRemoveBank.forEach(function (b) {
+          try { w.NavaBank.remove(b.id); } catch (eRem) {}
+        });
+      }
       db.bank = db.bank.filter(function (b) { return b.orderId !== id; });
       db.parts = db.parts.filter(function (p) { return p.orderId !== id; });
       save();
@@ -1765,11 +1771,86 @@
     date = new Date(date).toISOString();
     if (isNaN(Date.parse(date))) throw bad('Tanggal tidak valid');
     var id = e.id || uid('bf');
+
+    // Sinkronisasi otomatis ke NavaBank (Kas Darurat)
+    if (w.NavaBank && typeof w.NavaBank.add === 'function') {
+      try {
+        w.NavaBank.add({
+          id: id,
+          description: desc.slice(0, 120),
+          moneyIn: mi,
+          moneyOut: mo,
+          date: date.slice(0, 10),
+          fund: 'darurat',
+          kind: 'sparepart',
+          isReturn: (mi > 0)
+        });
+        if (w.TxUI && typeof w.TxUI.render === 'function') {
+          try { w.TxUI.render(); } catch (errTx) {}
+        }
+      } catch (nbErr) {
+        console.warn('Gagal sinkronisasi ke NavaBank:', nbErr);
+      }
+    }
+
     db.bank.push({
       id: id, orderId: orderId, description: desc.slice(0, 200),
       moneyIn: mi, moneyOut: mo, entryDate: date, createdAt: nowIso(), reversedAt: null
     });
     return { id: id, moneyIn: mi, moneyOut: mo, entryDate: date };
+  }
+
+  function syncExistingBankEntriesToNava() {
+    if (!w.NavaBank || typeof w.NavaBank.add !== 'function' || typeof w.NavaBank.entries !== 'function') return;
+    try {
+      var db = load();
+      if (!Array.isArray(db.bank) || !db.bank.length) return;
+      var existingBank = w.NavaBank.entries();
+      var existingMap = {};
+      existingBank.forEach(function (x) {
+        if (x.id) existingMap[x.id] = true;
+        var key = (x.description || '') + '|' + (x.date || '') + '|' + (x.moneyIn || 0) + '|' + (x.moneyOut || 0);
+        existingMap[key] = true;
+      });
+
+      var changed = false;
+      db.bank.forEach(function (b) {
+        if (!b || b.reversedAt) return;
+        var mi = Math.max(0, Math.round(Number(b.moneyIn) || 0));
+        var mo = Math.max(0, Math.round(Number(b.moneyOut) || 0));
+        if (mi === 0 && mo === 0) return;
+
+        var dt = String(b.entryDate || b.createdAt || nowIso()).slice(0, 10);
+        var desc = String(b.description || 'Sparepart Mascim').slice(0, 120);
+        var key = desc + '|' + dt + '|' + mi + '|' + mo;
+
+        if (existingMap[b.id] || existingMap[key]) return;
+
+        try {
+          w.NavaBank.add({
+            id: b.id,
+            description: desc,
+            moneyIn: mi,
+            moneyOut: mo,
+            date: dt,
+            fund: 'darurat',
+            kind: 'sparepart',
+            isReturn: (mi > 0)
+          });
+          existingMap[b.id] = true;
+          existingMap[key] = true;
+          changed = true;
+        } catch (eAdd) {
+          console.warn('Sync existing bank entry warning:', eAdd);
+        }
+      });
+
+      if (changed && w.TxUI && typeof w.TxUI.render === 'function') {
+        try { w.TxUI.render(); } catch (eR) {}
+      }
+    } catch (e) {
+      console.warn('syncExistingBankEntriesToNava warning:', e);
+    }
   }
 
   function sumBankReturned(orderId) {
@@ -2225,4 +2306,10 @@
     });
     updateSettings({ bankFundInitial: 3000000 });
   }
+
+  try {
+    if (typeof w.setTimeout === 'function') {
+      w.setTimeout(syncExistingBankEntriesToNava, 300);
+    }
+  } catch (eSync) {}
 })(window);

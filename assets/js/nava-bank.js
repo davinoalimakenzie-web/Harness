@@ -51,6 +51,17 @@
     return cache;
   }
 
+  function isReturnDesc(desc) {
+    var d = String(desc || '').toLowerCase();
+    return d.indexOf('kembalikan') !== -1 ||
+      d.indexOf('batal') !== -1 ||
+      d.indexOf('lunasi') !== -1 ||
+      d.indexOf('pelunasan') !== -1 ||
+      d.indexOf('pengembalian') !== -1 ||
+      d.indexOf('reversal') !== -1 ||
+      d.indexOf('pembatalan') !== -1;
+  }
+
   function norm(s) {
     var d = blank();
     if (!s || typeof s !== 'object') return d;
@@ -96,7 +107,38 @@
           return;
         }
 
-        var isSDH = (e.fund === 'sdh' || descUpper.indexOf('(KAS SDH)') !== -1 || descUpper.indexOf('SDH') !== -1);
+        // Setoran umum/otomatis lama yang belum terbagi 50:50:
+        if (kind !== 'wajib' && kind !== 'sparepart' && kind !== 'bon' && mi > 0 && !isReturnDesc(desc) &&
+            descUpper.indexOf('50%') === -1 && descUpper.indexOf('5%') === -1 &&
+            descUpper.indexOf('(KAS SDH)') === -1 && descUpper.indexOf('(KAS DARURAT)') === -1 &&
+            descUpper.indexOf('(SDH)') === -1 && descUpper.indexOf('(DARURAT)') === -1) {
+          var h1 = Math.round(mi / 2);
+          var h2 = mi - h1;
+          newEntries.push({
+            id: (e.id || uid()) + '_darurat',
+            description: desc + ' (50% Kas Darurat)',
+            moneyIn: h1,
+            moneyOut: 0,
+            date: dt,
+            note: nt,
+            kind: kind,
+            fund: 'darurat'
+          });
+          newEntries.push({
+            id: (e.id || uid()) + '_sdh',
+            description: desc + ' (50% Kas SDH)',
+            moneyIn: h2,
+            moneyOut: 0,
+            date: dt,
+            note: nt,
+            kind: kind,
+            fund: 'sdh'
+          });
+          return;
+        }
+
+        var isReturn = (kind === 'sparepart' || kind === 'bon' || isReturnDesc(desc));
+        var isSDH = !isReturn && (e.fund === 'sdh' || descUpper.indexOf('(KAS SDH)') !== -1 || descUpper.indexOf('SDH') !== -1);
         newEntries.push({
           id: e.id || uid(),
           description: desc,
@@ -171,7 +213,7 @@
   // modal part saat nota sudah diambil.
   function totalIn(d) {
     d = d || load();
-    return d.entries.reduce(function (a, e) { return a + (e.moneyIn || 0); }, 0);
+    return (d.initial || 0) + d.entries.reduce(function (a, e) { return a + (e.moneyIn || 0); }, 0);
   }
   // Total dana DIPAKAI: modal sparepart, pengeluaran, dan bon.
   function totalOut(d) {
@@ -186,15 +228,18 @@
     }, 0);
   }
   // Breakdown dua variabel: Kas Darurat & Kas SDH
+  // ATURAN WAJIB: Saldo awal terbagi 50% Kas Darurat & 50% Kas SDH.
   function getBreakdown(d) {
     d = d || load();
     var init = initialValue(d);
-    var inDarurat = init, outDarurat = 0;
-    var inSDH = 0, outSDH = 0;
+    var halfInit = Math.round(init / 2);
+    var inDarurat = halfInit, outDarurat = 0;
+    var inSDH = init - halfInit, outSDH = 0;
 
     d.entries.forEach(function (e) {
       var descU = String(e.description || '').toUpperCase();
-      var f = (e.fund === 'sdh' || descU.indexOf('SDH') !== -1) ? 'sdh' : 'darurat';
+      var isReturn = (e.kind === 'sparepart' || e.kind === 'bon' || isReturnDesc(e.description));
+      var f = (!isReturn && (e.fund === 'sdh' || descU.indexOf('SDH') !== -1)) ? 'sdh' : 'darurat';
       if (f === 'sdh') {
         inSDH += (e.moneyIn || 0);
         outSDH += (e.moneyOut || 0);
@@ -246,34 +291,119 @@
   /* ---------------- mutasi ---------------- */
 
   // Catat satu mutasi. moneyIn = dana masuk, moneyOut = dana keluar.
-  // Penting: dana keluar tidak boleh melebihi sisa kas terkait (darurat atau sdh).
+  // Aturan Wajib:
+  // 1. Semua dana masuk otomatis/manual (bukan pengembalian part/bon) otomatis terbagi 50:50.
+  // 2. Semua arus pinjam sparepart Mascim memakai Kas Darurat dan kembali ke Kas Darurat.
+  // 3. Semua pengeluaran otomatis/manual wajib dari Kas Darurat (kecuali Out Kas SDH via PIN).
   function add(rec) {
     var d = load();
     rec = rec || {};
     var mi = Math.max(0, Math.round(Number(rec.moneyIn) || 0));
     var mo = Math.max(0, Math.round(Number(rec.moneyOut) || 0));
-    var fund = rec.fund === 'sdh' ? 'sdh' : 'darurat';
     if (mi === 0 && mo === 0) throw new Error('Nominal harus lebih dari 0');
 
-    var bd = getBreakdown(d);
-    var targetAvail = fund === 'sdh' ? bd.sdh.available : bd.darurat.available;
-    if (mo > 0 && mo > targetAvail) {
-      var fundName = fund === 'sdh' ? 'Kas SDH' : 'Kas Darurat';
-      throw new Error(fundName + ' tidak cukup. Tersisa ' + fmtIDR(targetAvail));
+    var desc = String(rec.description || '').slice(0, 120);
+    var date = String(rec.date || todayStr()).slice(0, 10);
+    var note = String(rec.note || '').slice(0, 200);
+    var kind = rec.kind === 'wajib' ? 'wajib' : (rec.kind || 'manual');
+
+    // DANA MASUK (INFLOW)
+    if (mi > 0) {
+      var isReturn = (kind === 'sparepart' || kind === 'bon' || isReturnDesc(desc) || rec.isReturn);
+      if (isReturn) {
+        // Pengembalian sparepart/bon/out masuk 100% ke Kas Darurat
+        var eReturn = {
+          id: rec.id || uid(),
+          description: desc,
+          moneyIn: mi,
+          moneyOut: 0,
+          date: date,
+          note: note,
+          kind: kind,
+          fund: 'darurat'
+        };
+        d.entries.push(eReturn);
+        save();
+        return eReturn;
+      }
+
+      // Jalur internal yang sudah di-split sebelumnya (misal dari tambahSetoranWajib)
+      if (rec._noSplit && (rec.fund === 'sdh' || rec.fund === 'darurat')) {
+        var eExplicit = {
+          id: rec.id || uid(),
+          description: desc,
+          moneyIn: mi,
+          moneyOut: 0,
+          date: date,
+          note: note,
+          kind: kind,
+          fund: rec.fund
+        };
+        d.entries.push(eExplicit);
+        save();
+        return eExplicit;
+      }
+
+      // SEMUA dana masuk lainnya otomatis terbagi 2: 50% Kas Darurat & 50% Kas SDH
+      var half1 = Math.round(mi / 2);
+      var half2 = mi - half1;
+      var cleanDesc = desc.replace(/\s*\((?:50%|5%|\d+%)?\s*(?:Kas )?(?:Darurat|SDH)\)/gi, '').trim() || 'Setoran Dana';
+
+      var eDarurat = {
+        id: (rec.id || uid()) + '_d',
+        description: cleanDesc + ' (50% Kas Darurat)',
+        moneyIn: half1,
+        moneyOut: 0,
+        date: date,
+        note: note,
+        kind: kind,
+        fund: 'darurat'
+      };
+      var eSDH = {
+        id: (rec.id || uid()) + '_s',
+        description: cleanDesc + ' (50% Kas SDH)',
+        moneyIn: half2,
+        moneyOut: 0,
+        date: date,
+        note: note,
+        kind: kind,
+        fund: 'sdh'
+      };
+      d.entries.push(eDarurat);
+      d.entries.push(eSDH);
+      save();
+      return eDarurat;
     }
-    var e = {
-      id: uid(),
-      description: String(rec.description || '').slice(0, 120),
-      moneyIn: mi,
+
+    // DANA KELUAR (OUTFLOW)
+    // Pengeluaran default dan wajib dari Kas Darurat, kecuali pengeluaran khusus Kas SDH via PIN
+    var fund = rec.fund === 'sdh' ? 'sdh' : 'darurat';
+    var bd = getBreakdown(d);
+
+    if (fund === 'sdh') {
+      if (mo > bd.sdh.available) {
+        throw new Error('Kas SDH tidak cukup. Tersisa ' + fmtIDR(bd.sdh.available));
+      }
+    } else {
+      // Kas Darurat: untuk pinjaman otomatis sparepart Mascim, catat peminjaman tanpa memblokir servis
+      if (kind !== 'sparepart' && !rec.allowNegative && mo > bd.darurat.available) {
+        throw new Error('Kas Darurat tidak cukup. Tersisa ' + fmtIDR(bd.darurat.available));
+      }
+    }
+
+    var eOut = {
+      id: rec.id || uid(),
+      description: desc,
+      moneyIn: 0,
       moneyOut: mo,
-      date: String(rec.date || todayStr()).slice(0, 10),
-      note: String(rec.note || '').slice(0, 200),
-      kind: rec.kind === 'wajib' ? 'wajib' : 'manual',
+      date: date,
+      note: note,
+      kind: kind,
       fund: fund
     };
-    d.entries.push(e);
+    d.entries.push(eOut);
     save();
-    return e;
+    return eOut;
   }
 
   // Ubah saldo awal (men jadi total setoran masuk).
@@ -342,7 +472,8 @@
       moneyOut: 0,
       date: dateStr || todayStr(),
       kind: 'wajib',
-      fund: 'darurat'
+      fund: 'darurat',
+      _noSplit: true
     });
 
     var e2 = add({
@@ -351,7 +482,8 @@
       moneyOut: 0,
       date: dateStr || todayStr(),
       kind: 'wajib',
-      fund: 'sdh'
+      fund: 'sdh',
+      _noSplit: true
     });
 
     d.wajibBulanan[ym] = { amount: amt, at: todayStr() };
