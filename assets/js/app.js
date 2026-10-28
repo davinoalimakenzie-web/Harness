@@ -11,7 +11,8 @@
 
   var TITLES = {
     home:    ['Project Nava', 'Cashflow keluarga'],
-    bank:    ['Dana Bank', 'Saldo & riwayat dana bank'],
+    bank:    ['Kas Nava', 'Kas Darurat (5%) & Kas SDH (5%)'],
+    kas:     ['Kas Nava', 'Kas Darurat (5%) & Kas SDH (5%)'],
     history: ['Riwayat', 'Semua transaksi tersimpan'],
     recap:   ['Rekap', 'Ringkasan & riwayat transaksi'],
     more:    ['Lainnya', 'Alat, kategori, akun & data'],
@@ -68,6 +69,7 @@
          di akhir init dan tombol back — supaya mitra tidak bisa nyasar
          kembali ke menu Project Nava. */
       if (w.document.body.classList.contains('mitra-mode') && v !== 'ronce') return;
+      if (v === 'kas') v = 'bank';
       App.view = v;
       $$('.tab').forEach(function (b) { b.classList.toggle('active', b.dataset.view === v); });
       $$('.view').forEach(function (s) { s.classList.toggle('active', s.id === 'view-' + v); });

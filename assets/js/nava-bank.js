@@ -62,7 +62,8 @@
           moneyOut: Math.max(0, Math.round(Number(e.moneyOut) || 0)),
           date: String(e.date || '').slice(0, 10),
           note: String(e.note || '').slice(0, 200),
-          kind: e.kind === 'wajib' ? 'wajib' : (e.kind || 'manual')
+          kind: e.kind === 'wajib' ? 'wajib' : (e.kind || 'manual'),
+          fund: e.fund === 'sdh' ? 'sdh' : 'darurat'
         };
       });
     }
@@ -118,20 +119,59 @@
       return a + (e.moneyIn && e.kind !== 'wajib' ? e.moneyIn : 0);
     }, 0);
   }
-  // Sisa yang boleh dipakai = saldo awal + semua setoran - semua pemakaian.
+  // Breakdown dua variabel: Kas Darurat & Kas SDH
+  function getBreakdown(d) {
+    d = d || load();
+    var init = initialValue(d);
+    var inDarurat = init, outDarurat = 0;
+    var inSDH = 0, outSDH = 0;
+
+    d.entries.forEach(function (e) {
+      var f = e.fund === 'sdh' ? 'sdh' : 'darurat';
+      if (f === 'sdh') {
+        inSDH += (e.moneyIn || 0);
+        outSDH += (e.moneyOut || 0);
+      } else {
+        inDarurat += (e.moneyIn || 0);
+        outDarurat += (e.moneyOut || 0);
+      }
+    });
+
+    var availDarurat = Math.max(0, inDarurat - outDarurat);
+    var availSDH = Math.max(0, inSDH - outSDH);
+
+    return {
+      darurat: {
+        totalIn: inDarurat,
+        totalOut: outDarurat,
+        available: availDarurat
+      },
+      sdh: {
+        totalIn: inSDH,
+        totalOut: outSDH,
+        available: availSDH
+      },
+      totalAvailable: availDarurat + availSDH
+    };
+  }
+
+  // Sisa yang boleh dipakai = total sisa kedua kas
   function available(d) {
     d = d || load();
-    return initialValue(d) + totalIn(d) - totalOut(d);
+    return getBreakdown(d).totalAvailable;
   }
 
   function get() {
     var d = load();
+    var bd = getBreakdown(d);
     return {
       initial: initialValue(d),
       totalIn: totalIn(d),
       totalOut: totalOut(d),
       totalReturned: totalReturned(d),
-      available: available(d),
+      available: bd.totalAvailable,
+      daruratAvailable: bd.darurat.available,
+      sdhAvailable: bd.sdh.available,
       count: d.entries.length
     };
   }
@@ -139,15 +179,20 @@
   /* ---------------- mutasi ---------------- */
 
   // Catat satu mutasi. moneyIn = dana masuk, moneyOut = dana keluar.
-  // Penting: dana keluar tidak boleh melebihi sisa yang tersedia.
+  // Penting: dana keluar tidak boleh melebihi sisa kas terkait (darurat atau sdh).
   function add(rec) {
     var d = load();
     rec = rec || {};
     var mi = Math.max(0, Math.round(Number(rec.moneyIn) || 0));
     var mo = Math.max(0, Math.round(Number(rec.moneyOut) || 0));
+    var fund = rec.fund === 'sdh' ? 'sdh' : 'darurat';
     if (mi === 0 && mo === 0) throw new Error('Nominal harus lebih dari 0');
-    if (mo > 0 && mo > available(d)) {
-      throw new Error('Dana Bank tidak cukup. Tersisa ' + fmtIDR(available(d)));
+
+    var bd = getBreakdown(d);
+    var targetAvail = fund === 'sdh' ? bd.sdh.available : bd.darurat.available;
+    if (mo > 0 && mo > targetAvail) {
+      var fundName = fund === 'sdh' ? 'Kas SDH' : 'Kas Darurat';
+      throw new Error(fundName + ' tidak cukup. Tersisa ' + fmtIDR(targetAvail));
     }
     var e = {
       id: uid(),
@@ -156,7 +201,8 @@
       moneyOut: mo,
       date: String(rec.date || todayStr()).slice(0, 10),
       note: String(rec.note || '').slice(0, 200),
-      kind: rec.kind === 'wajib' ? 'wajib' : 'manual'
+      kind: rec.kind === 'wajib' ? 'wajib' : 'manual',
+      fund: fund
     };
     d.entries.push(e);
     save();
@@ -220,16 +266,30 @@
     var amt = Math.round((Number(amount) || 0) / 1000) * 1000;
     if (amt <= 0) return { inserted: false, reason: 'nominal tidak valid', entry: null, amount: 0 };
 
-    var e = add({
-      description: KETERANGAN_WAJIB + ' ' + ym,
-      moneyIn: amt,
+    var amtDarurat = Math.round((amt / 2) / 1000) * 1000;
+    var amtSDH = amt - amtDarurat;
+
+    var e1 = add({
+      description: KETERANGAN_WAJIB + ' 5% (Kas Darurat) ' + ym,
+      moneyIn: amtDarurat,
       moneyOut: 0,
       date: dateStr || todayStr(),
-      kind: 'wajib'
+      kind: 'wajib',
+      fund: 'darurat'
     });
+
+    var e2 = add({
+      description: KETERANGAN_WAJIB + ' 5% (Kas SDH) ' + ym,
+      moneyIn: amtSDH,
+      moneyOut: 0,
+      date: dateStr || todayStr(),
+      kind: 'wajib',
+      fund: 'sdh'
+    });
+
     d.wajibBulanan[ym] = { amount: amt, at: todayStr() };
     save();
-    return { inserted: true, reason: '', entry: e, amount: amt };
+    return { inserted: true, reason: '', entry: e1, amount: amt };
   }
 
   // Sudah disetor untuk bulan itu?
@@ -352,6 +412,7 @@
     RASIO_WAJIB: RASIO_WAJIB,
     KETERANGAN_WAJIB: KETERANGAN_WAJIB,
     get: get,
+    getBreakdown: getBreakdown,
     add: add,
     setInitial: setInitial,
     remove: remove,

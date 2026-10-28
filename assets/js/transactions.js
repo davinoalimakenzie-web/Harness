@@ -129,11 +129,13 @@
     var s = Tx.summary({ from: ym + '-01', to: ym + '-31' });
     renderPool();
     var bal = $('#hBalance');
-    bal.textContent = money(s.net);
-    bal.classList.toggle('pos', s.net > 0);
-    bal.classList.toggle('neg', s.net < 0);
-    $('#hIn').textContent = money(s.in);
-    $('#hOut').textContent = money(s.out);
+    if (bal) {
+      bal.textContent = money(s.net);
+      bal.classList.toggle('pos', s.net > 0);
+      bal.classList.toggle('neg', s.net < 0);
+    }
+    var hIn = $('#hIn'); if (hIn) hIn.textContent = money(s.in);
+    var hOut = $('#hOut'); if (hOut) hOut.textContent = money(s.out);
 
     // Komposisi pengeluaran bulan ini di dashboard
     renderKomposisi(s);
@@ -149,9 +151,7 @@
         '</button>';
     }).join('');
 
-    // Kartu Dana Bank berdiri tepat di sebelah kartu "Tunai"/"Rekening Saya".
-    // Dipindah dari modul Mas Cim ke sini karena Dana Bank adalah alat
-    // keuangan Project Nava, bukan alat servis HP.
+    // Kartu Kas (berisi Kas Darurat 5% & Kas SDH 5%)
     var bankCard = '';
     var nb = w.NavaBank;
     if (nb) {
@@ -161,35 +161,46 @@
       var pct = nb.persenTerpenuhi(Tx.active(), ym);
       bankCard =
         '<button class="acc-card nb-card' + (gb.available > 0 ? ' nb-ok' : '') + '" data-nbank>' +
-          '<span class="acc-card-top"><span class="acc-ico">🏦</span>' +
-          '<span class="acc-name">Dana Bank</span></span>' +
+          '<span class="acc-card-top"><span class="acc-ico">💵</span>' +
+          '<span class="acc-name">Kas</span></span>' +
           '<span class="acc-bal ' + (gb.available > 0 ? 'pos' : gb.available < 0 ? 'neg' : '') + '">' +
             money(gb.available) + '</span>' +
-          '<span class="nb-sub">' + (due > 0
-            ? (doneWajib ? 'Setoran wajib ' + money(due) + ' tersimpan' : 'Wajib setor ' + money(due) + ' · ' + pct + '%')
-            : 'Belum ada setoran wajib') + '</span>' +
+          '<span class="nb-sub" style="font-size:11px;">Darurat: ' + money(gb.daruratAvailable || 0) + ' · SDH: ' + money(gb.sdhAvailable || 0) + '</span>' +
         '</button>';
     }
 
-    $('#hAccounts').innerHTML = bankCard + cards +
-      '<button class="acc-card in-add" data-accadd>＋ Tambah akun</button>';
+    var hAccEl = $('#hAccounts');
+    if (hAccEl) {
+      hAccEl.innerHTML = bankCard + cards +
+        '<button class="acc-card in-add" data-accadd>＋ Tambah akun</button>';
+    }
 
-    // Pencatatan cepat: subkategori yang paling sering dipakai
-    var recent = Tx.frequent('out', 6).concat(Tx.frequent('in', 3));
-    $('#hQuick').innerHTML = recent.length
-      ? recent.map(function (r) {
-          var g = Groups.of(r.type, r.group);
-          var ic = g ? Groups.iconOf(g, r.sub) : '💰';
-          return '<button class="chip" data-qt="' + esc(r.type) + '" data-qg="' + esc(r.group) +
-            '" data-qs="' + esc(r.sub || '') + '">' + ic + ' ' +
-            esc(r.sub || r.group) + '</button>';
-        }).join('')
-      : '<span class="muted xs">Kategori yang sering dipakai akan muncul di sini.</span>';
+    // Pencatatan cepat: subkategori yang paling sering dipakai (jika elemen tersedia)
+    var hQuick = $('#hQuick');
+    if (hQuick) {
+      var recent = Tx.frequent('out', 6).concat(Tx.frequent('in', 3));
+      hQuick.innerHTML = recent.length
+        ? recent.map(function (r) {
+            var g = Groups.of(r.type, r.group);
+            var ic = g ? Groups.iconOf(g, r.sub) : '💰';
+            return '<button class="chip" data-qt="' + esc(r.type) + '" data-qg="' + esc(r.group) +
+              '" data-qs="' + esc(r.sub || '') + '">' + ic + ' ' +
+              esc(r.sub || r.group) + '</button>';
+          }).join('')
+        : '<span class="muted xs">Kategori yang sering dipakai akan muncul di sini.</span>';
+    }
 
-    var last = Tx.active().slice(0, 6);
-    $('#hRecent').innerHTML = last.length
-      ? last.map(txRow).join('')
-      : '<div class="empty"><b>Belum ada transaksi</b>Tekan tombol Tambah untuk mencatat yang pertama.</div>';
+    // Transaksi hari ini (hanya menampilkan transaksi hari ini)
+    var today = S.todayStr();
+    var todayTx = Tx.active().filter(function (t) {
+      return (t.transaction_date || t.date || '').slice(0, 10) === today;
+    });
+    var hRecent = $('#hRecent');
+    if (hRecent) {
+      hRecent.innerHTML = todayTx.length
+        ? todayTx.map(txRow).join('')
+        : '<div class="empty"><b>Belum ada transaksi hari ini</b>Transaksi yang Anda catat hari ini akan tampil di sini.</div>';
+    }
   }
 
   /* =========================================================
@@ -295,15 +306,30 @@
       });
   }
 
+  function getOwnerPin() {
+    var pin = '1234';
+    try {
+      var raw = localStorage.getItem('nava_ronce_data_v2');
+      if (raw) {
+        var d = JSON.parse(raw);
+        if (d && Array.isArray(d.users)) {
+          var o = d.users.find(function (u) { return u.role === 'owner'; });
+          if (o && o.pin) pin = String(o.pin).trim();
+        }
+      }
+    } catch (e) {}
+    return pin;
+  }
+
   function sheetOutBon() {
-    bankSheet('Out / Bon Dana Bank',
-      '<p class="nb-hint">Out untuk pengeluaran biasa, Bon untuk bon/utang. ' +
-      'Keduanya memakai Dana Bank.</p>' +
+    bankSheet('Out / Bon Kas Darurat',
+      '<p class="nb-hint">Pengeluaran biasa atau bon operasional. ' +
+      'Diambil dari <b>Kas Darurat</b>.</p>' +
       '<div class="row-2" id="nbKind">' +
         '<button class="chip on" data-kind="Out">Out</button>' +
         '<button class="chip" data-kind="Bon">Bon</button></div>' +
       '<label class="field"><span class="lbl">Keterangan *</span>' +
-      '<input type="text" id="nbDesc" placeholder="Contoh: Bensin antar / Bon bensin"></label>' +
+      '<input type="text" id="nbDesc" placeholder="Contoh: Bensin antar / Bon operasional"></label>' +
       '<label class="field"><span class="lbl">Nominal (Rp) *</span>' +
       '<input type="number" id="nbAmt" inputmode="numeric" placeholder="0"></label>' +
       '<label class="field"><span class="lbl">Tanggal</span>' +
@@ -327,10 +353,67 @@
           if (!desc) { if (w.App.toast) w.App.toast('Keterangan wajib diisi'); return; }
           if (amt <= 0) { if (w.App.toast) w.App.toast('Nominal harus lebih dari 0'); return; }
           try {
-            w.NavaBank.add({ description: kind + ' — ' + desc, moneyIn: 0, moneyOut: amt,
-              date: body.querySelector('#nbDate').value || S.todayStr() });
+            w.NavaBank.add({
+              description: kind + ' (Darurat) — ' + desc,
+              moneyIn: 0,
+              moneyOut: amt,
+              date: body.querySelector('#nbDate').value || S.todayStr(),
+              fund: 'darurat'
+            });
             w.App.closeSheet();
-            if (w.App.toast) w.App.toast(kind + ' tersimpan');
+            if (w.App.toast) w.App.toast(kind + ' Kas Darurat tersimpan');
+            render();
+          } catch (err) {
+            if (w.App.toast) w.App.toast(err.message);
+          }
+        });
+        body.appendChild(btn);
+      });
+  }
+
+  function sheetOutSDH() {
+    bankSheet('Out Kas SDH 🔒',
+      '<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:10px 12px;margin-bottom:12px;">' +
+        '<span style="font-size:12px;font-weight:700;color:var(--danger);display:block;">⚠️ Akses Khusus Owner</span>' +
+        '<span style="font-size:11.5px;color:var(--text);display:block;margin-top:2px;">Pengeluaran dari <b>Kas SDH</b> hanya boleh dilakukan oleh Owner dengan memasukkan PIN.</span>' +
+      '</div>' +
+      '<label class="field"><span class="lbl">Keterangan Penyaluran / Keperluan *</span>' +
+      '<input type="text" id="nbSDHDesc" placeholder="Contoh: Sedekah Jumat / Santunan"></label>' +
+      '<label class="field"><span class="lbl">Nominal (Rp) *</span>' +
+      '<input type="number" id="nbSDHAmt" inputmode="numeric" placeholder="0"></label>' +
+      '<label class="field"><span class="lbl">Tanggal</span>' +
+      '<input id="nbSDHDate" type="date" value="' + S.todayStr() + '"></label>' +
+      '<label class="field" style="margin-top:10px;"><span class="lbl">🔑 Kunci PIN Owner *</span>' +
+      '<input type="password" id="nbSDHPin" inputmode="numeric" maxlength="8" placeholder="Masukkan PIN Owner"></label>',
+      function (body) {
+        var btn = document.createElement('button');
+        btn.className = 'btn primary block';
+        btn.style.marginTop = '14px';
+        btn.textContent = 'Verifikasi PIN & Simpan';
+        btn.addEventListener('click', function () {
+          var desc = (body.querySelector('#nbSDHDesc').value || '').trim();
+          var amt = parseInt(String(body.querySelector('#nbSDHAmt').value).replace(/\D/g, ''), 10) || 0;
+          var pin = (body.querySelector('#nbSDHPin').value || '').trim();
+
+          if (!desc) { if (w.App.toast) w.App.toast('Keterangan wajib diisi'); return; }
+          if (amt <= 0) { if (w.App.toast) w.App.toast('Nominal harus lebih dari 0'); return; }
+          if (!pin) { if (w.App.toast) w.App.toast('PIN Owner wajib diisi'); return; }
+
+          if (pin !== getOwnerPin()) {
+            if (w.App.toast) w.App.toast('PIN Owner salah! Akses ditolak.');
+            return;
+          }
+
+          try {
+            w.NavaBank.add({
+              description: 'SDH — ' + desc,
+              moneyIn: 0,
+              moneyOut: amt,
+              date: body.querySelector('#nbSDHDate').value || S.todayStr(),
+              fund: 'sdh'
+            });
+            w.App.closeSheet();
+            if (w.App.toast) w.App.toast('Pengeluaran Kas SDH berhasil dicatat');
             render();
           } catch (err) {
             if (w.App.toast) w.App.toast(err.message);
@@ -342,24 +425,35 @@
 
   function sheetSetor(due, done, ym) {
     var g = w.NavaBank.get();
-    bankSheet('Setor Dana Bank',
-      '<p class="nb-hint">Setoran menambah Dana Bank. ' +
-      'Setiap bulan 10% pemasukan wajib disetor otomatis.</p>' +
+    bankSheet('Setor Kas Nava',
+      '<p class="nb-hint">Setoran menambah Kas Nava. ' +
+      'Setoran kas wajib (10%) akan otomatis terbagi: 5% Kas Darurat & 5% Kas SDH.</p>' +
+      (due > 0 && !done
+        ? '<button class="btn primary block" data-bkw style="margin-bottom:12px">' +
+          '⚡ Setor Kas Wajib 10% (' + money(due) + ')</button>'
+        : '') +
+      '<div class="row-2" id="nbSetorFund" style="margin-bottom:10px;">' +
+        '<button class="chip on" data-fund="darurat">Kas Darurat</button>' +
+        '<button class="chip" data-fund="sdh">Kas SDH</button>' +
+      '</div>' +
       '<label class="field"><span class="lbl">Keterangan</span>' +
       '<input type="text" id="nbSDesc" value="Setoran"></label>' +
       '<label class="field"><span class="lbl">Nominal (Rp)</span>' +
-      '<input type="number" id="nbSAmt" inputmode="numeric" value="' + (due > 0 ? due : '') + '" ' +
-      'placeholder="0"></label>' +
-      (due > 0 && !done
-        ? '<button class="btn ghost block" data-bkw style="margin-top:4px">' +
-          'Setorankan wajib ' + money(due) + ' (10%)</button>'
-        : ''),
+      '<input type="number" id="nbSAmt" inputmode="numeric" placeholder="0"></label>',
       function (body) {
+        var fund = 'darurat';
+        body.querySelectorAll('#nbSetorFund [data-fund]').forEach(function (x) {
+          x.addEventListener('click', function () {
+            fund = x.dataset.fund;
+            body.querySelectorAll('#nbSetorFund [data-fund]').forEach(function (y) { y.classList.remove('on'); });
+            x.classList.add('on');
+          });
+        });
         body.addEventListener('click', function (e) {
           if (e.target.closest('[data-bkw]')) {
             w.NavaBank.tambahSetoranWajib(due, ym);
             w.App.closeSheet();
-            if (w.App.toast) w.App.toast('Setoran kas wajib tersimpan');
+            if (w.App.toast) w.App.toast('Setoran kas wajib tersimpan (5% Darurat + 5% SDH)');
             render();
           }
         });
@@ -372,9 +466,15 @@
           if (amt <= 0) { if (w.App.toast) w.App.toast('Nominal harus lebih dari 0'); return; }
           var desc = (body.querySelector('#nbSDesc').value || 'Setoran').trim();
           try {
-            w.NavaBank.add({ description: desc, moneyIn: amt, moneyOut: 0, date: S.todayStr() });
+            w.NavaBank.add({
+              description: desc + (fund === 'sdh' ? ' (SDH)' : ' (Darurat)'),
+              moneyIn: amt,
+              moneyOut: 0,
+              date: S.todayStr(),
+              fund: fund
+            });
             w.App.closeSheet();
-            if (w.App.toast) w.App.toast('Setoran tersimpan');
+            if (w.App.toast) w.App.toast('Setoran ' + (fund === 'sdh' ? 'Kas SDH' : 'Kas Darurat') + ' tersimpan');
             render();
           } catch (err) { if (w.App.toast) w.App.toast(err.message); }
         });
@@ -500,7 +600,7 @@
   }
 
   /* =========================================================
-     TAB: DANA BANK
+     TAB: KAS (Kas Darurat & Kas SDH)
      ========================================================= */
   function renderBankView() {
     if (!w.NavaBank) return;
@@ -516,6 +616,12 @@
       availEl.textContent = money(g.available);
       availEl.style.color = g.available > 0 ? 'var(--success)' : (g.available < 0 ? 'var(--danger)' : 'var(--text)');
     }
+    var availDaruratEl = $('#vbAvailDarurat');
+    if (availDaruratEl) availDaruratEl.textContent = money(g.daruratAvailable || 0);
+
+    var availSDHEl = $('#vbAvailSDH');
+    if (availSDHEl) availSDHEl.textContent = money(g.sdhAvailable || 0);
+
     var initEl = $('#vbInitial');
     if (initEl) initEl.textContent = money(g.initial);
     var outEl = $('#vbOut');
@@ -529,17 +635,17 @@
     if (descEl) {
       if (due > 0) {
         if (done) {
-          descEl.innerHTML = 'Setoran wajib bulan ini <b>' + money(due) + '</b> sudah tersimpan.';
+          descEl.innerHTML = 'Setoran wajib bulan ini <b>' + money(due) + '</b> sudah tersimpan (otomatis terbagi: 5% Kas Darurat & 5% Kas SDH).';
           if (badgeEl) { badgeEl.textContent = 'LUNAS'; badgeEl.className = 'tag done'; }
           if (barEl) barEl.style.width = '100%';
           if (actWrap) actWrap.innerHTML = '';
         } else {
-          descEl.innerHTML = 'Wajib setor <b>' + money(due) + '</b> (10% dari total pemasukan bulan ini). Tersisa yang belum disetor: <b>' + money(due) + '</b>';
+          descEl.innerHTML = 'Wajib setor <b>' + money(due) + '</b> (10% dari total pemasukan bulan ini). Saat disetor otomatis terbagi dua: <b>5% Kas Darurat</b> & <b>5% Kas SDH</b>.';
           if (badgeEl) { badgeEl.textContent = pct + '%'; badgeEl.className = 'tag proses'; }
           if (barEl) barEl.style.width = pct + '%';
           if (actWrap) {
             actWrap.innerHTML = '<button class="btn ghost block" id="vbBtnSetorWajibAuto" style="font-size:13px;padding:8px 12px;margin-top:6px;">' +
-              'Setorkan Wajib ' + money(due) + ' Sekarang</button>';
+              'Setorkan Wajib ' + money(due) + ' Sekarang (5% Darurat + 5% SDH)</button>';
           }
         }
       } else {
@@ -554,14 +660,18 @@
     if (listEl) {
       var entries = B.entries().slice().reverse();
       if (!entries.length) {
-        listEl.innerHTML = '<div class="empty"><b>Belum ada transaksi Dana Bank</b>Gunakan tombol aksi di atas untuk mencatat.</div>';
+        listEl.innerHTML = '<div class="empty"><b>Belum ada transaksi Kas</b>Gunakan tombol aksi di atas untuk mencatat.</div>';
       } else {
         listEl.innerHTML = entries.map(function (e) {
           var masuk = e.moneyIn > 0, jumlah = masuk ? e.moneyIn : e.moneyOut;
           var tgl = e.date ? S.dayLabel(e.date) : '-';
+          var isSDH = (e.fund === 'sdh');
+          var fundBadge = isSDH
+            ? '<span class="tag done" style="font-size:10px;padding:2px 6px;margin-right:6px;">Kas SDH</span>'
+            : '<span class="tag" style="font-size:10px;padding:2px 6px;margin-right:6px;">Kas Darurat</span>';
           return '<div class="item" style="padding:10px 12px;">' +
             '<div class="item-body">' +
-              '<div class="item-title" style="font-size:13.5px;font-weight:600;">' + esc(e.description || (masuk ? 'Dana masuk' : 'Dana keluar')) + '</div>' +
+              '<div class="item-title" style="font-size:13.5px;font-weight:600;">' + fundBadge + esc(e.description || (masuk ? 'Dana masuk' : 'Dana keluar')) + '</div>' +
               '<div class="item-sub"><span style="font-size:11.5px;color:var(--text-2);">' + esc(tgl) + '</span></div>' +
             '</div>' +
             '<span class="stat-val ' + (masuk ? 'pos' : 'neg') + '" style="font-size:14.5px;font-weight:700;white-space:nowrap;">' +
@@ -1280,9 +1390,11 @@
       renderRecap(); renderHistory(); TG.haptic('select');
     });
 
-    /* --- Aksi di Tab Dana Bank --- */
+    /* --- Aksi di Tab Kas --- */
     var btnOut = $('#vbBtnOutBon');
     if (btnOut) btnOut.addEventListener('click', sheetOutBon);
+    var btnOutSDH = $('#vbBtnOutSDH');
+    if (btnOutSDH) btnOutSDH.addEventListener('click', sheetOutSDH);
     var btnSetor = $('#vbBtnSetor');
     if (btnSetor) btnSetor.addEventListener('click', function () {
       if (!w.NavaBank) return;
