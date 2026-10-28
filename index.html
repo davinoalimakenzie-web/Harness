@@ -34,13 +34,6 @@
     </div>
     <div id="hAccounts" class="acc-grid" style="margin-bottom:12px;"></div>
 
-    <!-- Komposisi pengeluaran bulan ini (dipindah dari tab Rekap) -->
-    <div class="card" id="homeKomposisiCard" style="margin-bottom:12px;">
-      <div class="list-head tight"><strong>Komposisi pengeluaran</strong></div>
-      <div id="rDonut" class="donut-wrap"></div>
-      <div id="rCats" class="cat-bars"></div>
-    </div>
-
     <div id="poolCard" class="card pool-card" hidden>
       <div class="list-head tight">
         <strong><span class="pool-ic">📥</span> Menunggu Disimpan</strong>
@@ -140,7 +133,7 @@
     </div>
 
     <!-- Pemasukan & Pengeluaran Berdampingan (2 Kolom) -->
-    <div class="stat-grid">
+    <div class="stat-grid" style="margin-bottom:12px;">
       <div class="stat in">
         <span class="stat-lbl">Pemasukan</span>
         <strong id="rIn" class="stat-val">Rp0</strong>
@@ -149,6 +142,13 @@
         <span class="stat-lbl">Pengeluaran</span>
         <strong id="rOut" class="stat-val">Rp0</strong>
       </div>
+    </div>
+
+    <!-- Komposisi pengeluaran (kembali ke tab Rekap seperti semula) -->
+    <div class="card" style="margin-bottom:12px;">
+      <div class="list-head tight"><strong>Komposisi pengeluaran</strong></div>
+      <div id="rDonut" class="donut-wrap"></div>
+      <div id="rCats" class="cat-bars"></div>
     </div>
 
     <!-- Struktur Riwayat Transaksi (Dipindah ke Bawah Pemasukan & Pengeluaran) -->

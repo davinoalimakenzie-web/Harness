@@ -137,10 +137,7 @@
     var hIn = $('#hIn'); if (hIn) hIn.textContent = money(s.in);
     var hOut = $('#hOut'); if (hOut) hOut.textContent = money(s.out);
 
-    // Komposisi pengeluaran bulan ini di dashboard
-    renderKomposisi(s);
-
-    // Kartu akun + saldo
+    // Kartu akun + saldo (Tunai, Rekening, Kas, dll)
     var accs = Accounts.active();
     var cards = accs.map(function (a) {
       var b = Accounts.balance(a.id);
@@ -597,6 +594,9 @@
       net.textContent = money(s.net);
       net.style.color = s.net >= 0 ? 'var(--success)' : 'var(--danger)';
     }
+
+    // Donut & rincian kategori pengeluaran bulan yang dipilih di tab Rekap
+    renderKomposisi(s);
   }
 
   /* =========================================================
@@ -1221,33 +1221,37 @@
     }
 
     /* --- Akun di Beranda --- */
-    el.hAccounts.addEventListener('click', function (e) {
-      if (e.target.closest('[data-accadd]')) { if (w.App && w.App.openAccountSheet) w.App.openAccountSheet(); return; }
-      if (e.target.closest('[data-nbank]')) {
-        if (w.App && w.App.go) w.App.go('bank');
-        else openBankSheet();
-        return;
-      }
-      var b = e.target.closest('[data-acc]');
-      if (b) {
-        var aId = b.dataset.acc;
-        var acc = Accounts.of(aId);
-        var isTunai = (aId === 'acc-cash') ||
-          (acc && (acc.type === 'cash' || (acc.name && acc.name.toLowerCase().indexOf('tunai') !== -1)));
-        if (isTunai) {
-          if (w.App && w.App.go) w.App.go('recap');
+    if (el.hAccounts) {
+      el.hAccounts.addEventListener('click', function (e) {
+        if (e.target.closest('[data-accadd]')) { if (w.App && w.App.openAccountSheet) w.App.openAccountSheet(); return; }
+        if (e.target.closest('[data-nbank]')) {
+          if (w.App && w.App.go) w.App.go('bank');
+          else openBankSheet();
           return;
         }
-        openAdd({ }); accountId = aId; renderTxAccounts();
-      }
-    });
+        var b = e.target.closest('[data-acc]');
+        if (b) {
+          var aId = b.dataset.acc;
+          var acc = Accounts.get(aId);
+          var isTunai = (aId === 'acc-cash') ||
+            (acc && (acc.type === 'cash' || (acc.name && acc.name.toLowerCase().indexOf('tunai') !== -1)));
+          if (isTunai) {
+            if (w.App && w.App.go) w.App.go('recap');
+            return;
+          }
+          openAdd({ }); accountId = aId; renderTxAccounts();
+        }
+      });
+    }
 
-    /* --- Quick pick --- */
-    el.hQuick.addEventListener('click', function (e) {
-      var b = e.target.closest('[data-qt]');
-      if (!b) return;
-      openAdd({ type: b.dataset.qt, group: b.dataset.qg, sub: b.dataset.qs || null });
-    });
+    /* --- Quick pick (jika elemen tersedia di halaman) --- */
+    if (el.hQuick) {
+      el.hQuick.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-qt]');
+        if (!b) return;
+        openAdd({ type: b.dataset.qt, group: b.dataset.qg, sub: b.dataset.qs || null });
+      });
+    }
 
     /* --- Jenis --- */
     $('#txType').addEventListener('click', function (e) {
@@ -1319,13 +1323,14 @@
 
     /* --- Buka detail dari daftar --- */
     function bindOpen(c) {
+      if (!c) return;
       c.addEventListener('click', function (e) {
         var b = e.target.closest('[data-open]');
         if (b) openDetail(b.dataset.open);
       });
     }
-    bindOpen(el.hRecent);
-    bindOpen(el.hList);
+    if (el.hRecent) bindOpen(el.hRecent);
+    if (el.hList) bindOpen(el.hList);
 
     /* --- Filter riwayat --- */
     var deb = null;
@@ -1379,12 +1384,14 @@
     });
 
     /* --- Rekap Month Switcher & History Sync --- */
-    $('#rPrev').addEventListener('click', function () {
+    var rPrevBtn = $('#rPrev');
+    if (rPrevBtn) rPrevBtn.addEventListener('click', function () {
       recapYM = S.shiftMonth(recapYM, -1);
       filter.from = recapYM + '-01'; filter.to = recapYM + '-31';
       renderRecap(); renderHistory(); TG.haptic('select');
     });
-    $('#rNext').addEventListener('click', function () {
+    var rNextBtn = $('#rNext');
+    if (rNextBtn) rNextBtn.addEventListener('click', function () {
       recapYM = S.shiftMonth(recapYM, 1);
       filter.from = recapYM + '-01'; filter.to = recapYM + '-31';
       renderRecap(); renderHistory(); TG.haptic('select');

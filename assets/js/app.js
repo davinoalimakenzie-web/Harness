@@ -84,6 +84,10 @@
          (back) Telegram untuk berpindah. */
       var navbawah = $('.tabbar');
       if (navbawah) navbawah.style.display = (v === 'ronce' || v === 'notes') ? 'none' : '';
+      if (v === 'more') {
+        refreshMore();
+        if (App.renderAutoBackup) App.renderAutoBackup();
+      }
       if (v === 'ronce') {
         var tb = $('.topbar');
         if (tb) document.documentElement.style.setProperty('--topbar-h', tb.offsetHeight + 'px');
@@ -296,6 +300,7 @@
     renderAccountEditor();
     renderCatEditor();
     renderNewParent();
+    if (App.renderAutoBackup) App.renderAutoBackup();
   }
 
   /* ---------------- Backup ---------------- */
@@ -523,12 +528,12 @@
     });
 
     // Sub-modul
-    w.NotesUI.init();
-    w.TxUI.init();
-    w.CalcUI.init();
-    if (w.MascimUI && w.MascimUI.init) w.MascimUI.init();
-    if (w.Ronce && w.Ronce.init) w.Ronce.init();
-    if (w.NavaTraderUI && w.NavaTraderUI.init) w.NavaTraderUI.init();
+    try { if (w.NotesUI && w.NotesUI.init) w.NotesUI.init(); } catch (e) { console.error('NotesUI init error:', e); }
+    try { if (w.TxUI && w.TxUI.init) w.TxUI.init(); } catch (e) { console.error('TxUI init error:', e); }
+    try { if (w.CalcUI && w.CalcUI.init) w.CalcUI.init(); } catch (e) { console.error('CalcUI init error:', e); }
+    try { if (w.MascimUI && w.MascimUI.init) w.MascimUI.init(); } catch (e) { console.error('MascimUI init error:', e); }
+    try { if (w.Ronce && w.Ronce.init) w.Ronce.init(); } catch (e) { console.error('Ronce init error:', e); }
+    try { if (w.NavaTraderUI && w.NavaTraderUI.init) w.NavaTraderUI.init(); } catch (e) { console.error('NavaTraderUI init error:', e); }
     // Auto refresh harga IHSG berkala, jangan user bukan klik tombol lagi.
     if (w.NavaTraderQuote && typeof w.NavaTraderQuote.muat === 'function') {
       w.setInterval(function () {
@@ -712,6 +717,9 @@
       var info = $('#abInfo'), list = $('#abList');
       if (!info || !list) return;
       var snaps = w.AutoBackup.list();
+      if (!snaps.length) {
+        try { w.AutoBackup.run(false); snaps = w.AutoBackup.list(); } catch (e) {}
+      }
       if (!snaps.length) {
         info.textContent = 'Belum ada cadangan. App akan menyimpan sendiri setiap 1 jam.';
         list.innerHTML = '';
