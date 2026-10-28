@@ -43,6 +43,10 @@
     try {
       var raw = w.localStorage.getItem(KEY);
       cache = raw ? norm(JSON.parse(raw)) : blank();
+      if (raw) {
+        // Simpan versi hasil normalisasi/migrasi agar split 5% + 5% permanen
+        try { w.localStorage.setItem(KEY, JSON.stringify(cache)); } catch (e2) {}
+      }
     } catch (e) { cache = blank(); }
     return cache;
   }
@@ -52,20 +56,59 @@
     if (!s || typeof s !== 'object') return d;
     if (typeof s.initial === 'number' && isFinite(s.initial) && s.initial > 0) d.initial = Math.round(s.initial);
     if (Array.isArray(s.entries)) {
-      d.entries = s.entries.filter(function (e) {
-        return e && typeof e === 'object';
-      }).map(function (e) {
-        return {
+      var newEntries = [];
+      s.entries.forEach(function (e) {
+        if (!e || typeof e !== 'object') return;
+        var kind = e.kind === 'wajib' ? 'wajib' : (e.kind || 'manual');
+        var desc = String(e.description || '').slice(0, 120);
+        var descUpper = desc.toUpperCase();
+        var mi = Math.max(0, Math.round(Number(e.moneyIn) || 0));
+        var mo = Math.max(0, Math.round(Number(e.moneyOut) || 0));
+        var dt = String(e.date || '').slice(0, 10);
+        var nt = String(e.note || '').slice(0, 200);
+
+        // Jika ada entri setoran wajib 10% lama yang belum terbagi 5% darurat & 5% sdh:
+        if (kind === 'wajib' && mi > 0 && descUpper.indexOf('5%') === -1 && descUpper.indexOf('SDH') === -1) {
+          var half1 = Math.round((mi / 2) / 1000) * 1000;
+          var half2 = mi - half1;
+          var ymMatch = desc.match(/\d{4}-\d{2}/);
+          var ymSuffix = ymMatch ? ' ' + ymMatch[0] : '';
+          newEntries.push({
+            id: (e.id || uid()) + '_darurat',
+            description: KETERANGAN_WAJIB + ' 5% (Kas Darurat)' + ymSuffix,
+            moneyIn: half1,
+            moneyOut: 0,
+            date: dt,
+            note: nt,
+            kind: 'wajib',
+            fund: 'darurat'
+          });
+          newEntries.push({
+            id: (e.id || uid()) + '_sdh',
+            description: KETERANGAN_WAJIB + ' 5% (Kas SDH)' + ymSuffix,
+            moneyIn: half2,
+            moneyOut: 0,
+            date: dt,
+            note: nt,
+            kind: 'wajib',
+            fund: 'sdh'
+          });
+          return;
+        }
+
+        var isSDH = (e.fund === 'sdh' || descUpper.indexOf('(KAS SDH)') !== -1 || descUpper.indexOf('SDH') !== -1);
+        newEntries.push({
           id: e.id || uid(),
-          description: String(e.description || '').slice(0, 120),
-          moneyIn: Math.max(0, Math.round(Number(e.moneyIn) || 0)),
-          moneyOut: Math.max(0, Math.round(Number(e.moneyOut) || 0)),
-          date: String(e.date || '').slice(0, 10),
-          note: String(e.note || '').slice(0, 200),
-          kind: e.kind === 'wajib' ? 'wajib' : (e.kind || 'manual'),
-          fund: e.fund === 'sdh' ? 'sdh' : 'darurat'
-        };
+          description: desc,
+          moneyIn: mi,
+          moneyOut: mo,
+          date: dt,
+          note: nt,
+          kind: kind,
+          fund: isSDH ? 'sdh' : 'darurat'
+        });
       });
+      d.entries = newEntries;
     }
     if (s.wajibBulanan && typeof s.wajibBulanan === 'object') {
       Object.keys(s.wajibBulanan).forEach(function (k) {
@@ -127,7 +170,8 @@
     var inSDH = 0, outSDH = 0;
 
     d.entries.forEach(function (e) {
-      var f = e.fund === 'sdh' ? 'sdh' : 'darurat';
+      var descU = String(e.description || '').toUpperCase();
+      var f = (e.fund === 'sdh' || descU.indexOf('SDH') !== -1) ? 'sdh' : 'darurat';
       if (f === 'sdh') {
         inSDH += (e.moneyIn || 0);
         outSDH += (e.moneyOut || 0);

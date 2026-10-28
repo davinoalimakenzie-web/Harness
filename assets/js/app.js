@@ -11,8 +11,8 @@
 
   var TITLES = {
     home:    ['Project Nava', 'Cashflow keluarga'],
-    bank:    ['Kas Nava', 'Kas Darurat (5%) & Kas SDH (5%)'],
-    kas:     ['Kas Nava', 'Kas Darurat (5%) & Kas SDH (5%)'],
+    bank:    ['Dana Bank', 'Kas Darurat (5%) & Kas SDH (5%)'],
+    kas:     ['Dana Bank', 'Kas Darurat (5%) & Kas SDH (5%)'],
     history: ['Riwayat', 'Semua transaksi tersimpan'],
     recap:   ['Rekap', 'Ringkasan & riwayat transaksi'],
     more:    ['Lainnya', 'Alat, kategori, akun & data'],

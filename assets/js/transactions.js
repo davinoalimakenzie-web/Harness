@@ -148,7 +148,7 @@
         '</button>';
     }).join('');
 
-    // Kartu Kas (berisi Kas Darurat 5% & Kas SDH 5%)
+    // Kartu Dana Bank (berisi Kas Darurat 5% & Kas SDH 5%)
     var bankCard = '';
     var nb = w.NavaBank;
     if (nb) {
@@ -158,8 +158,8 @@
       var pct = nb.persenTerpenuhi(Tx.active(), ym);
       bankCard =
         '<button class="acc-card nb-card' + (gb.available > 0 ? ' nb-ok' : '') + '" data-nbank>' +
-          '<span class="acc-card-top"><span class="acc-ico">💵</span>' +
-          '<span class="acc-name">Kas</span></span>' +
+          '<span class="acc-card-top"><span class="acc-ico">🏦</span>' +
+          '<span class="acc-name">Dana Bank</span></span>' +
           '<span class="acc-bal ' + (gb.available > 0 ? 'pos' : gb.available < 0 ? 'neg' : '') + '">' +
             money(gb.available) + '</span>' +
           '<span class="nb-sub" style="font-size:11px;">Darurat: ' + money(gb.daruratAvailable || 0) + ' · SDH: ' + money(gb.sdhAvailable || 0) + '</span>' +
@@ -422,9 +422,9 @@
 
   function sheetSetor(due, done, ym) {
     var g = w.NavaBank.get();
-    bankSheet('Setor Kas Nava',
-      '<p class="nb-hint">Setoran menambah Kas Nava. ' +
-      'Setoran kas wajib (10%) akan otomatis terbagi: 5% Kas Darurat & 5% Kas SDH.</p>' +
+    bankSheet('Setor Dana Bank',
+      '<p class="nb-hint">Setoran menambah Dana Bank. ' +
+      'Setoran kas wajib (10%) akan otomatis terbagi dua: 5% Kas Darurat & 5% Kas SDH.</p>' +
       (due > 0 && !done
         ? '<button class="btn primary block" data-bkw style="margin-bottom:12px">' +
           '⚡ Setor Kas Wajib 10% (' + money(due) + ')</button>'
