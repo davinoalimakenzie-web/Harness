@@ -11,8 +11,9 @@
 
   var TITLES = {
     home:    ['Project Nava', 'Cashflow keluarga'],
+    bank:    ['Dana Bank', 'Saldo & riwayat dana bank'],
     history: ['Riwayat', 'Semua transaksi tersimpan'],
-    recap:   ['Rekap', 'Ringkasan & komposisi kategori'],
+    recap:   ['Rekap', 'Ringkasan & riwayat transaksi'],
     more:    ['Lainnya', 'Alat, kategori, akun & data'],
     notes:   ['Catatan', 'Pengingat voice'],
     ronce:   ['Kalkulator', 'Ronce, Servis HP & Riasan'],

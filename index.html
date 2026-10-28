@@ -36,6 +36,13 @@
       </div>
     </div>
 
+    <!-- Komposisi pengeluaran bulan ini (dipindah dari tab Rekap) -->
+    <div class="card" id="homeKomposisiCard" style="margin-top:12px;margin-bottom:12px;">
+      <div class="list-head tight"><strong>Komposisi pengeluaran</strong></div>
+      <div id="rDonut" class="donut-wrap"></div>
+      <div id="rCats" class="cat-bars"></div>
+    </div>
+
     <div id="poolCard" class="card pool-card" hidden>
       <div class="list-head tight">
         <strong><span class="pool-ic">📥</span> Menunggu Disimpan</strong>
@@ -55,14 +62,82 @@
 
     <div class="list-head">
       <strong>Transaksi terakhir</strong>
-      <button class="mini-btn" data-goto="history">Lihat semua</button>
+      <button class="mini-btn" data-goto="recap">Lihat semua</button>
     </div>
     <div id="hRecent" class="list"></div>
   </section>
 
-  <!-- ============ TAB: RIWAYAT ============ -->
-  <section id="view-history" class="view">
-    <div class="card">
+  <!-- ============ TAB: DANA BANK (Menggantikan Riwayat) ============ -->
+  <section id="view-bank" class="view">
+    <!-- Kartu Saldo Dana Bank -->
+    <div class="balance card">
+      <span class="lbl">Saldo Tersedia</span>
+      <strong id="vbAvail" class="balance-val">Rp0</strong>
+      <div class="balance-meta" style="margin-top:6px;">
+        <span><i class="dot in"></i> Saldo awal <b id="vbInitial">Rp0</b></span>
+        <span><i class="dot out"></i> Terpakai <b id="vbOut">Rp0</b></span>
+      </div>
+    </div>
+
+    <!-- Kartu Setoran Kas Wajib Bulanan (10% Pemasukan) -->
+    <div class="card" id="vbWajibCard" style="margin-top:12px;">
+      <div class="list-head tight">
+        <strong>Setoran Kas Wajib</strong>
+        <span id="vbWajibBadge" class="tag" style="font-size:11px;">10% Pemasukan</span>
+      </div>
+      <p id="vbWajibDesc" class="nb-hint" style="margin-top:6px;font-size:13px;">-</p>
+      <div class="nb-bar" style="margin-top:8px;height:8px;background:var(--line);border-radius:4px;overflow:hidden;">
+        <i id="vbWajibBar" style="display:block;height:100%;background:var(--accent);width:0%;transition:width .3s;"></i>
+      </div>
+      <div id="vbWajibActionWrap" style="margin-top:10px;"></div>
+    </div>
+
+    <!-- Tombol Aksi Cepat -->
+    <div class="field-row" style="margin-top:12px;display:flex;gap:8px;">
+      <button class="btn primary grow" id="vbBtnOutBon">Out / Bon</button>
+      <button class="btn ghost grow" id="vbBtnSetor">Setor</button>
+      <button class="btn ghost grow" id="vbBtnInitial">Atur Saldo Awal</button>
+    </div>
+
+    <!-- Riwayat Transaksi Dana Bank -->
+    <div class="list-head" style="margin-top:16px;">
+      <strong>Riwayat Transaksi Dana Bank</strong>
+    </div>
+    <div id="vbHistoryList" class="list"></div>
+  </section>
+
+  <!-- ============ TAB: REKAP ============ -->
+  <section id="view-recap" class="view">
+    <!-- Strip Bulan & Saldo Periode Menjadi Satu Kartu -->
+    <div class="card" style="margin-bottom:12px;">
+      <div class="month-strip" style="display:flex;align-items:center;">
+        <button id="rPrev" class="icon-btn sm" aria-label="Sebelumnya">‹</button>
+        <div class="grow center">
+          <strong id="rLabel" style="font-size:16px;">—</strong>
+          <div class="muted xs" id="rCount">—</div>
+        </div>
+        <button id="rNext" class="icon-btn sm" aria-label="Berikutnya">›</button>
+      </div>
+      <div class="stat net" style="margin-top:10px;text-align:center;padding:10px 12px;background:var(--bg);border-radius:12px;border:1px solid var(--line);">
+        <span class="stat-lbl" style="font-size:11.5px;color:var(--text-2);text-transform:uppercase;letter-spacing:.4px;">Saldo periode</span>
+        <strong id="rNet" class="stat-val" style="font-size:22px;font-weight:750;display:block;margin-top:2px;">Rp0</strong>
+      </div>
+    </div>
+
+    <!-- Pemasukan & Pengeluaran Berdampingan (2 Kolom) -->
+    <div class="stat-grid">
+      <div class="stat in">
+        <span class="stat-lbl">Pemasukan</span>
+        <strong id="rIn" class="stat-val">Rp0</strong>
+      </div>
+      <div class="stat out">
+        <span class="stat-lbl">Pengeluaran</span>
+        <strong id="rOut" class="stat-val">Rp0</strong>
+      </div>
+    </div>
+
+    <!-- Struktur Riwayat Transaksi (Dipindah ke Bawah Pemasukan & Pengeluaran) -->
+    <div class="card" style="margin-bottom:12px;">
       <input type="text" id="fQ" placeholder="Cari kategori atau catatan…">
       <div class="field-row mt">
         <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="all" type="button">Semua</button>
@@ -84,39 +159,6 @@
       </div>
     </div>
     <div id="hList" class="list"></div>
-  </section>
-
-  <!-- ============ TAB: REKAP ============ -->
-  <section id="view-recap" class="view">
-    <div class="month-strip card">
-      <button id="rPrev" class="icon-btn sm" aria-label="Sebelumnya">‹</button>
-      <div class="grow center">
-        <strong id="rLabel">—</strong>
-        <div class="muted xs" id="rCount">—</div>
-      </div>
-      <button id="rNext" class="icon-btn sm" aria-label="Berikutnya">›</button>
-    </div>
-
-    <div class="stat-grid">
-      <div class="stat in">
-        <span class="stat-lbl">Pemasukan</span>
-        <strong id="rIn" class="stat-val">Rp0</strong>
-      </div>
-      <div class="stat out">
-        <span class="stat-lbl">Pengeluaran</span>
-        <strong id="rOut" class="stat-val">Rp0</strong>
-      </div>
-      <div class="stat net">
-        <span class="stat-lbl">Saldo periode</span>
-        <strong id="rNet" class="stat-val">Rp0</strong>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="list-head tight"><strong>Komposisi pengeluaran</strong></div>
-      <div id="rDonut" class="donut-wrap"></div>
-      <div id="rCats" class="cat-bars"></div>
-    </div>
   </section>
 
   <!-- ============ LAYER: TAMBAH TRANSAKSI (Money Lover style) ============ -->
@@ -794,9 +836,9 @@
       <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
       <span>Beranda</span>
     </button>
-    <button class="tab" data-view="history">
-      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M3 5h18v2H3zm0 6h18v2H3zm0 6h12v2H3z"/></svg>
-      <span>Riwayat</span>
+    <button class="tab" data-view="bank">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M4 10v7h3v-7H4zm6 0v7h3v-7h-3zm6 0v7h3v-7h-3zM2 22h19v-3H2v3zm9.5-20L2 6v2h19V6l-9.5-4z"/></svg>
+      <span>Dana Bank</span>
     </button>
     <button class="tab fab-slot" data-fab aria-label="Tambah transaksi">
       <span class="fab">
@@ -871,7 +913,7 @@
 <script src="assets/js/scan.js?v=20261014l"></script>
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
-<script src="assets/js/transactions.js?v=20261014l"></script>
+<script src="assets/js/transactions.js?v=20261028a"></script>
 <script src="assets/js/ronce.js?v=20261026f"></script>
 <script src="assets/js/ronce-sync.js?v=20261019c"></script>
 <script src="assets/js/calc.js?v=20261022a"></script>
@@ -888,6 +930,6 @@
 <script src="assets/js/nava-trader-quote.js?v=20261019e"></script>
 <script src="assets/js/nava-trader.js?v=20261015a"></script>
 <script src="assets/js/backup.js?v=20261014l"></script>
-<script src="assets/js/app.js?v=20261026d"></script>
+<script src="assets/js/app.js?v=20261028a"></script>
 </body>
 </html>

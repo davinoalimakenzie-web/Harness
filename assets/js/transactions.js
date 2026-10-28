@@ -135,6 +135,9 @@
     $('#hIn').textContent = money(s.in);
     $('#hOut').textContent = money(s.out);
 
+    // Komposisi pengeluaran bulan ini di dashboard
+    renderKomposisi(s);
+
     // Kartu akun + saldo
     var accs = Accounts.active();
     var cards = accs.map(function (a) {
@@ -429,23 +432,16 @@
   }
 
   /* =========================================================
-     REKAP
+     KOMPOSISI PENGELUARAN (Dipindah ke Tab Dashboard)
      ========================================================= */
-  function renderRecap() {
-    var s = Tx.summary({ from: recapYM + '-01', to: recapYM + '-31' });
-    $('#rLabel').textContent = S.monthLabel(recapYM);
-    $('#rCount').textContent = s.count + ' transaksi';
-    $('#rIn').textContent = money(s.in);
-    $('#rOut').textContent = money(s.out);
-    var net = $('#rNet');
-    net.textContent = money(s.net);
-    net.style.color = s.net >= 0 ? 'var(--success)' : 'var(--danger)';
+  function renderKomposisi(s) {
+    var dEl = $('#rDonut'), cEl = $('#rCats');
+    if (!dEl || !cEl) return;
 
-    // Donut komposisi pengeluaran
     var outs = s.categories.filter(function (c) { return c.type === 'out'; });
     var totalOut = outs.reduce(function (a, c) { return a + c.total; }, 0);
     if (!outs.length || !totalOut) {
-      $('#rDonut').innerHTML = '<div class="donut-empty">Belum ada<br>pengeluaran</div>';
+      dEl.innerHTML = '<div class="donut-empty">Belum ada<br>pengeluaran</div>';
     } else {
       var R = 46, C = 2 * Math.PI * R;
       var acc2 = 0;
@@ -459,7 +455,7 @@
           '" stroke-width="16" stroke-dasharray="' + dash + '" stroke-dashoffset="' + off +
           '" transform="rotate(-90 60 60)"></circle>';
       }).join('');
-      $('#rDonut').innerHTML =
+      dEl.innerHTML =
         '<svg class="donut" viewBox="0 0 120 120">' + segs +
         '<text x="60" y="58" class="donut-center-txt" text-anchor="middle">Total</text>' +
         '<text x="60" y="74" text-anchor="middle" style="font-size:12px;font-weight:700;fill:var(--text)">' +
@@ -475,7 +471,7 @@
 
     // Bar kategori (semua jenis)
     var max = s.categories.reduce(function (m, c) { return Math.max(m, c.total); }, 0) || 1;
-    $('#rCats').innerHTML = s.categories.length
+    cEl.innerHTML = s.categories.length
       ? s.categories.map(function (c) {
           var label = c.sub ? c.group + ' · ' + c.sub : c.group;
           return '<div class="cat-row">' +
@@ -487,7 +483,103 @@
       : '<div class="empty">Belum ada transaksi pada bulan ini.</div>';
   }
 
-  function render() { renderHome(); renderGroupFilter(); renderHistory(); renderRecap(); }
+  /* =========================================================
+     REKAP
+     ========================================================= */
+  function renderRecap() {
+    var s = Tx.summary({ from: recapYM + '-01', to: recapYM + '-31' });
+    var rLabel = $('#rLabel'); if (rLabel) rLabel.textContent = S.monthLabel(recapYM);
+    var rCount = $('#rCount'); if (rCount) rCount.textContent = s.count + ' transaksi';
+    var rIn = $('#rIn'); if (rIn) rIn.textContent = money(s.in);
+    var rOut = $('#rOut'); if (rOut) rOut.textContent = money(s.out);
+    var net = $('#rNet');
+    if (net) {
+      net.textContent = money(s.net);
+      net.style.color = s.net >= 0 ? 'var(--success)' : 'var(--danger)';
+    }
+  }
+
+  /* =========================================================
+     TAB: DANA BANK
+     ========================================================= */
+  function renderBankView() {
+    if (!w.NavaBank) return;
+    var B = w.NavaBank;
+    var g = B.get();
+    var ym = S.ymOf(S.todayStr());
+    var due = B.wajibSetoranBulanan(Tx.active(), ym);
+    var done = B.sudahWajib(ym);
+    var pct = B.persenTerpenuhi(Tx.active(), ym);
+
+    var availEl = $('#vbAvail');
+    if (availEl) {
+      availEl.textContent = money(g.available);
+      availEl.style.color = g.available > 0 ? 'var(--success)' : (g.available < 0 ? 'var(--danger)' : 'var(--text)');
+    }
+    var initEl = $('#vbInitial');
+    if (initEl) initEl.textContent = money(g.initial);
+    var outEl = $('#vbOut');
+    if (outEl) outEl.textContent = money(g.totalOut);
+
+    var descEl = $('#vbWajibDesc');
+    var barEl = $('#vbWajibBar');
+    var badgeEl = $('#vbWajibBadge');
+    var actWrap = $('#vbWajibActionWrap');
+
+    if (descEl) {
+      if (due > 0) {
+        if (done) {
+          descEl.innerHTML = 'Setoran wajib bulan ini <b>' + money(due) + '</b> sudah tersimpan.';
+          if (badgeEl) { badgeEl.textContent = 'LUNAS'; badgeEl.className = 'tag done'; }
+          if (barEl) barEl.style.width = '100%';
+          if (actWrap) actWrap.innerHTML = '';
+        } else {
+          descEl.innerHTML = 'Wajib setor <b>' + money(due) + '</b> (10% dari total pemasukan bulan ini). Tersisa yang belum disetor: <b>' + money(due) + '</b>';
+          if (badgeEl) { badgeEl.textContent = pct + '%'; badgeEl.className = 'tag proses'; }
+          if (barEl) barEl.style.width = pct + '%';
+          if (actWrap) {
+            actWrap.innerHTML = '<button class="btn ghost block" id="vbBtnSetorWajibAuto" style="font-size:13px;padding:8px 12px;margin-top:6px;">' +
+              'Setorkan Wajib ' + money(due) + ' Sekarang</button>';
+          }
+        }
+      } else {
+        descEl.textContent = 'Belum ada pemasukan bulan ini, jadi belum ada kewajiban setoran.';
+        if (badgeEl) { badgeEl.textContent = 'NIHIL'; badgeEl.className = 'tag'; }
+        if (barEl) barEl.style.width = '0%';
+        if (actWrap) actWrap.innerHTML = '';
+      }
+    }
+
+    var listEl = $('#vbHistoryList');
+    if (listEl) {
+      var entries = B.entries().slice().reverse();
+      if (!entries.length) {
+        listEl.innerHTML = '<div class="empty"><b>Belum ada transaksi Dana Bank</b>Gunakan tombol aksi di atas untuk mencatat.</div>';
+      } else {
+        listEl.innerHTML = entries.map(function (e) {
+          var masuk = e.moneyIn > 0, jumlah = masuk ? e.moneyIn : e.moneyOut;
+          var tgl = e.date ? S.dayLabel(e.date) : '-';
+          return '<div class="item" style="padding:10px 12px;">' +
+            '<div class="item-body">' +
+              '<div class="item-title" style="font-size:13.5px;font-weight:600;">' + esc(e.description || (masuk ? 'Dana masuk' : 'Dana keluar')) + '</div>' +
+              '<div class="item-sub"><span style="font-size:11.5px;color:var(--text-2);">' + esc(tgl) + '</span></div>' +
+            '</div>' +
+            '<span class="stat-val ' + (masuk ? 'pos' : 'neg') + '" style="font-size:14.5px;font-weight:700;white-space:nowrap;">' +
+              (masuk ? '+' : '−') + money(jumlah) +
+            '</span>' +
+          '</div>';
+        }).join('');
+      }
+    }
+  }
+
+  function render() {
+    renderHome();
+    renderGroupFilter();
+    renderHistory();
+    renderRecap();
+    renderBankView();
+  }
 
   /* =========================================================
      HALAMAN INPUT — keypad & kategori
@@ -1021,9 +1113,23 @@
     /* --- Akun di Beranda --- */
     el.hAccounts.addEventListener('click', function (e) {
       if (e.target.closest('[data-accadd]')) { if (w.App && w.App.openAccountSheet) w.App.openAccountSheet(); return; }
-      if (e.target.closest('[data-nbank]')) { openBankSheet(); return; }
+      if (e.target.closest('[data-nbank]')) {
+        if (w.App && w.App.go) w.App.go('bank');
+        else openBankSheet();
+        return;
+      }
       var b = e.target.closest('[data-acc]');
-      if (b) { openAdd({ }); accountId = b.dataset.acc; renderTxAccounts(); }
+      if (b) {
+        var aId = b.dataset.acc;
+        var acc = Accounts.of(aId);
+        var isTunai = (aId === 'acc-cash') ||
+          (acc && (acc.type === 'cash' || (acc.name && acc.name.toLowerCase().indexOf('tunai') !== -1)));
+        if (isTunai) {
+          if (w.App && w.App.go) w.App.go('recap');
+          return;
+        }
+        openAdd({ }); accountId = aId; renderTxAccounts();
+      }
     });
 
     /* --- Quick pick --- */
@@ -1162,12 +1268,43 @@
       });
     });
 
-    /* --- Rekap --- */
+    /* --- Rekap Month Switcher & History Sync --- */
     $('#rPrev').addEventListener('click', function () {
-      recapYM = S.shiftMonth(recapYM, -1); renderRecap(); TG.haptic('select');
+      recapYM = S.shiftMonth(recapYM, -1);
+      filter.from = recapYM + '-01'; filter.to = recapYM + '-31';
+      renderRecap(); renderHistory(); TG.haptic('select');
     });
     $('#rNext').addEventListener('click', function () {
-      recapYM = S.shiftMonth(recapYM, 1); renderRecap(); TG.haptic('select');
+      recapYM = S.shiftMonth(recapYM, 1);
+      filter.from = recapYM + '-01'; filter.to = recapYM + '-31';
+      renderRecap(); renderHistory(); TG.haptic('select');
+    });
+
+    /* --- Aksi di Tab Dana Bank --- */
+    var btnOut = $('#vbBtnOutBon');
+    if (btnOut) btnOut.addEventListener('click', sheetOutBon);
+    var btnSetor = $('#vbBtnSetor');
+    if (btnSetor) btnSetor.addEventListener('click', function () {
+      if (!w.NavaBank) return;
+      var ym = S.ymOf(S.todayStr());
+      var due = w.NavaBank.wajibSetoranBulanan(Tx.active(), ym);
+      var done = w.NavaBank.sudahWajib(ym);
+      sheetSetor(due, done, ym);
+    });
+    var btnInit = $('#vbBtnInitial');
+    if (btnInit) btnInit.addEventListener('click', function () {
+      if (!w.NavaBank) return;
+      sheetInitial(w.NavaBank.get().initial);
+    });
+    document.addEventListener('click', function (e) {
+      if (e.target.closest('#vbBtnSetorWajibAuto')) {
+        if (!w.NavaBank) return;
+        var ym = S.ymOf(S.todayStr());
+        var due = w.NavaBank.wajibSetoranBulanan(Tx.active(), ym);
+        w.NavaBank.tambahSetoranWajib(due, ym);
+        if (w.App && w.App.toast) w.App.toast('Setoran kas wajib tersimpan');
+        render();
+      }
     });
 
     resetForm();
