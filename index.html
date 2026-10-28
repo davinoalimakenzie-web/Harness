@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Project Nava — Cashflow</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261026e">
+<link rel="stylesheet" href="assets/css/style.css?v=20261026f">
 </head>
 <body>
 
@@ -589,40 +589,30 @@
 
         <!-- ============ OWNER ============ -->
         <div id="ronceRekapOwner">
-          <!-- Garapan yang dikerjakan owner sendiri (tanpa mitra) -->
-          <div class="card" id="roncePribadiCard" hidden>
-            <div class="list-head tight"><strong>Garapan Pribadi</strong></div>
-            <p class="hint xs">Tugas ronce yang kamu kerjakan sendiri &mdash; tercatat otomatis, tidak perlu ajukan pembayaran.</p>
-            <div class="mt-sum" style="margin-bottom:10px">
-              <div class="mt-sum-card done">
-                <span>SELESAI</span>
-                <b id="pribDoneN">0</b>
-                <i>garapan</i>
-              </div>
-              <div class="mt-sum-card titip">
-                <span>TOTAL JASA</span>
-                <b id="pribDoneTotal">Rp0</b>
-                <i>pribadi</i>
-              </div>
-            </div>
-            <div id="roncePribadiList" class="list"></div>
+          <!-- Filter Rekap di Paling Atas di Bawah Tab Utama (Hari Ini, Minggu Ini, Bulan Ini) -->
+          <div class="chips ronce-rekap-filter-bar" id="ronceFilters" style="margin-top:8px;display:flex;gap:4px;">
+            <button type="button" class="chip" data-rfilter="today">Hari Ini</button>
+            <button type="button" class="chip" data-rfilter="week">Minggu Ini</button>
+            <button type="button" class="chip on" data-rfilter="month">Bulan Ini</button>
           </div>
 
+          <!-- Garapan yang dikerjakan owner sendiri (tanpa mitra) -->
+          <div class="card" id="roncePribadiCard">
+            <div class="list-head tight" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+              <strong>GARAPAN PRIBADI</strong>
+              <b id="pribDoneTotal" style="font-size:14px;font-weight:750;color:var(--accent,#22d3ee)">Rp0</b>
+            </div>
+            <div id="roncePribadiList" class="list" style="margin-top:8px"></div>
+          </div>
+
+          <!-- Garapan Mitra -->
           <div class="card">
-            <div class="list-head tight"><strong>Rekap Garapan Mitra</strong></div>
-            <div class="chips" id="ronceFilters">
-              <button class="chip" data-rfilter="today">Hari Ini</button>
-              <button class="chip" data-rfilter="week">Minggu Ini</button>
-              <button class="chip on" data-rfilter="month">Bulan Ini</button>
+            <div class="list-head tight" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+              <strong>GARAPAN MITRA</strong>
+              <b id="ronceTotalKomisi" style="font-size:14px;font-weight:750;color:var(--accent,#22d3ee)">Rp0</b>
             </div>
-            <div id="ronceMitraFilterWrap" style="margin-bottom:10px">
+            <div id="ronceMitraFilterWrap" style="margin-bottom:10px;margin-top:8px;display:flex;align-items:center;gap:12px">
               <select id="ronceMitraFilter" class="grow"><option value="">Semua Mitra</option></select>
-            </div>
-            <div class="item">
-              <div class="item-body">
-                <div class="item-title">Total Komisi</div>
-                <div class="item-sub"><span id="ronceTotalKomisi">Rp0</span></div>
-              </div>
             </div>
           </div>
 
@@ -882,7 +872,7 @@
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
 <script src="assets/js/transactions.js?v=20261014l"></script>
-<script src="assets/js/ronce.js?v=20261026e"></script>
+<script src="assets/js/ronce.js?v=20261026f"></script>
 <script src="assets/js/ronce-sync.js?v=20261019c"></script>
 <script src="assets/js/calc.js?v=20261022a"></script>
 <script src="assets/js/calc-sync.js?v=20261021d"></script>

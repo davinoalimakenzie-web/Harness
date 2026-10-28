@@ -1192,7 +1192,12 @@
   var TPL_LIMIT = 3000;
 
   function templateKey(p) {
-    return [p.brandId || '', p.series || '', p.ruleId || ''].join('|');
+    // Normalisasi kunci supaya case-insensitive pada series & brandId/ruleId lowercase
+    // Mencegah duplikat "Galaxy A05" vs "GALAXY A05" dari seed vs input manual
+    var b = (p.brandId || '').toLowerCase();
+    var s = (p.series || '').toUpperCase();
+    var r = (p.ruleId || '').toLowerCase();
+    return [b, s, r].join('|');
   }
 
   function upsertTemplate(payload) {

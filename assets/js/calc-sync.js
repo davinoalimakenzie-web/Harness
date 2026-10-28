@@ -70,9 +70,10 @@
      lama — pernah kejadian: endpoint berisi 6 sedangkan vault berisi 73.
      Karena itu kiriman selalu ditulis ke DUA-DUANYA (bukan salah satu),
      dan tarikan selalu membaca DUA-DUANYA lalu digabung. */
-  function kirimVault() {
+  function kirimVault(templatesBersih) {
     if (!w.Supa || typeof w.Supa.vaultPut !== 'function') return;
-    w.Supa.vaultPut(KEY, { rev: rev(), templates: daftar() });
+    var payload = templatesBersih || dedupTemplates(daftar());
+    w.Supa.vaultPut(KEY, { rev: rev(), templates: payload });
   }
 
   function kirim() {
@@ -81,13 +82,18 @@
     terakhirKirim = Date.now();
     w.setTimeout(function () { sedangKirim = false; }, PUSH_GAP);
 
+    /* Safety: deduplikasi sebelum kirim ke server.
+       Mencegah duplikat dari seed vs input manual, atau duplikat
+       yang sudah tertumpuk di server dikirim balik ke server lain. */
+    var bersih = dedupTemplates(daftar());
+
     /* Lewat endpoint Serverless (tgcloud.ai) kalau tersedia. */
     if (serverlessAktif()) {
-      panggil('savePrices', { rev: rev(), templates: daftar() }).catch(function () {});
+      panggil('savePrices', { rev: rev(), templates: bersih }).catch(function () {});
     }
     /* Selalu tulis juga ke vault Supabase: dua salinan server membuat
        data harga tetap bisa dipulihkan walau satu jalur bermasalah. */
-    kirimVault();
+    kirimVault(bersih);
   }
 
   /* Dipanggil setiap data harga berubah di perangkat ini. */
@@ -101,6 +107,26 @@
   /* Gabungkan data lokal & server per entri (yang lebih baru menang).
      Dipakai saat sinkronisasi PERTAMA kali (belum ada rev) supaya data
      lokal yang sudah ada tidak tertimpa data server. */
+  /* ---------- Deduplikasi Aman (Normalisasi Kunci) ----------
+   Gunakan templateKey dari Store (sudah normalisasi case-insensitive).
+   Fungsi ini dipakai sebagai safety net di kirim() & terapkan() supaya
+   meski server punya duplikat dengan kunci beda-case, lokal tetap bersih. */
+  function dedupTemplates(arr) {
+    if (!Array.isArray(arr) || !arr.length) return arr || [];
+    var peta = {};
+    var keyFn = (w.Store && w.Store.templateKey) ? w.Store.templateKey : function (p) {
+      return [(p.brandId || '').toLowerCase(), (p.series || '').toUpperCase(), (p.ruleId || '').toLowerCase()].join('|');
+    };
+    function waktu(t) { return Date.parse(t.updatedAt || t.createdAt || 0) || 0; }
+    (arr || []).forEach(function (t) {
+      var p = t.payload || t;
+      var k = keyFn(p);
+      if (!k) return; // skip entri tanpa kunci valid
+      if (!peta[k] || waktu(t) > waktu(peta[k])) peta[k] = t;
+    });
+    return Object.keys(peta).map(function (k) { return peta[k]; });
+  }
+
   function gabung(lokal, jauh) {
     var peta = {};
     function kunci(t) {
@@ -155,6 +181,14 @@
   function terapkan(isi, diam) {
     var revCloud = (isi && isi.rev) || '';
     var templatesCloud = isi && isi.templates;
+
+    /* Safety: deduplikasi data server sebelum dipakai.
+       Server (serverless & vault) mungkin sudah mengandung duplikat
+       dari siklus sync sebelumnya (case-sensitive key mismatch).
+       dedupTemplates() menggunakan kunci normalisasi case-insensitive. */
+    if (Array.isArray(templatesCloud)) {
+      templatesCloud = dedupTemplates(templatesCloud);
+    }
 
     /* Server masih kosong / belum punya isi: kirim data lokal sekarang —
        kalau tidak, data yang sudah ada di perangkat ini tidak pernah sampai
@@ -230,7 +264,11 @@
   /* Ambil isi dari SEMUA jalur yang tersedia lalu gabungkan daftarnya.
      Tidak ada jalur yang boleh dilewati: endpoint Serverless bisa saja
      menjawab dengan salinan lama/lebih sedikit, dan itu dulu membuat harga
-     di layar tinggal 6 walaupun vault berisi 73. */
+     di layar tinggal 6 walaupun vault berisi 73.
+
+     PERBAIKAN: Gunakan fungsi gabung() untuk deduplikasi dengan benar
+     berdasarkan kunci entri (brandId|series|ruleId), bukan concat mentah
+     yang menyebabkan duplikat bertumpuk tiap kali sinkronisasi jalan. */
   function ambilSemua() {
     var janjiServerless = serverlessAktif()
       ? panggil('loadPrices', {})
@@ -239,13 +277,17 @@
       : Promise.resolve(null);
 
     return Promise.all([janjiServerless, tarikVault()]).then(function (hasil) {
-      var tpl = [], revPakai = '';
+      var tplLokal = daftar();  // ambil data lokal sebagai basis untuk gabung
+      var revPakai = '';
       hasil.forEach(function (x) {
         if (!x) return;
-        if (Array.isArray(x.templates) && x.templates.length) tpl = tpl.concat(x.templates);
+        if (Array.isArray(x.templates) && x.templates.length) {
+          // GABUNG, bukan concat! Deduplikasi pakai kunci templateKey (brandId|series|ruleId)
+          tplLokal = gabung(tplLokal, x.templates);
+        }
         if (x.rev && String(x.rev) > revPakai) revPakai = String(x.rev);
       });
-      return { rev: revPakai, templates: tpl };
+      return { rev: revPakai, templates: tplLokal };
     });
   }
 

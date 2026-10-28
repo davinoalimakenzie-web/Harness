@@ -286,11 +286,22 @@
   }
   function totalKomisiSemua() {
     var t = 0, i;
-    for (i = 0; i < data.jobs.length; i++) t += num(data.jobs[i].deliveryFee);
+    for (i = 0; i < data.jobs.length; i++) {
+      var jb = data.jobs[i];
+      if (dalamPeriode(jb.date || jb.createdAt)) {
+        if (!selectedMitraFilter || jb.employeeId === selectedMitraFilter) {
+          t += num(jb.deliveryFee);
+        }
+      }
+    }
     /* Garapan pribadi owner bukan komisi mitra, jadi tidak dihitung. */
     for (i = 0; i < data.tasks.length; i++) {
       if (data.tasks[i].pribadi) continue;
-      if (data.tasks[i].status === 'completed') t += num(data.tasks[i].deliveryFee);
+      if (data.tasks[i].status === 'completed' && dalamPeriode(data.tasks[i].date || data.tasks[i].createdAt)) {
+        if (!selectedMitraFilter || data.tasks[i].employeeId === selectedMitraFilter) {
+          t += num(data.tasks[i].deliveryFee);
+        }
+      }
     }
     return t;
   }
@@ -648,8 +659,8 @@
     if (filter === 'week') {
       var hari = d.getDay(); if (hari === 0) hari = 7;
       var nowHari = now.getDay(); if (nowHari === 0) nowHari = 7;
-      var dSenin = new Date(d); dSenin.setDate(d.getDate() - (hari - 1));
-      var nSenin = new Date(now); nSenin.setDate(now.getDate() - (nowHari - 1));
+      var dSenin = new Date(d.getFullYear(), d.getMonth(), d.getDate() - (hari - 1));
+      var nSenin = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (nowHari - 1));
       return dSenin.getTime() === nSenin.getTime();
     }
     if (filter === 'month') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
@@ -1306,9 +1317,13 @@
     if (selectedMitraFilter) users = users.filter(function (u) { return u.id === selectedMitraFilter; });
     if (!users.length) { el.innerHTML = '<div class="empty">Belum ada mitra</div>'; return; }
     el.innerHTML = users.map(function (u) {
-      var tasks = data.tasks.filter(function (t) { return t.employeeId === u.id; });
+      var tasks = data.tasks.filter(function (t) {
+        return t.employeeId === u.id && dalamPeriode(t.date || t.createdAt);
+      });
       var done = tasks.filter(function (t) { return t.status === 'completed'; });
-      var reqs = data.paymentRequests.filter(function (r) { return r.employeeId === u.id; });
+      var reqs = data.paymentRequests.filter(function (r) {
+        return r.employeeId === u.id && dalamPeriode(r.date || r.createdAt);
+      });
       var diajukan = reqs.filter(function (r) { return r.status !== 'dibayar'; })
         .reduce(function (s, r) { return s + num(r.amount); }, 0);
       var lunas = reqs.filter(function (r) { return r.status === 'dibayar'; })
@@ -1697,28 +1712,39 @@
     var card = $('#roncePribadiCard');
     if (!card) return;
     var list = $('#roncePribadiList');
-    var pribadi = data.tasks.filter(function (t) { return t.pribadi && t.status === 'completed'; })
-      .sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
-    if (!pribadi.length) {
-      card.hidden = true;
-      if (list) list.innerHTML = '';
-      return;
-    }
+    var pribadi = data.tasks.filter(function (t) {
+      return t.pribadi && t.status === 'completed' && dalamPeriode(t.date || t.createdAt);
+    }).sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
+
     card.hidden = false;
     var total = pribadi.reduce(function (s, t) { return s + num(t.deliveryFee); }, 0);
     var set = function (sel, v) { var e = $(sel); if (e) e.textContent = v; };
     set('#pribDoneN', String(pribadi.length));
     set('#pribDoneTotal', formatIDR(total));
+
     if (list) {
-      list.innerHTML = pribadi.map(function (t) {
-        var mitra = esc(t.employeeName || 'Pribadi');
-        var garapan = esc(namaGarapan(t.serviceId));
-        var jumlah = t.quantity || 1;
-        var tglJadi = t.date ? formatTanggal(t.date) : '-';
-        var status = (t.status === 'completed' || t.status === 'lunas') ? 'SELESAI' : 'PROSES';
-        var line = mitra + '#' + garapan + '#' + jumlah + '#' + tglJadi + '#' + status;
-        return '<div class="pribadi-line" title="' + esc(line) + '">' + esc(line) + '</div>';
-      }).join('');
+      if (!pribadi.length) {
+        list.innerHTML = '<div class="empty" style="padding:10px 0;text-align:center;color:var(--text-2);font-size:12px;">Belum ada garapan pribadi di periode ini</div>';
+      } else {
+        list.innerHTML = pribadi.map(function (t) {
+          var nama = esc(namaGarapan(t.serviceId)) + (t.quantity > 1 ? ' &times;' + t.quantity : '');
+          var jasa = formatIDR(t.deliveryFee);
+          var tglJadi = t.date ? formatTanggal(t.date) : '-';
+          var catatan = t.note ? ' &middot; ' + esc(t.note) : '';
+          var mitra = esc(t.employeeName || 'Pribadi');
+
+          return '<div class="pribadi-card-item">'
+            + '<div class="pribadi-card-row1">'
+            +   '<span class="pribadi-card-title">' + nama + '</span>'
+            +   '<span class="pribadi-card-jasa">' + jasa + '</span>'
+            + '</div>'
+            + '<div class="pribadi-card-row2">'
+            +   '<span>' + tglJadi + catatan + '</span>'
+            +   '<span>' + mitra + ' &middot; Selesai</span>'
+            + '</div>'
+            + '</div>';
+        }).join('');
+      }
     }
   }
 
