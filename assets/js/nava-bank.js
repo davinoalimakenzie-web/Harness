@@ -69,7 +69,7 @@
 
         // Jika ada entri setoran wajib 10% lama yang belum terbagi 5% darurat & 5% sdh:
         if (kind === 'wajib' && mi > 0 && descUpper.indexOf('5%') === -1 && descUpper.indexOf('SDH') === -1) {
-          var half1 = Math.round((mi / 2) / 1000) * 1000;
+          var half1 = Math.round(mi / 2);
           var half2 = mi - half1;
           var ymMatch = desc.match(/\d{4}-\d{2}/);
           var ymSuffix = ymMatch ? ' ' + ymMatch[0] : '';
@@ -107,6 +107,29 @@
           kind: kind,
           fund: isSDH ? 'sdh' : 'darurat'
         });
+      });
+
+      // Rebalance unequal 5% + 5% setoran wajib per bulan (mis. 225.000 & 224.000 -> 224.500 & 224.500)
+      var wajibByYM = {};
+      newEntries.forEach(function (e) {
+        if (e.kind !== 'wajib' || !e.moneyIn) return;
+        var ymMatch = (e.description || '').match(/\d{4}-\d{2}/) || (e.date || '').slice(0, 7).match(/\d{4}-\d{2}/);
+        var ym = ymMatch ? ymMatch[0] : '';
+        if (!ym) return;
+        wajibByYM[ym] = wajibByYM[ym] || { darurat: null, sdh: null };
+        if (e.fund === 'sdh') wajibByYM[ym].sdh = e;
+        else wajibByYM[ym].darurat = e;
+      });
+      Object.keys(wajibByYM).forEach(function (ym) {
+        var pair = wajibByYM[ym];
+        if (pair.darurat && pair.sdh) {
+          var sum = (pair.darurat.moneyIn || 0) + (pair.sdh.moneyIn || 0);
+          if (sum > 0 && pair.darurat.moneyIn !== pair.sdh.moneyIn) {
+            var h = Math.round(sum / 2);
+            pair.darurat.moneyIn = h;
+            pair.sdh.moneyIn = sum - h;
+          }
+        }
       });
       d.entries = newEntries;
     }
@@ -310,7 +333,7 @@
     var amt = Math.round((Number(amount) || 0) / 1000) * 1000;
     if (amt <= 0) return { inserted: false, reason: 'nominal tidak valid', entry: null, amount: 0 };
 
-    var amtDarurat = Math.round((amt / 2) / 1000) * 1000;
+    var amtDarurat = Math.round(amt / 2);
     var amtSDH = amt - amtDarurat;
 
     var e1 = add({

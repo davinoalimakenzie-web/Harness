@@ -548,7 +548,7 @@ button.item .item-sub{ margin-top:3px; }
 
 /* ---------------- Tabbar ---------------- */
 .tabbar{
-  position:fixed; left:0; right:0; bottom:0; z-index:40;
+  position:fixed; left:0; right:0; bottom:0; z-index:72;
   display:flex; max-width:640px; margin:0 auto;
   background:var(--bg-elev); border-top:1px solid var(--line);
   padding-bottom:var(--sab);
@@ -570,17 +570,15 @@ button.item .item-sub{ margin-top:3px; }
 }
 
 /* ---------------- Sheet ----------------
-   Skala z-index (WAJIB dipakai berurutan, jangan menebak angka):
-     30 header  40 tabbar  50 popover
-     60 .tx-page   halaman input transaksi (full-screen)
-     70 #mc        overlay modul Mas Cim (layar penuh)
-     75 .sheet-wrap  sheet / dialog   selalu DI ATAS semua overlay modul
-     80 .toast
-  sheet sebelumnya z-index:60, sama dengan .tx-page (60) dan lebih rendah dari
-   .mc (70), jadi sheet yang dibuka dari dalam Mas Cim muncul DI BAWAH layar
-   Mas Cim: form terlihat "keluar di layer berbeda" dan tidak bisa disentuh.
-   Karena itu sheet dinaikkan ke 75, tepat di atas kedua overlay modul. */
-.sheet-wrap{ position:fixed; inset:0; z-index:75; display:flex; align-items:flex-end; justify-content:center; }
+   Skala z-index:
+     30 header  50 popover
+     70 #mc        overlay modul Mas Cim
+     72 .tabbar    tabbar navigasi bawah
+     80 .tx-page   halaman input transaksi (full-screen)
+     85 .sheet-wrap  sheet / dialog
+     90 .toast
+*/
+.sheet-wrap{ position:fixed; inset:0; z-index:85; display:flex; align-items:flex-end; justify-content:center; }
 .sheet-bg{ position:absolute; inset:0; background:rgba(0,0,0,.45); animation:fade .2s; }
 .sheet{
   position:relative; width:100%; max-width:640px; max-height:88vh; overflow:auto;
@@ -595,7 +593,7 @@ button.item .item-sub{ margin-top:3px; }
 /* ---------------- Toast ---------------- */
 .toast{
   position:fixed; left:50%; bottom:calc(var(--nav-h) + var(--sab) + 18px);
-  transform:translateX(-50%); z-index:80;
+  transform:translateX(-50%); z-index:90;
   /* Warna ditulis langsung, bukan lewat variabel tema. Toast muncul di
      atas apa pun, termasuk tombol hijau yang sedang underneath, jadi
     background dan teksnya tidak boleh ikut berubahikut tema. */
@@ -762,7 +760,7 @@ button.item .item-sub{ margin-top:3px; }
 
 /* ---------- Halaman input (full-screen) ---------- */
 .tx-page{
-  position:fixed; inset:0; z-index:60; background:var(--bg);
+  position:fixed; inset:0; z-index:80; background:var(--bg);
   display:flex; flex-direction:column;
   padding-bottom:var(--sab);
   animation:txIn .2s ease;
@@ -1059,8 +1057,8 @@ button.item .item-sub{ margin-top:3px; }
    overlay-nya tampil sebagai blok biasa di akhir halaman dan tidak
    pernah terlihat. */
 .mc{
-
-  position:fixed; inset:0; z-index:70;
+  position:fixed; left:0; right:0; top:0; bottom:calc(var(--nav-h) + var(--sab));
+  max-width:640px; margin:0 auto; z-index:70;
   background:var(--mc-bg); color:var(--mc-txt);
   display:flex; flex-direction:column;
   font-size:15px; line-height:1.45;

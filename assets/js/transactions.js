@@ -1402,14 +1402,6 @@
     if (btnOut) btnOut.addEventListener('click', sheetOutBon);
     var btnOutSDH = $('#vbBtnOutSDH');
     if (btnOutSDH) btnOutSDH.addEventListener('click', sheetOutSDH);
-    var btnSetor = $('#vbBtnSetor');
-    if (btnSetor) btnSetor.addEventListener('click', function () {
-      if (!w.NavaBank) return;
-      var ym = S.ymOf(S.todayStr());
-      var due = w.NavaBank.wajibSetoranBulanan(Tx.active(), ym);
-      var done = w.NavaBank.sudahWajib(ym);
-      sheetSetor(due, done, ym);
-    });
     var btnInit = $('#vbBtnInitial');
     if (btnInit) btnInit.addEventListener('click', function () {
       if (!w.NavaBank) return;

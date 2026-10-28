@@ -201,7 +201,7 @@
         '<div class="mc-hero">' +
           '<div class="mc-hero-lbl">Saldo Cashflow</div>' +
           '<div class="mc-hero-val ' + (d.saldoCashflow >= 0 ? 'pos' : 'neg') + '">' + rupiah(d.saldoCashflow) + '</div>' +
-          '<div class="mc-hero-sub">Dana Bank ada di Beranda Nava: ' + rupiah(d.saldoBank) + '</div>' +
+          '<div class="mc-hero-sub">Dana Bank: ' + rupiah(d.saldoBank) + '</div>' +
         '</div>' +
 
         '<div class="mc-stats">' + statusCards(d) + '</div>' +
@@ -3547,6 +3547,9 @@
     m.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('mc-open');
     M.draft = null; M.editing = null;
+    if (w.App && w.App.view === 'mascim') {
+      w.App.go('home');
+    }
   }
 
   function isOpen() {
@@ -3641,11 +3644,16 @@
   }
 
   function back() {
-    if (M.view === 'home') { close(); return; }
+    if (M.view === 'home') {
+      if (w.App && w.App.go) w.App.go('home');
+      else close();
+      return;
+    }
     if (M.view === 'form') { exitForm(); return; }
     if (M.view === 'detail') { M.view = 'list'; loadList(); return; }
     if (M.view === 'list' || M.view === 'money') { M.view = 'home'; reload(); return; }
-    close();
+    if (w.App && w.App.go) w.App.go('home');
+    else close();
   }
 
   /* =========================================================
@@ -3683,7 +3691,11 @@
     // ditangani router App.go() yang hanya untuk view utama.
     var tool = document.querySelector('[data-mascim-open]');
     if (tool) {
-      tool.addEventListener('click', function (e) { e.preventDefault(); open('home'); });
+      tool.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (w.App && w.App.go) w.App.go('mascim');
+        else open('home');
+      });
     }
 
     w.MascimUI = Object.assign(w.MascimUI, {

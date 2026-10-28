@@ -10,15 +10,15 @@
   var S = w.Store, TG = w.TG;
 
   var TITLES = {
-    home:    ['Project Nava', 'Cashflow keluarga'],
+    home:    ['Cashflow Alima', 'Ringkasan & riwayat transaksi'],
     bank:    ['Dana Bank', 'Kas Darurat (5%) & Kas SDH (5%)'],
     kas:     ['Dana Bank', 'Kas Darurat (5%) & Kas SDH (5%)'],
     history: ['Riwayat', 'Semua transaksi tersimpan'],
-    recap:   ['Rekap', 'Ringkasan & riwayat transaksi'],
+    recap:   ['Cashflow Alima', 'Ringkasan & riwayat transaksi'],
     more:    ['Lainnya', 'Alat, kategori, akun & data'],
     notes:   ['Catatan', 'Pengingat voice'],
     ronce:   ['Kalkulator', 'Ronce, Servis HP & Riasan'],
-    mascim:  ['Mas Cim Service HP', 'Servis, kas & Dana Bank']
+    mascim:  ['Mas cim', 'Service HP']
   };
 
   var App = {
@@ -69,6 +69,7 @@
          di akhir init dan tombol back — supaya mitra tidak bisa nyasar
          kembali ke menu Project Nava. */
       if (w.document.body.classList.contains('mitra-mode') && v !== 'ronce') return;
+      if (v === 'recap') v = 'home';
       if (v === 'kas') v = 'bank';
       App.view = v;
       $$('.tab').forEach(function (b) { b.classList.toggle('active', b.dataset.view === v); });
@@ -92,6 +93,13 @@
         var tb = $('.topbar');
         if (tb) document.documentElement.style.setProperty('--topbar-h', tb.offsetHeight + 'px');
         if (w.Ronce && w.Ronce.onShow) w.Ronce.onShow();
+      }
+      if (v === 'mascim') {
+        if (w.MascimUI && w.MascimUI.open) w.MascimUI.open('home');
+      } else {
+        if (w.MascimUI && w.MascimUI.isOpen && w.MascimUI.isOpen()) {
+          w.MascimUI.close();
+        }
       }
     },
 
@@ -776,7 +784,7 @@
     App.buildMenu = buildMenu;
 
     // About
-    var about = 'Project Nava v4.0 — Cashflow Mini App (gaya Money Lover).\n';
+    var about = 'Cashflow Alima v4.0 — Cashflow Mini App (gaya Money Lover).\n';
     about += TG.isTelegram ? 'Terhubung via Telegram.' : 'Mode browser (untuk preview).';
     $('#aboutText').textContent = about;
 
@@ -908,7 +916,7 @@
        dipanggil di atas sudah menandai body.mitra-mode + mengaktifkan
        view ronce, jadi App.go('home') di sini akan merusaknya. */
     if (!w.document.body.classList.contains('mitra-mode')) App.go('home');
-    console.log('Project Nava siap. Telegram:', TG.isTelegram);
+    console.log('Cashflow Alima siap. Telegram:', TG.isTelegram);
   }
 
   /* ---------------- UI Sinkronisasi ---------------- */

@@ -6,9 +6,9 @@
 <meta name="theme-color" content="#517da2">
 <!-- Papan penemuan alamat server bot (ditulis bot ke GitHub Pages).
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
-<title>Project Nava — Cashflow</title>
+<title>Cashflow Alima</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261026f">
+<link rel="stylesheet" href="assets/css/style.css?v=20261028b">
 </head>
 <body>
 
@@ -17,23 +17,16 @@
   <!-- ============ HEADER ============ -->
   <header class="topbar">
     <div class="topbar-title">
-      <h1 id="pageTitle">Project Nava</h1>
-      <span id="pageSub" class="muted">Cashflow keluarga</span>
+      <h1 id="pageTitle">Cashflow Alima</h1>
+      <span id="pageSub" class="muted">Ringkasan &amp; riwayat transaksi</span>
     </div>
     <button id="btnMore" class="icon-btn" aria-label="Lainnya">
       <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4m0 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4m0 6a2 2 0 1 1 0 4 2 2 0 0 1 0-4"/></svg>
     </button>
   </header>
 
-  <!-- ============ TAB: BERANDA ============ -->
+  <!-- ============ TAB: BERANDA (Menggantikan Dashboard dengan Rekap) ============ -->
   <section id="view-home" class="view active">
-    <!-- Rekening saya ditaruh paling atas -->
-    <div class="list-head tight" style="margin-top:2px;">
-      <strong>Rekening saya</strong>
-      <button class="mini-btn" data-openacc>Atur</button>
-    </div>
-    <div id="hAccounts" class="acc-grid" style="margin-bottom:12px;"></div>
-
     <div id="poolCard" class="card pool-card" hidden>
       <div class="list-head tight">
         <strong><span class="pool-ic">📥</span> Menunggu Disimpan</strong>
@@ -43,12 +36,64 @@
       <div id="poolList" class="list"></div>
     </div>
 
-    <!-- Transaksi hari ini -->
-    <div class="list-head">
-      <strong>Transaksi hari ini</strong>
-      <button class="mini-btn" data-goto="recap">Lihat semua</button>
+    <!-- Strip Bulan & Saldo Periode Menjadi Satu Kartu -->
+    <div class="card" style="margin-bottom:12px;">
+      <div class="month-strip" style="display:flex;align-items:center;">
+        <button id="rPrev" class="icon-btn sm" aria-label="Sebelumnya">‹</button>
+        <div class="grow center">
+          <strong id="rLabel" style="font-size:16px;">—</strong>
+          <div class="muted xs" id="rCount">—</div>
+        </div>
+        <button id="rNext" class="icon-btn sm" aria-label="Berikutnya">›</button>
+      </div>
+      <div class="stat net" style="margin-top:10px;text-align:center;padding:10px 12px;background:var(--bg);border-radius:12px;border:1px solid var(--line);">
+        <span class="stat-lbl" style="font-size:11.5px;color:var(--text-2);text-transform:uppercase;letter-spacing:.4px;">Saldo periode</span>
+        <strong id="rNet" class="stat-val" style="font-size:22px;font-weight:750;display:block;margin-top:2px;">Rp0</strong>
+      </div>
     </div>
-    <div id="hRecent" class="list"></div>
+
+    <!-- Pemasukan & Pengeluaran Berdampingan (2 Kolom) -->
+    <div class="stat-grid" style="margin-bottom:12px;">
+      <div class="stat in">
+        <span class="stat-lbl">Pemasukan</span>
+        <strong id="rIn" class="stat-val">Rp0</strong>
+      </div>
+      <div class="stat out">
+        <span class="stat-lbl">Pengeluaran</span>
+        <strong id="rOut" class="stat-val">Rp0</strong>
+      </div>
+    </div>
+
+    <!-- Komposisi pengeluaran -->
+    <div class="card" style="margin-bottom:12px;">
+      <div class="list-head tight"><strong>Komposisi pengeluaran</strong></div>
+      <div id="rDonut" class="donut-wrap"></div>
+      <div id="rCats" class="cat-bars"></div>
+    </div>
+
+    <!-- Struktur Riwayat Transaksi -->
+    <div class="card" style="margin-bottom:12px;">
+      <input type="text" id="fQ" placeholder="Cari kategori atau catatan…">
+      <div class="field-row mt">
+        <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="all" type="button">Semua</button>
+        <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="today" type="button">Hari ini</button>
+        <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="month" type="button">Bulan ini</button>
+        <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="range" type="button">Rentang tanggal</button>
+      </div>
+      <div class="field-row mt" id="fDateRow" style="display:none">
+        <label class="field grow"><span class="lbl">Dari</span><input type="date" id="fFrom"></label>
+        <label class="field grow"><span class="lbl">Sampai</span><input type="date" id="fTo"></label>
+      </div>
+      <div class="field-row mt">
+        <select id="fType" class="grow" style="display:none">
+          <option value="all">Semua jenis</option>
+          <option value="in">Pemasukan</option>
+          <option value="out">Pengeluaran</option>
+        </select>
+        <select id="fGroup" class="grow" style="display:none"></select>
+      </div>
+    </div>
+    <div id="hList" class="list"></div>
   </section>
 
   <!-- ============ TAB: DANA BANK (Kas Darurat & Kas SDH) ============ -->
@@ -97,14 +142,13 @@
       <div id="vbWajibActionWrap" style="margin-top:10px;"></div>
     </div>
 
-    <!-- Tombol Aksi Dana Bank -->
+    <!-- Tombol Aksi Dana Bank (Setor manual dihilangkan sesuai permintaan) -->
     <div class="field-row" style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
       <button class="btn primary" id="vbBtnOutBon" style="padding:10px 8px;font-size:13px;">🚨 Out Kas Darurat</button>
       <button class="btn ghost" id="vbBtnOutSDH" style="padding:10px 8px;font-size:13px;border-color:var(--warn);color:var(--warn);">🔒 Out Kas SDH</button>
     </div>
-    <div class="field-row" style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-      <button class="btn ghost" id="vbBtnSetor" style="padding:8px 8px;font-size:12.5px;">➕ Setor Manual</button>
-      <button class="btn ghost" id="vbBtnInitial" style="padding:8px 8px;font-size:12.5px;">⚙️ Atur Saldo Awal</button>
+    <div style="margin-top:8px;">
+      <button class="btn ghost block" id="vbBtnInitial" style="padding:8px 8px;font-size:12.5px;">⚙️ Atur Saldo Awal</button>
     </div>
 
     <!-- Riwayat Transaksi Dana Bank -->
@@ -114,67 +158,8 @@
     <div id="vbHistoryList" class="list"></div>
   </section>
 
-  <!-- ============ TAB: REKAP ============ -->
-  <section id="view-recap" class="view">
-    <!-- Strip Bulan & Saldo Periode Menjadi Satu Kartu -->
-    <div class="card" style="margin-bottom:12px;">
-      <div class="month-strip" style="display:flex;align-items:center;">
-        <button id="rPrev" class="icon-btn sm" aria-label="Sebelumnya">‹</button>
-        <div class="grow center">
-          <strong id="rLabel" style="font-size:16px;">—</strong>
-          <div class="muted xs" id="rCount">—</div>
-        </div>
-        <button id="rNext" class="icon-btn sm" aria-label="Berikutnya">›</button>
-      </div>
-      <div class="stat net" style="margin-top:10px;text-align:center;padding:10px 12px;background:var(--bg);border-radius:12px;border:1px solid var(--line);">
-        <span class="stat-lbl" style="font-size:11.5px;color:var(--text-2);text-transform:uppercase;letter-spacing:.4px;">Saldo periode</span>
-        <strong id="rNet" class="stat-val" style="font-size:22px;font-weight:750;display:block;margin-top:2px;">Rp0</strong>
-      </div>
-    </div>
-
-    <!-- Pemasukan & Pengeluaran Berdampingan (2 Kolom) -->
-    <div class="stat-grid" style="margin-bottom:12px;">
-      <div class="stat in">
-        <span class="stat-lbl">Pemasukan</span>
-        <strong id="rIn" class="stat-val">Rp0</strong>
-      </div>
-      <div class="stat out">
-        <span class="stat-lbl">Pengeluaran</span>
-        <strong id="rOut" class="stat-val">Rp0</strong>
-      </div>
-    </div>
-
-    <!-- Komposisi pengeluaran (kembali ke tab Rekap seperti semula) -->
-    <div class="card" style="margin-bottom:12px;">
-      <div class="list-head tight"><strong>Komposisi pengeluaran</strong></div>
-      <div id="rDonut" class="donut-wrap"></div>
-      <div id="rCats" class="cat-bars"></div>
-    </div>
-
-    <!-- Struktur Riwayat Transaksi (Dipindah ke Bawah Pemasukan & Pengeluaran) -->
-    <div class="card" style="margin-bottom:12px;">
-      <input type="text" id="fQ" placeholder="Cari kategori atau catatan…">
-      <div class="field-row mt">
-        <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="all" type="button">Semua</button>
-        <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="today" type="button">Hari ini</button>
-        <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="month" type="button">Bulan ini</button>
-        <button style="padding:6px 8px;font-size:12px;border-radius:8px" class="btn ghost" data-hchip="range" type="button">Rentang tanggal</button>
-      </div>
-      <div class="field-row mt" id="fDateRow" style="display:none">
-        <label class="field grow"><span class="lbl">Dari</span><input type="date" id="fFrom"></label>
-        <label class="field grow"><span class="lbl">Sampai</span><input type="date" id="fTo"></label>
-      </div>
-      <div class="field-row mt">
-        <select id="fType" class="grow" style="display:none">
-          <option value="all">Semua jenis</option>
-          <option value="in">Pemasukan</option>
-          <option value="out">Pengeluaran</option>
-        </select>
-        <select id="fGroup" class="grow" style="display:none"></select>
-      </div>
-    </div>
-    <div id="hList" class="list"></div>
-  </section>
+  <!-- ============ TAB: MAS CIM (Pengganti Tab Rekap) ============ -->
+  <section id="view-mascim" class="view" style="padding:0;"></section>
 
   <!-- ============ LAYER: TAMBAH TRANSAKSI (Money Lover style) ============ -->
   <div id="txPage" class="tx-page hidden">
@@ -298,7 +283,7 @@
       </button>
       <button class="tool" data-mascim-open="1">
         <span class="tool-ico svc">C</span>
-        <span class="tool-body"><b>Mas Cim Service HP</b><span id="hMascimInfo">Input servis, kas, &amp; Dana Bank</span></span>
+        <span class="tool-body"><b>Mas cim</b><span id="hMascimInfo">Input servis, kas, &amp; Dana Bank</span></span>
         <span class="tool-go">›</span>
       </button>
       <button class="tool" data-nt-open="1">
@@ -387,7 +372,7 @@
 
     <div class="list-head"><strong>Tentang</strong></div>
     <div class="card">
-      <p class="hint" id="aboutText">Project Nava v3.0 — Cashflow Mini App (gaya Money Lover).</p>
+      <p class="hint" id="aboutText">Cashflow Alima v3.0 — Cashflow Mini App (gaya Money Lover).</p>
     </div>
   </section>
 
@@ -857,9 +842,9 @@
       </span>
       <span>Tambah</span>
     </button>
-    <button class="tab" data-view="recap">
-      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M4 20h16v-2H4zm2-4h12v-2H6zm2-4h8V8H8zm10-6H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2"/></svg>
-      <span>Rekap</span>
+    <button class="tab" data-view="mascim">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+      <span>Mas cim</span>
     </button>
     <button class="tab" data-view="more">
       <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4m0 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4m0 6a2 2 0 1 1 0 4 2 2 0 0 1 0-4"/></svg>
@@ -893,7 +878,7 @@
   <div class="mc-bar">
     <button class="mc-back" id="mcBack" aria-label="Kembali">‹</button>
     <div class="mc-bar-title">
-      <b>Mas Cim Service HP</b>
+      <b>Mas cim</b>
       <span id="mcBarSub">Beranda</span>
     </div>
     <button class="mc-act" id="mcRefresh" aria-label="Muat ulang">↻</button>
