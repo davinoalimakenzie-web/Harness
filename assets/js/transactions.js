@@ -424,14 +424,14 @@
   function sheetSetor(due, done, ym) {
     var g = w.NavaBank.get();
     bankSheet('Setor Dana Bank',
-      '<p class="nb-hint">Setoran menambah Dana Bank. ' +
-      'Setiap setoran otomatis terbagi dua: <b>50% Kas Darurat</b> & <b>50% Kas SDH</b>.</p>' +
+      '<p class="nb-hint">Setoran manual menambah <b>Kas SDH</b>. ' +
+      'Kas Darurat hanya menerima dari pengembalian sparepart Mas Cim & pembagian 50% kas wajib bulanan (5%).</p>' +
       (due > 0 && !done
         ? '<button class="btn primary block" data-bkw style="margin-bottom:12px">' +
           '⚡ Setor Kas Wajib 10% (' + money(due) + ')</button>'
         : '') +
       '<label class="field"><span class="lbl">Keterangan</span>' +
-      '<input type="text" id="nbSDesc" value="Setoran"></label>' +
+      '<input type="text" id="nbSDesc" value="Setoran Kas SDH"></label>' +
       '<label class="field"><span class="lbl">Nominal (Rp)</span>' +
       '<input type="number" id="nbSAmt" inputmode="numeric" placeholder="0"></label>',
       function (body) {
@@ -450,16 +450,17 @@
         btn.addEventListener('click', function () {
           var amt = parseInt(String(body.querySelector('#nbSAmt').value).replace(/\D/g, ''), 10) || 0;
           if (amt <= 0) { if (w.App.toast) w.App.toast('Nominal harus lebih dari 0'); return; }
-          var desc = (body.querySelector('#nbSDesc').value || 'Setoran').trim();
+          var desc = (body.querySelector('#nbSDesc').value || 'Setoran Kas SDH').trim();
           try {
             w.NavaBank.add({
               description: desc,
               moneyIn: amt,
               moneyOut: 0,
-              date: S.todayStr()
+              date: S.todayStr(),
+              fund: 'sdh'
             });
             w.App.closeSheet();
-            if (w.App.toast) w.App.toast('Setoran tersimpan (50% Darurat + 50% SDH)');
+            if (w.App.toast) w.App.toast('Setoran Kas SDH tersimpan');
             render();
           } catch (err) { if (w.App.toast) w.App.toast(err.message); }
         });

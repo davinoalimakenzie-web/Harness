@@ -107,27 +107,12 @@
           return;
         }
 
-        // Setoran umum/otomatis lama yang belum terbagi 50:50:
-        if (kind !== 'wajib' && kind !== 'sparepart' && kind !== 'bon' && mi > 0 && !isReturnDesc(desc) &&
-            descUpper.indexOf('50%') === -1 && descUpper.indexOf('5%') === -1 &&
-            descUpper.indexOf('(KAS SDH)') === -1 && descUpper.indexOf('(KAS DARURAT)') === -1 &&
-            descUpper.indexOf('(SDH)') === -1 && descUpper.indexOf('(DARURAT)') === -1) {
-          var h1 = Math.round(mi / 2);
-          var h2 = mi - h1;
+        // Setoran umum / manual: MASUK KE KAS SDH (Kas Darurat HANYA menerima dari pengembalian sparepart & 50% kas wajib 10%)
+        if (kind !== 'wajib' && kind !== 'sparepart' && kind !== 'bon' && mi > 0 && !isReturnDesc(desc)) {
           newEntries.push({
-            id: (e.id || uid()) + '_darurat',
-            description: desc + ' (50% Kas Darurat)',
-            moneyIn: h1,
-            moneyOut: 0,
-            date: dt,
-            note: nt,
-            kind: kind,
-            fund: 'darurat'
-          });
-          newEntries.push({
-            id: (e.id || uid()) + '_sdh',
-            description: desc + ' (50% Kas SDH)',
-            moneyIn: h2,
+            id: e.id || uid(),
+            description: desc,
+            moneyIn: mi,
             moneyOut: 0,
             date: dt,
             note: nt,
@@ -237,15 +222,28 @@
     var inSDH = init - halfInit, outSDH = 0;
 
     d.entries.forEach(function (e) {
+      var mi = (e.moneyIn || 0);
+      var mo = (e.moneyOut || 0);
       var descU = String(e.description || '').toUpperCase();
-      var isReturn = (e.kind === 'sparepart' || e.kind === 'bon' || isReturnDesc(e.description));
-      var f = (!isReturn && (e.fund === 'sdh' || descU.indexOf('SDH') !== -1)) ? 'sdh' : 'darurat';
-      if (f === 'sdh') {
-        inSDH += (e.moneyIn || 0);
-        outSDH += (e.moneyOut || 0);
-      } else {
-        inDarurat += (e.moneyIn || 0);
-        outDarurat += (e.moneyOut || 0);
+      var isReturn = (e.kind === 'sparepart' || isReturnDesc(e.description));
+      var isWajibDarurat = (e.kind === 'wajib' && (e.fund === 'darurat' || descU.indexOf('(KAS DARURAT)') !== -1 || descU.indexOf('5% (KAS DARURAT)') !== -1));
+
+      // Dana Masuk: HANYA pengembalian sparepart Mas Cim & 50% kas wajib (5%) yang boleh masuk ke Kas Darurat
+      if (mi > 0) {
+        if (isReturn || isWajibDarurat) {
+          inDarurat += mi;
+        } else {
+          inSDH += mi;
+        }
+      }
+
+      // Dana Keluar: pengeluaran dari Kas SDH (e.fund === 'sdh' atau ada teks SDH), sisanya dari Kas Darurat
+      if (mo > 0) {
+        if (e.fund === 'sdh' || descU.indexOf('SDH') !== -1) {
+          outSDH += mo;
+        } else {
+          outDarurat += mo;
+        }
       }
     });
 
@@ -290,11 +288,13 @@
 
   /* ---------------- mutasi ---------------- */
 
-  // Catat satu mutasi. moneyIn = dana masuk, moneyOut = dana keluar.
-  // Aturan Wajib:
-  // 1. Semua dana masuk otomatis/manual (bukan pengembalian part/bon) otomatis terbagi 50:50.
-  // 2. Semua arus pinjam sparepart Mascim memakai Kas Darurat dan kembali ke Kas Darurat.
-  // 3. Semua pengeluaran otomatis/manual wajib dari Kas Darurat (kecuali Out Kas SDH via PIN).
+  // Aturan Wajib Revisi Khusus:
+  // 1. Kas Darurat HANYA bisa menerima dari:
+  //    (a) Pengembalian sparepart dari kalkulator-mascim (100% Kas Darurat).
+  //    (b) Pembagian 50% dari kas wajib dana bank 10% tiap bulan sekali (5% Darurat & 5% SDH).
+  // 2. Setoran otomatis / jalur manapun lainnya TIDAK BOLEH masuk ke Kas Darurat (masuk ke Kas SDH).
+  // 3. Peminjaman modal sparepart Mascim keluar dari Kas Darurat.
+  // 4. Out manual: Out Darurat dari Kas Darurat, Out Kas SDH via PIN dari Kas SDH.
   function add(rec) {
     var d = load();
     rec = rec || {};
@@ -311,7 +311,7 @@
     if (mi > 0) {
       var isReturn = (kind === 'sparepart' || kind === 'bon' || isReturnDesc(desc) || rec.isReturn);
       if (isReturn) {
-        // Pengembalian sparepart/bon/out masuk 100% ke Kas Darurat
+        // (1) Pengembalian sparepart Mas Cim masuk 100% ke Kas Darurat
         var eReturn = {
           id: rec.id || uid(),
           description: desc,
@@ -319,7 +319,7 @@
           moneyOut: 0,
           date: date,
           note: note,
-          kind: kind,
+          kind: 'sparepart',
           fund: 'darurat'
         };
         d.entries.push(eReturn);
@@ -327,52 +327,68 @@
         return eReturn;
       }
 
-      // Jalur internal yang sudah di-split sebelumnya (misal dari tambahSetoranWajib)
-      if (rec._noSplit && (rec.fund === 'sdh' || rec.fund === 'darurat')) {
-        var eExplicit = {
-          id: rec.id || uid(),
-          description: desc,
-          moneyIn: mi,
+      // (2) Pembagian 50% dari kas wajib dana bank 10% tiap bulan sekali
+      if (kind === 'wajib') {
+        if (rec._noSplit && (rec.fund === 'sdh' || rec.fund === 'darurat')) {
+          var eExplicit = {
+            id: rec.id || uid(),
+            description: desc,
+            moneyIn: mi,
+            moneyOut: 0,
+            date: date,
+            note: note,
+            kind: 'wajib',
+            fund: rec.fund
+          };
+          d.entries.push(eExplicit);
+          save();
+          return eExplicit;
+        }
+
+        var half1 = Math.round(mi / 2);
+        var half2 = mi - half1;
+        var cleanWajibDesc = desc.replace(/\s*\((?:50%|5%|\d+%)?\s*(?:Kas )?(?:Darurat|SDH)\)/gi, '').trim() || KETERANGAN_WAJIB;
+
+        var eDarurat = {
+          id: (rec.id || uid()) + '_d',
+          description: cleanWajibDesc + ' 5% (Kas Darurat)',
+          moneyIn: half1,
           moneyOut: 0,
           date: date,
           note: note,
-          kind: kind,
-          fund: rec.fund
+          kind: 'wajib',
+          fund: 'darurat'
         };
-        d.entries.push(eExplicit);
+        var eSDH = {
+          id: (rec.id || uid()) + '_s',
+          description: cleanWajibDesc + ' 5% (Kas SDH)',
+          moneyIn: half2,
+          moneyOut: 0,
+          date: date,
+          note: note,
+          kind: 'wajib',
+          fund: 'sdh'
+        };
+        d.entries.push(eDarurat);
+        d.entries.push(eSDH);
         save();
-        return eExplicit;
+        return eDarurat;
       }
 
-      // SEMUA dana masuk lainnya otomatis terbagi 2: 50% Kas Darurat & 50% Kas SDH
-      var half1 = Math.round(mi / 2);
-      var half2 = mi - half1;
-      var cleanDesc = desc.replace(/\s*\((?:50%|5%|\d+%)?\s*(?:Kas )?(?:Darurat|SDH)\)/gi, '').trim() || 'Setoran Dana';
-
-      var eDarurat = {
-        id: (rec.id || uid()) + '_d',
-        description: cleanDesc + ' (50% Kas Darurat)',
-        moneyIn: half1,
-        moneyOut: 0,
-        date: date,
-        note: note,
-        kind: kind,
-        fund: 'darurat'
-      };
-      var eSDH = {
-        id: (rec.id || uid()) + '_s',
-        description: cleanDesc + ' (50% Kas SDH)',
-        moneyIn: half2,
+      // (3) SEMUA pemasukan / setoran lainnya MASUK KE KAS SDH (TIDAK BOLEH KE KAS DARURAT).
+      var eSDHOther = {
+        id: rec.id || uid(),
+        description: desc + (desc.toUpperCase().indexOf('SDH') === -1 ? ' (Kas SDH)' : ''),
+        moneyIn: mi,
         moneyOut: 0,
         date: date,
         note: note,
         kind: kind,
         fund: 'sdh'
       };
-      d.entries.push(eDarurat);
-      d.entries.push(eSDH);
+      d.entries.push(eSDHOther);
       save();
-      return eDarurat;
+      return eSDHOther;
     }
 
     // DANA KELUAR (OUTFLOW)
@@ -592,8 +608,8 @@
 
     var payload = {
       type: 'out',
-      group: 'Tak Terduga',
-      sub: 'Pelunasan DanaBank',
+      group: 'Out Tak Terduga',
+      sub: null,
       amount: due,
       date: today,
       note: 'Pelunasan DanaBank ' + ym +
