@@ -38,11 +38,12 @@
   var RULES = [
     { id: 'lcd-biasa', name: 'LCD Biasa', pct: 20, icon: '📱', note: 'LCD biasa' },
     { id: 'lcd-bagus', name: 'LCD Bagus', pct: 20, icon: '📱', note: 'LCD bagus' },
+    { id: 'lcd-incell', name: 'LCD Incell', pct: 20, icon: '📱', note: 'LCD Incell' },
     { id: 'lcd-oled', name: 'LCD OLED', pct: 10, icon: '✨', note: 'LCD OLED' },
     { id: 'baterai', name: 'Baterai', pct: 10, icon: '🔋', note: 'Baterai' }
   ];
 
-  /* Brand HP yang dipakai. */
+  /* Brand HP yang dipakai (dropdown brand HP dibatasi 9 opsi: Lainnya + 8 brand ini). */
   var BRANDS = [
     { id: 'samsung', name: 'Samsung' },
     { id: 'oppo', name: 'OPPO' },
@@ -50,35 +51,19 @@
     { id: 'vivo', name: 'Vivo' },
     { id: 'xiaomi', name: 'Xiaomi' },
     { id: 'infinix', name: 'Infinix' },
-    { id: 'apple', name: 'Apple' },
-    { id: 'huawei', name: 'Huawei' },
-    { id: 'honor', name: 'Honor' },
-    { id: 'oneplus', name: 'OnePlus' },
-    { id: 'tecno', name: 'Tecno' },
-    { id: 'itel', name: 'Itel' },
-    { id: 'asus', name: 'Asus' },
-    { id: 'lenovo', name: 'Lenovo' },
-    { id: 'motorola', name: 'Motorola' },
-    { id: 'nokia', name: 'Nokia' },
-    { id: 'sony', name: 'Sony' },
-    { id: 'zte', name: 'ZTE' },
-    { id: 'meizu', name: 'Meizu' },
-    { id: 'google', name: 'Google' },
-    { id: 'sharp', name: 'Sharp' },
-    { id: 'advan', name: 'Advan' },
-    { id: 'polytron', name: 'Polytron' },
-    { id: 'evercoss', name: 'Evercoss' }
+    { id: 'iphone', name: 'iPhone' },
+    { id: 'tecno', name: 'Tecno' }
   ];
 
   /* Nama lain yang sering dipakai teknisi untuk brand yang sama. Dipakai
-     saat menebak brand dari teks device ("iPhone 13" -> Apple). */
+     saat menebak brand dari teks device ("iPhone 13" -> iPhone). */
   var ALIASES = {
+    iphone: ['iphone', 'ipad', 'ios', 'apple'],
     apple: ['iphone', 'ipad', 'ios', 'apple'],
     samsung: ['galaxy'],
     xiaomi: ['redmi', 'poco', 'mi'],
     oppo: ['find', 'reno'],
-    vivo: ['iqoo'],
-    huawei: ['honor']
+    vivo: ['iqoo']
   };
 
   var CUSTOM_BRAND = '__custom_brand__';
@@ -123,31 +108,21 @@
     ]
   };
 
-  /* Seri bawaan untuk brand baru. Brand lain boleh kosong: seri tetap bisa
-     diketik sendiri lewat opsi "Lainnya / ketik manual". */
-  SERIES.apple = [
-    'iPhone 7', 'iPhone 8', 'iPhone X', 'iPhone XR', 'iPhone XS', 'iPhone XS Max',
-    'iPhone 11', 'iPhone 11 Pro', 'iPhone 12', 'iPhone 12 Pro', 'iPhone 13',
-    'iPhone 13 Pro', 'iPhone 14', 'iPhone 14 Pro', 'iPhone 15', 'iPhone 15 Pro',
-    'iPhone 16', 'iPhone 16 Pro', 'iPhone SE'
+  /* Seri bawaan iPhone & Tecno */
+  SERIES.iphone = [
+    'iPhone 7', 'iPhone 7+', 'iPhone 8', 'iPhone 8+', 'iPhone X', 'iPhone XR',
+    'iPhone XS', 'iPhone XS Max', 'iPhone 11', 'iPhone 11 Pro', 'iPhone 11 Pro Max',
+    'iPhone 12', 'iPhone 12 Mini', 'iPhone 12 Pro', 'iPhone 12 Pro Max',
+    'iPhone 13', 'iPhone 13 Mini', 'iPhone 13 Pro', 'iPhone 13 Pro Max',
+    'iPhone 14', 'iPhone 14 Pro', 'iPhone 14 Pro Max',
+    'iPhone 15', 'iPhone 15 Pro', 'iPhone 15 Pro Max',
+    'iPhone 16', 'iPhone 16 Pro', 'iPhone 16 Pro Max'
   ];
-  SERIES.huawei = ['Y6', 'Y7', 'Y9', 'Nova 5', 'Nova 7', 'Nova 9', 'P30', 'P40'];
-  SERIES.honor = ['9X', 'X7', 'X8', 'X9', 'Magic 4', 'Magic 5'];
-  SERIES.oneplus = ['6', '7', '8', '9', '10', '11', '12', 'Nord'];
-  SERIES.tecno = ['Spark 7', 'Spark 8', 'Spark 9', 'Spark 10', 'Camon 18', 'Camon 20'];
-  SERIES.itel = ['A23', 'A48', 'A58', 'A60', 'P38', 'P55'];
-  SERIES.asus = ['Zenfone 5', 'Zenfone 6', 'Zenfone 8', 'Zenfone 9', 'Zenfone 10', 'ROG Phone 5'];
-  SERIES.lenovo = ['K5', 'K6', 'A6000', 'A7000'];
-  SERIES.motorola = ['Moto G5', 'Moto G6', 'Moto G7', 'Moto G8', 'Moto G9', 'Moto E6'];
-  SERIES.nokia = ['2.2', '3.4', '5.3', '6.1', '7.2', '8.1'];
-  SERIES.sony = ['Xperia XA', 'Xperia XZ', 'Xperia 10', 'Xperia 1'];
-  SERIES.zte = ['Blade A3', 'Blade A5', 'Blade V10'];
-  SERIES.meizu = ['M3 Note', 'M5', 'M6 Note'];
-  SERIES.google = ['Pixel 4', 'Pixel 5', 'Pixel 6', 'Pixel 7', 'Pixel 8'];
-  SERIES.sharp = ['Aquos R2', 'Aquos R3'];
-  SERIES.advan = ['G2', 'G3', 'i5', 'M10'];
-  SERIES.polytron = ['Wizard 1', 'Wizard 2', 'Quadra'];
-  SERIES.evercoss = ['A75', 'M50', 'Winner'];
+  SERIES.apple = SERIES.iphone;
+  SERIES.tecno = [
+    'Spark 7', 'Spark 8', 'Spark 9', 'Spark 10', 'Spark 20', 'Spark 20 Pro',
+    'Camon 18', 'Camon 19', 'Camon 20', 'Camon 30', 'Pova 4', 'Pova 5', 'Pova 6'
+  ];
 
   var CUSTOM_SERIES = '__custom__';
 
@@ -159,6 +134,89 @@
     { brandId: 'realme',  brandName: 'Realme',  series: 'C3',        ruleId: 'lcd-biasa', part: 105000 },
     { brandId: 'xiaomi',  brandName: 'Xiaomi',  series: 'Redmi 10',   ruleId: 'lcd-biasa', part: 105000 },
     { brandId: 'infinix', brandName: 'Infinix', series: 'Smart 5',   ruleId: 'lcd-biasa', part: 105000 }
+  ];
+
+  /* Data pricelist iPhone bawaan (LCD Incell, LCD OLED, Baterai).
+     Sesuai instruksi: harga part sengaja dikosongkan (0) karena akan
+     diinput manual oleh admin saat pembelian sparepart. */
+  var IPHONE_PRICELIST = [
+    // --- LCD Incell (25 model) ---
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 7', ruleId: 'lcd-incell', part: 0, est: 300000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 7+', ruleId: 'lcd-incell', part: 0, est: 300000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 8', ruleId: 'lcd-incell', part: 0, est: 300000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 8+', ruleId: 'lcd-incell', part: 0, est: 350000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone X', ruleId: 'lcd-incell', part: 0, est: 400000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone XR', ruleId: 'lcd-incell', part: 0, est: 400000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone XS', ruleId: 'lcd-incell', part: 0, est: 400000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone XS Max', ruleId: 'lcd-incell', part: 0, est: 550000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 11', ruleId: 'lcd-incell', part: 0, est: 450000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 11 Pro', ruleId: 'lcd-incell', part: 0, est: 500000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 11 Pro Max', ruleId: 'lcd-incell', part: 0, est: 585000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 12', ruleId: 'lcd-incell', part: 0, est: 550000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 12 Mini', ruleId: 'lcd-incell', part: 0, est: 800000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 12 Pro', ruleId: 'lcd-incell', part: 0, est: 575000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 12 Pro Max', ruleId: 'lcd-incell', part: 0, est: 650000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 13', ruleId: 'lcd-incell', part: 0, est: 800000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 13 Mini', ruleId: 'lcd-incell', part: 0, est: 750000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 13 Pro', ruleId: 'lcd-incell', part: 0, est: 820000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 13 Pro Max', ruleId: 'lcd-incell', part: 0, est: 1000000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 14', ruleId: 'lcd-incell', part: 0, est: 780000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 14 Pro', ruleId: 'lcd-incell', part: 0, est: 1400000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 14 Pro Max', ruleId: 'lcd-incell', part: 0, est: 1200000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 15', ruleId: 'lcd-incell', part: 0, est: 840000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 15 Pro', ruleId: 'lcd-incell', part: 0, est: 1000000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 15 Pro Max', ruleId: 'lcd-incell', part: 0, est: 1275000 },
+
+    // --- LCD OLED (19 model) ---
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone X', ruleId: 'lcd-oled', part: 0, est: 700000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone XS', ruleId: 'lcd-oled', part: 0, est: 800000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone XS Max', ruleId: 'lcd-oled', part: 0, est: 900000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 11 Pro', ruleId: 'lcd-oled', part: 0, est: 900000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 11 Pro Max', ruleId: 'lcd-oled', part: 0, est: 1200000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 12', ruleId: 'lcd-oled', part: 0, est: 1250000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 12 Mini', ruleId: 'lcd-oled', part: 0, est: 1500000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 12 Pro', ruleId: 'lcd-oled', part: 0, est: 1300000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 12 Pro Max', ruleId: 'lcd-oled', part: 0, est: 1400000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 13', ruleId: 'lcd-oled', part: 0, est: 1600000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 13 Mini', ruleId: 'lcd-oled', part: 0, est: 2400000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 13 Pro', ruleId: 'lcd-oled', part: 0, est: 2700000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 13 Pro Max', ruleId: 'lcd-oled', part: 0, est: 2800000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 14', ruleId: 'lcd-oled', part: 0, est: 1800000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 14 Pro', ruleId: 'lcd-oled', part: 0, est: 3000000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 14 Pro Max', ruleId: 'lcd-oled', part: 0, est: 3500000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 15', ruleId: 'lcd-oled', part: 0, est: 2500000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 15 Pro', ruleId: 'lcd-oled', part: 0, est: 3500000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 15 Pro Max', ruleId: 'lcd-oled', part: 0, est: 4000000 },
+
+    // --- Baterai (28 model) ---
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 7', ruleId: 'baterai', part: 0, est: 206000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 7+', ruleId: 'baterai', part: 0, est: 224000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 8', ruleId: 'baterai', part: 0, est: 204000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 8+', ruleId: 'baterai', part: 0, est: 220000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone X', ruleId: 'baterai', part: 0, est: 328000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone XR', ruleId: 'baterai', part: 0, est: 268000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone XS', ruleId: 'baterai', part: 0, est: 348000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone XS Max', ruleId: 'baterai', part: 0, est: 346000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 11', ruleId: 'baterai', part: 0, est: 330000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 11 Pro', ruleId: 'baterai', part: 0, est: 474000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 11 Pro Max', ruleId: 'baterai', part: 0, est: 454000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 12', ruleId: 'baterai', part: 0, est: 442000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 12 Mini', ruleId: 'baterai', part: 0, est: 430000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 12 Pro', ruleId: 'baterai', part: 0, est: 442000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 12 Pro Max', ruleId: 'baterai', part: 0, est: 494000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 13', ruleId: 'baterai', part: 0, est: 466000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 13 Mini', ruleId: 'baterai', part: 0, est: 412000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 13 Pro', ruleId: 'baterai', part: 0, est: 520000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 13 Pro Max', ruleId: 'baterai', part: 0, est: 476000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 14', ruleId: 'baterai', part: 0, est: 432000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 14 Pro', ruleId: 'baterai', part: 0, est: 432000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 14 Pro Max', ruleId: 'baterai', part: 0, est: 550000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 15', ruleId: 'baterai', part: 0, est: 600000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 15 Pro', ruleId: 'baterai', part: 0, est: 700000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 15 Pro Max', ruleId: 'baterai', part: 0, est: 750000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 16', ruleId: 'baterai', part: 0, est: 800000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 16 Pro', ruleId: 'baterai', part: 0, est: 950000 },
+    { brandId: 'iphone', brandName: 'iPhone', series: 'iPhone 16 Pro Max', ruleId: 'baterai', part: 0, est: 1000000 }
   ];
 
   /* Tombol sinkronisasi manual di kartu "Harga tersimpan". Dipasang dari
@@ -220,6 +278,42 @@
     S.save();
   }
 
+  /* Inisialisasi daftar harga iPhone ke template tersimpan.
+     Memastikan seluruh 72 pricelist iPhone tersimpan otomatis ke
+     Store.state.templates tanpa menimpa perubahan harga yang mungkin
+     sudah dibuat pengguna. */
+  function seedIPhoneTemplates() {
+    var t = S.state.templates || (S.state.templates = []);
+    var ditambahkan = false;
+    var stamp = new Date().toISOString();
+    IPHONE_PRICELIST.forEach(function (s) {
+      var key = S.templateKey ? S.templateKey(s) : [s.brandId, s.series.toUpperCase(), s.ruleId].join('|');
+      var exists = t.some(function (x) {
+        var p = x && (x.payload || x);
+        return p && (S.templateKey ? S.templateKey(p) === key : false);
+      });
+      if (!exists) {
+        t.push({
+          id: 'tpl_' + key,
+          createdAt: stamp,
+          payload: {
+            brandId: s.brandId,
+            brandName: s.brandName,
+            series: s.series,
+            ruleId: s.ruleId,
+            part: s.part,
+            est: s.est
+          }
+        });
+        ditambahkan = true;
+      }
+    });
+    if (ditambahkan) {
+      S.save();
+    }
+    return ditambahkan;
+  }
+
   /* Cek apakah sebuah seri adalah seri yang terkunci (tidak bisa dihapus) */
   function isLockedSeries(brandId, series) {
     var list = SERIES[brandId];
@@ -240,7 +334,8 @@
     return RULES[0];
   }
   function brandById(id) {
-    if (id === CUSTOM_BRAND) return { id: CUSTOM_BRAND, name: el.kBrandName.value.trim() || 'Lainnya' };
+    if (id === CUSTOM_BRAND) return { id: CUSTOM_BRAND, name: (el.kBrandNameInput && el.kBrandNameInput.value.trim()) || 'Lainnya' };
+    if (id === 'apple') id = 'iphone';
     for (var i = 0; i < BRANDS.length; i++) if (BRANDS[i].id === id) return BRANDS[i];
     return BRANDS[0];
   }
@@ -274,12 +369,12 @@
 
   /* ---------------- Brand & Seri ---------------- */
   function renderBrands() {
-    var opts = BRANDS.map(function (b) {
+    var opts = '<option value="' + CUSTOM_BRAND + '"' +
+      (brandId === CUSTOM_BRAND ? ' selected' : '') + '>Lainnya</option>';
+    opts += BRANDS.map(function (b) {
       return '<option value="' + esc(b.id) + '"' + (b.id === brandId ? ' selected' : '') +
         '>' + esc(b.name) + '</option>';
     }).join('');
-    opts += '<option value="' + CUSTOM_BRAND + '"' +
-      (brandId === CUSTOM_BRAND ? ' selected' : '') + '>Lainnya…</option>';
     el.kBrand.innerHTML = opts;
 
     /* Tempelkan id brand ke select dan ke kotak pembungkusnya supaya CSS
@@ -409,10 +504,18 @@
     var rule = ruleById(ruleId);
     var h = hitung(part, rule);
 
-    el.kEst.textContent = money(h.est);
-    el.kFormulaOut.textContent = h.part > 0
-      ? '(' + money(h.part) + ' × 2) + ' + h.pct + '% = ' + money(h.est)
-      : 'Isi harga part, lalu pilih perhitungan estimasi biaya.';
+    var estVal = h.est;
+    if (part === 0 && editingKey) {
+      var t = (S.state.templates || []).filter(function (x) {
+        return S.templateKey(x.payload || {}) === editingKey;
+      })[0];
+      if (t && (t.payload || {}).est > 0) estVal = t.payload.est;
+    }
+
+    el.kEst.textContent = money(estVal);
+    el.kFormulaOut.textContent = part > 0
+      ? '(' + money(part) + ' × 2) + ' + h.pct + '% = ' + money(estVal)
+      : (estVal > 0 ? 'Estimasi tersimpan: ' + money(estVal) + ' (isi harga part saat dibeli)' : 'Isi harga part, lalu pilih perhitungan estimasi biaya.');
   }
 
   /* ---------------- Ringkasan ---------------- */
@@ -422,7 +525,11 @@
     var brand = brandById(brandId).name;
     var seri = readSeries();
     var lines = [];
-    if (seri) { lines.push('*' + brand + ' ' + seri + '*'); lines.push(''); }
+    if (seri) {
+      var judul = (seri && brand && seri.toLowerCase().indexOf(brand.toLowerCase()) === 0)
+        ? seri : (brand + ' ' + seri);
+      lines.push('*' + judul + '*'); lines.push('');
+    }
     lines.push('Perhitungan: ' + rule.name);
     lines.push('Harga part: ' + money(h.part));
     lines.push('Harga estimasi: ' + money(h.est));
@@ -438,7 +545,13 @@
     var rule = ruleById(p.ruleId);
     var brand = p.brandName || brandById(p.brandId).name;
     var seri = p.series || '-';
-    return brand + ' ' + seri + ' · ' + rule.name + ' · ' + money(p.est);
+    var prefix = '';
+    if (seri && brand && seri.toLowerCase().indexOf(brand.toLowerCase()) === 0) {
+      prefix = seri;
+    } else {
+      prefix = (brand ? brand + ' ' : '') + seri;
+    }
+    return prefix + ' · ' + rule.name + ' · ' + money(p.est);
   }
 
   /* ---------------- Konfirmasi & mode edit ----------------
@@ -655,11 +768,12 @@
     var t = S.state.templates || [];
     /* Total entri tersimpan ditampilkan di sebelah judul. */
     if (el.kTotalTpl) el.kTotalTpl.textContent = t.length;
-    // Brand filter — grid 2 kolom: Samsung-Xiaomi / Oppo-Vivo / Realme-Infinix
+    // Brand filter — grid 2 kolom: Samsung-Xiaomi / Oppo-Vivo / Realme-Infinix / iPhone-Tecno
     var brandPairs = [
       ['samsung', 'xiaomi'],
       ['oppo', 'vivo'],
-      ['realme', 'infinix']
+      ['realme', 'infinix'],
+      ['iphone', 'tecno']
     ];
     var brandBtns = brandPairs.map(function (pair) {
       var btns = pair.map(function (bid) {
@@ -692,9 +806,12 @@
             ? '<button class="icon-btn sm" disabled title="Seri terkunci">🔒</button>'
             : '<button class="icon-btn sm" data-tpldel="' + esc(x.id) + '">🗑</button>';
           var isFresh = justSavedKey && S.templateKey && S.templateKey(p) === justSavedKey;
+          var partTag = (p.part > 0)
+            ? '<span class="tag">part ' + money(p.part) + '</span>'
+            : '<span class="tag">part -</span>';
           return '<div class="item' + (isFresh ? ' just-saved' : '') + '" data-tpl="' + esc(x.id) + '">' +
             '<div class="item-body"><div class="item-title">' + esc(labelTpl(p)) + '</div>' +
-            '<div class="item-sub"><span class="tag">part ' + money(p.part) + '</span>' +
+            '<div class="item-sub">' + partTag +
             '<span>estimasi ' + money(p.est) + '</span></div></div>' +
             '<div class="item-actions"><button class="icon-btn sm" data-tpluse="' + esc(x.id) + '">↺</button>' +
             delBtn + '</div></div>';
@@ -706,17 +823,26 @@
 
   function saveTpl() {
     var part = parsePart(el.kPart.value);
-    if (part <= 0) { w.App.toast('Isi harga part dulu'); return; }
     var rule = ruleById(ruleId);
     var seri = readSeries();
     if (!seri) { w.App.toast('Pilih seri HP dulu'); return; }
     var brandName = brandById(brandId).name;
     if (brandId === CUSTOM_BRAND && !brandName) { w.App.toast('Isi brand manual dulu'); return; }
 
+    var h = hitung(part, rule);
+    var est = h.est;
+    if (est <= 0 && editingKey) {
+      var tLama = (S.state.templates || []).filter(function (x) {
+        return S.templateKey(x.payload || {}) === editingKey;
+      })[0];
+      if (tLama && (tLama.payload || {}).est > 0) est = tLama.payload.est;
+    }
+    if (part <= 0 && est <= 0) { w.App.toast('Isi harga part dulu'); return; }
+
     var payload = {
       brandId: brandId, brandName: String(brandName || '').toUpperCase(),
       series: String(seri || '').toUpperCase(), ruleId: rule.id, part: part,
-      est: hitung(part, rule).est
+      est: est
     };
     var newKey = S.templateKey ? S.templateKey(payload) : '';
     var hasil = S.upsertTemplate(payload);
@@ -756,8 +882,9 @@
   }
 
   function applyTpl(p) {
-    el.kPart.value = p.part || '';
+    el.kPart.value = (p.part > 0) ? p.part : '';
     brandId = p.brandId || 'samsung';
+    if (brandId === 'apple') brandId = 'iphone';
     seriesId = p.series || '';
     ruleId = p.ruleId || 'lcd-biasa';
     if (brandId === CUSTOM_BRAND) {
@@ -821,10 +948,15 @@
       w.CalcSync.tarik(true).then(function () {
         var sebelum = (S.state.templates || []).length;
         seedIfNeeded();
-        if ((S.state.templates || []).length !== sebelum) { renderSeries(); renderTpl(); }
+        seedIPhoneTemplates();
+        if ((S.state.templates || []).length !== sebelum) {
+          renderSeries(); renderTpl();
+          if (w.CalcSync) w.CalcSync.tandaiBerubah();
+        }
       });
     } else {
       seedIfNeeded();
+      seedIPhoneTemplates();
     }
 
     if ($('#kEditCancel')) {

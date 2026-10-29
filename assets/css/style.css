@@ -2703,6 +2703,57 @@ select.mc-inp{ appearance:none; }
 .tpl-brand-btn[data-tplbrand="vivo"],     .k-quad .q-brand[data-brand="vivo"],     .k-quad .q-series[data-brand="vivo"], .k-pick-brand[data-tplbrand="vivo"]    { --bc:#0284c7; }
 .tpl-brand-btn[data-tplbrand="realme"],   .k-quad .q-brand[data-brand="realme"],   .k-quad .q-series[data-brand="realme"], .k-pick-brand[data-tplbrand="realme"]  { --bc:#ca8a04; }
 .tpl-brand-btn[data-tplbrand="infinix"],  .k-quad .q-brand[data-brand="infinix"],  .k-quad .q-series[data-brand="infinix"], .k-pick-brand[data-tplbrand="infinix"] { --bc:#dc2626; }
+.tpl-brand-btn[data-tplbrand="tecno"],    .k-quad .q-brand[data-brand="tecno"],    .k-quad .q-series[data-brand="tecno"], .k-pick-brand[data-tplbrand="tecno"]    { --bc:#000000; }
+.tpl-brand-btn[data-tplbrand="iphone"],   .k-quad .q-brand[data-brand="iphone"],   .k-quad .q-series[data-brand="iphone"], .k-pick-brand[data-tplbrand="iphone"]  { --bc:#ffffff; }
+
+/* Khusus iPhone: background warna putih, font hitam */
+.tpl-brand-btn[data-tplbrand="iphone"]{
+  background:#ffffff !important;
+  color:#000000 !important;
+  border:1.5px solid #d1d5db !important;
+}
+.tpl-brand-btn[data-tplbrand="iphone"] .tpl-count{
+  background:rgba(0,0,0,0.12) !important;
+  color:#000000 !important;
+}
+.tpl-brand-btn[data-tplbrand="iphone"].on{
+  background:#ffffff !important;
+  color:#000000 !important;
+  border-color:#000000 !important;
+  box-shadow:0 0 0 2px var(--bg-elev), 0 0 0 4px #000000 !important;
+}
+.tpl-brand-btn[data-tplbrand="iphone"].on .tpl-count{
+  background:rgba(0,0,0,0.18) !important;
+  color:#000000 !important;
+}
+
+/* Kotak Brand & Seri di panel ringkas saat iPhone terpilih */
+.k-quad .q-brand[data-brand="iphone"],
+.k-quad .q-series[data-brand="iphone"]{
+  background:#ffffff !important;
+  border-color:#d1d5db !important;
+}
+.k-quad .q-brand[data-brand="iphone"] .q-lbl,
+.k-quad .q-series[data-brand="iphone"] .q-lbl{
+  color:#6b7280 !important;
+  opacity:1 !important;
+}
+.k-quad .q-brand[data-brand="iphone"] select,
+.k-quad .q-brand[data-brand="iphone"] .q-pick,
+.k-quad .q-brand[data-brand="iphone"] .q-pick span,
+.k-quad .q-series[data-brand="iphone"] select,
+.k-quad .q-series[data-brand="iphone"] .q-pick,
+.k-quad .q-series[data-brand="iphone"] .q-pick span,
+.k-quad .q-series[data-brand="iphone"] #kSeriesEdit{
+  color:#000000 !important;
+}
+.k-pick-brand[data-tplbrand="iphone"]{
+  background:#ffffff !important;
+  color:#000000 !important;
+  border-bottom:1px solid #e5e7eb;
+}
+.k-pick-brand[data-tplbrand="iphone"] .k-suggest-name{ color:#000000 !important; }
+.k-pick-brand[data-tplbrand="iphone"] .k-suggest-meta{ color:#6b7280 !important; }
 
 /* Tombol brand di daftar harga tersimpan — terisi penuh, tulisan putih */
 .tpl-brand-btn{
@@ -2764,6 +2815,8 @@ select.mc-inp{ appearance:none; }
 .k-quad .q-save[data-brand="vivo"]   { --bc:#0284c7; }
 .k-quad .q-save[data-brand="realme"] { --bc:#ca8a04; }
 .k-quad .q-save[data-brand="infinix"]{ --bc:#dc2626; }
+.k-quad .q-save[data-brand="tecno"]  { --bc:#000000; }
+.k-quad .q-save[data-brand="iphone"] { --bc:#ffffff; }
 
 /* Judul & subjudul kartu kalkulator dibuat rata tengah.
    Subjudul diberi jarak bawah supaya tidak mepet dengan tombol brand

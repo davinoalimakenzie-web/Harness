@@ -2754,6 +2754,7 @@
     if (/iphone/i.test(rule.id)) return rule.id.indexOf('baterai') === 0 ? 'Baterai iPhone' : 'LCD iPhone';
     if (/baterai/i.test(rule.id)) return 'Baterai';
     if (/oled/i.test(rule.id)) return 'LCD OLED';
+    if (/incell/i.test(rule.id)) return 'LCD Incell';
     if (/bagus/i.test(rule.id)) return 'LCD Premium';
     return 'LCD';
   }

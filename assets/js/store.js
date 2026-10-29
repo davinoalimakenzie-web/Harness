@@ -1115,6 +1115,7 @@
     // Normalisasi kunci supaya case-insensitive pada series & brandId/ruleId lowercase
     // Mencegah duplikat "Galaxy A05" vs "GALAXY A05" dari seed vs input manual
     var b = (p.brandId || '').toLowerCase();
+    if (b === 'apple') b = 'iphone';
     var s = (p.series || '').toUpperCase();
     var r = (p.ruleId || '').toLowerCase();
     return [b, s, r].join('|');
@@ -1124,8 +1125,15 @@
     if (!payload || !payload.brandId || !payload.series || !payload.ruleId) {
       return { ok: false, reason: 'Data harga tidak lengkap' };
     }
-    if (!(parseInt(payload.part, 10) > 0)) {
-      return { ok: false, reason: 'Harga part harus lebih dari 0' };
+    var partNum = parseInt(payload.part, 10);
+    if (isNaN(partNum) || partNum < 0) {
+      payload.part = 0;
+    } else {
+      payload.part = partNum;
+    }
+    var estNum = parseInt(payload.est, 10);
+    if (!(estNum > 0) && !(payload.part > 0)) {
+      return { ok: false, reason: 'Harga part atau estimasi harus lebih dari 0' };
     }
     var list = state.templates || (state.templates = []);
     var key = templateKey(payload);
