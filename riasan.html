@@ -42,7 +42,7 @@
       color: #F5EDF0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       -webkit-tap-highlight-color: transparent;
-      padding-bottom: calc(76px + env(safe-area-inset-bottom));
+      padding-bottom: 24px;
     }
     .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
     .custom-scroll::-webkit-scrollbar-thumb { background: #383040; border-radius: 4px; }
@@ -77,6 +77,28 @@
       </button>
     </div>
   </header>
+
+  <!-- TOP TAB NAVIGATION (4 MENUS) -->
+  <nav id="topNavTabs" class="sticky top-[58px] z-20 bg-[#141217]/95 backdrop-blur border-b border-brand-line px-3 py-2">
+    <div class="grid grid-cols-4 gap-1.5 max-w-md mx-auto">
+      <button onclick="RiasApp.switchTab('jadwal')" class="nav-btn py-2 px-1 rounded-xl flex items-center justify-center gap-1.5 text-xs font-semibold transition-all bg-brand-rose/15 text-brand-rose border border-brand-rose/30 shadow-sm" data-tab="jadwal">
+        <span>📅</span>
+        <span class="truncate">Jadwal</span>
+      </button>
+      <button onclick="RiasApp.switchTab('klien')" class="nav-btn py-2 px-1 rounded-xl flex items-center justify-center gap-1.5 text-xs font-medium text-brand-muted hover:text-brand-text border border-transparent transition-all" data-tab="klien">
+        <span>👰</span>
+        <span class="truncate">Klien</span>
+      </button>
+      <button onclick="RiasApp.switchTab('busana')" class="nav-btn py-2 px-1 rounded-xl flex items-center justify-center gap-1.5 text-xs font-medium text-brand-muted hover:text-brand-text border border-transparent transition-all" data-tab="busana">
+        <span>👗</span>
+        <span class="truncate">Busana</span>
+      </button>
+      <button onclick="RiasApp.switchTab('keuangan')" class="nav-btn py-2 px-1 rounded-xl flex items-center justify-center gap-1.5 text-xs font-medium text-brand-muted hover:text-brand-text border border-transparent transition-all" data-tab="keuangan">
+        <span>💰</span>
+        <span class="truncate">Keuangan</span>
+      </button>
+    </div>
+  </nav>
 
   <!-- MAIN CONTAINER -->
   <main class="max-w-md mx-auto p-4 space-y-4">
@@ -192,31 +214,11 @@
 
   </main>
 
-  <!-- BOTTOM NAVIGATION (4 MENUS) -->
-  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-[#141217]/95 backdrop-blur border-t border-brand-line px-2 py-1.5 flex justify-around max-w-md mx-auto">
-    <button onclick="RiasApp.switchTab('jadwal')" class="nav-btn flex flex-col items-center justify-center flex-1 py-1.5 text-brand-rose active" data-tab="jadwal">
-      <span class="text-xl">📅</span>
-      <span class="text-[10px] font-medium mt-0.5">Jadwal</span>
-    </button>
-    <button onclick="RiasApp.switchTab('klien')" class="nav-btn flex flex-col items-center justify-center flex-1 py-1.5 text-brand-muted" data-tab="klien">
-      <span class="text-xl">👰</span>
-      <span class="text-[10px] font-medium mt-0.5">Klien</span>
-    </button>
-    <button onclick="RiasApp.switchTab('busana')" class="nav-btn flex flex-col items-center justify-center flex-1 py-1.5 text-brand-muted" data-tab="busana">
-      <span class="text-xl">👗</span>
-      <span class="text-[10px] font-medium mt-0.5">Busana</span>
-    </button>
-    <button onclick="RiasApp.switchTab('keuangan')" class="nav-btn flex flex-col items-center justify-center flex-1 py-1.5 text-brand-muted" data-tab="keuangan">
-      <span class="text-xl">💰</span>
-      <span class="text-[10px] font-medium mt-0.5">Keuangan</span>
-    </button>
-  </nav>
-
   <!-- ==================== MODALS ==================== -->
 
   <!-- MODAL: FORM KLIEN (TAMBAH / EDIT) -->
-  <div id="modalClient" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-brand-card border border-brand-line rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-slideUp">
+  <div id="modalClient" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-3">
+    <div class="bg-brand-card border border-brand-line rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden animate-slideUp">
       <div class="px-4 py-3 border-b border-brand-line flex items-center justify-between">
         <h3 class="text-sm font-bold text-brand-gold" id="modalClientTitle">Tambah Klien Baru</h3>
         <button onclick="RiasApp.closeModals()" class="text-brand-muted hover:text-white text-lg p-1">✕</button>
@@ -271,8 +273,8 @@
   </div>
 
   <!-- MODAL: FORM BUSANA (TAMBAH / EDIT) -->
-  <div id="modalCloth" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-brand-card border border-brand-line rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-slideUp">
+  <div id="modalCloth" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-3">
+    <div class="bg-brand-card border border-brand-line rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden animate-slideUp">
       <div class="px-4 py-3 border-b border-brand-line flex items-center justify-between">
         <h3 class="text-sm font-bold text-brand-gold" id="modalClothTitle">Tambah Koleksi Busana</h3>
         <button onclick="RiasApp.closeModals()" class="text-brand-muted hover:text-white text-lg p-1">✕</button>
@@ -318,8 +320,8 @@
   </div>
 
   <!-- MODAL: PILIH BUSANA UNTUK KLIEN (DENGAN PERINGATAN MERAH ANTI-BENTROK H-2 s/d H+2) -->
-  <div id="modalAssignCloth" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-brand-card border border-brand-line rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-slideUp">
+  <div id="modalAssignCloth" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-3">
+    <div class="bg-brand-card border border-brand-line rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden animate-slideUp">
       <div class="px-4 py-3 border-b border-brand-line flex items-center justify-between">
         <div>
           <h3 class="text-sm font-bold text-brand-gold">Pilih Busana untuk Klien</h3>
@@ -343,8 +345,8 @@
   </div>
 
   <!-- MODAL: UPDATE PEMBAYARAN KLIEN -->
-  <div id="modalPayment" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-brand-card border border-brand-line rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-slideUp">
+  <div id="modalPayment" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-3">
+    <div class="bg-brand-card border border-brand-line rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden animate-slideUp">
       <div class="px-4 py-3 border-b border-brand-line flex items-center justify-between">
         <div>
           <h3 class="text-sm font-bold text-brand-gold">Update Pembayaran</h3>
@@ -413,7 +415,7 @@
   </div>
 
   <!-- TOAST NOTIFICATION -->
-  <div id="toast" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-brand-card2 border border-brand-line text-brand-text px-4 py-2 rounded-xl text-xs font-medium shadow-xl opacity-0 pointer-events-none transition-opacity duration-300">
+  <div id="toast" class="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-brand-card2 border border-brand-line text-brand-text px-4 py-2 rounded-xl text-xs font-medium shadow-xl opacity-0 pointer-events-none transition-opacity duration-300">
   </div>
 
   <!-- ==================== LOGIC JAVASCRIPT ==================== -->
@@ -618,8 +620,11 @@
 
         document.querySelectorAll('.nav-btn').forEach(function (b) {
           var isAct = b.dataset.tab === tabName;
-          b.classList.toggle('text-brand-rose', isAct);
-          b.classList.toggle('text-brand-muted', !isAct);
+          if (isAct) {
+            b.className = 'nav-btn py-2 px-1 rounded-xl flex items-center justify-center gap-1.5 text-xs font-semibold transition-all bg-brand-rose/15 text-brand-rose border border-brand-rose/30 shadow-sm';
+          } else {
+            b.className = 'nav-btn py-2 px-1 rounded-xl flex items-center justify-center gap-1.5 text-xs font-medium text-brand-muted hover:text-brand-text border border-transparent transition-all';
+          }
         });
 
         var subs = {

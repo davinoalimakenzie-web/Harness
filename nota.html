@@ -39,7 +39,7 @@
   </div>
 </div>
 
-<script src="assets/js/mascim-local.js?v=20261022b"></script>
+<script src="assets/js/mascim-local.js?v=20261029b"></script>
 <script src="assets/js/supabase.js?v=20261017s"></script>
 <script>
 (function () {
@@ -208,6 +208,10 @@
     return q ? q[1] : '';
   }
 
+  function isUUID(str) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim());
+  }
+
   function muat() {
     var mandiri = mandiriDariUrl();
     if (mandiri) {
@@ -225,16 +229,28 @@
       return;
     }
 
-    // Sumber pertama: Supabase. Berisi nota lengkap dan tidak bergantung
+    // Jika token bukan UUID (format lama): jangan query Supabase agar tidak melempar 22P02
+    if (!isUUID(token)) {
+      if (window.MascimLocal) {
+        try {
+          tampil(window.MascimLocal.getPublicNoteByToken(token));
+          return;
+        } catch (eLoc) {}
+      }
+      gagal('Tautan nota ini menggunakan format sebelum pembaruan sistem. ' +
+        'Silakan hubungi Mas Cim Service HP untuk mendapatkan link nota terbaru.');
+      return;
+    }
+
+    // Sumber pertama: Supabase (Token UUID valid). Berisi nota lengkap dan tidak bergantung
     // pada perangkat mana pun, jadi pelanggan cukup punya tautannya.
     if (window.Supa && window.Supa.ambilNota) {
       tampilWait();
       window.Supa.ambilNota(token).then(function (b) {
         tampil(dariBaris(b));
       }).catch(function (e) {
-        // Server tidak bisa dihubungi, atau nota memang tidak ada di
-        // sana. Coba perangkat ini sebagai cadangan, supaya nota lama
-        // yang baru saja terbit tetap bisa dibuka di HP Mas Cim.
+        // Server tidak bisa dihubungi, atau nota belum sinkron ke server.
+        // Coba perangkat lokal ini sebagai cadangan.
         if (window.MascimLocal) {
           try {
             tampil(window.MascimLocal.getPublicNoteByToken(token));

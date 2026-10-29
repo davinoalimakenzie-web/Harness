@@ -61,6 +61,10 @@
     } catch (e) { return undefined; }
   }
 
+  function isUUID(str) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim());
+  }
+
   // Token nota harus berbentuk UUIDv4, bukan string acak sembarang.
   // Kolom token bertipe UUID di PostgreSQL, dan string acak akan ditolak
   // dengan "invalid input syntax for type uuid" sehingga tidak ada nota
@@ -151,7 +155,7 @@
       // diturnipkan jadi angka supaya kolom integer di server tidak
       // menerima teks dan nomor nota tidak ikut menjadi nol.
       no_nota: nomorNota(o),
-      token: note.token || tokenBaru(),
+      token: (note.token && isUUID(note.token)) ? note.token : tokenBaru(),
       customer_name: o.customerName || o.customer_name || '',
       whatsapp: o.whatsapp || '',
       device: o.device || '',
@@ -362,6 +366,7 @@
      ------------------------------------------------------------------ */
   function ambilNota(token) {
     if (!token) return Promise.reject(new Error('token kosong'));
+    if (!isUUID(token)) return Promise.reject(new Error('Format token tidak valid'));
     return req('GET', '/rest/v1/notas?token=eq.' + encodeURIComponent(token) +
       '&select=no_nota,token,customer_name,whatsapp,device,complaint,intake_condition,' +
       'handling,total_cost,payment_method,paid_at,service_status,warranty,warranty_days,' +

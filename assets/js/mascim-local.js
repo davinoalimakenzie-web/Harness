@@ -541,13 +541,24 @@
     return s;
   }
 
-  // Token link nota pelanggan. Harus sulit ditebak supaya link tidak
-  // bisa dicoba-coba, dan tidak boleh memakai id nota (yang terlihat di
-  // data internal) maupun nomor nota.
+  function isUUID(str) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim());
+  }
+
+  // Token link nota pelanggan.
+  // PENTING: Supabase tabel notas kolom token bertipe UUID (PostgreSQL uuid),
+  // jadi token HARUS berupa format UUIDv4 valid agar tidak ditolak dengan
+  // "invalid input syntax for type uuid" saat disimpan atau dibuka pelanggan.
   function makeNoteToken() {
-    // Alfabet tanpa huruf yang mudah tertukar (i/l/o, 0/1/u) supaya token
-    // masih bisa diketik manual dari layar tanpa salah baca.
-    return randomChars('abcdefghjkmnpqrstvwxyz23456789', 20);
+    var h = '0123456789abcdef';
+    var out = '';
+    for (var i = 0; i < 36; i++) {
+      if (i === 8 || i === 13 || i === 18 || i === 23) { out += '-'; continue; }
+      if (i === 14) { out += '4'; continue; }
+      if (i === 19) { out += h[(Math.floor(Math.random() * 4) + 8) % 16]; continue; }
+      out += h.charAt(Math.floor(Math.random() * 16));
+    }
+    return out;
   }
 
   function addDaysIso(iso, days) {
@@ -993,10 +1004,36 @@
     var t = String(token || '').trim().toLowerCase();
     if (!t) throw notFound('Token nota tidak valid');
     var row = load().orders.filter(function (x) {
-      return x.warrantyNote && x.warrantyNote.token === t;
+      if (!x.warrantyNote) return false;
+      var tok = String(x.warrantyNote.token || '').toLowerCase();
+      var leg = String(x.warrantyNote.legacyToken || '').toLowerCase();
+      return tok === t || leg === t;
     })[0];
     if (!row) throw notFound('Nota tidak ditemukan. Link mungkin salah atau nota ini dibuat di perangkat lain.');
     return publicNote(row);
+  }
+
+  function migrateNonUuidTokens() {
+    try {
+      var db = load();
+      var changed = false;
+      (db.orders || []).forEach(function (o) {
+        if (o.warrantyNote && o.warrantyNote.token && !isUUID(o.warrantyNote.token)) {
+          o.warrantyNote.legacyToken = o.warrantyNote.token;
+          o.warrantyNote.token = makeNoteToken();
+          o.updatedAt = nowIso();
+          changed = true;
+          if (w.Supa && typeof w.Supa.antar === 'function') {
+            try {
+              w.Supa.antar('POST', '/api/mascim/services/' + o.id + '/confirm-taken', {}, { service: computeOrder(o) });
+            } catch (eS) {}
+          }
+        }
+      });
+      if (changed) save();
+    } catch (e) {
+      console.warn('migrateNonUuidTokens warning:', e);
+    }
   }
 
   function validateOrderInput(inp) {
@@ -2309,7 +2346,10 @@
 
   try {
     if (typeof w.setTimeout === 'function') {
-      w.setTimeout(syncExistingBankEntriesToNava, 300);
+      w.setTimeout(function () {
+        syncExistingBankEntriesToNava();
+        migrateNonUuidTokens();
+      }, 300);
     }
   } catch (eSync) {}
 })(window);
