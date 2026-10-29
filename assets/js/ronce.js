@@ -1665,7 +1665,85 @@
     renderInput();
   }
 
-  /* Tandai garapan pribadi owner sudah selesai. */
+  /*
+     Sinkronisasi Pelunasan Jasa Ronce Owner Pribadi ke Cashflow Alima (Project Nava).
+     Kategori: type 'in', group 'Income Hima', sub 'Roncelia'.
+     Aman diulang (idempoten via idem_key: 'ronce-pribadi:' + taskId).
+  */
+  function syncRoncePribadiToCashflow(taskId) {
+    var S = w.Store;
+    if (!S || !S.Tx) return null;
+    var t = cariTugas(taskId);
+    if (!t || !t.pribadi) return null;
+
+    var idem = 'ronce-pribadi:' + t.id;
+    var list = S.Tx.all();
+    var lama = null, tercabut = null;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].idem_key === idem) {
+        if (list[i].deleted_at) tercabut = list[i]; else lama = list[i];
+        break;
+      }
+    }
+
+    var fee = num(t.deliveryFee) || 0;
+    // Jika belum completed atau jasa <= 0: cabut dari cashflow
+    if (t.status !== 'completed' || fee <= 0) {
+      if (lama) { S.Tx.remove(lama.id); return { removed: true, amount: 0 }; }
+      if (tercabut) { S.Tx.remove(tercabut.id); return { removed: true, amount: 0 }; }
+      return null;
+    }
+
+    var tgl = t.date || hariIni();
+    var today = S.todayStr ? S.todayStr() : hariIni();
+    if (tgl > today) tgl = today;
+
+    var ket = 'Pelunasan Jasa Ronce (Pribadi) — ' + namaGarapan(t.serviceId) +
+      (t.quantity > 1 ? ' x' + t.quantity : '') +
+      (t.note ? ' (' + t.note + ')' : '');
+
+    var payload = {
+      type: 'in',
+      group: 'Income Hima',
+      sub: 'Roncelia',
+      amount: fee,
+      date: tgl,
+      note: ket
+    };
+
+    var res;
+    if (lama) {
+      if (lama.amount === fee && lama.group === payload.group && lama.sub === payload.sub &&
+          lama.note === ket && lama.transaction_date === tgl) {
+        return { unchanged: true, amount: fee, id: lama.id };
+      }
+      S.Tx.update(lama.id, payload);
+      res = { updated: true, amount: fee, id: lama.id };
+    } else if (tercabut) {
+      S.Tx.restore(tercabut.id);
+      S.Tx.update(tercabut.id, payload);
+      res = { restored: true, amount: fee, id: tercabut.id };
+    } else {
+      var r = S.Tx.create(payload, idem);
+      res = { created: !r.duplicate, duplicate: !!r.duplicate, amount: fee, id: r.tx && r.tx.id };
+    }
+
+    if (w.TxUI && typeof w.TxUI.render === 'function') w.TxUI.render();
+    if (w.App && typeof w.App.render === 'function') w.App.render();
+    return res;
+  }
+
+  function syncAllCompletedPribadi() {
+    if (!data || !data.tasks) return;
+    for (var i = 0; i < data.tasks.length; i++) {
+      var t = data.tasks[i];
+      if (t.pribadi && t.status === 'completed') {
+        syncRoncePribadiToCashflow(t.id);
+      }
+    }
+  }
+
+  /* Tandai garapan pribadi owner sudah selesai (pelunasan). */
   function selesaiPribadi(id) {
     var t = cariTugas(id);
     if (!t || !t.pribadi) return;
@@ -1674,7 +1752,12 @@
     t._u = new Date().toISOString();
     catat('Tugas pribadi selesai: ' + namaGarapan(t.serviceId));
     simpan();
-    w.App.toast('Tugas pribadi selesai');
+    var syncRes = syncRoncePribadiToCashflow(id);
+    var msg = 'Tugas pribadi selesai';
+    if (syncRes && (syncRes.created || syncRes.updated || syncRes.restored)) {
+      msg += ' & otomatis masuk Cashflow Alima (' + formatIDR(t.deliveryFee) + ')';
+    }
+    w.App.toast(msg);
     renderInput();
   }
 
@@ -1700,7 +1783,7 @@
         + '<div class="mt-row-bottom">'
         +   '<span class="mt-row-jasa">' + formatIDR(t.deliveryFee) + '</span>'
         +   (selesai
-        ?     '<span class="mt-row-ok">Sudah dikerjakan</span>'
+        ?     '<span class="mt-row-ok" style="color:var(--ok)">✓ Selesai · Masuk Cashflow</span>'
         :     '<button class="mini-btn ok" data-pribadi-selesai="' + esc(t.id) + '">SELESAI</button>')
         + '</div>'
         + '</div>';
@@ -1740,7 +1823,7 @@
             + '</div>'
             + '<div class="pribadi-card-row2">'
             +   '<span>' + tglJadi + catatan + '</span>'
-            +   '<span>' + mitra + ' &middot; Selesai</span>'
+            +   '<span style="color:var(--ok);font-weight:600">Lunas &middot; Masuk Cashflow</span>'
             + '</div>'
             + '</div>';
         }).join('');
@@ -1957,6 +2040,7 @@
   /* Gambar ulang tampilan setelah data digabung dari server. */
   function refresh() {
     try {
+      syncAllCompletedPribadi();
       if (sesi) renderTab();
       else renderLogin();
     } catch (e) {}
@@ -1969,6 +2053,9 @@
     if (_inited) return;
     _inited = true;
     muat();
+    try {
+      syncAllCompletedPribadi();
+    } catch (e) {}
     /* Tandai mode mitra dari PARAMETER LINK — bukan dari apakah akunnya sudah
        ketemu di perangkat ini. Di HP mitra (perangkat baru) datanya belum ada,
        jadi kalau menunggu akun ketemu dulu, mitra akan mendarat di beranda
@@ -2216,6 +2303,8 @@
     renderDraft: renderDraft,
     catatPribadi: catatPribadi,
     selesaiPribadi: selesaiPribadi,
+    syncRoncePribadiToCashflow: syncRoncePribadiToCashflow,
+    syncAllCompletedPribadi: syncAllCompletedPribadi,
     ajukanBon: ajukanBon,
     catatBonLangsung: catatBonLangsung,
     setujuiBon: setujuiBon,

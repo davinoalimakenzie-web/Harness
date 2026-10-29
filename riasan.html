@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Aplikasi Rias & Busana Pengantin</title>
+  <title>Lia Mua — Aplikasi Rias &amp; Busana Pengantin</title>
   
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Store (Project Nava Cashflow) -->
+  <script src="assets/js/store.js"></script>
 
   <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -62,8 +64,7 @@
       </div>
       <div>
         <h1 class="text-base font-bold text-brand-text tracking-wide flex items-center gap-1.5">
-          <span>ALIMA RIAS</span>
-          <span class="text-[10px] px-1.5 py-0.5 rounded font-medium bg-brand-gold/20 text-brand-gold border border-brand-gold/30">PRO</span>
+          <span>Lia Mua</span>
         </h1>
         <p class="text-xs text-brand-muted" id="headerSubtitle">Jadwal & Manajemen Pengantin</p>
       </div>
@@ -176,6 +177,7 @@
           <option value="Jas">Jas / Beskap</option>
           <option value="Gaun">Gaun</option>
           <option value="Aksesoris">Aksesoris</option>
+          <option value="Bunga Manten">Bunga Manten</option>
         </select>
       </div>
 
@@ -296,6 +298,7 @@
               <option value="Jas">Jas / Beskap</option>
               <option value="Gaun">Gaun</option>
               <option value="Aksesoris">Aksesoris</option>
+              <option value="Bunga Manten">Bunga Manten</option>
             </select>
           </div>
           <div>
@@ -421,8 +424,8 @@
   <!-- ==================== LOGIC JAVASCRIPT ==================== -->
   <script>
     /* =========================================================
-       ALIMA RIAS & BUSANA — DATABASE & LOGIKA UTAMA
-       Simpel, Clean & Siap Integrasi Supabase
+       LIA MUA — DATABASE & LOGIKA UTAMA
+       Simpel, Clean, Siap Integrasi Supabase & Cashflow Alima
        ========================================================= */
 
     var STORAGE_KEY = 'nava_rias_db_v1';
@@ -439,7 +442,7 @@
           packagePrice: 6500000,
           downPayment: 2000000,
           payments: [
-            { id: 'p1', date: '2026-10-01', amount: 2000000, note: 'DP Booking' }
+            { id: 'p1', date: '2026-10-01', amount: 2000000, note: 'DP Booking', dummy: true }
           ],
           clothes: ['b1', 'b4']
         },
@@ -452,8 +455,8 @@
           packagePrice: 5000000,
           downPayment: 1500000,
           payments: [
-            { id: 'p2', date: '2026-10-15', amount: 1500000, note: 'DP Booking' },
-            { id: 'p3', date: '2026-10-25', amount: 2000000, note: 'Cicilan 1' }
+            { id: 'p2', date: '2026-10-15', amount: 1500000, note: 'DP Booking', dummy: true },
+            { id: 'p3', date: '2026-10-25', amount: 2000000, note: 'Cicilan 1', dummy: true }
           ],
           clothes: ['b2']
         },
@@ -466,7 +469,7 @@
           packagePrice: 3000000,
           downPayment: 3000000,
           payments: [
-            { id: 'p4', date: '2026-10-20', amount: 3000000, note: 'Lunas Langsung' }
+            { id: 'p4', date: '2026-10-20', amount: 3000000, note: 'Lunas Langsung', dummy: true }
           ],
           clothes: ['b5']
         },
@@ -479,7 +482,7 @@
           packagePrice: 4500000,
           downPayment: 1500000,
           payments: [
-            { id: 'p5', date: '2026-10-22', amount: 1500000, note: 'DP Booking' }
+            { id: 'p5', date: '2026-10-22', amount: 1500000, note: 'DP Booking', dummy: true }
           ],
           clothes: ['b3']
         }
@@ -562,6 +565,9 @@
         var today = new Date().toISOString().split('T')[0];
         document.getElementById('clientEventDate').value = today;
         document.getElementById('payDate').value = today;
+
+        // Sinkronisasi pembayaran rias riil ke Cashflow Alima
+        this.syncAllPaymentsToCashflow();
 
         this.renderAll();
       },
@@ -1025,10 +1031,11 @@
           hist.innerHTML = '<p class="text-brand-muted text-[11px]">Belum ada catatan pembayaran.</p>';
         } else {
           hist.innerHTML = client.payments.map(function (p) {
+            var isSynced = !p.dummy;
             return '<div class="flex items-center justify-between p-2 rounded-lg bg-brand-card2 border border-brand-line/50 text-xs">' +
               '<div>' +
                 '<b class="text-brand-text block">' + (p.note || 'Pembayaran') + '</b>' +
-                '<span class="text-[10px] text-brand-muted">' + RiasApp.formatDate(p.date) + '</span>' +
+                '<span class="text-[10px] text-brand-muted">' + RiasApp.formatDate(p.date) + (isSynced ? ' &middot; <span class="text-emerald-400 font-medium">✓ Masuk Cashflow</span>' : '') + '</span>' +
               '</div>' +
               '<span class="font-bold text-emerald-400">+' + RiasApp.formatIDR(p.amount) + '</span>' +
             '</div>';
@@ -1036,6 +1043,105 @@
         }
 
         document.getElementById('modalPayment').classList.remove('hidden');
+      },
+
+      /* =========================================================
+         SINKRONISASI CASHFLOW ALIMA (PROJECT NAVA)
+         Kategori: type 'in', group 'Income Hima', sub 'Riasan'
+         Idempoten via idem_key 'rias-pay:' + payment.id
+         ========================================================= */
+      getStore: function () {
+        if (window.Store && window.Store.Tx) return window.Store;
+        if (window.parent && window.parent.Store && window.parent.Store.Tx) return window.parent.Store;
+        return null;
+      },
+
+      syncPaymentToCashflow: function (client, payment) {
+        if (!payment || !payment.amount || payment.amount <= 0 || payment.dummy) return null;
+        var S = this.getStore();
+        if (!S || !S.Tx) return null;
+
+        var payDate = payment.date || (new Date().toISOString().split('T')[0]);
+        var today = S.todayStr ? S.todayStr() : (new Date().toISOString().split('T')[0]);
+        if (payDate > today) payDate = today;
+
+        var clientName = (client && client.name) ? client.name : 'Klien';
+        var noteDesc = 'Pelunasan Rias (' + (payment.note || 'Pelunasan') + ') — ' + clientName;
+        var idem = 'rias-pay:' + payment.id;
+
+        var list = S.Tx.all();
+        var lama = null, tercabut = null;
+        for (var i = 0; i < list.length; i++) {
+          if (list[i].idem_key === idem) {
+            if (list[i].deleted_at) tercabut = list[i]; else lama = list[i];
+            break;
+          }
+        }
+
+        var payload = {
+          type: 'in',
+          group: 'Income Hima',
+          sub: 'Riasan',
+          amount: payment.amount,
+          date: payDate,
+          note: noteDesc
+        };
+
+        var res;
+        if (lama) {
+          if (lama.amount === payload.amount && lama.group === payload.group && lama.sub === payload.sub &&
+              lama.note === payload.note && lama.transaction_date === payload.date) {
+            res = { unchanged: true, id: lama.id, amount: payment.amount };
+          } else {
+            S.Tx.update(lama.id, payload);
+            res = { updated: true, id: lama.id, amount: payment.amount };
+          }
+        } else if (tercabut) {
+          S.Tx.restore(tercabut.id);
+          S.Tx.update(tercabut.id, payload);
+          res = { restored: true, id: tercabut.id, amount: payment.amount };
+        } else {
+          var r = S.Tx.create(payload, idem);
+          res = { created: !r.duplicate, duplicate: !!r.duplicate, id: r.tx && r.tx.id, amount: payment.amount };
+        }
+
+        // Refresh Nava Cashflow UI
+        var p = window.parent || window;
+        try {
+          if (p.TxUI && typeof p.TxUI.render === 'function') p.TxUI.render();
+          if (p.App && typeof p.App.render === 'function') p.App.render();
+        } catch (e) {}
+
+        return res;
+      },
+
+      removePaymentFromCashflow: function (paymentId) {
+        var S = this.getStore();
+        if (!S || !S.Tx) return;
+        var idem = 'rias-pay:' + paymentId;
+        var list = S.Tx.all();
+        for (var i = 0; i < list.length; i++) {
+          if (list[i].idem_key === idem && !list[i].deleted_at) {
+            S.Tx.remove(list[i].id);
+            break;
+          }
+        }
+        var p = window.parent || window;
+        try {
+          if (p.TxUI && typeof p.TxUI.render === 'function') p.TxUI.render();
+          if (p.App && typeof p.App.render === 'function') p.App.render();
+        } catch (e) {}
+      },
+
+      syncAllPaymentsToCashflow: function () {
+        if (!this.db || !this.db.clients) return;
+        for (var i = 0; i < this.db.clients.length; i++) {
+          var c = this.db.clients[i];
+          var payments = c.payments || [];
+          for (var j = 0; j < payments.length; j++) {
+            this.syncPaymentToCashflow(c, payments[j]);
+          }
+        }
       },
 
       fillFullPayment: function () {
@@ -1063,15 +1169,17 @@
         }
 
         if (!client.payments) client.payments = [];
-        client.payments.push({
+        var newPay = {
           id: 'pay_' + Date.now(),
           date: date,
           amount: amount,
           note: note
-        });
+        };
+        client.payments.push(newPay);
 
         DB.save(this.db);
-        this.toast('Pembayaran berhasil ditambahkan!');
+        this.syncPaymentToCashflow(client, newPay);
+        this.toast('Pembayaran berhasil ditambahkan & masuk Cashflow Alima!');
         this.openPaymentModal(client.id); // refresh
         this.renderAll();
       },
@@ -1134,7 +1242,7 @@
               note: 'DP Booking'
             });
           }
-          this.db.clients.push({
+          var newClient = {
             id: newId,
             name: name,
             phone: phone,
@@ -1144,17 +1252,27 @@
             downPayment: dp,
             payments: initialPayments,
             clothes: []
-          });
+          };
+          this.db.clients.push(newClient);
+          if (initialPayments.length > 0) {
+            this.syncPaymentToCashflow(newClient, initialPayments[0]);
+          }
         }
 
         DB.save(this.db);
         this.closeModals();
-        this.toast('Data klien berhasil disimpan');
+        this.toast('Data klien berhasil disimpan' + (dp > 0 ? ' & DP masuk Cashflow Alima' : ''));
         this.renderAll();
       },
 
       deleteClient: function (id) {
         if (!confirm('Yakin ingin menghapus klien ini beserta seluruh catatan dan jadwalnya?')) return;
+        var c = this.db.clients.find(function (x) { return x.id === id; });
+        if (c && c.payments) {
+          c.payments.forEach(function (p) {
+            RiasApp.removePaymentFromCashflow(p.id);
+          });
+        }
         this.db.clients = this.db.clients.filter(function (c) { return c.id !== id; });
         DB.save(this.db);
         this.toast('Klien berhasil dihapus');
