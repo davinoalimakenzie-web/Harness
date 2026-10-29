@@ -58,77 +58,11 @@
   function accOf(t) { return Accounts.get(t.account_id); }
 
   /* =========================================================
-     POOL — transaksi dari chat bot yang menunggu "Simpan"
-     ========================================================= */
-  function renderPool() {
-    var card = $('#poolCard');
-    if (!card) return;
-    var items = S.Pool.all();
-    if (!items.length) { card.hidden = true; return; }
-    card.hidden = false;
-    $('#poolBadge').textContent = String(items.length);
-    $('#poolList').innerHTML = items.map(function (t) {
-      var ini = t.type === 'in';
-      var acc = accOf(t);
-      return '<div class="item pool-item" data-pool="' + esc(t.id) + '">' +
-        '<span class="tx-icon ' + (ini ? 'in' : 'out') + '">' + esc(iconOfTx(t)) + '</span>' +
-        '<span class="item-body">' +
-          '<span class="item-title">' + esc(labelOf(t)) + '</span>' +
-          '<span class="item-sub">' +
-            '<span class="tag">' + esc(t.group) + '</span>' +
-            '<span>' + esc(S.dayLabel(t.transaction_date)) + '</span>' +
-            (acc ? '<span>' + esc(acc.icon + ' ' + acc.name) + '</span>' : '') +
-          '</span>' +
-          (t.note && t.note !== labelOf(t) ? '<span class="item-note">' + esc(t.note) + '</span>' : '') +
-        '</span>' +
-        '<span class="item-amt ' + (ini ? 'amt-in' : 'amt-out') + '">' + signedMoney(t) + '</span>' +
-        '<span class="pool-acts">' +
-          '<button class="pool-save" data-psave="' + esc(t.id) + '">Simpan</button>' +
-          '<button class="pool-del" data-pdel="' + esc(t.id) + '">Hapus</button>' +
-        '</span>' +
-      '</div>';
-    }).join('');
-  }
-
-  /* Tekan "Simpan": item pool resmi masuk cashflow. */
-  function acceptPoolItem(id, btn) {
-    var item = S.Pool.get(id);
-    if (!item) return;
-    if (btn) { btn.disabled = true; btn.textContent = '…'; }
-    var work = (w.Sync && w.Sync.accept)
-      ? w.Sync.accept(id)
-      // Tanpa Sync (mis. di luar Telegram): tetap masukkan lokal.
-      : Promise.resolve(S.Tx.adopt(item)).then(function (r) { S.Pool.remove(id); return r; });
-    Promise.resolve(work).then(function (r) {
-      render();
-      toast(r && r.warn ? 'Tersimpan di HP, menunggu sinkron' : 'Masuk cashflow ✓');
-    }).catch(function () {
-      if (btn) { btn.disabled = false; btn.textContent = 'Simpan'; }
-      render();
-      toast('Gagal menyimpan');
-    });
-  }
-
-  /* Tekan "Hapus": buang item dari pool (tidak masuk cashflow). */
-  function rejectPoolItem(id, btn) {
-    if (btn) { btn.disabled = true; }
-    var res = w.Sync ? w.Sync.reject(id) : Promise.resolve(null);
-    Promise.resolve(res).then(function () {
-      render();
-      toast('Dihapus dari pool');
-    }).catch(function () {
-      if (btn) { btn.disabled = false; }
-      render();
-    });
-  }
-
-  /* =========================================================
      BERANDA
      ========================================================= */
   function renderHome() {
     var ym = S.ymOf(S.todayStr());
     var s = Tx.summary({ from: ym + '-01', to: ym + '-31' });
-    renderPool();
     var bal = $('#hBalance');
     if (bal) {
       bal.textContent = money(s.net);
@@ -163,7 +97,7 @@
           '<span class="acc-name">Dana Bank</span></span>' +
           '<span class="acc-bal ' + (gb.available > 0 ? 'pos' : gb.available < 0 ? 'neg' : '') + '">' +
             money(gb.available) + '</span>' +
-          '<span class="nb-sub" style="font-size:11px;">Darurat: ' + money(gb.daruratAvailable || 0) + ' · SDH: ' + money(gb.sdhAvailable || 0) + '</span>' +
+          '<span class="nb-sub" style="font-size:11px;">Darurat: ' + money(gb.daruratAvailable || 0) + ' · Sedekah: ' + money(gb.sdhAvailable || 0) + '</span>' +
         '</button>';
     }
 
@@ -286,7 +220,7 @@
     bankSheet('Atur Saldo Awal Dana Bank',
       '<label class="field"><span class="lbl">Saldo awal (Rp)</span>' +
       '<input type="number" id="nbInit" inputmode="numeric" value="' + (cur || 0) + '"></label>' +
-      '<p class="muted xs" style="margin-top:6px">Saldo awal otomatis terbagi 50% Kas Darurat & 50% Kas SDH. ' +
+      '<p class="muted xs" style="margin-top:6px">Saldo awal otomatis terbagi 50% Kas Darurat & 50% Kas Sedekah. ' +
       'Isi 0 bila belum ada.</p>',
       function (body) {
         var b = document.createElement('button');
@@ -297,7 +231,7 @@
           var v = parseInt(String(body.querySelector('#nbInit').value).replace(/\D/g, ''), 10) || 0;
           w.NavaBank.setInitial(v);
           w.App.closeSheet();
-          if (w.App && w.App.toast) w.App.toast('Saldo awal tersimpan (50% Darurat + 50% SDH)');
+          if (w.App && w.App.toast) w.App.toast('Saldo awal tersimpan (50% Darurat + 50% Sedekah)');
           render();
         });
         body.appendChild(b);
@@ -370,10 +304,10 @@
   }
 
   function sheetOutSDH() {
-    bankSheet('Out Kas SDH 🔒',
+    bankSheet('Out Kas Sedekah 🔒',
       '<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:10px 12px;margin-bottom:12px;">' +
         '<span style="font-size:12px;font-weight:700;color:var(--danger);display:block;">⚠️ Akses Khusus Owner</span>' +
-        '<span style="font-size:11.5px;color:var(--text);display:block;margin-top:2px;">Pengeluaran dari <b>Kas SDH</b> hanya boleh dilakukan oleh Owner dengan memasukkan PIN.</span>' +
+        '<span style="font-size:11.5px;color:var(--text);display:block;margin-top:2px;">Pengeluaran dari <b>Kas Sedekah</b> hanya boleh dilakukan oleh Owner dengan memasukkan PIN.</span>' +
       '</div>' +
       '<label class="field"><span class="lbl">Keterangan Penyaluran / Keperluan *</span>' +
       '<input type="text" id="nbSDHDesc" placeholder="Contoh: Sedekah Jumat / Santunan"></label>' +
@@ -404,65 +338,18 @@
 
           try {
             w.NavaBank.add({
-              description: 'SDH — ' + desc,
+              description: 'Sedekah — ' + desc,
               moneyIn: 0,
               moneyOut: amt,
               date: body.querySelector('#nbSDHDate').value || S.todayStr(),
               fund: 'sdh'
             });
             w.App.closeSheet();
-            if (w.App.toast) w.App.toast('Pengeluaran Kas SDH berhasil dicatat');
+            if (w.App.toast) w.App.toast('Pengeluaran Kas Sedekah berhasil dicatat');
             render();
           } catch (err) {
             if (w.App.toast) w.App.toast(err.message);
           }
-        });
-        body.appendChild(btn);
-      });
-  }
-
-  function sheetSetor(due, done, ym) {
-    var g = w.NavaBank.get();
-    bankSheet('Setor Dana Bank',
-      '<p class="nb-hint">Setoran manual menambah <b>Kas SDH</b>. ' +
-      'Kas Darurat hanya menerima dari pengembalian sparepart Mas Cim & pembagian 50% kas wajib bulanan (5%).</p>' +
-      (due > 0 && !done
-        ? '<button class="btn primary block" data-bkw style="margin-bottom:12px">' +
-          '⚡ Setor Kas Wajib 10% (' + money(due) + ')</button>'
-        : '') +
-      '<label class="field"><span class="lbl">Keterangan</span>' +
-      '<input type="text" id="nbSDesc" value="Setoran Kas SDH"></label>' +
-      '<label class="field"><span class="lbl">Nominal (Rp)</span>' +
-      '<input type="number" id="nbSAmt" inputmode="numeric" placeholder="0"></label>',
-      function (body) {
-        body.addEventListener('click', function (e) {
-          if (e.target.closest('[data-bkw]')) {
-            w.NavaBank.tambahSetoranWajib(due, ym);
-            w.App.closeSheet();
-            if (w.App.toast) w.App.toast('Setoran kas wajib tersimpan (5% Darurat + 5% SDH)');
-            render();
-          }
-        });
-        var btn = document.createElement('button');
-        btn.className = 'btn primary block';
-        btn.style.marginTop = '12px';
-        btn.textContent = 'Simpan';
-        btn.addEventListener('click', function () {
-          var amt = parseInt(String(body.querySelector('#nbSAmt').value).replace(/\D/g, ''), 10) || 0;
-          if (amt <= 0) { if (w.App.toast) w.App.toast('Nominal harus lebih dari 0'); return; }
-          var desc = (body.querySelector('#nbSDesc').value || 'Setoran Kas SDH').trim();
-          try {
-            w.NavaBank.add({
-              description: desc,
-              moneyIn: amt,
-              moneyOut: 0,
-              date: S.todayStr(),
-              fund: 'sdh'
-            });
-            w.App.closeSheet();
-            if (w.App.toast) w.App.toast('Setoran Kas SDH tersimpan');
-            render();
-          } catch (err) { if (w.App.toast) w.App.toast(err.message); }
         });
         body.appendChild(btn);
       });
@@ -637,17 +524,17 @@
     if (descEl) {
       if (due > 0) {
         if (done) {
-          descEl.innerHTML = 'Setoran wajib bulan ini <b>' + money(due) + '</b> sudah tersimpan (otomatis terbagi: 5% Kas Darurat & 5% Kas SDH).';
+          descEl.innerHTML = 'Setoran wajib bulan ini <b>' + money(due) + '</b> sudah tersimpan (otomatis terbagi: 5% Kas Darurat & 5% Kas Sedekah).';
           if (badgeEl) { badgeEl.textContent = 'LUNAS'; badgeEl.className = 'tag done'; }
           if (barEl) barEl.style.width = '100%';
           if (actWrap) actWrap.innerHTML = '';
         } else {
-          descEl.innerHTML = 'Wajib setor <b>' + money(due) + '</b> (10% dari total pemasukan bulan ini). Saat disetor otomatis terbagi dua: <b>5% Kas Darurat</b> & <b>5% Kas SDH</b>.';
+          descEl.innerHTML = 'Wajib setor <b>' + money(due) + '</b> (10% dari total pemasukan bulan ini). Saat disetor otomatis terbagi dua: <b>5% Kas Darurat</b> & <b>5% Kas Sedekah</b>.';
           if (badgeEl) { badgeEl.textContent = pct + '%'; badgeEl.className = 'tag proses'; }
           if (barEl) barEl.style.width = pct + '%';
           if (actWrap) {
             actWrap.innerHTML = '<button class="btn ghost block" id="vbBtnSetorWajibAuto" style="font-size:13px;padding:8px 12px;margin-top:6px;">' +
-              'Setorkan Wajib ' + money(due) + ' Sekarang (5% Darurat + 5% SDH)</button>';
+              'Setorkan Wajib ' + money(due) + ' Sekarang (5% Darurat + 5% Sedekah)</button>';
           }
         }
       } else {
@@ -669,16 +556,19 @@
           var tgl = e.date ? S.dayLabel(e.date) : '-';
           var isSDH = (e.fund === 'sdh');
           var fundBadge = isSDH
-            ? '<span class="tag done" style="font-size:10px;padding:2px 6px;margin-right:6px;">Kas SDH</span>'
+            ? '<span class="tag done" style="font-size:10px;padding:2px 6px;margin-right:6px;">Kas Sedekah</span>'
             : '<span class="tag" style="font-size:10px;padding:2px 6px;margin-right:6px;">Kas Darurat</span>';
-          return '<div class="item" style="padding:10px 12px;">' +
-            '<div class="item-body">' +
+          return '<div class="item" style="padding:10px 12px;display:flex;align-items:center;">' +
+            '<div class="item-body" style="flex:1;min-width:0;">' +
               '<div class="item-title" style="font-size:13.5px;font-weight:600;">' + fundBadge + esc(e.description || (masuk ? 'Dana masuk' : 'Dana keluar')) + '</div>' +
               '<div class="item-sub"><span style="font-size:11.5px;color:var(--text-2);">' + esc(tgl) + '</span></div>' +
             '</div>' +
-            '<span class="stat-val ' + (masuk ? 'pos' : 'neg') + '" style="font-size:14.5px;font-weight:700;white-space:nowrap;">' +
-              (masuk ? '+' : '−') + money(jumlah) +
-            '</span>' +
+            '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
+              '<span class="stat-val ' + (masuk ? 'pos' : 'neg') + '" style="font-size:14.5px;font-weight:700;white-space:nowrap;">' +
+                (masuk ? '+' : '−') + money(jumlah) +
+              '</span>' +
+              '<button type="button" class="icon-btn sm" data-vb-del="' + esc(e.id) + '" title="Hapus mutasi" style="color:var(--danger,#ef4444);padding:4px 6px;border:none;background:none;cursor:pointer;font-size:14px;">🗑️</button>' +
+            '</div>' +
           '</div>';
         }).join('');
       }
@@ -1211,16 +1101,6 @@
       b.addEventListener('click', function () { openAdd(); });
     });
 
-    /* --- Pool dari bot (Beranda) --- */
-    var poolList = $('#poolList');
-    if (poolList) {
-      poolList.addEventListener('click', function (e) {
-        var save = e.target.closest('[data-psave]');
-        if (save) { acceptPoolItem(save.dataset.psave, save); return; }
-        var del = e.target.closest('[data-pdel]');
-        if (del) { rejectPoolItem(del.dataset.pdel, del); return; }
-      });
-    }
 
     /* --- Akun di Beranda --- */
     if (el.hAccounts) {
@@ -1401,13 +1281,47 @@
       if (!w.NavaBank) return;
       sheetInitial(w.NavaBank.get().initial);
     });
+    var btnResetBank = $('#vbBtnResetBank');
+    if (btnResetBank) {
+      btnResetBank.addEventListener('click', function () {
+        if (!w.NavaBank) return;
+        var confirmFn = function () {
+          w.NavaBank.reset();
+          if (w.App && w.App.toast) w.App.toast('Dana Bank berhasil di-reset');
+          render();
+        };
+        var msg = 'Apakah Anda yakin ingin mereset seluruh Dana Bank? Semua saldo awal dan riwayat mutasi Kas Darurat & Kas Sedekah akan dikosongkan.';
+        if (TG && typeof TG.confirm === 'function') {
+          TG.confirm(msg, function (ok) { if (ok) confirmFn(); });
+        } else if (confirm(msg)) {
+          confirmFn();
+        }
+      });
+    }
     document.addEventListener('click', function (e) {
+      var delBtn = e.target.closest('[data-vb-del]');
+      if (delBtn) {
+        if (!w.NavaBank) return;
+        var id = delBtn.dataset.vbDel;
+        var doDel = function () {
+          w.NavaBank.remove(id);
+          if (w.App && w.App.toast) w.App.toast('Mutasi berhasil dihapus');
+          render();
+        };
+        var delMsg = 'Hapus mutasi Dana Bank ini?';
+        if (TG && typeof TG.confirm === 'function') {
+          TG.confirm(delMsg, function (ok) { if (ok) doDel(); });
+        } else if (confirm(delMsg)) {
+          doDel();
+        }
+        return;
+      }
       if (e.target.closest('#vbBtnSetorWajibAuto')) {
         if (!w.NavaBank) return;
         var ym = S.ymOf(S.todayStr());
         var due = w.NavaBank.wajibSetoranBulanan(Tx.active(), ym);
         w.NavaBank.tambahSetoranWajib(due, ym);
-        if (w.App && w.App.toast) w.App.toast('Setoran kas wajib tersimpan');
+        if (w.App && w.App.toast) w.App.toast('Setoran kas wajib tersimpan (5% Darurat + 5% Sedekah)');
         render();
       }
     });

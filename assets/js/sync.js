@@ -33,7 +33,6 @@
     configured: false,  // baseUrl + initData tersedia
     lastError: null,
     lastCount: 0,
-    poolCount: 0,       // jumlah item yang menunggu "Simpan"
     _stale: false,      // URL hasil discovery dianggap basi (gagal ditarik)
     _lastTry: 0,        // waktu percobaan terakhir (unix ms)
     _fails: 0           // jumlah kegagalan berturut-turut
@@ -267,75 +266,6 @@
     });
   }
 
-  /* ------------------------------------------------------------
-     Pool transaksi dari bot
-
-     Transaksi yang dikirim lewat chat bot tidak langsung masuk
-     cashflow. Ia ditahan di server sebagai "pool" dan ditarik
-     Mini App untuk ditampilkan di dashboard. Baru setelah pengguna
-     menekan "Simpan" item itu berpindah ke pembukuan.
-     ------------------------------------------------------------ */
-  function pullPool() {
-    return discover().then(function () {
-      if (!isConfigured()) return { skipped: true };
-      status._lastTry = Date.now();
-      return api('/api/pool', { timeout: 10000 })
-        .then(function (j) {
-          var items = j.pool || [];
-          var before = S.Pool.count();
-          S.Pool.set(items);
-          status.online = true;
-          status.lastError = null;
-          status._fails = 0;
-          status.poolCount = S.Pool.count();
-          return { count: S.Pool.count(), added: Math.max(0, S.Pool.count() - before) };
-        })
-        .catch(function (e) {
-          status.online = false;
-          status.lastError = e.message;
-          status._fails++;
-          if (!cfg.manual && (e.status === 0 || !e.status)) {
-            status._stale = true;
-            cfg.baseUrl = '';
-            saveCfg();
-          }
-          return { error: e.message, retryIn: retryDelay() };
-        });
-    });
-  }
-
-  /** Pengguna menekan "Simpan" -> masuk cashflow (lokal dulu, lalu server). */
-  function accept(id) {
-    var item = S.Pool.get(id);
-    if (!item) return Promise.resolve({ ok: false, msg: 'Item pool tidak ditemukan' });
-    // 1) Masukkan ke pembukuan lokal dengan id yang sama seperti server
-    //    supaya tidak muncul dua kali saat sinkron berikutnya.
-    var res = S.Tx.adopt(item);
-    S.Pool.remove(id);
-    // 2) Beri tahu server. Kalau gagal, transaksi tetap sudah tersimpan
-    //    di perangkat dan akan terkirim lewat antrean normal.
-    return discover().then(function () {
-      if (!isConfigured()) return { ok: true, local: true, tx: res.tx };
-      return api('/api/pool/' + encodeURIComponent(id) + '/accept', { method: 'POST' })
-        .then(function () { return { ok: true, tx: res.tx }; })
-        .catch(function (e) {
-          // Server belum mengonfirmasi; tandai agar dikirim ulang nanti.
-          S.Tx.queueForPush(res.tx, 'upsert');
-          return { ok: true, local: true, warn: e.message, tx: res.tx };
-        });
-    });
-  }
-
-  /** Pengguna menekan "Hapus" -> buang item dari pool. */
-  function reject(id) {
-    S.Pool.remove(id);
-    return discover().then(function () {
-      if (!isConfigured()) return { ok: true, local: true };
-      return api('/api/pool/' + encodeURIComponent(id) + '/reject', { method: 'POST' })
-        .then(function () { return { ok: true }; })
-        .catch(function (e) { return { ok: true, local: true, warn: e.message }; });
-    });
-  }
 
   /* ------------------------------------------------------------
      Kirim transaksi lokal yang belum tersinkron
@@ -447,9 +377,6 @@
     isConfigured: isConfigured,
     hasInitData: function () { return !!initData(); },
     pull: pull,
-    pullPool: pullPool,
-    accept: accept,
-    reject: reject,
     mascimApi: mascimApi,
     push: push,
     sync: sync

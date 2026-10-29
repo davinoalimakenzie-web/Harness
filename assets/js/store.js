@@ -537,39 +537,6 @@
       return { ok: true, duplicate: false, tx: t };
     },
 
-    // Ambil transaksi dari "pool" (dari chat bot) INTO pembukuan
-    // memakai id server apa adanya, TANPA antre kirim ulang — karena
-    // server sudah memegangnya. Id yang sama mencegah duplikat saat
-    // penarikan sinkron berikutnya.
-    adopt: function (remote) {
-      if (!remote || !remote.id) return { ok: false, msg: 'Data pool tidak valid' };
-      var existing = Tx.get(remote.id);
-      if (existing) return { ok: true, duplicate: true, tx: existing };
-      var accId = remote.account_id && Accounts.get(remote.account_id)
-        ? remote.account_id
-        : (Accounts.first() || { id: 'acc-cash' }).id;
-      var t = {
-        id: remote.id,
-        account_id: accId,
-        category_id: remote.category_id || null,
-        type: remote.type === 'in' ? 'in' : 'out',
-        group: remote.group || 'Lainnya',
-        sub: remote.sub || null,
-        amount: Math.round(Number(remote.amount) || 0),
-        transaction_date: remote.transaction_date || todayStr(),
-        note: remote.note || '',
-        created_at: remote.created_at || new Date().toISOString(),
-        deleted_at: null,
-        idem_key: remote.idem_key || remote.id,
-        source: remote.source || 'bot'
-      };
-      state.txs.push(t);
-      // Jangan antre ke push: server sudah punya record ini.
-      state.pendingPush = state.pendingPush.filter(function (p) { return p.id !== t.id; });
-      save();
-      return { ok: true, duplicate: false, tx: t };
-    },
-
     // Edit = pembaruan pada record yang sama (PRD 4)
     update: function (id, input) {
       var t = Tx.get(id);
@@ -782,63 +749,16 @@
     }
   };
 
-  /* ---------------- Pool transaksi dari bot ----------------
-     Transaksi yang dicatat lewat chat bot DITAHAN di sini, terpisah
-     dari pembukuan cashflow, sampai pengguna menekan tombol "Simpan"
-     di dashboard. Dengan begitu, rekap/saldo tidak berubah hanya karena
-     ada pesan di chat — baru setelah benar-benar disimpan. */
+  /* ---------------- Pool (dinonaktifkan) ---------------- */
   var Pool = {
-    all: function () { return state.pool.slice(); },
-    count: function () { return state.pool.length; },
-    get: function (id) {
-      return state.pool.filter(function (x) { return x.id === id; })[0] || null;
-    },
-    has: function (id) { return !!Pool.get(id); },
-
-    // Ganti isi pool dengan daftar terbaru dari server.
-    set: function (items) {
-      var seen = {};
-      state.pool = (items || []).filter(function (r) {
-        if (!r || !r.id || seen[r.id]) return false;
-        seen[r.id] = true;
-        return true;
-      }).map(function (r) {
-        return {
-          id: r.id,
-          account_id: r.account_id || 'acc-cash',
-          category_id: r.category_id || null,
-          type: r.type === 'in' ? 'in' : 'out',
-          group: r.group || 'Lainnya',
-          sub: r.sub || null,
-          amount: Math.round(Number(r.amount) || 0),
-          transaction_date: r.transaction_date || todayStr(),
-          note: r.note || '',
-          created_at: r.created_at || new Date().toISOString(),
-          idem_key: r.idem_key || r.id,
-          source: r.source || 'bot'
-        };
-      });
-      save();
-      return state.pool.length;
-    },
-
-    // Terima satu item dari server (tambahan, tanpa menimpa yang ada).
-    add: function (r) {
-      if (!r || !r.id) return 0;
-      if (Pool.has(r.id)) return 0;
-      var n = Pool.set(state.pool.concat([r]));
-      return n;
-    },
-
-    // Buang dari pool setelah disimpan atau ditolak.
-    remove: function (id) {
-      var before = state.pool.length;
-      state.pool = state.pool.filter(function (x) { return x.id !== id; });
-      if (state.pool.length !== before) save();
-      return before - state.pool.length;
-    },
-
-    clear: function () { state.pool = []; save(); }
+    all: function () { return []; },
+    count: function () { return 0; },
+    get: function () { return null; },
+    has: function () { return false; },
+    set: function () { return 0; },
+    add: function () { return 0; },
+    remove: function () { return 0; },
+    clear: function () {}
   };
 
   /* ---------------- Kelompok / kategori aktif ---------------- */

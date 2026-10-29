@@ -27,14 +27,6 @@
 
   <!-- ============ TAB: BERANDA (Menggantikan Dashboard dengan Rekap) ============ -->
   <section id="view-home" class="view active">
-    <div id="poolCard" class="card pool-card" hidden>
-      <div class="list-head tight">
-        <strong><span class="pool-ic">📥</span> Menunggu Disimpan</strong>
-        <span id="poolBadge" class="pool-badge">0</span>
-      </div>
-      <p class="pool-hint">Diterima dari chat bot Alima. Tekan <b>Simpan</b> untuk masuk ke cashflow.</p>
-      <div id="poolList" class="list"></div>
-    </div>
 
     <!-- Strip Bulan & Saldo Periode Sejajar Sebaris -->
     <div class="card" style="margin-bottom:12px;padding:10px 14px;">
@@ -80,14 +72,14 @@
     <div id="hList" class="list"></div>
   </section>
 
-  <!-- ============ TAB: DANA BANK (Kas Darurat & Kas SDH) ============ -->
+  <!-- ============ TAB: DANA BANK (Kas Darurat & Kas Sedekah) ============ -->
   <section id="view-bank" class="view">
-    <!-- Kartu Saldo Dana Bank & 2 Variabel (Darurat & SDH) -->
+    <!-- Kartu Saldo Dana Bank & 2 Variabel (Darurat & Sedekah) -->
     <div class="balance card" style="text-align:center;padding:16px 14px 14px;">
       <span class="lbl" style="letter-spacing:.5px;font-size:12px;text-transform:uppercase;">Total Saldo Dana Bank</span>
       <strong id="vbAvail" class="balance-val" style="font-size:26px;">Rp0</strong>
 
-      <!-- 2 Variabel: Kas Darurat & Kas SDH -->
+      <!-- 2 Variabel: Kas Darurat & Kas Sedekah -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;text-align:left;">
         <div style="background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:12px;padding:10px 12px;">
           <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -99,7 +91,7 @@
         </div>
         <div style="background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:12px;padding:10px 12px;">
           <div style="display:flex;align-items:center;justify-content:space-between;">
-            <span style="font-size:11.5px;font-weight:700;color:var(--text-2);text-transform:uppercase;">🤲 Kas SDH</span>
+            <span style="font-size:11.5px;font-weight:700;color:var(--text-2);text-transform:uppercase;">🤲 Kas Sedekah</span>
             <span class="tag done" style="font-size:10px;padding:1px 5px;">5%</span>
           </div>
           <strong id="vbAvailSDH" style="display:block;font-size:16px;font-weight:750;margin-top:4px;color:var(--success);">Rp0</strong>
@@ -113,7 +105,7 @@
       </div>
     </div>
 
-    <!-- Kartu Setoran Kas Wajib Bulanan (10% Pemasukan -> Otomatis Terbagi 5% Darurat + 5% SDH) -->
+    <!-- Kartu Setoran Kas Wajib Bulanan (10% Pemasukan -> Otomatis Terbagi 5% Darurat + 5% Sedekah) -->
     <div class="card" id="vbWajibCard" style="margin-top:12px;">
       <div class="list-head tight">
         <strong>Setoran Kas Wajib Bulanan</strong>
@@ -126,13 +118,15 @@
       <div id="vbWajibActionWrap" style="margin-top:10px;"></div>
     </div>
 
-    <!-- Tombol Aksi Dana Bank (Setor manual dihilangkan sesuai permintaan) -->
+    <!-- Tombol Aksi Dana Bank -->
     <div class="field-row" style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
       <button class="btn primary" id="vbBtnOutBon" style="padding:10px 8px;font-size:13px;">🚨 Out Kas Darurat</button>
-      <button class="btn ghost" id="vbBtnOutSDH" style="padding:10px 8px;font-size:13px;border-color:var(--warn);color:var(--warn);">🔒 Out Kas SDH</button>
+      <button class="btn ghost" id="vbBtnOutSDH" style="padding:10px 8px;font-size:13px;border-color:var(--warn);color:var(--warn);">🔒 Out Kas Sedekah</button>
     </div>
-    <div style="margin-top:8px;">
-      <button class="btn ghost block" id="vbBtnInitial" style="padding:8px 8px;font-size:12.5px;">⚙️ Atur Saldo Awal</button>
+    <!-- Aksi Owner: Atur Saldo Awal & Reset Dana Bank sejajar / sebaris -->
+    <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <button class="btn ghost block" id="vbBtnInitial" style="padding:8px 8px;font-size:12.5px;margin:0;">⚙️ Atur Saldo Awal</button>
+      <button class="btn ghost block" id="vbBtnResetBank" style="padding:8px 8px;font-size:12.5px;margin:0;border-color:var(--danger,#ef4444);color:var(--danger,#ef4444);">🔄 Reset Dana Bank</button>
     </div>
 
     <!-- Riwayat Transaksi Dana Bank -->

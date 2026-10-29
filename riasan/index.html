@@ -1037,7 +1037,10 @@
                 '<b class="text-brand-text block">' + (p.note || 'Pembayaran') + '</b>' +
                 '<span class="text-[10px] text-brand-muted">' + RiasApp.formatDate(p.date) + (isSynced ? ' &middot; <span class="text-emerald-400 font-medium">✓ Masuk Cashflow</span>' : '') + '</span>' +
               '</div>' +
-              '<span class="font-bold text-emerald-400">+' + RiasApp.formatIDR(p.amount) + '</span>' +
+              '<div class="flex items-center gap-2">' +
+                '<span class="font-bold text-emerald-400">+' + RiasApp.formatIDR(p.amount) + '</span>' +
+                '<button type="button" onclick="RiasApp.deletePayment(\'' + client.id + '\', \'' + p.id + '\')" class="text-red-400 hover:text-red-300 p-1 text-xs" title="Hapus Pembayaran">🗑️</button>' +
+              '</div>' +
             '</div>';
           }).join('');
         }
@@ -1276,6 +1279,26 @@
         this.db.clients = this.db.clients.filter(function (c) { return c.id !== id; });
         DB.save(this.db);
         this.toast('Klien berhasil dihapus');
+        this.renderAll();
+      },
+
+      deletePayment: function (clientId, paymentId) {
+        if (!confirm('Yakin ingin menghapus pembayaran ini?')) return;
+        var client = this.db.clients.find(function (c) { return c.id === clientId; });
+        if (!client || !client.payments) return;
+        var pIdx = -1;
+        for (var i = 0; i < client.payments.length; i++) {
+          if (client.payments[i].id === paymentId) {
+            pIdx = i;
+            break;
+          }
+        }
+        if (pIdx < 0) return;
+        this.removePaymentFromCashflow(paymentId);
+        client.payments.splice(pIdx, 1);
+        DB.save(this.db);
+        this.toast('Pembayaran berhasil dihapus');
+        this.openPaymentModal(clientId);
         this.renderAll();
       },
 

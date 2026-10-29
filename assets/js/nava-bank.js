@@ -78,8 +78,8 @@
         var dt = String(e.date || '').slice(0, 10);
         var nt = String(e.note || '').slice(0, 200);
 
-        // Jika ada entri setoran wajib 10% lama yang belum terbagi 5% darurat & 5% sdh:
-        if (kind === 'wajib' && mi > 0 && descUpper.indexOf('5%') === -1 && descUpper.indexOf('SDH') === -1) {
+        // Jika ada entri setoran wajib 10% lama yang belum terbagi 5% darurat & 5% sedekah:
+        if (kind === 'wajib' && mi > 0 && descUpper.indexOf('5%') === -1 && descUpper.indexOf('SDH') === -1 && descUpper.indexOf('SEDEKAH') === -1) {
           var half1 = Math.round(mi / 2);
           var half2 = mi - half1;
           var ymMatch = desc.match(/\d{4}-\d{2}/);
@@ -96,7 +96,7 @@
           });
           newEntries.push({
             id: (e.id || uid()) + '_sdh',
-            description: KETERANGAN_WAJIB + ' 5% (Kas SDH)' + ymSuffix,
+            description: KETERANGAN_WAJIB + ' 5% (Kas Sedekah)' + ymSuffix,
             moneyIn: half2,
             moneyOut: 0,
             date: dt,
@@ -107,23 +107,8 @@
           return;
         }
 
-        // Setoran umum / manual: MASUK KE KAS SDH (Kas Darurat HANYA menerima dari pengembalian sparepart & 50% kas wajib 10%)
-        if (kind !== 'wajib' && kind !== 'sparepart' && kind !== 'bon' && mi > 0 && !isReturnDesc(desc)) {
-          newEntries.push({
-            id: e.id || uid(),
-            description: desc,
-            moneyIn: mi,
-            moneyOut: 0,
-            date: dt,
-            note: nt,
-            kind: kind,
-            fund: 'sdh'
-          });
-          return;
-        }
-
         var isReturn = (kind === 'sparepart' || kind === 'bon' || isReturnDesc(desc));
-        var isSDH = !isReturn && (e.fund === 'sdh' || descUpper.indexOf('(KAS SDH)') !== -1 || descUpper.indexOf('SDH') !== -1);
+        var isSDH = !isReturn && (e.fund === 'sdh' || descUpper.indexOf('(KAS SDH)') !== -1 || descUpper.indexOf('SDH') !== -1 || descUpper.indexOf('SEDEKAH') !== -1);
         newEntries.push({
           id: e.id || uid(),
           description: desc,
@@ -212,8 +197,8 @@
       return a + (e.moneyIn && e.kind !== 'wajib' ? e.moneyIn : 0);
     }, 0);
   }
-  // Breakdown dua variabel: Kas Darurat & Kas SDH
-  // ATURAN WAJIB: Saldo awal terbagi 50% Kas Darurat & 50% Kas SDH.
+  // Breakdown dua variabel: Kas Darurat & Kas Sedekah
+  // ATURAN WAJIB: Saldo awal terbagi 50% Kas Darurat & 50% Kas Sedekah.
   function getBreakdown(d) {
     d = d || load();
     var init = initialValue(d);
@@ -227,19 +212,22 @@
       var descU = String(e.description || '').toUpperCase();
       var isReturn = (e.kind === 'sparepart' || isReturnDesc(e.description));
       var isWajibDarurat = (e.kind === 'wajib' && (e.fund === 'darurat' || descU.indexOf('(KAS DARURAT)') !== -1 || descU.indexOf('5% (KAS DARURAT)') !== -1));
+      var isWajibSedekah = (e.kind === 'wajib' && (e.fund === 'sdh' || descU.indexOf('SEDEKAH') !== -1 || descU.indexOf('SDH') !== -1));
 
-      // Dana Masuk: HANYA pengembalian sparepart Mas Cim & 50% kas wajib (5%) yang boleh masuk ke Kas Darurat
+      // Dana Masuk:
+      // (1) Kas Darurat HANYA menerima: 50% saldo awal, pengembalian sparepart Mas Cim, dan 50% kas wajib (5%).
+      // (2) Kas Sedekah HANYA menerima: 50% saldo awal, dan 50% kas wajib (5%).
       if (mi > 0) {
         if (isReturn || isWajibDarurat) {
           inDarurat += mi;
-        } else {
+        } else if (isWajibSedekah || e.fund === 'sdh') {
           inSDH += mi;
         }
       }
 
-      // Dana Keluar: pengeluaran dari Kas SDH (e.fund === 'sdh' atau ada teks SDH), sisanya dari Kas Darurat
+      // Dana Keluar: pengeluaran dari Kas Sedekah (e.fund === 'sdh' atau ada teks SDH / SEDEKAH), sisanya dari Kas Darurat
       if (mo > 0) {
-        if (e.fund === 'sdh' || descU.indexOf('SDH') !== -1) {
+        if (e.fund === 'sdh' || descU.indexOf('SDH') !== -1 || descU.indexOf('SEDEKAH') !== -1) {
           outSDH += mo;
         } else {
           outDarurat += mo;
@@ -347,7 +335,7 @@
 
         var half1 = Math.round(mi / 2);
         var half2 = mi - half1;
-        var cleanWajibDesc = desc.replace(/\s*\((?:50%|5%|\d+%)?\s*(?:Kas )?(?:Darurat|SDH)\)/gi, '').trim() || KETERANGAN_WAJIB;
+        var cleanWajibDesc = desc.replace(/\s*\((?:50%|5%|\d+%)?\s*(?:Kas )?(?:Darurat|SDH|Sedekah)\)/gi, '').trim() || KETERANGAN_WAJIB;
 
         var eDarurat = {
           id: (rec.id || uid()) + '_d',
@@ -361,7 +349,7 @@
         };
         var eSDH = {
           id: (rec.id || uid()) + '_s',
-          description: cleanWajibDesc + ' 5% (Kas SDH)',
+          description: cleanWajibDesc + ' 5% (Kas Sedekah)',
           moneyIn: half2,
           moneyOut: 0,
           date: date,
@@ -375,30 +363,18 @@
         return eDarurat;
       }
 
-      // (3) SEMUA pemasukan / setoran lainnya MASUK KE KAS SDH (TIDAK BOLEH KE KAS DARURAT).
-      var eSDHOther = {
-        id: rec.id || uid(),
-        description: desc + (desc.toUpperCase().indexOf('SDH') === -1 ? ' (Kas SDH)' : ''),
-        moneyIn: mi,
-        moneyOut: 0,
-        date: date,
-        note: note,
-        kind: kind,
-        fund: 'sdh'
-      };
-      d.entries.push(eSDHOther);
-      save();
-      return eSDHOther;
+      // (3) Tidak ada setoran umum / manual lainnya ke Dana Bank
+      throw new Error('Tidak ada setoran manual ke Dana Bank. Dana masuk hanya melalui Setoran Kas Wajib 10% dan Pengembalian Modal.');
     }
 
     // DANA KELUAR (OUTFLOW)
-    // Pengeluaran default dan wajib dari Kas Darurat, kecuali pengeluaran khusus Kas SDH via PIN
+    // Pengeluaran default dan wajib dari Kas Darurat, kecuali pengeluaran khusus Kas Sedekah via PIN
     var fund = rec.fund === 'sdh' ? 'sdh' : 'darurat';
     var bd = getBreakdown(d);
 
     if (fund === 'sdh') {
       if (mo > bd.sdh.available) {
-        throw new Error('Kas SDH tidak cukup. Tersisa ' + fmtIDR(bd.sdh.available));
+        throw new Error('Kas Sedekah tidak cukup. Tersisa ' + fmtIDR(bd.sdh.available));
       }
     } else {
       // Kas Darurat: untuk pinjaman otomatis sparepart Mascim, catat peminjaman tanpa memblokir servis
@@ -493,7 +469,7 @@
     });
 
     var e2 = add({
-      description: KETERANGAN_WAJIB + ' 5% (Kas SDH) ' + ym,
+      description: KETERANGAN_WAJIB + ' 5% (Kas Sedekah) ' + ym,
       moneyIn: amtSDH,
       moneyOut: 0,
       date: dateStr || todayStr(),

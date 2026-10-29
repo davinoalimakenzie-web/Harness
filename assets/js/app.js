@@ -11,8 +11,8 @@
 
   var TITLES = {
     home:    ['Cashflow Alima', 'Ringkasan & riwayat transaksi'],
-    bank:    ['Dana Bank', 'Kas Darurat (5%) & Kas SDH (5%)'],
-    kas:     ['Dana Bank', 'Kas Darurat (5%) & Kas SDH (5%)'],
+    bank:    ['Dana Bank', 'Kas Darurat (5%) & Kas Sedekah (5%)'],
+    kas:     ['Dana Bank', 'Kas Darurat (5%) & Kas Sedekah (5%)'],
     history: ['Riwayat', 'Semua transaksi tersimpan'],
     recap:   ['Cashflow Alima', 'Ringkasan & riwayat transaksi'],
     more:    ['Lainnya', 'Alat, kategori, akun & data'],
@@ -842,12 +842,6 @@
     // ---- Sinkronisasi dengan bot ----
     initSyncUI();
     if (w.Sync) {
-      // Tarik pool lebih dulu supaya isi dari bot langsung tampil
-      // sebagai "menunggu disimpan", terpisah dari cashflow.
-      w.Sync.pullPool().then(function (r) {
-        if (r && r.count > 0) { w.TxUI.render(); }
-        renderSyncStatus();
-      });
       w.Sync.sync().then(function (r) {
         if (r && (r.added || r.updated || r.pushed)) {
           w.TxUI.render();
@@ -855,15 +849,9 @@
         }
         renderSyncStatus();
       });
-      // Jadwal adaptif. Saat server sehat, pool ditarik tiap 15 detik
-      // supaya transaksi dari chat bot tampil nyaris real-time. Saat
-      // server sedang tidak terjangkau (tunnel lagi dibalik oleh
-      // supervisor), jeda diperpanjang bertahap supaya tidak menembak
-      // ke alamat mati, tapi tetap segera mencoba begitu tunnel baru
-      // terbit. Progresif: 15s -> 30s -> 45s -> 60s (maks).
-      var POOL_STEPS = [15000, 30000, 45000, 60000];
+      // Jadwal adaptif sinkronisasi berkala
       var FULL_STEPS = [60000, 120000, 180000, 300000];
-      var poolTimer = null, fullTimer = null, poolFails = 0, fullFails = 0;
+      var fullTimer = null, fullFails = 0;
 
       function pick(steps, fails) { return steps[Math.min(fails, steps.length - 1)]; }
 
@@ -875,21 +863,6 @@
           if (w.TxUI && w.TxUI.render) w.TxUI.render();
           renderSyncStatus();
         } catch (e) { console.error('nava: render sinkron gagal', e); }
-      }
-
-      function schedulePool() {
-        if (poolTimer) clearTimeout(poolTimer);
-        poolTimer = setTimeout(function () {
-          if (document.hidden) { schedulePool(); return; }
-          Promise.resolve()
-            .then(function () { return w.Sync.pullPool(); })
-            .then(function (r) {
-              if (r && r.added > 0) renderAman();
-              if (r && r.error) { poolFails++; } else { poolFails = 0; }
-            })
-            .catch(function (e) { poolFails++; })
-            .then(function () { schedulePool(); });
-        }, pick(POOL_STEPS, poolFails));
       }
 
       function scheduleFull() {
@@ -907,7 +880,6 @@
         }, pick(FULL_STEPS, fullFails));
       }
 
-      schedulePool();
       scheduleFull();
     }
 
