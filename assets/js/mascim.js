@@ -1735,7 +1735,7 @@
       o.parts.forEach(function (p) {
         // Hapus part hanya selama nota belum punya pembayaran (aturan mesin
         // data: riwayat uang tidak boleh berubah diam-diam).
-        var bisaHapus = !(o.payments && o.payments.length) && o.serviceStatus !== 'Done Diambil' && o.serviceStatus !== 'Cancel Diambil';
+        var bisaHapus = !(o.payments && o.payments.length);
         html += '<div class="mc-prow"><span>' + esc(p.partName) +
           '<em>' + esc(p.fundingSource) + '</em></span><b>' + rupiah(p.capitalCost) + '</b>' +
           (bisaHapus ? '<button type="button" class="mc-x mc-x-sm" data-delpart="' + esc(p.id) + '" aria-label="Hapus ' + esc(p.partName) + '">\u2715</button>' : '') +
@@ -1806,7 +1806,7 @@
     //   Progress -> Done -> Catat Pembayaran -> (lunas) Konfirmasi -> Diambil
     if (payIsLocked) {
       html += '<p class="mc-hint sm">Pembayaran dicatat setelah garapan ditandai <b>Done</b>.' +
-        (o.serviceStatus.trim() === 'Done Diambil'
+        (o.serviceStatus.trim() === 'Done Diambil' || o.serviceStatus.trim() === 'Cancel Diambil'
           ? ' Nota ini sudah diambil dan pembayaran sudah lunas.'
           : ' Status saat ini: <b>' + esc(o.serviceStatus) + '</b>.') + '</p>';
     }
@@ -1927,12 +1927,12 @@
             statusOpts.map(function (st) {
               return '<button class="mc-pick" data-st="' + esc(st) + '">' + esc(st) + '</button>';
             }).join('') +
-            (o.serviceStatus.trim() === 'Done Diambil'
+            (o.serviceStatus.trim() === 'Done Diambil' || o.serviceStatus.trim() === 'Cancel Diambil'
               ? '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">'
                 + 'Hapus garapan ini</button>'
               : '') +
             '</div>'
-          : (o.serviceStatus.trim() === 'Done Diambil'
+          : (o.serviceStatus.trim() === 'Done Diambil' || o.serviceStatus.trim() === 'Cancel Diambil'
             ? '<div class="mc-dropmenu" id="dStatusMenu">'
               + '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">'
               + 'Hapus garapan ini</button></div>'

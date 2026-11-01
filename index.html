@@ -259,11 +259,6 @@
         <span class="tool-body"><b>Kalkulator</b><span>Ronce, servis HP &amp; riasan</span></span>
         <span class="tool-go">›</span>
       </button>
-      <button class="tool" data-mascim-open="1">
-        <span class="tool-ico svc">C</span>
-        <span class="tool-body"><b>Mas cim</b><span id="hMascimInfo">Input servis, kas, &amp; Dana Bank</span></span>
-        <span class="tool-go">›</span>
-      </button>
       <button class="tool" data-nt-open="1">
         <span class="tool-ico trd">T</span>
         <span class="tool-body"><b>Nava Trader</b><span id="hTraderInfo">IHSG, watchlist &amp; analisa saham BEI</span></span>
@@ -276,21 +271,20 @@
     <div class="card" style="margin:0 14px 14px;padding:12px">
       <div class="row-b" style="gap:10px;align-items:flex-start">
         <div class="grow">
-          <div class="item-title">Tersimpan di perangkat &amp; dicadangkan ke server</div>
-          <div class="item-sub">Transaksi, akun, dan catatan tetap ada di HP ini
-            (localStorage) supaya aplikasi tetap jalan tanpa internet. Setiap
-            perubahan juga dikirim ke Supabase sebagai cadangan terpusat, lalu
-            dikembalikan lagi saat DEVICE_ID berbeda.
-            Tidak ada Chat ID atau isi percakapan yang tersimpan.</div>
+          <div class="item-title">Tersimpan di perangkat &amp; tersinkron ke cloud</div>
+          <div class="item-sub">Transaksi, akun, dan catatan tersimpan di perangkat ini (localStorage) dan otomatis tersinkronisasi dua arah ke cloud (Supabase). Semua input dari link browser maupun Telegram Mini App tersimpan menjadi satu.</div>
         </div>
         <span class="rec-dot" id="sb-kartu-titik" aria-hidden="true"></span>
       </div>
+      <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <p class="muted xs" id="sb-kartu-status" style="margin:0">Memeriksa koneksi...</p>
+        <button id="btnManualSync" type="button" class="btn sm" style="padding:6px 14px;font-size:12px;font-weight:600;white-space:nowrap;background:linear-gradient(135deg,var(--accent),#2563eb);color:#fff;border-radius:8px;border:none;cursor:pointer;">
+          🔄 Sinkronkan Sekarang
+        </button>
+      </div>
       <p class="muted xs" style="margin:10px 0 0">
-        <b>Pindah ke HP lain:</b> pakai <b>Export JSON</b> di HP lama, lalu
-        <b>Import JSON</b> di HP tujuan.
-        <b>Cadangan otomatis</b> ada di bawah dan menyimpan 8 salinan terakhir.
+        <b>Pindah ke HP lain:</b> otomatis tersinkron saat dibuka, atau pakai <b>Export JSON</b> di HP lama lalu <b>Import JSON</b> di HP tujuan.
       </p>
-      <p class="muted xs" id="sb-kartu-status" style="margin:8px 0 0">Memeriksa koneksi...</p>
     </div>
 
     <div class="list-head"><strong>Akun</strong></div>

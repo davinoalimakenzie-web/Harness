@@ -107,7 +107,7 @@
         }
       };
       if (body !== undefined) opsi.body = JSON.stringify(body);
-      if (kirimBalik) opsi.headers['Prefer'] = 'return=representation';
+      if (kirimBalik) opsi.headers['Prefer'] = 'return=representation,resolution=merge-duplicates';
 
       // fetch tidak ada di WebView sangat lama. Abaikan diam-diam.
       if (typeof w.fetch !== 'function') { tutup({ ok: false, err: 'no-fetch' }); return; }
@@ -343,6 +343,8 @@
      ------------------------------------------------------------------ */
   function cadangan() {
     try {
+      var rawP = w.localStorage.getItem('projectnava.v3');
+      if (!rawP || rawP.length < 80) return null; // perlindungan: jangan snapshot jika data lokal belum siap/kosong
       var isi = {};
       for (var i = 0; i < w.localStorage.length; i++) {
         var k = w.localStorage.key(i);

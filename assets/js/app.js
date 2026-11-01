@@ -904,32 +904,69 @@
       teks.textContent = 'Cadangan ke server belum tersedia di versi ini.';
       return;
     }
+    var syncSt = (w.Sync && typeof w.Sync.getStatus === 'function') ? w.Sync.getStatus() : null;
     var s = w.Supa.status();
     var warna = function (k) {
       return titik ? 'background:' + k : '';
     };
+
+    if (syncSt && syncSt.lastSync) {
+      var d = new Date(syncSt.lastSync);
+      var jam = isNaN(d.getTime()) ? '' : d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      teks.textContent = 'Tersinkron ke cloud (Supabase)' + (jam ? ' • Pukul ' + jam : '') + '.';
+      if (titik) titik.style.cssText = warna('var(--ok)');
+      return;
+    }
+
     if (s.status === 'selesai' && !s.antrean) {
-      teks.textContent = 'Semua data sudah sampai di server. '
-        + 'Cadangan terakhir: ' + (s.cadangan || 'belum ada') + '.';
+      teks.textContent = 'Semua data tersinkron ke cloud (Supabase).';
       if (titik) titik.style.cssText = warna('var(--ok)');
       return;
     }
     if (s.antrean) {
-      teks.textContent = s.antrean + ' perubahan menunggu dikirim. '
-        + 'Aplikasi tetap bisa dipakai seperti biasa; pengiriman diulang otomatis.';
-      if (s.kesalahan) teks.textContent += ' Kesalahan terakhir: ' + s.kesalahan;
+      teks.textContent = s.antrean + ' perubahan menunggu dikirim ke cloud...';
+      if (s.kesalahan) teks.textContent += ' (' + s.kesalahan + ')';
       if (titik) titik.style.cssText = warna('var(--warn)');
       return;
     }
-    teks.textContent = 'Menyiapkan cadangan ke server...';
+    teks.textContent = 'Menghubungkan ke cloud...';
     if (titik) titik.style.cssText = warna('var(--warn)');
   }
 
-
   function initSyncUI() {
+    renderSyncStatus();
+
+    var btnManual = $('#btnManualSync');
+    if (btnManual) {
+      btnManual.addEventListener('click', function () {
+        btnManual.disabled = true;
+        btnManual.textContent = '⏳ Menyinkronkan...';
+        if (w.Sync && w.Sync.sync) {
+          w.Sync.sync().then(function (r) {
+            btnManual.disabled = false;
+            btnManual.textContent = '🔄 Sinkronkan Sekarang';
+            if (r && r.error) {
+              App.toast('Gagal sinkron: ' + r.error);
+            } else {
+              var count = (r && r.total != null) ? r.total : (w.Store && w.Store.state && w.Store.state.txs ? w.Store.state.txs.filter(function (t) { return !t.deleted_at; }).length : 0);
+              App.toast('✅ Sinkron selesai! ' + count + ' transaksi aktif.');
+              if (w.TxUI && w.TxUI.render) w.TxUI.render();
+            }
+            renderSyncStatus();
+          }).catch(function (e) {
+            btnManual.disabled = false;
+            btnManual.textContent = '🔄 Sinkronkan Sekarang';
+            App.toast('Gagal sinkron: ' + (e.message || 'jaringan'));
+          });
+        } else {
+          btnManual.disabled = false;
+          btnManual.textContent = '🔄 Sinkronkan Sekarang';
+        }
+      });
+    }
+
     var now = $('#syncNow'), save = $('#syncSave'), url = $('#syncUrl');
     if (!now || !save || !url) return;
-    renderSyncStatus();
 
     save.addEventListener('click', function () {
       var v = url.value.trim();
@@ -940,11 +977,6 @@
       w.Sync.configure(v, true);
       App.toast(v ? 'Alamat server disimpan' : 'Alamat server dikosongkan');
       if (!v) { renderSyncStatus(); return; }
-      if (!w.Sync.hasInitData()) {
-        renderSyncStatus();
-        App.toast('Tersimpan. Sinkron berjalan saat dibuka di dalam Telegram.');
-        return;
-      }
       save.disabled = true;
       w.Sync.sync().then(function (r) {
         save.disabled = false;
@@ -958,7 +990,6 @@
     });
 
     now.addEventListener('click', function () {
-      if (!w.Sync.isConfigured()) { App.toast('Isi alamat server bot dulu'); return; }
       now.disabled = true;
       App.toast('Menyinkronkan…');
       if (w.Supa && typeof w.Supa.kuras === 'function') w.Supa.kuras(true);

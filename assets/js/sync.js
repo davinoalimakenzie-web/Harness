@@ -1,384 +1,514 @@
 /* =========================================================
-   sync.js — Sinkronisasi Mini App <-> server bot alima
+   sync.js — Sinkronisasi Terpadu Mini App & Browser Link
    =========================================================
-   TUJUAN (revisi): transaksi yang dicatat lewat chat bot alima
-   harus MUNCUL di Mini App, dan sebaliknya.
+   TUJUAN:
+   Input lewat mana pun (link browser maupun Telegram Mini App)
+   saat disinkronisasi WAJIB tersimpan menjadi satu tanpa ada
+   data yang hilang atau terduplikasi.
 
-   Mekanisme:
-   - "Server" (bot) adalah sumber kebenaran tambahan. Mini App
-     menarik daftar transaksi dari server lalu menggabungkannya
-     ke penyimpanan lokal (id-based, tanpa duplikat).
-   - Transaksi yang dibuat di Mini App saat online langsung
-     dikirim ke server (idem_key mencegah duplikat).
-   - Transaksi yang dibuat saat server tidak terjangkau disimpan
-     di antrean `pendingPush` dan dikirim lagi saat online lagi.
-   - Mode "lokal saja" tetap 100% berfungsi bila server mati
-     atau bot belum dikonfigurasi — cashflow tidak boleh
-     bergantung pada AI/gateway (PRD 17).
+   TRANSPORT:
+   Tabel `vault` di Supabase, kunci: `cashflow_data`.
+   Berfungsi 100% baik di Telegram Mini App maupun di browser
+   biasa (Chrome, Safari, dsb.) via REST API Supabase.
+
+   MEKANISME PENGGABUNGAN (2-Way Merge):
+   - Transaksi (txs): digabung berdasarkan id & idem_key.
+     Jika salah satu dihapus (deleted_at), tombstone dipertahankan.
+     Transaksi baru dari perangkat manapun digabung ke dalam daftar.
+   - Catatan (notes): digabung per id, timestamp terbaru menang.
+   - Akun (accounts): digabung per id.
+   - Kategori (categories): digabung per id.
+   - Dana Bank (bank): entri digabung per id, wajibBulanan & pelunasanBulanan digabung.
+   - Mas Cim (mascim): orders, parts, payments, cashflow, bank digabung per id.
    ========================================================= */
 (function (w) {
   'use strict';
 
-  var S = w.Store;
-  var SETTINGS_KEY = 'projectnava.sync';
-
-  var cfg = {
-    baseUrl: '',
-    autoPush: true,
-    lastSync: null
-  };
+  var VAULT_KEY = 'cashflow_data';
+  var PUSH_DEBOUNCE_MS = 1200;
+  var AUTO_PULL_MS = 15000;
 
   var status = {
-    online: false,      // server diketahui bisa dihubungi
-    configured: false,  // baseUrl + initData tersedia
-    lastError: null,
+    online: true,
+    configured: true,
+    lastSync: null,
     lastCount: 0,
-    _stale: false,      // URL hasil discovery dianggap basi (gagal ditarik)
-    _lastTry: 0,        // waktu percobaan terakhir (unix ms)
-    _fails: 0           // jumlah kegagalan berturut-turut
+    lastError: null,
+    isSyncing: false
   };
 
-  // Saat server sedang dirapikan oleh supervisor, gagal tarik itu
-  // hal yang SANGAT normal (tunnel sedang berganti). Kita tidak mau
-  // tiap 15 detik menembak ke URL yang pasti gagal — tapi juga tidak
-  // mau menunggu lama setelah tunnel baru terbit. Jeda dibuat
-  //Jhprogressif: 5s, 10s, 15s, lalu maximum 30s.
-  var RETRY_STEPS = [5000, 10000, 15000, 30000];
+  var pushTimer = null;
+  var autoTimer = null;
+  var isPulling = false;
+  var isPushing = false;
 
-  function retryDelay() {
-    var i = Math.min(status._fails, RETRY_STEPS.length - 1);
-    return RETRY_STEPS[i] + Math.floor(Math.random() * 2000);
-  }
-
-  // Riwayat URL server. Tunnel sering berganti (URL acak) dan GitHub
-  // Pages bisa menyajikan sync.json basi selama ~10 menit. Daripada
-  // hanya percaya satu URL, kita menyimpan beberapa URL terakhir dan
-  // mencoba satu per satu sampai ada yang menjawab. Dengan begitu
-  // pergantian tunnel tidak lagi felt oleh pengguna.
-  var MAX_URLS = 5;
-
-  function loadCfg() {
-    try {
-      var raw = localStorage.getItem(SETTINGS_KEY);
-      if (raw) cfg = Object.assign(cfg, JSON.parse(raw));
-    } catch (e) { /* pakai default */ }
-    return cfg;
-  }
-  function saveCfg() {
-    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(cfg)); } catch (e) {}
-  }
-
-  /** Tambah URL ke riwayat (paling baru di depan, tanpa duplikat). */
-  function rememberUrl(u) {
-    if (!u) return;
-    u = String(u).replace(/\/+$/, '');
-    loadCfg();
-    var list = Array.isArray(cfg.urls) ? cfg.urls.slice() : [];
-    if (list[0] !== u) list = [u].concat(list.filter(function (x) { return x !== u; }));
-    cfg.urls = list.slice(0, MAX_URLS);
-    saveCfg();
-  }
-
-  /** Daftar URL kandidat: manual (kalau ada) + riwayat. */
-  function candidates() {
-    loadCfg();
-    var list = Array.isArray(cfg.urls) ? cfg.urls.slice() : [];
-    if (cfg.baseUrl && cfg.manual) list.unshift(cfg.baseUrl);
-    else if (cfg.baseUrl && list.indexOf(cfg.baseUrl) === -1) list.unshift(cfg.baseUrl);
-    return list;
-  }
-
-  /** initData asli dari Telegram (hanya ada di dalam Telegram). */
-  function initData() {
-    var wa = w.Telegram && w.Telegram.WebApp;
-    if (wa && wa.initData && wa.initData.length > 10) return wa.initData;
-    return '';
-  }
-
-  /** Server terkonfigurasi? */
-  function isConfigured() {
-    loadCfg();
-    return !!(cfg.baseUrl && initData());
-  }
-
-  function headers() {
-    var h = { 'Content-Type': 'application/json' };
-    var id = initData();
-    if (id) h['X-Init-Data'] = id;
-    return h;
-  }
-
-  // URL yang baru saja gagal dicoba paling akhir supaya percobaan
-  // berikutnya tidak mengulang URL yang jelas sudah mati.
-  var badUntil = {}; // base -> timestamp (ms) sampai kapan dicoba lagi
-
-  function api(path, opts) {
-    opts = opts || {};
-    loadCfg();
-    var now = Date.now();
-    var all = candidates().filter(function (b) { return !(badUntil[b] > now); });
-    // Kalau semua URL sedang dicurigai mati, tetap coba yang paling
-    // baru saja dipakai (lebih baik mencoba daripada langsung menyerah).
-    if (!all.length) all = candidates();
-    if (!all.length) return Promise.reject(new Error('Server bot belum diatur'));
-
-    // Coba tiap URL kandidat sampai ada yang menjawab. Error auth
-    // (401/403) berarti server hidup — jangan pindah ke URL lain.
-    var idx = 0;
-    var lastErr = null;
-    function attempt() {
-      if (idx >= all.length) throw lastErr || new Error('Server bot tidak terjangkau');
-      var base = all[idx++];
-      var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      // Batas waktu per URL diperpendek supaya satu_endpoint yang
-      // menggantung tidak menahan seluruh rangkaian failover.
-      var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, opts.timeout || 6000) : null;
-
-      return fetch(base.replace(/\/+$/, '') + path, {
-        method: opts.method || 'GET',
-        headers: headers(),
-        body: opts.body ? JSON.stringify(opts.body) : undefined,
-        signal: ctrl ? ctrl.signal : undefined
-      }).then(function (r) {
-        if (timer) clearTimeout(timer);
-        return r.json().catch(function () { return {}; }).then(function (j) {
-          if (!r.ok) {
-            var e = new Error(j.error || ('HTTP ' + r.status));
-            e.status = r.status;
-            throw e;
-          }
-          // Berhasil di URL ini -> jadikan kandidat utama.
-          if (base !== cfg.baseUrl) { cfg.baseUrl = base; cfg.manual = false; saveCfg(); }
-          delete badUntil[base];
-          rememberUrl(base);
-          return j;
-        });
-      }).catch(function (e) {
-        if (timer) clearTimeout(timer);
-        lastErr = e;
-        // 401/403 = server hidup, hanya masalah auth. Berhenti di sini.
-        if (e && (e.status === 401 || e.status === 403)) throw e;
-        // Tandai URL ini supaya percobaan berikutnya membuangnya
-        // sampai batas waktu tertentu (30 detik).
-        badUntil[base] = Date.now() + 30000;
-        // Error jaringan/server: coba URL kandidat berikutnya.
-        if (idx < all.length) return attempt();
-        throw e;
-      });
-    }
-    return attempt();
-  }
+  function S() { return w.Store; }
 
   /* ------------------------------------------------------------
-     Penemuan otomatis (discovery) alamat server bot
-
-     Mini App berjalan di HTTPS (GitHub Pages) di HP. Server bot
-     berjalan di HTTP di komputer, jadi Halaman HTTPS -> HTTP
-     otomatis DIBLOKIR browser (mixed content). Tunnel Quick
-     juga punya URL acak yang berubah tiap restart.
-
-     Solusi: bot menulis URL publiknya yang SEKARANG ke `sync.json`
-     di GitHub Pages (origin yang sama, HTTPS, CORS terbuka).
-     Mini App membacanya tiap dibuka => selalu tahu ke mana menarik
-     data, dan otomatis mengikuti URL tunnel yang terbaru.
+     Helper Gabung Transaksi (Dua Arah & Aman)
      ------------------------------------------------------------ */
-  function discoveryUrl() {
-    // sync.json diletakkan di root domain yang sama dengan Mini App.
-    // Ambil dari tag <meta name="nava-sync-config"> bila ada.
-    var meta = document.querySelector('meta[name="nava-sync-config"]');
-    var path = (meta && meta.getAttribute('content')) || 'sync.json';
-    try { return new URL(path, document.baseURI).toString(); }
-    catch (e) { return path; }
-  }
+  function mergeTxs(localList, remoteList) {
+    var byKey = {};
+    var result = [];
 
-  function discover() {
-    loadCfg();
-    // URL manual = pilihan pengguna, tidak pernah ditimpa otomatis.
-    if (cfg.baseUrl && cfg.manual) return Promise.resolve(cfg.baseUrl);
-    // Kalau URL hasil discovery sebelumnya gagal ditarik, jangan pakai
-    // nilai basi itu lagi — baca ulang sync.json (mis. tunnel berubah).
-    if (cfg.baseUrl && status._stale) cfg.baseUrl = '';
-    if (cfg.baseUrl) return Promise.resolve(cfg.baseUrl);
-    // fetch mungkin tidak ada (lingkungan lama / uji) — jangan sampai
-    // melempar error hanya karena gagal menemukan server.
-    if (typeof fetch !== 'function') return Promise.resolve(cfg.baseUrl || '');
-    // Hindari cache Pages: tambah param waktu agar selalu segar.
-    var base = discoveryUrl();
-    var url = base + (base.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
-    return fetch(url, { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (j) {
-        if (j && (j.api || (Array.isArray(j.apis) && j.apis.length))) {
-          // Bot bisa menerbitkan beberapa URL (cadangan). Simpan semuanya
-          // supaya ada yang bisa dicoba saat tunnel yang utama berganti.
-          var list = [];
-          if (Array.isArray(j.apis)) list = j.apis.slice();
-          if (j.api && list.indexOf(j.api) === -1) list.unshift(j.api);
-          list = list.filter(Boolean).map(function (u) { return String(u).replace(/\/+$/, ''); });
-          if (list.length) {
-            cfg.baseUrl = list[0];
-            cfg.urls = list.slice(0, MAX_URLS);
-            cfg.manual = false;
-            cfg.discoveredAt = new Date().toISOString();
-            status._stale = false;
-            saveCfg();
-            rememberUrl(cfg.baseUrl);
-          }
-          return cfg.baseUrl;
-        }
-        return cfg.baseUrl || '';
-      })
-      .catch(function () { return cfg.baseUrl || ''; });
-  }
+    function getKey(t) {
+      if (!t) return null;
+      return t.id || t.idem_key || null;
+    }
 
-  function pull() {
-    return discover().then(function () {
-      if (!isConfigured()) return { skipped: true };
-      status._lastTry = Date.now();
-      return api('/api/txs?limit=500')
-        .then(function (j) {
-          var res = S.Tx.mergeFromServer(j.txs || []);
-          status.online = true;
-          status.lastError = null;
-          status._fails = 0;
-          status.lastCount = res.added + res.updated;
-          cfg.lastSync = new Date().toISOString();
-          saveCfg();
-          return res;
-        })
-        .catch(function (e) {
-          status.online = false;
-          status.lastError = e.message;
-          status._fails++;
-          // Gagal jaringan / server mati -> URL hasil discovery dicurigai
-          // basi (tunnel mungkin sudah berganti). Paksa baca ulang
-          // sync.json pada tarikan berikutnya. Kesalahan auth (401/403)
-          // TIDAK dianggap basi, itu masalah konfigurasi.
-          // Riwayat URL (cfg.urls) tetap utuh sehingga api() masih
-          // punya kandidat lain untuk dicoba.
-          if (!cfg.manual && (e.status === 0 || !e.status)) {
-            status._stale = true;
-            cfg.baseUrl = '';
-            saveCfg();
-          }
-          return { error: e.message, retryIn: retryDelay() };
-        });
+    // Masukkan remote terlebih dahulu
+    (remoteList || []).forEach(function (r) {
+      var k = getKey(r);
+      if (!k) return;
+      var copy = Object.assign({}, r);
+      byKey[r.id] = copy;
+      if (r.idem_key) byKey[r.idem_key] = copy;
+      result.push(copy);
     });
-  }
 
+    var added = 0;
+    var updated = 0;
+
+    // Gabungkan lokal
+    (localList || []).forEach(function (l) {
+      var k = getKey(l);
+      if (!k) return;
+      var match = byKey[l.id] || (l.idem_key && byKey[l.idem_key]);
+      if (!match) {
+        // Transaksi lokal yang belum ada di remote -> tambahkan
+        var copyL = Object.assign({}, l);
+        result.push(copyL);
+        byKey[l.id] = copyL;
+        if (l.idem_key) byKey[l.idem_key] = copyL;
+        added++;
+      } else {
+        var changed = false;
+        // 1. Tombstone soft delete (penghapusan harus sinkron)
+        if (l.deleted_at && !match.deleted_at) {
+          match.deleted_at = l.deleted_at;
+          changed = true;
+        } else if (match.deleted_at && !l.deleted_at) {
+          l.deleted_at = match.deleted_at;
+          changed = true;
+        }
+
+        // 2. Data terbaru menang (perbandingan waktu)
+        var lTime = l.updated_at || l.created_at || '';
+        var mTime = match.updated_at || match.created_at || '';
+        if (lTime > mTime) {
+          Object.assign(match, l);
+          changed = true;
+        } else if (mTime > lTime) {
+          Object.assign(l, match);
+          changed = true;
+        }
+        if (changed) updated++;
+      }
+    });
+
+    return { list: result, added: added, updated: updated };
+  }
 
   /* ------------------------------------------------------------
-     Kirim transaksi lokal yang belum tersinkron
+     Helper Gabung Catatan (Notes)
+     ------------------------------------------------------------ */
+  function mergeNotes(localNotes, remoteNotes) {
+    var byId = {};
+    var result = [];
+    (remoteNotes || []).forEach(function (r) {
+      if (!r || !r.id) return;
+      var copy = Object.assign({}, r);
+      byId[r.id] = copy;
+      result.push(copy);
+    });
+    (localNotes || []).forEach(function (l) {
+      if (!l || !l.id) return;
+      var match = byId[l.id];
+      if (!match) {
+        var copyL = Object.assign({}, l);
+        result.push(copyL);
+        byId[l.id] = copyL;
+      } else {
+        var lTime = l.updatedAt || l.createdAt || '';
+        var mTime = match.updatedAt || match.createdAt || '';
+        if (lTime >= mTime) Object.assign(match, l);
+        else Object.assign(l, match);
+      }
+    });
+    return result;
+  }
+
+  /* ------------------------------------------------------------
+     Helper Gabung Akun (Accounts)
+     ------------------------------------------------------------ */
+  function mergeAccounts(localAccs, remoteAccs) {
+    var byId = {};
+    var result = [];
+    (remoteAccs || []).forEach(function (r) {
+      if (!r || !r.id) return;
+      byId[r.id] = r;
+      result.push(Object.assign({}, r));
+    });
+    (localAccs || []).forEach(function (l) {
+      if (!l || !l.id) return;
+      if (!byId[l.id]) {
+        result.push(l);
+        byId[l.id] = l;
+      }
+    });
+    return result.length ? result : localAccs;
+  }
+
+  /* ------------------------------------------------------------
+     Helper Gabung Kategori (Categories)
+     ------------------------------------------------------------ */
+  function mergeCategories(localCats, remoteCats) {
+    var byId = {};
+    var result = [];
+    (remoteCats || []).forEach(function (r) {
+      if (!r || !r.id) return;
+      byId[r.id] = r;
+      result.push(Object.assign({}, r));
+    });
+    (localCats || []).forEach(function (l) {
+      if (!l || !l.id) return;
+      if (!byId[l.id]) {
+        result.push(l);
+        byId[l.id] = l;
+      }
+    });
+    return result.length ? result : localCats;
+  }
+
+  /* ------------------------------------------------------------
+     Helper Gabung Mas Cim (Orders, Parts, Payments, Cashflow, Bank)
+     ------------------------------------------------------------ */
+  function mergeMascim(localM, remoteM) {
+    if (!remoteM) return localM;
+    if (!localM) return remoteM;
+
+    function mergeById(localArr, remoteArr, timeProp) {
+      var map = {};
+      var res = [];
+      (remoteArr || []).forEach(function (r) {
+        if (!r || !r.id) return;
+        var copy = Object.assign({}, r);
+        map[r.id] = copy;
+        res.push(copy);
+      });
+      (localArr || []).forEach(function (l) {
+        if (!l || !l.id) return;
+        var match = map[l.id];
+        if (!match) {
+          var copyL = Object.assign({}, l);
+          res.push(copyL);
+          map[l.id] = copyL;
+        } else {
+          var lTime = (timeProp ? l[timeProp] : '') || l.updatedAt || l.createdAt || '';
+          var mTime = (timeProp ? match[timeProp] : '') || match.updatedAt || match.createdAt || '';
+          if (lTime >= mTime) Object.assign(match, l);
+          else Object.assign(l, match);
+        }
+      });
+      return res;
+    }
+
+    var mergedOrders = mergeById(localM.orders, remoteM.orders, 'updatedAt');
+    var mergedParts = mergeById(localM.parts, remoteM.parts, 'createdAt');
+    var mergedPayments = mergeById(localM.payments, remoteM.payments, 'createdAt');
+    var mergedCashflow = mergeById(localM.cashflow, remoteM.cashflow, 'createdAt');
+    var mergedBank = mergeById(localM.bank, remoteM.bank, 'createdAt');
+
+    var noteCounter = Math.max(
+      (localM.settings && localM.settings.noteCounter) || 0,
+      (remoteM.settings && remoteM.settings.noteCounter) || 0
+    );
+
+    return {
+      version: 1,
+      settings: Object.assign({}, remoteM.settings, localM.settings, { noteCounter: noteCounter }),
+      orders: mergedOrders,
+      parts: mergedParts,
+      payments: mergedPayments,
+      cashflow: mergedCashflow,
+      bank: mergedBank
+    };
+  }
+
+  /* ------------------------------------------------------------
+     Helper Gabung Dana Bank (nava.bank.v1)
+     ------------------------------------------------------------ */
+  function mergeBank(localB, remoteB) {
+    if (!remoteB) return localB;
+    if (!localB) return remoteB;
+
+    var map = {};
+    var resEntries = [];
+    (remoteB.entries || []).forEach(function (r) {
+      if (!r || !r.id) return;
+      map[r.id] = r;
+      resEntries.push(Object.assign({}, r));
+    });
+    (localB.entries || []).forEach(function (l) {
+      if (!l || !l.id) return;
+      if (!map[l.id]) {
+        resEntries.push(l);
+        map[l.id] = l;
+      }
+    });
+
+    return {
+      initial: Math.max(Number(localB.initial || 0), Number(remoteB.initial || 0)),
+      entries: resEntries,
+      wajibBulanan: Object.assign({}, remoteB.wajibBulanan, localB.wajibBulanan),
+      pelunasanBulanan: Object.assign({}, remoteB.pelunasanBulanan, localB.pelunasanBulanan)
+    };
+  }
+
+  /* ------------------------------------------------------------
+     PULL: Tarik data dari Supabase vault dan gabungkan ke lokal
+     ------------------------------------------------------------ */
+  function pull(silent) {
+    if (isPulling) return Promise.resolve({ skipped: true });
+    if (!w.Supa || typeof w.Supa.vaultGet !== 'function') return Promise.resolve({ skipped: true });
+
+    isPulling = true;
+    status.isSyncing = true;
+
+    return w.Supa.vaultGet(VAULT_KEY)
+      .then(function (baris) {
+        var remote = (baris && baris.isi) || null;
+        if (!remote || !remote.txs || !remote.txs.length) {
+          // Fallback: periksa cadangan harian terbaru bila cashflow_data masih kosong
+          return w.Supa.vaultGet('app:' + new Date().toISOString().slice(0, 10))
+            .then(function (snapBaris) {
+              if (snapBaris && snapBaris.isi && snapBaris.isi['projectnava.v3']) {
+                try {
+                  var parsedP = JSON.parse(snapBaris.isi['projectnava.v3']);
+                  var parsedM = snapBaris.isi['nava.mascim.local.v1'] ? JSON.parse(snapBaris.isi['nava.mascim.local.v1']) : null;
+                  var parsedB = snapBaris.isi['nava.bank.v1'] ? JSON.parse(snapBaris.isi['nava.bank.v1']) : null;
+                  return {
+                    txs: parsedP.txs || [],
+                    notes: parsedP.notes || [],
+                    accounts: parsedP.accounts || [],
+                    categories: (parsedP.settings && parsedP.settings.categories) || [],
+                    mascim: parsedM,
+                    bank: parsedB
+                  };
+                } catch (eP) { return null; }
+              }
+              return remote;
+            });
+        }
+        return remote;
+      })
+      .then(function (remote) {
+        isPulling = false;
+        status.isSyncing = false;
+        if (!remote) return { added: 0, updated: 0 };
+
+        var store = S();
+        if (!store || !store.state) return { added: 0, updated: 0 };
+
+        var localTxs = store.state.txs || [];
+        var merged = mergeTxs(localTxs, remote.txs || []);
+
+        var localLen = localTxs.length;
+        var remoteLen = (remote.txs || []).length;
+        var hasLocalChanges = (merged.list.length !== localLen) || (merged.added > 0) || (merged.updated > 0);
+        var hasRemoteChanges = (merged.list.length !== remoteLen) || (merged.added > 0);
+
+        if (hasLocalChanges) {
+          store.state.txs = merged.list;
+          if (remote.notes && remote.notes.length) {
+            store.state.notes = mergeNotes(store.state.notes || [], remote.notes);
+          }
+          if (remote.accounts && remote.accounts.length) {
+            store.state.accounts = mergeAccounts(store.state.accounts || [], remote.accounts);
+          }
+          if (remote.categories && remote.categories.length) {
+            if (!store.state.settings) store.state.settings = {};
+            store.state.settings.categories = mergeCategories(store.state.settings.categories || [], remote.categories);
+          }
+          try { store.saveNow(); } catch (e) {}
+
+          // Refresh UI
+          try { if (w.TxUI && typeof w.TxUI.render === 'function') w.TxUI.render(); } catch (e) {}
+          try { if (w.NotesUI && typeof w.NotesUI.render === 'function') w.NotesUI.render(); } catch (e) {}
+        }
+
+        // Gabung Mas Cim jika tersedia
+        if (remote.mascim && w.MascimLocal && typeof w.MascimLocal._db === 'function') {
+          try {
+            var localM = w.MascimLocal._db();
+            var mergedM = mergeMascim(localM, remote.mascim);
+            if (JSON.stringify(localM) !== JSON.stringify(mergedM)) {
+              w.localStorage.setItem('nava.mascim.local.v1', JSON.stringify(mergedM));
+              if (w.MascimUI && typeof w.MascimUI.render === 'function') w.MascimUI.render();
+            }
+          } catch (eM) {}
+        }
+
+        // Gabung Dana Bank jika tersedia
+        if (remote.bank && w.NavaBank && typeof w.NavaBank.exportJSON === 'function') {
+          try {
+            var localB = w.NavaBank.exportJSON();
+            var mergedB = mergeBank(localB, remote.bank);
+            if (JSON.stringify(localB) !== JSON.stringify(mergedB)) {
+              w.NavaBank.importJSON(mergedB);
+            }
+          } catch (eB) {}
+        }
+
+        status.online = true;
+        status.lastSync = new Date().toISOString();
+        status.lastCount = merged.list.filter(function (t) { return !t.deleted_at; }).length;
+        status.lastError = null;
+
+        // Jika lokal memiliki data yang belum ada di remote, dorong kembali ke remote
+        if (hasRemoteChanges) {
+          schedulePush();
+        }
+
+        return { added: merged.added, updated: merged.updated, total: status.lastCount };
+      })
+      .catch(function (err) {
+        isPulling = false;
+        status.isSyncing = false;
+        status.lastError = err && err.message ? err.message : String(err);
+        return { error: status.lastError };
+      });
+  }
+
+  /* ------------------------------------------------------------
+     PUSH: Kirim data lokal saat ini ke Supabase vault
      ------------------------------------------------------------ */
   function push() {
-    return discover().then(function () {
-      if (!isConfigured() || !cfg.autoPush) return { skipped: true };
-      var pend = S.Tx.pendingPush();
-      if (!pend.length) return { pushed: 0 };
+    if (isPushing) return Promise.resolve({ skipped: true });
+    if (!w.Supa || typeof w.Supa.vaultPut !== 'function') return Promise.resolve({ skipped: true });
 
-      var jobs = pend.map(function (p) {
-        var t = S.Tx.get(p.id);
-        if (!t) return Promise.resolve(false);
-        if (p.op === 'delete') {
-          return api('/api/txs/' + encodeURIComponent(t.id), { method: 'DELETE' })
-            .then(function () { return t.id; })
-            .catch(function () { return null; });
-        }
-        return api('/api/txs', {
-          method: 'POST',
-          body: {
-            id: t.id,
-            account_id: t.account_id,
-            category_id: t.category_id,
-            type: t.type,
-            group_name: t.group,
-            sub: t.sub,
-            amount: t.amount,
-            transaction_date: t.transaction_date,
-            note: t.note,
-            idem_key: t.idem_key,
-            source: 'miniapp'
-          }
-        }).then(function () { return t.id; }).catch(function () { return null; });
-      });
+    var store = S();
+    if (!store || !store.state) return Promise.resolve({ skipped: true });
 
-      return Promise.all(jobs).then(function (ids) {
-        var done = ids.filter(Boolean);
-        S.Tx.clearPushed(done);
-        status.online = true;
-        status.lastError = null;
-        return { pushed: done.length };
-      });
-    }).catch(function (e) {
-      status.online = false;
-      status.lastError = e.message;
-      return { error: e.message };
-    });
+    isPushing = true;
+    var txs = store.state.txs || [];
+    var notes = store.state.notes || [];
+    var accounts = store.state.accounts || [];
+    var categories = (store.state.settings && store.state.settings.categories) || [];
+
+    var mascimData = null;
+    try {
+      if (w.MascimLocal && typeof w.MascimLocal._db === 'function') {
+        mascimData = w.MascimLocal._db();
+      }
+    } catch (eM) {}
+
+    var bankData = null;
+    try {
+      if (w.NavaBank && typeof w.NavaBank.exportJSON === 'function') {
+        bankData = w.NavaBank.exportJSON();
+      }
+    } catch (eB) {}
+
+    var payload = {
+      updatedAt: new Date().toISOString(),
+      txs: txs,
+      notes: notes,
+      accounts: accounts,
+      categories: categories,
+      mascim: mascimData,
+      bank: bankData
+    };
+
+    var ok = w.Supa.vaultPut(VAULT_KEY, payload);
+    isPushing = false;
+    if (ok) {
+      status.lastSync = payload.updatedAt;
+      status.online = true;
+      status.lastError = null;
+    }
+    return Promise.resolve({ pushed: ok, txCount: txs.length });
   }
 
   /* ------------------------------------------------------------
-     Sinkron penuh: tarik dulu (agar data bot masuk), lalu kirim
+     Jadwalkan PUSH (Debounced)
+     ------------------------------------------------------------ */
+  function schedulePush() {
+    if (pushTimer) clearTimeout(pushTimer);
+    pushTimer = setTimeout(function () {
+      push();
+    }, PUSH_DEBOUNCE_MS);
+  }
+
+  /* ------------------------------------------------------------
+     SYNC: Tarik dulu (merge) lalu dorong hasilnya
      ------------------------------------------------------------ */
   function sync() {
-    return discover().then(function () {
-      if (!isConfigured()) return { skipped: true, reason: 'not configured' };
-      return pullPool()
-        .then(function () { return pull(); })
-        .then(function () { return push(); });
+    return pull().then(function (r) {
+      return push().then(function () { return r; });
     });
   }
 
   /* ------------------------------------------------------------
-     Konfigurasi
+     Mulai & Event Listeners
      ------------------------------------------------------------ */
-  function configure(baseUrl, autoPush) {
-    cfg.baseUrl = String(baseUrl || '').trim().replace(/\/+$/, '');
-    cfg.manual = !!baseUrl;   // URL yang diketik manual = sumber utama
-    if (autoPush != null) cfg.autoPush = !!autoPush;
-    saveCfg();
-    return cfg.baseUrl;
-  }
+  function init() {
+    // Sinkronisasi otomatis saat pertama kali dibuka
+    setTimeout(function () {
+      sync();
+    }, 800);
 
-  /* ------------------------------------------------------------
-     Modul Mas Cim Service HP
+    // Sinkronisasi saat kembali aktif ke aplikasi/tab
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) pull(true);
+    });
+    w.addEventListener('focus', function () {
+      pull(true);
+    });
 
-     Memakai jalur yang sama persis dengan cashflow: discovery
-     otomatis, daftar URL cadangan, dan auth initData Telegram.
-     Karena itu modul ini otomatis mengikuti pergantian tunnel
-     tanpa perlu konfigurasi ulang.
-     ------------------------------------------------------------ */
-  function mascimApi(method, path, body) {
-    return discover().then(function () {
-      if (!isConfigured()) {
-        return Promise.reject(new Error('Buka di dalam Telegram dan tunggu sinkronisasi'));
+    // Sinkronisasi berkala tiap 15 detik
+    if (autoTimer) clearInterval(autoTimer);
+    autoTimer = setInterval(function () {
+      if (!document.hidden) pull(true);
+    }, AUTO_PULL_MS);
+
+    // Deteksi perubahan dari tab/jendela lain
+    w.addEventListener('storage', function (e) {
+      if (e && e.key && (e.key === 'projectnava.v3' || e.key === 'nava.mascim.local.v1')) {
+        try { if (w.Store && w.Store.load) w.Store.load(); } catch (err) {}
+        try { if (w.TxUI && w.TxUI.render) w.TxUI.render(); } catch (err) {}
       }
-      return api(path, { method: method, body: body })
-        .catch(function (e) {
-          if (!cfg.manual && (e.status === 0 || !e.status)) {
-            status._stale = true;
-            cfg.baseUrl = '';
-            saveCfg();
-          }
-          throw e;
-        });
     });
+
+    return Promise.resolve(true);
   }
 
-  function getConfig() { loadCfg(); return Object.assign({}, cfg); }
-  function getStatus() { return Object.assign({}, status); }
-  function setOnline(v) { status.online = !!v; }
+  /* Inisialisasi otomatis */
+  if (w.document) {
+    if (w.document.readyState === 'loading') {
+      w.document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  }
 
+  /* ------------------------------------------------------------
+     API Kompatibilitas Publik
+     ------------------------------------------------------------ */
   w.Sync = {
-    init: loadCfg,
-    configure: configure,
-    discover: discover,
-    getConfig: getConfig,
-    getStatus: getStatus,
-    isConfigured: isConfigured,
-    hasInitData: function () { return !!initData(); },
+    init: init,
     pull: pull,
-    mascimApi: mascimApi,
     push: push,
-    sync: sync
+    sync: sync,
+    schedulePush: schedulePush,
+    pullPool: function () { return Promise.resolve({ added: 0 }); },
+    isConfigured: function () { return true; },
+    hasInitData: function () { return true; },
+    getStatus: function () { return Object.assign({}, status); },
+    getConfig: function () { return { baseUrl: 'https://tpolunkalvyrrwodvdov.supabase.co', autoPush: true }; },
+    configure: function () { return true; },
+    discover: function () { return Promise.resolve('https://tpolunkalvyrrwodvdov.supabase.co'); },
+    mascimApi: function () { return Promise.reject(new Error('Bot server tidak aktif')); }
   };
+
 })(window);

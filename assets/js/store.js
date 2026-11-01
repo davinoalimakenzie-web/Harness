@@ -301,11 +301,21 @@
     saveTimer = setTimeout(function () {
       try { localStorage.setItem(KEY, JSON.stringify(state)); }
       catch (e) { console.error('store: gagal simpan', e); }
+      try {
+        if (w.Sync && typeof w.Sync.schedulePush === 'function') {
+          w.Sync.schedulePush();
+        }
+      } catch (eSync) {}
     }, 120);
   }
   function saveNow() {
     clearTimeout(saveTimer);
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+    try {
+      if (w.Sync && typeof w.Sync.schedulePush === 'function') {
+        w.Sync.schedulePush();
+      }
+    } catch (eSync) {}
   }
 
   /* ---------------- Audio (IndexedDB) ---------------- */

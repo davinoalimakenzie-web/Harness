@@ -158,6 +158,11 @@
 
   function save() {
     try { w.localStorage.setItem(KEY, JSON.stringify(cache)); } catch (e) {}
+    try {
+      if (w.Sync && typeof w.Sync.schedulePush === 'function') {
+        w.Sync.schedulePush();
+      }
+    } catch (eSync) {}
   }
 
   function uid() {

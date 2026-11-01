@@ -346,6 +346,11 @@
 
   function save() {
     try { w.localStorage.setItem(KEY, JSON.stringify(cache)); } catch (e) { /* penuh / diblokir */ }
+    try {
+      if (w.Sync && typeof w.Sync.schedulePush === 'function') {
+        w.Sync.schedulePush();
+      }
+    } catch (eSync) {}
   }
 
   function uid(p) {
@@ -1382,18 +1387,24 @@
     return order;
   }
 
-  function canDelete(id) {
+  function canDelete(id, opts) {
+    opts = opts || {};
     var db = load();
     getOrder(id); // pastikan ada & milik (lokal: hanya satu pengguna)
     var pays = db.payments.filter(function (p) { return p.orderId === id; }).length;
     var bank = db.bank.filter(function (b) { return b.orderId === id && !b.reversedAt; }).length;
+    // Allow deletion for 'Done Diambil' and 'Cancel Diambil' statuses during testing/reset
+    // These statuses artinya nota sudah selesai/dibatalkan, bisa dihapus untuk cleanup ujian
+    var status = db.orders.filter(function (o) { return o.id === id; })[0].serviceStatus;
+    var isFinalStatus = status === 'Done Diambil' || status === 'Cancel Diambil';
     return {
-      allowed: pays === 0 && bank === 0,
+      allowed: (isFinalStatus && opts.force) || (pays === 0 && bank === 0),
       reason: (pays || bank)
-        ? 'Nota sudah punya pembayaran atau riwayat Dana Bank. Koreksi lewat pembatalan, jangan dihapus agar uang tidak hilang.'
+        ? (isFinalStatus ? 'Catatan sudah status final (Done/Cancel). Tekan "Force Hapus" untuk cleanup ujian.' : 'Nota sudah punya pembayaran atau riwayat Dana Bank. Koreksi lewat pembatalan, jangan dihapus agar uang tidak hilang.')
         : null,
       payments: pays,
-      bankEntries: bank
+      bankEntries: bank,
+      isFinalStatus: isFinalStatus
     };
   }
 
