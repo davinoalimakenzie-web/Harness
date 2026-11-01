@@ -187,17 +187,25 @@
     if (!remoteM) return localM;
     if (!localM) return remoteM;
 
-    function mergeById(localArr, remoteArr, timeProp) {
+    // Kumpulkan deletedOrderIds dari kedua belah pihak
+    var deletedMap = {};
+    (localM.deletedOrderIds || []).concat(remoteM.deletedOrderIds || []).forEach(function (did) {
+      if (did) deletedMap[did] = true;
+    });
+
+    function mergeById(localArr, remoteArr, timeProp, checkOrder) {
       var map = {};
       var res = [];
       (remoteArr || []).forEach(function (r) {
         if (!r || !r.id) return;
+        if (deletedMap[r.id] || (checkOrder && deletedMap[r.orderId])) return;
         var copy = Object.assign({}, r);
         map[r.id] = copy;
         res.push(copy);
       });
       (localArr || []).forEach(function (l) {
         if (!l || !l.id) return;
+        if (deletedMap[l.id] || (checkOrder && deletedMap[l.orderId])) return;
         var match = map[l.id];
         if (!match) {
           var copyL = Object.assign({}, l);
@@ -213,11 +221,11 @@
       return res;
     }
 
-    var mergedOrders = mergeById(localM.orders, remoteM.orders, 'updatedAt');
-    var mergedParts = mergeById(localM.parts, remoteM.parts, 'createdAt');
-    var mergedPayments = mergeById(localM.payments, remoteM.payments, 'createdAt');
-    var mergedCashflow = mergeById(localM.cashflow, remoteM.cashflow, 'createdAt');
-    var mergedBank = mergeById(localM.bank, remoteM.bank, 'createdAt');
+    var mergedOrders = mergeById(localM.orders, remoteM.orders, 'updatedAt', false);
+    var mergedParts = mergeById(localM.parts, remoteM.parts, 'createdAt', true);
+    var mergedPayments = mergeById(localM.payments, remoteM.payments, 'createdAt', true);
+    var mergedCashflow = mergeById(localM.cashflow, remoteM.cashflow, 'createdAt', true);
+    var mergedBank = mergeById(localM.bank, remoteM.bank, 'createdAt', true);
 
     var noteCounter = Math.max(
       (localM.settings && localM.settings.noteCounter) || 0,
@@ -226,7 +234,8 @@
 
     return {
       version: 1,
-      settings: Object.assign({}, remoteM.settings, localM.settings, { noteCounter: noteCounter }),
+      settings: Object.assign({}, remoteM.settings, localM.settings, { noteCounter: noteCounter, seeded: true }),
+      deletedOrderIds: Object.keys(deletedMap),
       orders: mergedOrders,
       parts: mergedParts,
       payments: mergedPayments,
@@ -242,26 +251,58 @@
     if (!remoteB) return localB;
     if (!localB) return remoteB;
 
+    // Periksa resetAt: jika salah satu sisi telah di-reset,
+    // entri lama sebelum resetAt dibuang permanen!
+    var localReset = localB.resetAt ? new Date(localB.resetAt).getTime() : 0;
+    var remoteReset = remoteB.resetAt ? new Date(remoteB.resetAt).getTime() : 0;
+    var resetTime = Math.max(localReset, remoteReset);
+
+    var deletedMap = {};
+    (localB.deletedIds || []).concat(remoteB.deletedIds || []).forEach(function (id) {
+      if (id) deletedMap[id] = true;
+    });
+
     var map = {};
     var resEntries = [];
+
     (remoteB.entries || []).forEach(function (r) {
-      if (!r || !r.id) return;
-      map[r.id] = r;
-      resEntries.push(Object.assign({}, r));
+      if (!r || !r.id || deletedMap[r.id]) return;
+      if (resetTime > 0) {
+        var rTime = new Date(r.createdAt || r.date || 0).getTime();
+        if (rTime <= resetTime) return;
+      }
+      var copy = Object.assign({}, r);
+      map[r.id] = copy;
+      resEntries.push(copy);
     });
+
     (localB.entries || []).forEach(function (l) {
-      if (!l || !l.id) return;
+      if (!l || !l.id || deletedMap[l.id]) return;
+      if (resetTime > 0) {
+        var lTime = new Date(l.createdAt || l.date || 0).getTime();
+        if (lTime <= resetTime) return;
+      }
       if (!map[l.id]) {
-        resEntries.push(l);
-        map[l.id] = l;
+        var copyL = Object.assign({}, l);
+        resEntries.push(copyL);
+        map[l.id] = copyL;
       }
     });
 
+    var initial = 0;
+    if (resetTime > 0) {
+      initial = (localReset >= remoteReset) ? Number(localB.initial || 0) : Number(remoteB.initial || 0);
+    } else {
+      initial = Math.max(Number(localB.initial || 0), Number(remoteB.initial || 0));
+    }
+
     return {
-      initial: Math.max(Number(localB.initial || 0), Number(remoteB.initial || 0)),
+      initial: initial,
+      resetAt: resetTime > 0 ? new Date(resetTime).toISOString() : null,
+      deletedIds: Object.keys(deletedMap),
       entries: resEntries,
-      wajibBulanan: Object.assign({}, remoteB.wajibBulanan, localB.wajibBulanan),
-      pelunasanBulanan: Object.assign({}, remoteB.pelunasanBulanan, localB.pelunasanBulanan)
+      wajibBulanan: resetTime > 0 ? (localReset >= remoteReset ? (localB.wajibBulanan || {}) : (remoteB.wajibBulanan || {})) : Object.assign({}, remoteB.wajibBulanan, localB.wajibBulanan),
+      pelunasanBulanan: resetTime > 0 ? (localReset >= remoteReset ? (localB.pelunasanBulanan || {}) : (remoteB.pelunasanBulanan || {})) : Object.assign({}, remoteB.pelunasanBulanan, localB.pelunasanBulanan)
     };
   }
 
@@ -356,6 +397,7 @@
             var mergedB = mergeBank(localB, remote.bank);
             if (JSON.stringify(localB) !== JSON.stringify(mergedB)) {
               w.NavaBank.importJSON(mergedB);
+              try { if (w.TxUI && typeof w.TxUI.render === 'function') w.TxUI.render(); } catch (eR) {}
             }
           } catch (eB) {}
         }

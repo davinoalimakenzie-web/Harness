@@ -1390,70 +1390,72 @@
   function canDelete(id, opts) {
     opts = opts || {};
     var db = load();
-    getOrder(id); // pastikan ada & milik (lokal: hanya satu pengguna)
+    getOrder(id); // pastikan ada
     var pays = db.payments.filter(function (p) { return p.orderId === id; }).length;
     var bank = db.bank.filter(function (b) { return b.orderId === id && !b.reversedAt; }).length;
-    // Allow deletion for 'Done Diambil' and 'Cancel Diambil' statuses during testing/reset
-    // These statuses artinya nota sudah selesai/dibatalkan, bisa dihapus untuk cleanup ujian
-    var status = db.orders.filter(function (o) { return o.id === id; })[0].serviceStatus;
-    var isFinalStatus = status === 'Done Diambil' || status === 'Cancel Diambil';
     return {
-      allowed: (isFinalStatus && opts.force) || (pays === 0 && bank === 0),
-      reason: (pays || bank)
-        ? (isFinalStatus ? 'Catatan sudah status final (Done/Cancel). Tekan "Force Hapus" untuk cleanup ujian.' : 'Nota sudah punya pembayaran atau riwayat Dana Bank. Koreksi lewat pembatalan, jangan dihapus agar uang tidak hilang.')
-        : null,
+      allowed: true,
+      reason: null,
       payments: pays,
       bankEntries: bank,
-      isFinalStatus: isFinalStatus
+      isFinalStatus: true
     };
   }
 
   /*
      Hapus nota dari tombol "Hapus" di dropdown status.
-
-     Jalur ini hanya hidup dari status "Done Diambil" dan memakai opts
-     fromFinal. Alasannya: canDelete sengaja menolak nota yang sudah punya
-     pembayaran supaya tidak ada uang hilang karena salah tekan. Nota
-     yang sudah diambil selalu punya pembayaran, jadi hapus biasa akan
-     selalu ditolak dan tombolnya jadi tidak berguna.
-
-     Karena itu penghapusan dari sini tidak menghapus baris pembayaran:
-     nota ditandai soft-delete sehingga tersembunyi dari daftar tetapi
-     riwayat uang tetap utuh, dan nota garansinya dicabut lebih dulu
-     supaya tautan pelanggan berhenti berlaku.
+     Dapat dijalankan dari status mana pun jika pengguna memilih untuk menghapus nota.
   */
   function deleteOrder(id, opts) {
     opts = opts || {};
-    var chk = canDelete(id);
-    if (!chk.allowed && !opts.fromFinal) throw bad(chk.reason);
-    var hard = !!opts.hard;
     var db = load();
     var o = db.orders.filter(function (x) { return x.id === id; })[0];
     if (!o) throw notFound('Nota tidak ditemukan');
+
     // Cabut nota garansi dulu supaya tautan pelanggan tidak hidup lagi
     if (o.warrantyNote && !o.warrantyNote.revokedAt) {
       o.warrantyNote.revokedAt = nowIso();
     }
-    if (hard) {
-      dborders_remove: {
-        db.orders = db.orders.filter(function (x) { return x.id !== id; });
-      }
-      db.payments = db.payments.filter(function (p) { return p.orderId !== id; });
-      var toRemoveBank = db.bank.filter(function (b) { return b.orderId === id; });
-      if (w.NavaBank && typeof w.NavaBank.remove === 'function') {
-        toRemoveBank.forEach(function (b) {
-          try { w.NavaBank.remove(b.id); } catch (eRem) {}
-        });
-      }
-      db.bank = db.bank.filter(function (b) { return b.orderId !== id; });
-      db.parts = db.parts.filter(function (p) { return p.orderId !== id; });
-      save();
-    } else {
-      o.deletedAt = nowIso();
-      o.updatedAt = o.deletedAt;
-      save();
+
+    // Hapus dari orders
+    db.orders = db.orders.filter(function (x) { return x.id !== id; });
+    db.payments = db.payments.filter(function (p) { return p.orderId !== id; });
+
+    // Hapus mutasi bank terkait
+    var toRemoveBank = db.bank.filter(function (b) { return b.orderId === id; });
+    if (w.NavaBank && typeof w.NavaBank.remove === 'function') {
+      toRemoveBank.forEach(function (b) {
+        try { w.NavaBank.remove(b.id); } catch (eRem) {}
+      });
     }
-    return { ok: true, hard: hard, payments: chk.payments, bankEntries: chk.bankEntries };
+    db.bank = db.bank.filter(function (b) { return b.orderId !== id; });
+    db.parts = db.parts.filter(function (p) { return p.orderId !== id; });
+    db.cashflow = db.cashflow.filter(function (c) { return c.orderId !== id; });
+
+    // Hapus transaksi jasa di Cashflow Alima jika ada
+    try {
+      if (w.Store && w.Store.Tx && typeof w.Store.Tx.all === 'function') {
+        var allTxs = w.Store.Tx.all();
+        var syncTx = allTxs.find(function (t) { return t.idem_key === 'mascim-jasa:' + id; });
+        if (syncTx && typeof w.Store.Tx.remove === 'function') {
+          w.Store.Tx.remove(syncTx.id);
+        }
+      }
+    } catch (eTx) {}
+
+    // Catat ID nota yang dihapus agar tidak muncul lagi saat sinkronisasi cloud
+    db.deletedOrderIds = db.deletedOrderIds || [];
+    if (db.deletedOrderIds.indexOf(id) === -1) {
+      db.deletedOrderIds.push(id);
+    }
+    if (!db.settings) db.settings = {};
+    db.settings.seeded = true;
+
+    save();
+    if (w.Sync && typeof w.Sync.schedulePush === 'function') {
+      w.Sync.schedulePush();
+    }
+    return { ok: true, hard: true };
   }
 
   /* ------------------------------------------------------------
@@ -2323,36 +2325,28 @@
   };
 
   /* ------------------------------------------------------------
-     Data contoh (dipakai sekali saat modul pertama dibuka supaya
-     Beranda tidak kosong dan semua tombol kelihatan bisa diklik).
+     Data contoh (hanya dipanggil satu kali saat inisialisasi awal.
+     Tidak boleh berjalan jika sudah ada data, atau jika sudah pernah di-seed/dihapus).
      ------------------------------------------------------------ */
   function seed() {
     var db = load();
-    if (db.orders.length) return;
-    var o1 = createOrder({
-      customer_name: 'Budi Santoso', whatsapp: '081234567890', device: 'Samsung A15',
-      complaint: 'Layar pecak, touch tidak merespons', handling: 'Ganti LCD',
-      intake_condition: 'Body penyok di sudut kiri bawah, tombol volume rusak dan tidak berfungsi, speaker normal, kamera depan berdebu.',
-      total_cost: 450000, received_at: nowIso()
-    });
-    addPart(o1.id, { part_name: 'LCD Samsung A15', capital_cost: 250000, funding_source: 'Dana Bank' });
-    // Pembayaran hanya sah saat status Done, jadi garapan contoh ini
-    // dipastikan "Done" dulu sebelum dicatat pembayarannya.
-    setServiceStatus(o1.id, 'Done');
-    addPayment(o1.id, { amount: 450000, payment_type: 'Pelunasan' });
-
-    createOrder({
-      customer_name: 'Siti Aminah', whatsapp: '081298765432', device: 'iPhone 13',
-      complaint: 'Baterai cepat habis, tidak tahan lama', handling: 'Ganti baterai',
-      total_cost: 850000, received_at: nowIso()
-    });
-
-    createOrder({
-      customer_name: 'Andi Wijaya', whatsapp: '085611223344', device: 'Xiaomi Redmi 12',
-      complaint: 'Tidak bisa dicharger', handling: 'Ganti port charge',
-      total_cost: 90000, received_at: nowIso()
-    });
-    updateSettings({ bankFundInitial: 3000000 });
+    if (db.settings && db.settings.seeded) return;
+    if (db.orders && db.orders.length) {
+      if (!db.settings) db.settings = {};
+      db.settings.seeded = true;
+      save();
+      return;
+    }
+    if (db.deletedOrderIds && db.deletedOrderIds.length > 0) {
+      if (!db.settings) db.settings = {};
+      db.settings.seeded = true;
+      save();
+      return;
+    }
+    // Tandai seeded agar saat pengguna menghapus semua nota, data contoh TIDAK muncul lagi saat refresh
+    if (!db.settings) db.settings = {};
+    db.settings.seeded = true;
+    save();
   }
 
   try {

@@ -34,7 +34,9 @@
       initial: 0,      // saldo awal / total setoran masuk
       entries: [],     // riwayat: { id, description, moneyIn, moneyOut, date, note, kind }
       wajibBulanan: {}, // { '2025-03': { amount, at, id } } -> penanda sudah disetor
-      pelunasanBulanan: {} // { '2025-03': { amount, at, id } } -> penanda settlement monthly ke Project Nava
+      pelunasanBulanan: {}, // { '2025-03': { amount, at, id } } -> penanda settlement monthly ke Project Nava
+      resetAt: null,
+      deletedIds: []
     };
   }
 
@@ -153,6 +155,8 @@
         d.wajibBulanan[k] = { amount: Math.max(0, Math.round(Number(v.amount) || 0)), at: String(v.at || '') };
       });
     }
+    d.resetAt = s.resetAt || null;
+    d.deletedIds = Array.isArray(s.deletedIds) ? s.deletedIds : [];
     return d;
   }
 
@@ -418,7 +422,10 @@
     var i = d.entries.findIndex(function (e) { return e.id === id; });
     if (i < 0) return false;
     d.entries.splice(i, 1);
+    d.deletedIds = d.deletedIds || [];
+    if (d.deletedIds.indexOf(id) === -1) d.deletedIds.push(id);
     save();
+    if (w.Sync && typeof w.Sync.push === 'function') w.Sync.push();
     return true;
   }
 
@@ -531,7 +538,15 @@
 
   function exportJSON() {
     var d = load();
-    return { initial: d.initial, entries: d.entries, wajibBulanan: d.wajibBulanan, version: 1 };
+    return {
+      initial: d.initial,
+      entries: d.entries,
+      wajibBulanan: d.wajibBulanan,
+      pelunasanBulanan: d.pelunasanBulanan,
+      resetAt: d.resetAt || null,
+      deletedIds: d.deletedIds || [],
+      version: 1
+    };
   }
   function importJSON(obj) {
     if (!obj || typeof obj !== 'object') return false;
@@ -548,7 +563,12 @@
   function reset() {
     try { w.localStorage.removeItem(KEY); } catch (e) {}
     cache = blank();
+    cache.resetAt = new Date().toISOString();
+    cache.deletedIds = [];
     save();
+    if (w.Sync && typeof w.Sync.push === 'function') {
+      w.Sync.push();
+    }
   }
 
   /* ---------------- Pelunasan otomatis ke Project Nava ---------------- */

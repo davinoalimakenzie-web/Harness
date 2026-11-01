@@ -1927,16 +1927,10 @@
             statusOpts.map(function (st) {
               return '<button class="mc-pick" data-st="' + esc(st) + '">' + esc(st) + '</button>';
             }).join('') +
-            (o.serviceStatus.trim() === 'Done Diambil' || o.serviceStatus.trim() === 'Cancel Diambil'
-              ? '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">'
-                + 'Hapus garapan ini</button>'
-              : '') +
+            '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button>' +
             '</div>'
-          : (o.serviceStatus.trim() === 'Done Diambil' || o.serviceStatus.trim() === 'Cancel Diambil'
-            ? '<div class="mc-dropmenu" id="dStatusMenu">'
-              + '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">'
-              + 'Hapus garapan ini</button></div>'
-            : '<div class="mc-dropmenu"><span class="mc-hint sm">Status sudah final.</span></div>')) +
+          : '<div class="mc-dropmenu" id="dStatusMenu">'
+            + '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button></div>') +
       '</div>' +
     '</div>';
 
@@ -2169,17 +2163,17 @@
       if (menuH) menuH.style.display = '';
       var idH = idNota();
       if (!idH) { alertErr('Nota ini belum punya identitas. Muat ulang halamannya.'); return; }
-      var tanya = 'Hapus nota ini dari daftar?\n\n'
-        + 'Tautan nota garansi ikut dicabut, jadi pelanggan tidak bisa membuka lagi.\n'
-        + 'Riwayat pembayaran dan Dana Bank tetap tersimpan.\n\n'
+      var tanya = 'Hapus garapan ini dari riwayat Mas Cim?\n\n'
+        + 'Nota dan data garapan ini akan dihapus permanen.\n\n'
         + 'Lanjut hapus?';
       if (!window.confirm(tanya)) return;
-      api('DELETE', '/api/mascim/services/' + encodeURIComponent(idH), { fromFinal: true, hard: true })
+      api('DELETE', '/api/mascim/services/' + encodeURIComponent(idH), { fromFinal: true, hard: true, force: true })
         .then(function () {
           M.current = null;
           M.id = '';
           renderList();
-          markTersimpan('\u2713 Nota dihapus');
+          markTersimpan('\u2713 Nota berhasil dihapus');
+          if (w.Sync && typeof w.Sync.push === 'function') w.Sync.push();
         })
         .catch(function (err) {
           alertErr('Gagal menghapus: '
