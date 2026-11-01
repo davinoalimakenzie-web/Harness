@@ -227,14 +227,33 @@
     var mergedCashflow = mergeById(localM.cashflow, remoteM.cashflow, 'createdAt', true);
     var mergedBank = mergeById(localM.bank, remoteM.bank, 'createdAt', true);
 
+    if (mergedOrders.length === 0) {
+      mergedParts = [];
+      mergedPayments = [];
+      mergedCashflow = [];
+      mergedBank = [];
+    } else {
+      var validOrderMap = {};
+      mergedOrders.forEach(function (o) { validOrderMap[o.id] = true; });
+      mergedCashflow = mergedCashflow.filter(function (c) { return !c.orderId || validOrderMap[c.orderId]; });
+      mergedParts = mergedParts.filter(function (p) { return validOrderMap[p.orderId]; });
+      mergedPayments = mergedPayments.filter(function (p) { return validOrderMap[p.orderId]; });
+      mergedBank = mergedBank.filter(function (b) { return validOrderMap[b.orderId]; });
+    }
+
     var noteCounter = Math.max(
       (localM.settings && localM.settings.noteCounter) || 0,
       (remoteM.settings && remoteM.settings.noteCounter) || 0
     );
 
+    var bankInit = mergedOrders.length === 0 ? 0 : Math.max(
+      (localM.settings && localM.settings.bankFundInitial) || 0,
+      (remoteM.settings && remoteM.settings.bankFundInitial) || 0
+    );
+
     return {
       version: 1,
-      settings: Object.assign({}, remoteM.settings, localM.settings, { noteCounter: noteCounter, seeded: true }),
+      settings: Object.assign({}, remoteM.settings, localM.settings, { noteCounter: noteCounter, bankFundInitial: bankInit, seeded: true }),
       deletedOrderIds: Object.keys(deletedMap),
       orders: mergedOrders,
       parts: mergedParts,

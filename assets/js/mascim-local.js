@@ -277,8 +277,53 @@
     if (!Array.isArray(cache.cashflow)) cache.cashflow = [];
     if (!Array.isArray(cache.bank)) cache.bank = [];
     if (!cache.settings) cache.settings = { bankFundInitial: 0, noteCounter: 0 };
-    if (migrate()) save();
+    var m1 = migrate();
+    var m2 = sanitizeDangling();
+    if (m1 || m2) save();
     return cache;
+  }
+
+  /*
+     Pembersihan data cashflow / sparepart / mutasi yang menggantung
+     ketika nota terkait sudah dihapus atau saat seluruh garapan kosong.
+  */
+  function sanitizeDangling() {
+    var changed = false;
+    var activeOrders = (cache.orders || []).filter(function (o) { return !o.deletedAt; });
+    if (activeOrders.length === 0) {
+      if ((cache.cashflow && cache.cashflow.length) || (cache.parts && cache.parts.length) || (cache.payments && cache.payments.length) || (cache.bank && cache.bank.length)) {
+        cache.cashflow = [];
+        cache.parts = [];
+        cache.payments = [];
+        cache.bank = [];
+        changed = true;
+      }
+      if (cache.settings && cache.settings.bankFundInitial) {
+        cache.settings.bankFundInitial = 0;
+        changed = true;
+      }
+    } else {
+      var validIds = {};
+      activeOrders.forEach(function (o) { validIds[o.id] = true; });
+      var prevCfLen = cache.cashflow.length;
+      cache.cashflow = cache.cashflow.filter(function (c) {
+        return !c.orderId || validIds[c.orderId];
+      });
+      if (cache.cashflow.length !== prevCfLen) changed = true;
+
+      var prevPartsLen = cache.parts.length;
+      cache.parts = cache.parts.filter(function (p) { return validIds[p.orderId]; });
+      if (cache.parts.length !== prevPartsLen) changed = true;
+
+      var prevPayLen = cache.payments.length;
+      cache.payments = cache.payments.filter(function (p) { return validIds[p.orderId]; });
+      if (cache.payments.length !== prevPayLen) changed = true;
+
+      var prevBankLen = cache.bank.length;
+      cache.bank = cache.bank.filter(function (b) { return !b.orderId || validIds[b.orderId]; });
+      if (cache.bank.length !== prevBankLen) changed = true;
+    }
+    return changed;
   }
 
   /*
@@ -1432,6 +1477,14 @@
     db.parts = db.parts.filter(function (p) { return p.orderId !== id; });
     db.cashflow = db.cashflow.filter(function (c) { return c.orderId !== id; });
 
+    if (db.orders.length === 0) {
+      db.cashflow = [];
+      db.parts = [];
+      db.payments = [];
+      db.bank = [];
+      if (db.settings) db.settings.bankFundInitial = 0;
+    }
+
     // Hapus transaksi jasa di Cashflow Alima jika ada
     try {
       if (w.Store && w.Store.Tx && typeof w.Store.Tx.all === 'function') {
@@ -1909,6 +1962,17 @@
   }
 
   function bankSummary() {
+    // Dana Bank Mas Cim terhubung langsung dengan Dana Bank Pusat (NavaBank)
+    if (w.NavaBank && typeof w.NavaBank.available === 'function') {
+      var navAvail = w.NavaBank.available();
+      var bData = typeof w.NavaBank.get === 'function' ? w.NavaBank.get() : {};
+      return {
+        initial: bData.initial || 0,
+        used: bData.totalOut || 0,
+        returned: bData.totalReturned || 0,
+        available: navAvail
+      };
+    }
     var st = load().settings;
     var rows = load().bank.filter(function (b) { return !b.reversedAt; });
     var used = rows.reduce(function (s, b) { return s + (b.moneyOut || 0); }, 0);
