@@ -108,6 +108,21 @@
     try {
       var d = JSON.parse(w.localStorage.getItem(KUNCI) || 'null');
       if (d && typeof d === 'object') {
+        // Reset riwayat & dummy untuk uji coba baru
+        if (!d._vClean2026) {
+          d.tasks = [];
+          d.jobs = [];
+          d.transactions = [];
+          d.paymentRequests = [];
+          d.bonRequests = [];
+          d.jobRequests = [];
+          d.log = [];
+          d.bon = { total: 0, remaining: 0, history: [] };
+          d.centralBalance = 0;
+          d.hapus = { users: [], tasks: [], services: [] };
+          d._vClean2026 = true;
+          try { w.localStorage.setItem(KUNCI, JSON.stringify(d)); } catch (e) {}
+        }
         for (var k in data) if (d[k] !== undefined) data[k] = d[k];
       }
     } catch (e) {}

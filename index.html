@@ -267,29 +267,6 @@
 
     </div>
 
-    <div class="list-head"><strong>Penyimpanan Data</strong></div>
-    <div class="card" style="margin:0 14px 14px;padding:12px">
-      <div class="row-b" style="gap:10px;align-items:flex-start">
-        <div class="grow">
-          <div class="item-title">Tersimpan di perangkat &amp; tersinkron ke cloud</div>
-          <div class="item-sub">Transaksi, akun, dan catatan tersimpan di perangkat ini (localStorage) dan otomatis tersinkronisasi dua arah ke cloud (Supabase). Semua input dari link browser maupun Telegram Mini App tersimpan menjadi satu.</div>
-        </div>
-        <span class="rec-dot" id="sb-kartu-titik" aria-hidden="true"></span>
-      </div>
-      <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-        <p class="muted xs" id="sb-kartu-status" style="margin:0">Memeriksa koneksi...</p>
-        <button id="btnManualSync" type="button" class="btn sm" style="padding:6px 14px;font-size:12px;font-weight:600;white-space:nowrap;background:linear-gradient(135deg,var(--accent),#2563eb);color:#fff;border-radius:8px;border:none;cursor:pointer;">
-          🔄 Sinkronkan Sekarang
-        </button>
-      </div>
-      <p class="muted xs" style="margin:10px 0 0">
-        <b>Pindah ke HP lain:</b> otomatis tersinkron saat dibuka, atau pakai <b>Export JSON</b> di HP lama lalu <b>Import JSON</b> di HP tujuan.
-      </p>
-    </div>
-
-    <div class="list-head"><strong>Akun</strong></div>
-    <div class="tools" id="accEditor"></div>
-
     <div class="list-head"><strong>Kategori transaksi</strong></div>
     <div class="card">
       <div class="list-head tight">
@@ -313,33 +290,46 @@
       <p class="hint">Isi kategori dulu, lalu pilih induknya dan isi subkategori bila perlu.</p>
     </div>
 
-    <div class="list-head"><strong>Data</strong></div>
-    <div class="card">
-      <div class="row-2">
-        <button id="dExport" class="btn">Export JSON</button>
-        <button id="dImport" class="btn">Import JSON</button>
+    <div class="list-head"><strong>Pencadangan &amp; Penyimpanan Data</strong></div>
+    <div class="card" style="margin:0 14px 14px;padding:14px">
+      <!-- 1. Real-time Cloud Sync (Supabase) -->
+      <div class="row-b" style="gap:10px;align-items:flex-start">
+        <div class="grow">
+          <div class="item-title" style="font-weight:700;display:flex;align-items:center;gap:6px">
+            <span>☁️ Sinkronisasi Otomatis Cloud</span>
+          </div>
+          <div class="item-sub" style="margin-top:4px">
+            Data transaksi dan catatan tersimpan di perangkat ini (localStorage) dan otomatis tersinkronisasi dua arah ke cloud (Supabase) secara real-time. Semua input dari web browser maupun Telegram Mini App terpadu menjadi satu.
+          </div>
+        </div>
+        <span class="rec-dot" id="sb-kartu-titik" aria-hidden="true"></span>
       </div>
-      <div class="row-2 mt">
-        <button id="dExportCsv" class="btn">Ekspor CSV</button>
-        <button id="dImportCsv" class="btn">Impor CSV</button>
+
+      <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <p class="muted xs" id="sb-kartu-status" style="margin:0">Memeriksa koneksi...</p>
+        <button id="btnManualSync" type="button" class="btn sm" style="padding:6px 14px;font-size:12px;font-weight:600;white-space:nowrap;background:linear-gradient(135deg,var(--accent),#2563eb);color:#fff;border-radius:8px;border:none;cursor:pointer;">
+          🔄 Sinkronkan Sekarang
+        </button>
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--line);margin:14px 0 12px;">
+
+      <!-- 2. Cadangan File Fisik (Offline) -->
+      <div style="margin-bottom:8px">
+        <strong style="font-size:13px;color:var(--text);">📦 Cadangan File Fisik (Offline)</strong>
+        <p class="muted xs" style="margin:2px 0 10px;">Gunakan untuk menyimpan arsip file di perangkat atau memindahkan seluruh data saat berganti HP.</p>
+      </div>
+
+      <div class="row-2">
+        <button id="dExport" class="btn" style="padding:8px 10px;font-size:12px;">⬇️ Unduh File JSON</button>
+        <button id="dImport" class="btn" style="padding:8px 10px;font-size:12px;">⬆️ Pulihkan File JSON</button>
       </div>
       <input type="file" id="dFile" accept="application/json" class="hidden">
-      <div class="row-2 mt">
-        <button id="dShareTelegram" class="btn ghost full">Backup Tele</button>
-        <button id="dClear" class="btn danger ghost">Hapus Semua</button>
-      </div>
-      <p class="hint">Data disimpan di perangkat ini (localStorage). Tidak ada Chat ID atau isi percakapan yang disimpan.</p>
-    </div>
 
-    <div class="list-head"><strong>Cadangan Otomatis</strong></div>
-    <div class="card">
-      <p class="hint" id="abInfo">Memuat…</p>
-      <div id="abList" class="ab-list"></div>
-      <div class="row-2 mt">
-        <button id="abNow" class="btn">Cadangkan Sekarang</button>
-        <button id="abRestore" class="btn">Pulihkan Terakhir</button>
+      <div class="row-2 mt" style="margin-top:8px">
+        <button id="dExportCsv" class="btn ghost" style="padding:8px 10px;font-size:12px;">📊 Ekspor CSV (Excel)</button>
+        <button id="dClear" class="btn danger ghost" style="padding:8px 10px;font-size:12px;">🗑️ Reset Data</button>
       </div>
-      <p class="hint">App menyimpan salinan data tiap 1 jam (3 salinan terakhir). Berguna kalau HP ganti atau data browser dibersihkan. Untuk pindah ke HP lain, pakai <b>Export JSON</b> lalu <b>Import JSON</b> di HP tujuan.</p>
     </div>
 
     <div class="list-head"><strong>Tentang</strong></div>

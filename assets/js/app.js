@@ -312,7 +312,6 @@
   }
 
   function refreshMore() {
-    renderAccountEditor();
     renderCatEditor();
     renderNewParent();
     if (App.renderAutoBackup) App.renderAutoBackup();
@@ -700,23 +699,26 @@
       }
     });
 
-    // Akun
-    $('#accEditor').addEventListener('click', function (e) {
-      if (e.target.closest('#addAccBtn')) { openAccountSheet(); return; }
-      var d = e.target.closest('[data-delacc]');
-      if (d) {
-        var acc = S.Accounts.get(d.dataset.delacc);
-        TG.confirm('Hapus akun "' + (acc ? acc.name : '') + '"?', function (ok) {
-          if (!ok) return;
-          var res = S.Accounts.remove(d.dataset.delacc);
-          if (!res.ok) { App.toast(res.msg); return; }
-          renderAccountEditor();
-          w.TxUI.render();
-          TG.haptic('success');
-          App.toast('Akun dihapus');
-        });
-      }
-    });
+    // Akun (dihapus dari view-more Alima, dijaga aman bila elemen tidak ada)
+    var accWrap = $('#accEditor');
+    if (accWrap) {
+      accWrap.addEventListener('click', function (e) {
+        if (e.target.closest('#addAccBtn')) { openAccountSheet(); return; }
+        var d = e.target.closest('[data-delacc]');
+        if (d) {
+          var acc = S.Accounts.get(d.dataset.delacc);
+          TG.confirm('Hapus akun "' + (acc ? acc.name : '') + '"?', function (ok) {
+            if (!ok) return;
+            var res = S.Accounts.remove(d.dataset.delacc);
+            if (!res.ok) { App.toast(res.msg); return; }
+            renderAccountEditor();
+            w.TxUI.render();
+            TG.haptic('success');
+            App.toast('Akun dihapus');
+          });
+        }
+      });
+    }
     App.openAccountSheet = openAccountSheet;
 
     // Data

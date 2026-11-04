@@ -451,61 +451,7 @@
 
     // Data Dummy Awal (Contoh Realistis: 3 acara di tanggal yang sama untuk demo peringatan jadwal)
     var defaultData = {
-      clients: [
-        {
-          id: 'c1',
-          name: 'Anisa & Farhan',
-          phone: '081234567890',
-          eventDate: '2026-11-05',
-          notes: 'Akad Sunda Siger, look glowing soft glam. Fitting kebaya M (Ld 88).',
-          packagePrice: 6500000,
-          downPayment: 2000000,
-          payments: [
-            { id: 'p1', date: '2026-10-01', amount: 2000000, note: 'DP Booking', dummy: true }
-          ],
-          clothes: ['b1', 'b4']
-        },
-        {
-          id: 'c2',
-          name: 'Dinda & Yoga',
-          phone: '082198765432',
-          eventDate: '2026-11-05',
-          notes: 'Resepsi Modern Hijab, lipstik nude pink. Gaun Champagne L.',
-          packagePrice: 5000000,
-          downPayment: 1500000,
-          payments: [
-            { id: 'p2', date: '2026-10-15', amount: 1500000, note: 'DP Booking', dummy: true },
-            { id: 'p3', date: '2026-10-25', amount: 2000000, note: 'Cicilan 1', dummy: true }
-          ],
-          clothes: ['b2']
-        },
-        {
-          id: 'c3',
-          name: 'Siti & Ilham',
-          phone: '085712345678',
-          eventDate: '2026-11-05', // Acara ke-3 di tanggal yang sama (memicu > 2 alert!)
-          notes: 'Rias akad minimalis modern di rumah.',
-          packagePrice: 3000000,
-          downPayment: 3000000,
-          payments: [
-            { id: 'p4', date: '2026-10-20', amount: 3000000, note: 'Lunas Langsung', dummy: true }
-          ],
-          clothes: ['b5']
-        },
-        {
-          id: 'c4',
-          name: 'Citra & Dimas',
-          phone: '081388889999',
-          eventDate: '2026-11-12',
-          notes: 'Rias Jawa Solo Putri klasik. Beskap pria L.',
-          packagePrice: 4500000,
-          downPayment: 1500000,
-          payments: [
-            { id: 'p5', date: '2026-10-22', amount: 1500000, note: 'DP Booking', dummy: true }
-          ],
-          clothes: ['b3']
-        }
-      ],
+      clients: [],
       clothes: [
         {
           id: 'b1',
@@ -550,7 +496,15 @@
       load: function () {
         try {
           var raw = localStorage.getItem(STORAGE_KEY);
-          if (raw) return JSON.parse(raw);
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (!parsed._vClean2026) {
+              parsed.clients = [];
+              parsed._vClean2026 = true;
+              this.save(parsed);
+            }
+            return parsed;
+          }
         } catch (e) {}
         this.save(defaultData);
         return defaultData;
