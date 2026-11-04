@@ -283,6 +283,13 @@
             : '<div class="ce-subs">' + (detail.length
                 ? detail.map(function (s) {
                     var su = S.Groups.subUsage(g.id, s.n);
+                    var locked = (type === 'in' && S.isLockedIncomeSub && S.isLockedIncomeSub(type, g.group, s.n));
+                    if (locked) {
+                      return '<span class="ce-sub ce-locked" style="opacity:0.9;border-color:rgba(217,119,6,0.35);" title="Otomatis dari Sistem">' +
+                        esc(s.i || '•') + ' ' + esc(s.n) +
+                        ' <span style="font-size:10px;padding:1px 5px;background:rgba(217,119,6,0.15);color:#f59e0b;border-radius:4px;margin-left:4px;">🔒 Sistem</span>' +
+                        '</span>';
+                    }
                     return '<span class="ce-sub">' + esc(s.i || '•') + ' ' + esc(s.n) +
                       '<button class="ce-sub-x" data-ce-subedit="' + esc(g.id) + '" data-ce-sub="' + esc(s.n) + '" title="Ubah">✎</button>' +
                       (su ? '' : '<button class="ce-sub-x" data-ce-subdel="' + esc(g.id) + '" data-ce-sub="' + esc(s.n) + '" title="Hapus">🗑</button>') +
@@ -621,6 +628,10 @@
       if (sed) {
         var gs = S.Groups.all().filter(function (x) { return x.id === sed.dataset.ceSubedit; })[0];
         if (!gs) return;
+        if (gs.type === 'in' && S.isLockedIncomeSub && S.isLockedIncomeSub(gs.type, gs.group, sed.dataset.ceSub)) {
+          App.toast('Subkategori ini dikunci karena digunakan otomatis oleh sistem kalkulator');
+          return;
+        }
         promptSheet('Ubah Subkategori', 'Nama subkategori', sed.dataset.ceSub, function (v) {
           var r = S.Groups.renameSub(gs.id, sed.dataset.ceSub, v);
           if (!r.ok) { App.toast(r.msg); return; }
@@ -637,6 +648,10 @@
         var gs2 = S.Groups.all().filter(function (x) { return x.id === sdel.dataset.ceSubdel; })[0];
         if (!gs2) return;
         var sub = sdel.dataset.ceSub;
+        if (gs2.type === 'in' && S.isLockedIncomeSub && S.isLockedIncomeSub(gs2.type, gs2.group, sub)) {
+          App.toast('Subkategori ini dikunci karena digunakan otomatis oleh sistem kalkulator');
+          return;
+        }
         var r0 = S.Groups.removeSub(gs2.id, sub);
         if (!r0.ok) { App.toast(r0.msg); return; }
         refreshMore(); w.TxUI.render();

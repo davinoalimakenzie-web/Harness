@@ -652,6 +652,13 @@
     return Groups.subsDetail(g).length === 0;
   }
 
+  function isLockedIncome(tType, gName, sName) {
+    if (S.isLockedIncomeSub) return S.isLockedIncomeSub(tType, gName, sName);
+    if (tType !== 'in') return false;
+    var s = String(sName || '').toLowerCase().trim();
+    return s === 'service hp' || s === 'servis hp' || s === 'roncelia' || s === 'ronce' || s === 'riasan' || s === 'rias';
+  }
+
   /* --- KATEGORI: dropdown kelompok + subkategori (ringkas) --- */
   function renderGroupSelect() {
     var list = Groups.for(type);
@@ -662,8 +669,12 @@
     }
     var opts = ['<option value="">— Pilih kategori —</option>'];
     list.forEach(function (g) {
-      opts.push('<option value="' + esc(g.group) + '">' +
-        esc((g.icon || '•') + ' ' + g.group) + '</option>');
+      var subs = Groups.subsDetail(g);
+      var allLocked = (type === 'in' && !g.isDirect && subs.length > 0 && subs.every(function (s) {
+        return isLockedIncome(type, g.group, s.n);
+      }));
+      var label = esc((g.icon || '•') + ' ' + g.group) + (allLocked ? ' (Otomatis Kalkulator)' : '');
+      opts.push('<option value="' + esc(g.group) + '">' + label + '</option>');
     });
     el.selGroup.innerHTML = opts.join('');
     el.selGroup.value = group || '';
@@ -679,10 +690,27 @@
     var subs = Groups.subsDetail(g);
     el.subField.classList.remove('hidden');
     var opts = ['<option value="">— Pilih sub —</option>'];
+    var hasAvailable = false;
     subs.forEach(function (s) {
-      opts.push('<option value="' + esc(s.n) + '">' + esc((s.i || '•') + ' ' + s.n) + '</option>');
+      var locked = isLockedIncome(type, group, s.n);
+      if (locked) {
+        opts.push('<option value="' + esc(s.n) + '" disabled style="color:#888;">🔒 ' +
+          esc(s.n) + ' (Otomatis Sistem)</option>');
+      } else {
+        hasAvailable = true;
+        opts.push('<option value="' + esc(s.n) + '">' + esc((s.i || '•') + ' ' + s.n) + '</option>');
+      }
     });
+
+    if (!hasAvailable && type === 'in') {
+      opts[0] = '<option value="" disabled selected>🔒 Terisi otomatis dari Kalkulator</option>';
+    }
+
     el.selSub.innerHTML = opts.join('');
+
+    if (sub && isLockedIncome(type, group, sub)) {
+      sub = null;
+    }
     el.selSub.value = sub || '';
   }
 
@@ -746,6 +774,11 @@
   function openEdit(id) {
     var t = Tx.get(id);
     if (!t) return;
+    if (t.type === 'in' && isLockedIncome(t.type, t.group, t.sub)) {
+      toast('Transaksi ini dikelola otomatis dari modul kalkulator');
+      TG.haptic('warning');
+      return;
+    }
     resetForm();
     editingId = id;
     type = t.type;
@@ -776,6 +809,11 @@
   function submit() {
     if (saving) return;
     clearErr();
+    if (type === 'in' && isLockedIncome(type, group, sub)) {
+      showErr('Pemasukan jalur "' + (sub || 'ini') + '" dikunci karena otomatis terisi dari sistem.');
+      TG.haptic('warning');
+      return;
+    }
     var form = {
       type: type, group: group, sub: sub,
       amount: amountStr, date: el.txDate.value,
@@ -918,6 +956,13 @@
     var ini = t.type === 'in';
     var acc = accOf(t);
     var g = Groups.of(t.type, t.group);
+    var isAuto = (t.type === 'in' && isLockedIncome(t.type, t.group, t.sub)) ||
+      (t.idem_key && /^(mascim:|ronce-|rias-)/.test(t.idem_key));
+    var sourceName = (t.sub === 'Service HP') ? 'Kalkulator Servis HP'
+      : (t.sub === 'Roncelia' || t.sub === 'Ronce') ? 'Kalkulator Ronce'
+      : (t.sub === 'Riasan' || t.sub === 'Rias') ? 'Kalkulator Riasan'
+      : 'Modul Kalkulator';
+
     el.dBody.innerHTML =
       '<div style="text-align:center;padding:6px 0 14px">' +
         '<div style="font-size:40px">' + esc(iconOfTx(t)) + '</div>' +
@@ -926,6 +971,12 @@
         '<div class="muted" style="font-size:13px;margin-top:2px">' +
         esc(labelOf(t)) + (t.sub ? ' · ' + esc(t.group) : '') + '</div>' +
       '</div>' +
+      (isAuto
+        ? '<div style="margin:0 0 12px;padding:8px 12px;background:rgba(217,119,6,0.12);border:1px solid rgba(217,119,6,0.3);border-radius:10px;font-size:12px;color:var(--text);text-align:left;">' +
+            '<div style="font-weight:700;color:#f59e0b;margin-bottom:2px;">🔒 Transaksi Otomatis Sistem</div>' +
+            '<span class="muted" style="font-size:11px;">Tercatat otomatis dari ' + esc(sourceName) + '. Tidak dapat diubah manual.</span>' +
+          '</div>'
+        : '') +
       '<div class="result card" style="box-shadow:none;background:var(--bg)">' +
         '<div class="r-row"><span>Jenis</span><b>' + (ini ? '+ Pemasukan' : '− Pengeluaran') + '</b></div>' +
         '<div class="r-row"><span>Kategori</span><b>' + esc(t.group) + '</b></div>' +
@@ -935,7 +986,9 @@
         (t.note ? '<div class="r-row"><span>Catatan</span><b>' + esc(t.note) + '</b></div>' : '') +
       '</div>' +
       '<div class="row-2">' +
-        '<button class="btn" data-edit="' + esc(t.id) + '">Edit</button>' +
+        (isAuto
+          ? '<button class="btn disabled" style="opacity:0.55;cursor:not-allowed;" title="Dikelola otomatis dari kalkulator">🔒 Otomatis Sistem</button>'
+          : '<button class="btn" data-edit="' + esc(t.id) + '">Edit</button>') +
         '<button class="btn danger ghost" data-del="' + esc(t.id) + '">Hapus</button>' +
       '</div>';
     el.dSheet.classList.remove('hidden');
@@ -946,7 +999,12 @@
   function askDelete(id) {
     var t = Tx.get(id);
     if (!t) return;
-    TG.confirm('Hapus transaksi ' + labelOf(t) + ' ' + money(t.amount) + '?', function (ok) {
+    var isAuto = (t.type === 'in' && isLockedIncome(t.type, t.group, t.sub)) ||
+      (t.idem_key && /^(mascim:|ronce-|rias-)/.test(t.idem_key));
+    var confirmMsg = isAuto
+      ? 'Transaksi ini tercatat otomatis dari modul kalkulator. Hapus dari cashflow Alima?'
+      : 'Hapus transaksi ' + labelOf(t) + ' ' + money(t.amount) + '?';
+    TG.confirm(confirmMsg, function (ok) {
       if (!ok) return;
       Tx.remove(id);
       closeDetail();

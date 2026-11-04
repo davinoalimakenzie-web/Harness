@@ -585,8 +585,8 @@
         document.getElementById('clientEventDate').value = today;
         document.getElementById('payDate').value = today;
 
-        // Sinkronisasi pembayaran rias riil ke Cashflow Alima
-        this.syncAllPaymentsToCashflow();
+        // Sinkronisasi pelunasan rias riil ke Cashflow Alima (hanya jika full payment)
+        this.syncAllClientsToCashflow();
 
         this.renderAll();
       },
@@ -1082,11 +1082,18 @@
           hist.innerHTML = '<p class="text-brand-muted text-[11px]">Belum ada catatan pembayaran.</p>';
         } else {
           hist.innerHTML = client.payments.map(function (p) {
-            var isSynced = !p.dummy;
+            var badgeText = '';
+            if (p.dummy) {
+              badgeText = '';
+            } else if (isLunas) {
+              badgeText = ' &middot; <span class="text-emerald-400 font-medium">✓ Masuk Cashflow</span>';
+            } else {
+              badgeText = ' &middot; <span class="text-amber-400/80 font-medium">Cicilan (Belum Masuk Cashflow)</span>';
+            }
             return '<div class="flex items-center justify-between p-2 rounded-lg bg-brand-card2 border border-brand-line/50 text-xs">' +
               '<div>' +
                 '<b class="text-brand-text block">' + (p.note || 'Pembayaran') + '</b>' +
-                '<span class="text-[10px] text-brand-muted">' + RiasApp.formatDate(p.date) + (isSynced ? ' &middot; <span class="text-emerald-400 font-medium">✓ Masuk Cashflow</span>' : '') + '</span>' +
+                '<span class="text-[10px] text-brand-muted">' + RiasApp.formatDate(p.date) + badgeText + '</span>' +
               '</div>' +
               '<div class="flex items-center gap-2">' +
                 '<span class="font-bold text-emerald-400">+' + RiasApp.formatIDR(p.amount) + '</span>' +
@@ -1102,27 +1109,33 @@
       /* =========================================================
          SINKRONISASI CASHFLOW ALIMA (PROJECT NAVA)
          Kategori: type 'in', group 'Income Hima', sub 'Riasan'
-         Idempoten via idem_key 'rias-pay:' + payment.id
+         Aturan Revisi Khusus:
+         - HANYA masuk Cashflow Alima saat SUDAH TERJADI FULL PAYMENT (LUNAS),
+           bukan mencicil / DP belum lunas.
+         - Idempoten via idem_key 'rias-client:' + client.id
          ========================================================= */
       getStore: function () {
-        if (window.Store && window.Store.Tx) return window.Store;
         if (window.parent && window.parent.Store && window.parent.Store.Tx) return window.parent.Store;
+        if (window.Store && window.Store.Tx) return window.Store;
         return null;
       },
 
-      syncPaymentToCashflow: function (client, payment) {
-        if (!payment || !payment.amount || payment.amount <= 0 || payment.dummy) return null;
+      refreshNavaUI: function () {
+        var p = (window.parent && window.parent.TxUI) ? window.parent : window;
+        try {
+          if (p.Store && typeof p.Store.save === 'function') p.Store.save();
+          if (p.TxUI && typeof p.TxUI.render === 'function') p.TxUI.render();
+          if (p.App && typeof p.App.render === 'function') p.App.render();
+          if (p.Sync && typeof p.Sync.push === 'function') p.Sync.push();
+        } catch (e) {}
+      },
+
+      syncClientToCashflow: function (client) {
+        if (!client) return null;
         var S = this.getStore();
         if (!S || !S.Tx) return null;
 
-        var payDate = payment.date || (new Date().toISOString().split('T')[0]);
-        var today = S.todayStr ? S.todayStr() : (new Date().toISOString().split('T')[0]);
-        if (payDate > today) payDate = today;
-
-        var clientName = (client && client.name) ? client.name : 'Klien';
-        var noteDesc = 'Pelunasan Rias (' + (payment.note || 'Pelunasan') + ') — ' + clientName;
-        var idem = 'rias-pay:' + payment.id;
-
+        var idem = 'rias-client:' + client.id;
         var list = S.Tx.all();
         var lama = null, tercabut = null;
         for (var i = 0; i < list.length; i++) {
@@ -1132,11 +1145,44 @@
           }
         }
 
+        var payments = client.payments || [];
+        var realPayments = payments.filter(function (p) { return !p.dummy; });
+        var totalPaid = realPayments.reduce(function (s, p) { return s + (p.amount || 0); }, 0);
+        var targetPrice = client.packagePrice || 0;
+        var isFullPayment = (targetPrice > 0 && totalPaid >= targetPrice);
+
+        // Bersihkan jika masih ada sisa entri per-payment lama (rias-pay:*)
+        for (var k = 0; k < list.length; k++) {
+          var t = list[k];
+          if (t.idem_key && t.idem_key.indexOf('rias-pay:') === 0 && !t.deleted_at) {
+            S.Tx.remove(t.id);
+          }
+        }
+
+        // SYARAT KHUSUS: Hanya masuk jika Full Payment / Pelunasan Berhasil.
+        // Bila belum lunas (masih mencicil / DP saja) atau total <= 0, cabut dari Cashflow Alima.
+        if (!isFullPayment || totalPaid <= 0) {
+          var didRemove = false;
+          if (lama) { S.Tx.remove(lama.id); didRemove = true; }
+          if (tercabut) { S.Tx.remove(tercabut.id); didRemove = true; }
+          if (didRemove) this.refreshNavaUI();
+          return { removed: didRemove, isFullPayment: false, amount: 0 };
+        }
+
+        // Tanggal pelunasan: tanggal pembayaran terakhir (atau tanggal acara / hari ini)
+        var lastPay = realPayments[realPayments.length - 1];
+        var payDate = (lastPay && lastPay.date) || client.eventDate || (new Date().toISOString().split('T')[0]);
+        var today = S.todayStr ? S.todayStr() : (new Date().toISOString().split('T')[0]);
+        if (payDate > today) payDate = today;
+
+        var clientName = client.name ? client.name.trim() : 'Klien';
+        var noteDesc = 'Pelunasan Rias — ' + clientName;
+
         var payload = {
           type: 'in',
           group: 'Income Hima',
           sub: 'Riasan',
-          amount: payment.amount,
+          amount: totalPaid,
           date: payDate,
           note: noteDesc
         };
@@ -1145,56 +1191,59 @@
         if (lama) {
           if (lama.amount === payload.amount && lama.group === payload.group && lama.sub === payload.sub &&
               lama.note === payload.note && lama.transaction_date === payload.date) {
-            res = { unchanged: true, id: lama.id, amount: payment.amount };
+            res = { unchanged: true, id: lama.id, amount: totalPaid, isFullPayment: true };
           } else {
             S.Tx.update(lama.id, payload);
-            res = { updated: true, id: lama.id, amount: payment.amount };
+            res = { updated: true, id: lama.id, amount: totalPaid, isFullPayment: true };
           }
         } else if (tercabut) {
           S.Tx.restore(tercabut.id);
           S.Tx.update(tercabut.id, payload);
-          res = { restored: true, id: tercabut.id, amount: payment.amount };
+          res = { restored: true, id: tercabut.id, amount: totalPaid, isFullPayment: true };
         } else {
           var r = S.Tx.create(payload, idem);
-          res = { created: !r.duplicate, duplicate: !!r.duplicate, id: r.tx && r.tx.id, amount: payment.amount };
+          res = { created: !r.duplicate, duplicate: !!r.duplicate, id: r.tx && r.tx.id, amount: totalPaid, isFullPayment: true };
         }
 
-        // Refresh Nava Cashflow UI
-        var p = window.parent || window;
-        try {
-          if (p.TxUI && typeof p.TxUI.render === 'function') p.TxUI.render();
-          if (p.App && typeof p.App.render === 'function') p.App.render();
-        } catch (e) {}
-
+        this.refreshNavaUI();
         return res;
       },
 
-      removePaymentFromCashflow: function (paymentId) {
+      removeClientFromCashflow: function (clientId) {
         var S = this.getStore();
         if (!S || !S.Tx) return;
-        var idem = 'rias-pay:' + paymentId;
+        var idem = 'rias-client:' + clientId;
         var list = S.Tx.all();
+        var didRemove = false;
         for (var i = 0; i < list.length; i++) {
           if (list[i].idem_key === idem && !list[i].deleted_at) {
             S.Tx.remove(list[i].id);
+            didRemove = true;
             break;
           }
         }
-        var p = window.parent || window;
-        try {
-          if (p.TxUI && typeof p.TxUI.render === 'function') p.TxUI.render();
-          if (p.App && typeof p.App.render === 'function') p.App.render();
-        } catch (e) {}
+        for (var j = 0; j < list.length; j++) {
+          if (list[j].idem_key && list[j].idem_key.indexOf('rias-pay:') === 0 && !list[j].deleted_at) {
+            S.Tx.remove(list[j].id);
+            didRemove = true;
+          }
+        }
+        if (didRemove) this.refreshNavaUI();
       },
 
-      syncAllPaymentsToCashflow: function () {
+      syncAllClientsToCashflow: function () {
         if (!this.db || !this.db.clients) return;
-        for (var i = 0; i < this.db.clients.length; i++) {
-          var c = this.db.clients[i];
-          var payments = c.payments || [];
-          for (var j = 0; j < payments.length; j++) {
-            this.syncPaymentToCashflow(c, payments[j]);
+        var S = this.getStore();
+        if (S && S.Tx) {
+          var all = S.Tx.all();
+          for (var k = 0; k < all.length; k++) {
+            if (all[k].idem_key && all[k].idem_key.indexOf('rias-pay:') === 0 && !all[k].deleted_at) {
+              S.Tx.remove(all[k].id);
+            }
           }
+        }
+        for (var i = 0; i < this.db.clients.length; i++) {
+          this.syncClientToCashflow(this.db.clients[i]);
         }
       },
 
@@ -1285,8 +1334,15 @@
         client.payments.push(newPay);
 
         DB.save(this.db);
-        this.syncPaymentToCashflow(client, newPay);
-        this.toast('✅ ' + note + ' ' + this.formatIDR(amount) + ' berhasil dicatat!');
+        var syncRes = this.syncClientToCashflow(client);
+        var isFull = syncRes && syncRes.isFullPayment;
+        if (isFull) {
+          this.toast('✅ Pelunasan berhasil! Otomatis masuk Cashflow Alima (Income Hima - Riasan)');
+        } else {
+          var curPaid = (client.payments || []).reduce(function (s, p) { return s + p.amount; }, 0);
+          var rem = Math.max(0, client.packagePrice - curPaid);
+          this.toast('✅ ' + note + ' ' + this.formatIDR(amount) + ' dicatat (Sisa: ' + this.formatIDR(rem) + '). Belum masuk Cashflow hingga lunas.');
+        }
         this.openPaymentModal(client.id); // refresh
         this.renderAll();
       },
@@ -1328,6 +1384,7 @@
         var price = parseInt(document.getElementById('clientPackagePrice').value, 10) || 0;
         var dp = parseInt(document.getElementById('clientDownPayment').value, 10) || 0;
 
+        var clientObj = null;
         if (id) {
           var c = this.db.clients.find(function (x) { return x.id === id; });
           if (c) {
@@ -1337,16 +1394,18 @@
             c.notes = notes;
             c.packagePrice = price;
             c.downPayment = dp;
+            clientObj = c;
           }
         } else {
           var newId = 'c_' + Date.now();
           var initialPayments = [];
           if (dp > 0) {
+            var isFullFromStart = (price > 0 && dp >= price);
             initialPayments.push({
               id: 'p_' + Date.now(),
               date: new Date().toISOString().split('T')[0],
               amount: dp,
-              note: 'DP Booking'
+              note: isFullFromStart ? 'Pelunasan' : 'DP Booking'
             });
           }
           var newClient = {
@@ -1361,25 +1420,27 @@
             clothes: []
           };
           this.db.clients.push(newClient);
-          if (initialPayments.length > 0) {
-            this.syncPaymentToCashflow(newClient, initialPayments[0]);
-          }
+          clientObj = newClient;
         }
 
         DB.save(this.db);
         this.closeModals();
-        this.toast('Data klien berhasil disimpan' + (dp > 0 ? ' & DP masuk Cashflow Alima' : ''));
+
+        var syncRes = this.syncClientToCashflow(clientObj);
+        var isFull = syncRes && syncRes.isFullPayment;
+        if (isFull) {
+          this.toast('Data klien berhasil disimpan & otomatis masuk Cashflow Alima (Full Payment)');
+        } else if (dp > 0) {
+          this.toast('Data klien berhasil disimpan (DP dicatat, belum masuk Cashflow hingga lunas)');
+        } else {
+          this.toast('Data klien berhasil disimpan');
+        }
         this.renderAll();
       },
 
       deleteClient: function (id) {
         if (!confirm('Yakin ingin menghapus klien ini beserta seluruh catatan dan jadwalnya?')) return;
-        var c = this.db.clients.find(function (x) { return x.id === id; });
-        if (c && c.payments) {
-          c.payments.forEach(function (p) {
-            RiasApp.removePaymentFromCashflow(p.id);
-          });
-        }
+        this.removeClientFromCashflow(id);
         this.db.clients = this.db.clients.filter(function (c) { return c.id !== id; });
         DB.save(this.db);
         this.toast('Klien berhasil dihapus');
@@ -1398,10 +1459,14 @@
           }
         }
         if (pIdx < 0) return;
-        this.removePaymentFromCashflow(paymentId);
         client.payments.splice(pIdx, 1);
         DB.save(this.db);
-        this.toast('Pembayaran berhasil dihapus');
+        var syncRes = this.syncClientToCashflow(client);
+        if (syncRes && syncRes.removed) {
+          this.toast('Pembayaran dihapus & otomatis dicabut dari Cashflow Alima (karena belum lunas)');
+        } else {
+          this.toast('Pembayaran berhasil dihapus');
+        }
         this.openPaymentModal(clientId);
         this.renderAll();
       },

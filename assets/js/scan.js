@@ -207,10 +207,7 @@
       ['simPATI', 'out', 'Support Bulanan', 'Kuota'],
       ['pln', 'out', 'Support Bulanan', 'Token Listrik'],
       ['listrik', 'out', 'Support Bulanan', 'Token Listrik'],
-      ['roncelia', 'in', 'Income Hima', 'Roncelia'],
-      ['rias', 'in', 'Income Hima', 'Riasan'],
-      ['service hp', 'in', 'Income Ali', 'Service HP'],
-      ['servis hp', 'in', 'Income Ali', 'Service HP'],
+      // Catatan: Pemasukan Ronce, Riasan, dan Service HP dikunci karena otomatis dari sistem kalkulator
       ['gaji', 'in', 'Income Ali', 'Gaji Intika'],
     ];
     for (var i = 0; i < rules.length; i++) {

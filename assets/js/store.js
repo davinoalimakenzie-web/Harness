@@ -464,6 +464,13 @@
     return { ok: true, value: n };
   }
 
+  /* Jalur Pemasukan yang dikunci dari input manual (otomatis dari sistem kalkulator) */
+  function isLockedIncomeSub(type, group, sub) {
+    if (type !== 'in') return false;
+    var s = String(sub || '').toLowerCase().trim();
+    return s === 'service hp' || s === 'servis hp' || s === 'roncelia' || s === 'ronce' || s === 'riasan' || s === 'rias';
+  }
+
   function validateTx(input) {
     var res = parseAmount(input.amount);
     if (!res.ok) return { ok: false, field: 'amount', msg: res.msg };
@@ -471,6 +478,14 @@
     if (!input.group) return { ok: false, field: 'group', msg: 'Pilih kelompok kategori' };
     var group = Groups.of(input.type, input.group);
     if (!group) return { ok: false, field: 'group', msg: 'Kelompok kategori tidak valid' };
+    // Jalur pemasukan yang terisi otomatis dikunci dari input manual
+    if (input.type === 'in' && isLockedIncomeSub(input.type, input.group, input.sub)) {
+      return {
+        ok: false,
+        field: 'sub',
+        msg: 'Pemasukan untuk jalur "' + input.sub + '" dikunci karena otomatis terisi dari sistem kalkulator'
+      };
+    }
     // Kelompok "Input langsung" mewajibkan keterangan (min 3 karakter)
     if (group.isDirect) {
       var ket = String(input.note || '').trim();
@@ -1225,6 +1240,7 @@
     todayStr: todayStr, nowLocalInput: nowLocalInput, ymOf: ymOf,
     monthLabel: monthLabel, dayLabel: dayLabel, shiftMonth: shiftMonth,
     parseAmount: parseAmount, validateTx: validateTx,
+    isLockedIncomeSub: isLockedIncomeSub,
     Notes: Notes, Tx: Tx, Pool: Pool, Groups: Groups, Accounts: Accounts,
     Settings: Settings, Data: Data, AudioDB: AudioDB
   };
