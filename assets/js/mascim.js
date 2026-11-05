@@ -209,16 +209,15 @@
         '<div class="mc-nggwrap">' + nggantungCard(d) + '</div>' +
 
         '<div class="mc-nav">' +
-          '<button data-mv="list"><b>Servis</b><span>Daftar &amp; pencarian</span></button>' +
-          '<button data-mv="money"><b>Keuangan</b><span>Cashflow servis</span></button>' +
+          '<button data-mv="list"><b>Buku Besar</b><span>Daftar &amp; pencarian</span></button>' +
+          '<button class="mc-nav-input" data-mv="form"><b>+&nbsp; Input</b><span>Tambah servis</span></button>' +
+          '<button data-mv="money"><b>Cashflow</b><span>Arus kas</span></button>' +
         '</div>' +
-
-        '<button class="mc-primary" data-mv="form">+&nbsp; Input Servis</button>' +
 
         '<div class="mc-sec">5 Servis Terbaru</div>' +
         (d.recent.length
           ? d.recent.map(orderCard).join('')
-          : '<p class="mc-empty">Belum ada servis. Tekan <b>Input Servis</b> untuk mulai.</p>') +
+          : '<p class="mc-empty">Belum ada servis. Tekan <b>Input</b> untuk mulai.</p>') +
       '</div>';
   }
 
@@ -518,7 +517,7 @@
      DAFTAR SERVIS — kartu (bukan tabel), cari & filter
      ========================================================== */
   function renderList(s) {
-    setBar('Servis');
+    setBar('Buku Besar');
     var f = M.search.trim();
     var html = '<div class="mc-pad">' +
       '<input class="mc-search" id="mcSearch" type="search" placeholder="Cari nota, nama, HP, atau WhatsApp" value="' + esc(M.search) + '">';
@@ -3337,7 +3336,7 @@
      juga pindah ke sana.
      ========================================================= */
   function renderMoney(s) {
-    setBar('Keuangan');
+    setBar('Cashflow');
     var d = M.cf;
     var html = '<div class="mc-pad">';
     if (!d) { html += skeleton(); s.innerHTML = html + '</div>'; return; }

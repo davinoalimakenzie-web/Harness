@@ -1354,14 +1354,31 @@ body.mc-open{ overflow:hidden; }
 .mc-harga .mc-none,
 .mc-harga-baru.mc-none,
 .mc-none{ display:none; }
-.mc-nav{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:4px 0 8px; }
+.mc-nav{ display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin:4px 0 10px; }
 .mc-nav2{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
 .mc-nav button{
   background:var(--mc-card); border:1px solid var(--mc-line); border-radius:12px;
-  padding:12px; text-align:left; color:var(--mc-txt); cursor:pointer;
+  padding:10px 4px; text-align:center; color:var(--mc-txt); cursor:pointer;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  min-height:56px;
 }
-.mc-nav button b{ display:block; font-size:15px; }
-.mc-nav button span{ font-size:11px; color:var(--mc-txt2); }
+.mc-nav button:active{ transform:scale(.98); }
+.mc-nav button b{ display:block; font-size:13px; font-weight:700; line-height:1.2; }
+.mc-nav button span{ font-size:10px; color:var(--mc-txt2); margin-top:3px; line-height:1.2; }
+.mc-nav button.mc-nav-input{
+  background:linear-gradient(135deg, #22c55e 0%, #16a34a 55%, #0e8f4b 100%) !important;
+  color:#04140b !important;
+  border:1px solid rgba(34,197,94,.4) !important;
+  box-shadow:0 4px 14px rgba(31,191,107,.28), inset 0 1px 0 rgba(255,255,255,.35);
+}
+.mc-nav button.mc-nav-input b{
+  color:#04140b !important;
+  font-size:13.5px;
+}
+.mc-nav button.mc-nav-input span{
+  color:rgba(4,20,11,.85) !important;
+  font-weight:600;
+}
 /* .mc-acts (baris tombol aksi) diatur penuh di blok "Baris aksi" sekitar
    baris 1218  di sini sengaja tidak dideklarasikan ulang agar tidak
    saling menimpa. */
