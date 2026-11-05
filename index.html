@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Cashflow Alima</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261028b">
+<link rel="stylesheet" href="assets/css/style.css?v=20261105a">
 </head>
 <body>
 
@@ -265,6 +265,22 @@
         <span class="tool-go">›</span>
       </button>
 
+    </div>
+
+    <div class="list-head"><strong>FB Auto-Poster</strong></div>
+    <div class="card" id="fbPanel">
+      <p class="hint" style="margin-top:0">Posting otomatis ke grup Facebook — pengaturan <b>aman dulu</b>: jadwal MATI & mode uji ON. Eksekusi di server; panel ini cuma atur jadwal & daftar grup.</p>
+      <div id="fbStatus"></div>
+      <div class="list-head tight" style="padding:8px 0"><strong>Jadwal</strong></div>
+      <div id="fbSchedule"></div>
+      <div class="list-head tight" style="padding:8px 0"><strong>Pengaturan Aman</strong></div>
+      <div id="fbSafety"></div>
+      <div class="list-head tight" style="padding:8px 0"><strong>Grup Facebook</strong></div>
+      <div id="fbGroups"></div>
+      <div class="list-head tight" style="padding:8px 0"><strong>Caption</strong></div>
+      <div id="fbCaptions"></div>
+      <div class="list-head tight" style="padding:8px 0"><strong>Poster</strong></div>
+      <div id="fbPosters"></div>
     </div>
 
     <div class="list-head"><strong>Kategori transaksi</strong></div>
@@ -877,6 +893,8 @@
 <script src="assets/js/calc.js?v=20261022a"></script>
 <script src="assets/js/calc-sync.js?v=20261021d"></script>
 <script src="assets/js/supabase.js?v=20261029b"></script>
+<script src="assets/js/fb-poster.js?v=20261105a"></script>
+<script src="assets/js/fb-poster-sync.js?v=20261105a"></script>
 <script src="assets/js/mascim-local.js?v=20261029b"></script>
 <script src="assets/js/mascim.js?v=20261026b"></script>
 <script src="assets/js/sync.js?v=20261015a"></script>
@@ -888,6 +906,6 @@
 <script src="assets/js/nava-trader-quote.js?v=20261019e"></script>
 <script src="assets/js/nava-trader.js?v=20261015a"></script>
 <script src="assets/js/backup.js?v=20261014l"></script>
-<script src="assets/js/app.js?v=20261028a"></script>
+<script src="assets/js/app.js?v=20261105a"></script>
 </body>
 </html>

@@ -3414,3 +3414,50 @@ body.fx-kalk{ min-height:100vh; }
   background: rgba(255,255,255,0.08);
 }
 
+/* ===================== FB AUTO-POSTER (di dalam Lainnya) =====================
+   Panel ringkas di view Lainnya — tidak fullscreen, tidak tab baru.
+   Sengaja sederhana: toggle geser + badge status, ikut tema Telegram. */
+#fbPanel .fb-toggle{
+  width:48px; height:28px; border-radius:14px; flex:0 0 auto;
+  background:rgba(120,134,130,.18); border:1px solid var(--line,#2a3a35);
+  position:relative; cursor:pointer; padding:0; font:inherit;
+  -webkit-tap-highlight-color:transparent; transition:background .18s ease;
+}
+#fbPanel .fb-toggle .fb-knob{
+  position:absolute; top:2px; left:2px; width:22px; height:22px;
+  border-radius:50%; background:#9fb3ab;
+  transition:left .18s ease, background .18s ease;
+}
+#fbPanel .fb-toggle.on{ background:rgba(34,197,94,.18); border-color:rgba(34,197,94,.45); }
+#fbPanel .fb-toggle.on .fb-knob{ left:22px; background:#22c55e;
+  box-shadow:0 0 8px rgba(34,197,94,.55); }
+#fbPanel .tag-on{
+  flex:0 0 auto; font-size:11px; font-weight:800; letter-spacing:.06em;
+  color:#04140b; background:linear-gradient(135deg,#3ee6a0,#22c55e);
+  padding:3px 9px; border-radius:999px;
+}
+#fbPanel .tag-off{
+  flex:0 0 auto; font-size:11px; font-weight:800; letter-spacing:.06em;
+  color:var(--text-2,#95a8a1); border:1px solid var(--line,#2a3a35);
+  padding:3px 9px; border-radius:999px;
+}
+#fbPanel .fb-st-ok{ color:#22c55e; }
+#fbPanel .fb-st-danger{ color:#ff6b6b; }
+#fbPanel .fb-st-muted{ color:var(--text-2,#95a8a1); }
+#fbPanel .field-row{ display:flex; gap:8px; align-items:stretch; }
+#fbPanel .field-row .grow{ flex:1; min-width:0; }
+#fbPanel .field-row .field{ display:flex; flex-direction:column; gap:4px; }
+#fbPanel input, #fbPanel textarea{
+  background:rgba(9,15,13,.92); color:var(--text,#e9f1ed);
+  border:1px solid var(--line,#2a3a35); border-radius:11px;
+  padding:9px 10px; font:inherit; width:100%; box-sizing:border-box;
+}
+#fbPanel input:focus, #fbPanel textarea:focus{
+  outline:none; border-color:rgba(34,211,238,.5);
+  box-shadow:0 0 0 3px rgba(34,211,238,.10);
+}
+#fbPanel .item{ margin:6px 0; }
+#fbPanel .fb-log .item{ margin:4px 0; }
+@media (prefers-reduced-motion:reduce){
+  #fbPanel .fb-toggle, #fbPanel .fb-knob{ transition:none !important; }
+}

@@ -87,6 +87,7 @@
       if (navbawah) navbawah.style.display = (v === 'ronce' || v === 'notes') ? 'none' : '';
       if (v === 'more') {
         refreshMore();
+        if (w.FbPosterUI && w.FbPosterUI._refresh) w.FbPosterUI._refresh();
         if (App.renderAutoBackup) App.renderAutoBackup();
       }
       if (v === 'ronce') {
@@ -548,6 +549,8 @@
     try { if (w.MascimUI && w.MascimUI.init) w.MascimUI.init(); } catch (e) { console.error('MascimUI init error:', e); }
     try { if (w.Ronce && w.Ronce.init) w.Ronce.init(); } catch (e) { console.error('Ronce init error:', e); }
     try { if (w.NavaTraderUI && w.NavaTraderUI.init) w.NavaTraderUI.init(); } catch (e) { console.error('NavaTraderUI init error:', e); }
+    try { if (w.FbPosterUI && w.FbPosterUI.init) w.FbPosterUI.init(); } catch (e) { console.error('FbPosterUI init error:', e); }
+    try { if (w.FbPosterSync && w.FbPosterSync.mulai) w.FbPosterSync.mulai(); } catch (e) { console.error('FbPosterSync init error:', e); }
     // Auto refresh harga IHSG berkala, jangan user bukan klik tombol lagi.
     if (w.NavaTraderQuote && typeof w.NavaTraderQuote.muat === 'function') {
       w.setInterval(function () {
