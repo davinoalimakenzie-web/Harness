@@ -38,18 +38,26 @@
   </script>
 
   <style>
-    /* Styling scrollbar & touch */
+    /* Styling scrollbar, uppercase & touch */
+    * {
+      text-transform: uppercase;
+    }
     body {
       background-color: #141217;
       color: #F5EDF0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       -webkit-tap-highlight-color: transparent;
       padding-bottom: 24px;
+      text-transform: uppercase;
     }
     .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
     .custom-scroll::-webkit-scrollbar-thumb { background: #383040; border-radius: 4px; }
-    input, select, textarea {
+    input, select, textarea, button {
       accent-color: #D47A88;
+      text-transform: uppercase !important;
+    }
+    input::placeholder, textarea::placeholder {
+      text-transform: uppercase !important;
     }
     .safe-top { padding-top: env(safe-area-inset-top, 0px); }
   </style>
@@ -455,38 +463,38 @@
       clothes: [
         {
           id: 'b1',
-          name: 'Kebaya Sunda Siger Ivory Rose',
-          category: 'Kebaya',
+          name: 'KEBAYA SUNDA SIGER IVORY ROSE',
+          category: 'KEBAYA',
           size: 'M',
-          color: 'Ivory / Rose Gold'
+          color: 'IVORY / ROSE GOLD'
         },
         {
           id: 'b2',
-          name: 'Gaun Ballgown Champagne Swarovski',
-          category: 'Gaun',
+          name: 'GAUN BALLGOWN CHAMPAGNE SWAROVSKI',
+          category: 'GAUN',
           size: 'L',
-          color: 'Champagne Gold'
+          color: 'CHAMPAGNE GOLD'
         },
         {
           id: 'b3',
-          name: 'Kebaya Bludru Solo Putri Hitam Emas',
-          category: 'Kebaya',
+          name: 'KEBAYA BLUDRU SOLO PUTRI HITAM EMAS',
+          category: 'KEBAYA',
           size: 'S - M',
-          color: 'Hitam & Gold'
+          color: 'HITAM & GOLD'
         },
         {
           id: 'b4',
-          name: 'Beskap Pengantin Pria Rose Gold',
-          category: 'Jas',
+          name: 'BESKAP PENGANTIN PRIA ROSE GOLD',
+          category: 'JAS',
           size: 'L',
-          color: 'Rose Gold'
+          color: 'ROSE GOLD'
         },
         {
           id: 'b5',
-          name: 'Mahkota Siger Kencana Melati',
-          category: 'Aksesoris',
-          size: 'All Size',
-          color: 'Gold'
+          name: 'MAHKOTA SIGER KENCANA MELATI',
+          category: 'AKSESORIS',
+          size: 'ALL SIZE',
+          color: 'GOLD'
         }
       ]
     };
@@ -1247,11 +1255,11 @@
           var remaining2 = client.packagePrice - totalPaid2;
           var noteEl = document.getElementById('payNote');
           if (val >= remaining2 && remaining2 > 0) {
-            noteEl.value = 'Pelunasan';
+            noteEl.value = 'PELUNASAN';
           } else if (totalPaid2 === 0) {
-            noteEl.value = 'DP Booking';
+            noteEl.value = 'DP BOOKING';
           } else {
-            noteEl.value = 'Cicilan';
+            noteEl.value = 'CICILAN';
           }
         }
       },
@@ -1264,7 +1272,7 @@
 
         var amount = parseInt(document.getElementById('payAmount').value, 10) || 0;
         var date = document.getElementById('payDate').value;
-        var note = document.getElementById('payNote').value || 'Pembayaran';
+        var note = (document.getElementById('payNote').value || 'PEMBAYARAN').trim().toUpperCase();
 
         if (amount <= 0) {
           alert('Nominal pembayaran harus lebih dari Rp 0');
@@ -1331,10 +1339,10 @@
       saveClient: function (e) {
         e.preventDefault();
         var id = document.getElementById('clientId').value;
-        var name = document.getElementById('clientName').value.trim();
+        var name = document.getElementById('clientName').value.trim().toUpperCase();
         var phone = document.getElementById('clientPhone').value.trim();
         var eventDate = document.getElementById('clientEventDate').value;
-        var notes = document.getElementById('clientNotes').value.trim();
+        var notes = document.getElementById('clientNotes').value.trim().toUpperCase();
         var price = parseInt(document.getElementById('clientPackagePrice').value, 10) || 0;
         var dp = parseInt(document.getElementById('clientDownPayment').value, 10) || 0;
 
@@ -1359,7 +1367,7 @@
               id: 'p_' + Date.now(),
               date: new Date().toISOString().split('T')[0],
               amount: dp,
-              note: isFullFromStart ? 'Pelunasan' : 'DP Booking'
+              note: isFullFromStart ? 'PELUNASAN' : 'DP BOOKING'
             });
           }
           var newClient = {
@@ -1448,10 +1456,10 @@
       saveCloth: function (e) {
         e.preventDefault();
         var id = document.getElementById('clothId').value;
-        var name = document.getElementById('clothName').value.trim();
-        var category = document.getElementById('clothCategory').value;
-        var size = document.getElementById('clothSize').value.trim();
-        var color = document.getElementById('clothColor').value.trim();
+        var name = document.getElementById('clothName').value.trim().toUpperCase();
+        var category = document.getElementById('clothCategory').value.toUpperCase();
+        var size = document.getElementById('clothSize').value.trim().toUpperCase();
+        var color = document.getElementById('clothColor').value.trim().toUpperCase();
 
         if (id) {
           var b = this.db.clothes.find(function (x) { return x.id === id; });
