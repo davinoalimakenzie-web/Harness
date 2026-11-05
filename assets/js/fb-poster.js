@@ -271,7 +271,7 @@
   }
 
   function bind() {
-    var root = $('#fbPanel') || $('#view-fbpp');
+    var root = $('#view-fbpp') || $('#fbPanel');
     if (!root) return;
 
     root.addEventListener('click', function (e) {

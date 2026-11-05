@@ -18,6 +18,7 @@
     more:    ['Lainnya', 'Alat, kategori, akun & data'],
     notes:   ['Catatan', 'Pengingat voice'],
     ronce:   ['Kalkulator', 'Ronce, Servis HP & Riasan'],
+    fbpp:    ['AutoPostFB', 'Jadwal posting grup Facebook'],
     mascim:  ['Mas cim', 'Service HP']
   };
 
@@ -84,12 +85,12 @@
          full screen dan tidak ada tombol pengganggu. Pakai tombol kembali
          (back) Telegram untuk berpindah. */
       var navbawah = $('.tabbar');
-      if (navbawah) navbawah.style.display = (v === 'ronce' || v === 'notes') ? 'none' : '';
+      if (navbawah) navbawah.style.display = (v === 'ronce' || v === 'notes' || v === 'fbpp') ? 'none' : '';
       if (v === 'more') {
         refreshMore();
-        if (w.FbPosterUI && w.FbPosterUI._refresh) w.FbPosterUI._refresh();
         if (App.renderAutoBackup) App.renderAutoBackup();
       }
+      if (v === 'fbpp' && w.FbPosterUI && w.FbPosterUI.onShow) w.FbPosterUI.onShow();
       if (v === 'ronce') {
         var tb = $('.topbar');
         if (tb) document.documentElement.style.setProperty('--topbar-h', tb.offsetHeight + 'px');
