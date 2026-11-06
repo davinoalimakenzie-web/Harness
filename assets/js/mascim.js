@@ -178,7 +178,29 @@
     if (el) el.textContent = sub;
   }
 
+  var _bbResizeHandler = null;
+
+  function updateBBOrientation(forceRotate) {
+    if (forceRotate !== undefined) {
+      M.bbRotated = !!forceRotate;
+      M.bbRotatedAuto = false;
+    } else if (M.bbRotatedAuto !== false) {
+      var isPortrait = window.innerHeight > window.innerWidth;
+      M.bbRotated = isPortrait;
+    }
+    if (M.bbRotated) {
+      document.body.classList.add('mc-bb-rotated-css');
+    } else {
+      document.body.classList.remove('mc-bb-rotated-css');
+    }
+    var btnRot = document.getElementById('bbBtnRotate');
+    if (btnRot) {
+      btnRot.innerHTML = '🔄 ' + (M.bbRotated ? 'POTRET' : 'LANSKAP');
+    }
+  }
+
   function enterLandscape() {
+    document.body.classList.add('mc-bb-active');
     var mc = document.getElementById('mc');
     if (mc) mc.classList.add('mc-landscape');
     try {
@@ -191,15 +213,37 @@
         window.Telegram.WebApp.lockOrientation();
       }
     } catch (e2) {}
+
+    updateBBOrientation();
+
+    if (!_bbResizeHandler) {
+      _bbResizeHandler = function () {
+        if (M.view === 'list') {
+          updateBBOrientation();
+        }
+      };
+      window.addEventListener('resize', _bbResizeHandler);
+      window.addEventListener('orientationchange', _bbResizeHandler);
+    }
   }
 
   function exitLandscape() {
+    document.body.classList.remove('mc-bb-active');
+    document.body.classList.remove('mc-bb-rotated-css');
     var mc = document.getElementById('mc');
     if (mc) {
       mc.classList.remove('mc-landscape');
       mc.classList.remove('mc-bb-rotated');
     }
     M.bbRotated = false;
+    M.bbRotatedAuto = true;
+
+    if (_bbResizeHandler) {
+      window.removeEventListener('resize', _bbResizeHandler);
+      window.removeEventListener('orientationchange', _bbResizeHandler);
+      _bbResizeHandler = null;
+    }
+
     try {
       if (window.screen && window.screen.orientation && window.screen.orientation.unlock) {
         window.screen.orientation.unlock();
@@ -649,6 +693,26 @@
     });
 
     var html = '<div class="mc-bb-view">' +
+      // HEADER ATAS TERPADU (KEMBALI, JUDUL, NOTA COUNT, ROTASI, SEGAR)
+      '<div class="mc-bb-topbar">' +
+        '<div class="mc-bb-tb-left">' +
+          '<button type="button" id="bbBtnBack" class="mc-bb-back-btn" title="Kembali ke Beranda Mas Cim">‹ KEMBALI</button>' +
+          '<div class="mc-bb-tb-title">' +
+            '<span class="mc-bb-tb-icon">📋</span>' +
+            '<b>BUKU BESAR MAS CIM</b>' +
+            '<span class="mc-bb-badge-count">' + filtered.length + ' NOTA</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="mc-bb-tb-right">' +
+          '<button type="button" id="bbBtnRotate" class="mc-bb-tb-act" title="Beralih Rotasi Lanskap / Potret">' +
+            '🔄 ' + (M.bbRotated ? 'POTRET' : 'LANSKAP') +
+          '</button>' +
+          '<button type="button" id="bbBtnRefresh" class="mc-bb-tb-act" title="Muat Ulang Data">' +
+            '↻ SEGAR' +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+
       // FILTER BAR ATAS (SESUAI GAMBAR)
       '<div class="mc-bb-filter-bar">' +
         // Dari Tanggal
@@ -715,14 +779,6 @@
             '<input type="text" id="bbInpNota" class="mc-bb-inp mc-bb-nota-inp" placeholder="No. nota" value="' + esc(bf.noteNo) + '">' +
             '<button type="button" id="bbBtnCari" class="mc-bb-btn">CARI</button>' +
           '</div>' +
-        '</div>' +
-
-        // Tombol Toggle Rotasi Lanskap
-        '<div class="mc-bb-fcol mc-bb-fbtn-col" style="margin-left:auto;">' +
-          '<span class="mc-bb-flbl">&nbsp;</span>' +
-          '<button type="button" id="bbBtnRotate" class="mc-bb-btn mc-bb-btn-rotate" title="Beralih Rotasi Lanskap">' +
-            '🔄 ' + (M.bbRotated ? 'POTRET' : 'LANSKAP') +
-          '</button>' +
         '</div>' +
       '</div>' +
 
@@ -3817,6 +3873,20 @@
     m.addEventListener('click', function (e) {
       var t;
 
+      // Navigasi & Aksi Buku Besar
+      if (e.target.id === 'bbBtnBack' || e.target.closest('#bbBtnBack')) {
+        back();
+        return;
+      }
+      if (e.target.id === 'bbBtnRefresh' || e.target.closest('#bbBtnRefresh')) {
+        loadList();
+        return;
+      }
+      if (e.target.id === 'bbBtnRotate' || e.target.closest('#bbBtnRotate')) {
+        updateBBOrientation(!M.bbRotated);
+        return;
+      }
+
       // Filter Buku Besar
       if (e.target.id === 'bbBtnReset') {
         var tNow = new Date();
@@ -3839,16 +3909,6 @@
       if (e.target.id === 'bbBtnCari') {
         var inp = document.getElementById('bbInpNota');
         if (inp) M.bbFilter.noteNo = inp.value.trim();
-        render();
-        return;
-      }
-      if (e.target.id === 'bbBtnRotate') {
-        M.bbRotated = !M.bbRotated;
-        var mcEl = document.getElementById('mc');
-        if (mcEl) {
-          if (M.bbRotated) mcEl.classList.add('mc-bb-rotated');
-          else mcEl.classList.remove('mc-bb-rotated');
-        }
         render();
         return;
       }
