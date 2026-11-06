@@ -178,14 +178,53 @@
     if (el) el.textContent = sub;
   }
 
+  function enterLandscape() {
+    var mc = document.getElementById('mc');
+    if (mc) mc.classList.add('mc-landscape');
+    try {
+      if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
+        window.screen.orientation.lock('landscape').catch(function () {});
+      }
+    } catch (e) {}
+    try {
+      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.lockOrientation) {
+        window.Telegram.WebApp.lockOrientation();
+      }
+    } catch (e2) {}
+  }
+
+  function exitLandscape() {
+    var mc = document.getElementById('mc');
+    if (mc) {
+      mc.classList.remove('mc-landscape');
+      mc.classList.remove('mc-bb-rotated');
+    }
+    M.bbRotated = false;
+    try {
+      if (window.screen && window.screen.orientation && window.screen.orientation.unlock) {
+        window.screen.orientation.unlock();
+      }
+    } catch (e) {}
+    try {
+      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.unlockOrientation) {
+        window.Telegram.WebApp.unlockOrientation();
+      }
+    } catch (e2) {}
+  }
+
   function render() {
     var s = screen();
     if (!s) return;
-    if (M.view === 'home') renderHome(s);
-    else if (M.view === 'list') renderList(s);
-    else if (M.view === 'form') renderForm(s);
-    else if (M.view === 'detail') renderDetail(s);
-    else if (M.view === 'money') renderMoney(s);
+    if (M.view === 'list') {
+      enterLandscape();
+      renderList(s);
+    } else {
+      exitLandscape();
+      if (M.view === 'home') renderHome(s);
+      else if (M.view === 'form') renderForm(s);
+      else if (M.view === 'detail') renderDetail(s);
+      else if (M.view === 'money') renderMoney(s);
+    }
   }
 
   /* =========================================================
@@ -513,50 +552,268 @@
     }
   }
 
+  function formatTglBB(iso) {
+    if (!iso) return '-';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso).slice(0, 10);
+    var bln = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    var tgl = d.getDate();
+    var m = bln[d.getMonth()];
+    var thn = d.getFullYear();
+    return (tgl < 10 ? '0' + tgl : tgl) + ' ' + m + ' ' + thn;
+  }
+
   /* ==========================================================
-     DAFTAR SERVIS — kartu (bukan tabel), cari & filter
+     BUKU BESAR — Tampilan Lanskap Desktop (Sesuai Referensi Gambar)
+     14 Kolom + Panel Filter Atas
      ========================================================== */
   function renderList(s) {
     setBar('Buku Besar');
-    var f = M.search.trim();
-    var html = '<div class="mc-pad">' +
-      '<input class="mc-search" id="mcSearch" type="search" placeholder="Cari nota, nama, HP, atau WhatsApp" value="' + esc(M.search) + '">';
 
-    // Filter sederhana
-    html += '<div class="mc-filters">' +
-      ['all:Semua', 'today:Hari ini', 'month:Bulan ini', 'ngg:Nggandul'].map(function (x) {
-        var k = x.split(':');
-        return '<button class="mc-chip' + (M.filter === k[0] ? ' on' : '') + '" data-filter="' + k[0] + '">' + k[1] + '</button>';
-      }).join('') +
+    // Inisialisasi default filter jika belum ada
+    if (!M.bbFilter) {
+      var t = new Date();
+      var todayStr = t.toISOString().slice(0, 10);
+      var firstDayStr = todayStr.slice(0, 8) + '01';
+      M.bbFilter = {
+        fromActive: true,
+        from: firstDayStr,
+        toActive: true,
+        to: todayStr,
+        technician: '',
+        status: M.status || '',
+        payment: '',
+        noteNo: ''
+      };
+    }
+    if (M.status && !M.bbFilter.status) {
+      M.bbFilter.status = M.status;
+    }
+
+    var allOrders = M.list || [];
+    var bf = M.bbFilter;
+
+    // Filter daftar garapan
+    var filtered = allOrders.filter(function (o) {
+      var dStr = (o.receivedAt || o.createdAt || '').slice(0, 10);
+      if (bf.fromActive && bf.from && dStr && dStr < bf.from) return false;
+      if (bf.toActive && bf.to && dStr && dStr > bf.to) return false;
+      if (bf.technician) {
+        var tek = (o.technician || o.handling || '').toUpperCase();
+        if (tek.indexOf(bf.technician.toUpperCase()) < 0) return false;
+      }
+      if (bf.status) {
+        if (bf.status === 'Nggandul') {
+          if (!isNggandulStatus(o.serviceStatus)) return false;
+        } else if (o.serviceStatus !== bf.status) {
+          return false;
+        }
+      }
+      if (bf.payment) {
+        var pm = (o.paymentMethod || (o.payments && o.payments[0] && o.payments[0].paymentMethod) || (o.paymentStatus === 'Lunas' ? 'CASH' : '')).toUpperCase();
+        if (pm.indexOf(bf.payment.toUpperCase()) < 0) return false;
+      }
+      if (bf.noteNo) {
+        var q = bf.noteNo.trim().toLowerCase();
+        var n1 = String(o.noteNumberRaw || o.noteNumber || '').toLowerCase();
+        var n2 = String(o.internalRef || '').toLowerCase();
+        var n3 = String(o.customerName || '').toLowerCase();
+        var n4 = String(o.device || '').toLowerCase();
+        var n5 = String(o.whatsapp || '').toLowerCase();
+        if (n1.indexOf(q) < 0 && n2.indexOf(q) < 0 && n3.indexOf(q) < 0 && n4.indexOf(q) < 0 && n5.indexOf(q) < 0) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    // Hitung total
+    var totBiaya = 0, totModal = 0, totJasa = 0;
+    filtered.forEach(function (o) {
+      var b = o.totalCost || 0;
+      var m = o.totalPart || 0;
+      var j = o.serviceFee != null ? o.serviceFee : (b - m);
+      totBiaya += b;
+      totModal += m;
+      totJasa += j;
+    });
+
+    // Kumpulkan daftar teknisi unik
+    var tekList = ['SMD', 'UDN', 'AND', 'IRF'];
+    allOrders.forEach(function (o) {
+      var t = (o.technician || o.handling || '').trim().toUpperCase();
+      if (t) {
+        var f = t.split(' ')[0];
+        if (f.length <= 6 && tekList.indexOf(f) < 0) tekList.push(f);
+      }
+    });
+
+    var html = '<div class="mc-bb-view">' +
+      // FILTER BAR ATAS (SESUAI GAMBAR)
+      '<div class="mc-bb-filter-bar">' +
+        // Dari Tanggal
+        '<div class="mc-bb-fcol">' +
+          '<span class="mc-bb-flbl">Dari Tanggal</span>' +
+          '<div class="mc-bb-fgrp">' +
+            '<input type="checkbox" id="bbChkFrom" ' + (bf.fromActive ? 'checked' : '') + ' title="Aktifkan filter Dari Tanggal">' +
+            '<input type="date" id="bbInpFrom" class="mc-bb-inp" value="' + esc(bf.from) + '">' +
+          '</div>' +
+        '</div>' +
+
+        // Sampai Tanggal
+        '<div class="mc-bb-fcol">' +
+          '<span class="mc-bb-flbl">Sampai Tanggal</span>' +
+          '<div class="mc-bb-fgrp">' +
+            '<input type="checkbox" id="bbChkTo" ' + (bf.toActive ? 'checked' : '') + ' title="Aktifkan filter Sampai Tanggal">' +
+            '<input type="date" id="bbInpTo" class="mc-bb-inp" value="' + esc(bf.to) + '">' +
+          '</div>' +
+        '</div>' +
+
+        // Teknisi
+        '<div class="mc-bb-fcol">' +
+          '<span class="mc-bb-flbl">Teknisi</span>' +
+          '<select id="bbSelTeknisi" class="mc-bb-sel">' +
+            '<option value="">Semua</option>' +
+            tekList.map(function (tk) {
+              return '<option value="' + esc(tk) + '" ' + (bf.technician === tk ? 'selected' : '') + '>' + esc(tk) + '</option>';
+            }).join('') +
+          '</select>' +
+        '</div>' +
+
+        // Status
+        '<div class="mc-bb-fcol">' +
+          '<span class="mc-bb-flbl">Status</span>' +
+          '<select id="bbSelStatus" class="mc-bb-sel">' +
+            '<option value="">Semua</option>' +
+            ['Done Diambil', 'Done', 'Progress', 'Cancel', 'Cancel Diambil', 'Nggandul', 'Return'].map(function (st) {
+              return '<option value="' + esc(st) + '" ' + (bf.status === st ? 'selected' : '') + '>' + esc(st) + '</option>';
+            }).join('') +
+          '</select>' +
+        '</div>' +
+
+        // Cash / TF
+        '<div class="mc-bb-fcol">' +
+          '<span class="mc-bb-flbl">Cash / TF</span>' +
+          '<select id="bbSelPayment" class="mc-bb-sel">' +
+            '<option value="">Semua</option>' +
+            '<option value="CASH" ' + (bf.payment === 'CASH' ? 'selected' : '') + '>Cash</option>' +
+            '<option value="TF" ' + (bf.payment === 'TF' ? 'selected' : '') + '>Transfer (TF)</option>' +
+            '<option value="QRIS" ' + (bf.payment === 'QRIS' ? 'selected' : '') + '>QRIS</option>' +
+          '</select>' +
+        '</div>' +
+
+        // Tombol RESET
+        '<div class="mc-bb-fcol mc-bb-fbtn-col">' +
+          '<span class="mc-bb-flbl">&nbsp;</span>' +
+          '<button type="button" id="bbBtnReset" class="mc-bb-btn">RESET</button>' +
+        '</div>' +
+
+        // No. Nota & CARI
+        '<div class="mc-bb-fcol">' +
+          '<span class="mc-bb-flbl">No. Nota</span>' +
+          '<div class="mc-bb-fgrp">' +
+            '<input type="text" id="bbInpNota" class="mc-bb-inp mc-bb-nota-inp" placeholder="No. nota" value="' + esc(bf.noteNo) + '">' +
+            '<button type="button" id="bbBtnCari" class="mc-bb-btn">CARI</button>' +
+          '</div>' +
+        '</div>' +
+
+        // Tombol Toggle Rotasi Lanskap
+        '<div class="mc-bb-fcol mc-bb-fbtn-col" style="margin-left:auto;">' +
+          '<span class="mc-bb-flbl">&nbsp;</span>' +
+          '<button type="button" id="bbBtnRotate" class="mc-bb-btn mc-bb-btn-rotate" title="Beralih Rotasi Lanskap">' +
+            '🔄 ' + (M.bbRotated ? 'POTRET' : 'LANSKAP') +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+
+      // TABEL 14 KOLOM (SESUAI GAMBAR)
+      '<div class="mc-bb-table-wrap">' +
+        '<table class="mc-bb-table">' +
+          '<thead>' +
+            '<tr>' +
+              '<th style="width:65px;">NOTA</th>' +
+              '<th style="width:115px;">STATUS</th>' +
+              '<th style="width:70px;">TEKNISI</th>' +
+              '<th style="width:125px;">USER</th>' +
+              '<th style="width:115px;">WAUSER</th>' +
+              '<th style="width:130px;">DEVICE</th>' +
+              '<th style="width:170px;">KELUHAN</th>' +
+              '<th style="width:95px;">TGLMASUK</th>' +
+              '<th style="width:105px; text-align:right;">BIAYA</th>' +
+              '<th style="width:100px; text-align:right;">MODAL</th>' +
+              '<th style="width:100px; text-align:right;">JASA</th>' +
+              '<th style="width:95px;">TGLAMBIL</th>' +
+              '<th style="width:80px;">GARANSI</th>' +
+              '<th style="width:75px;">BAYAR</th>' +
+            '</tr>' +
+          '</thead>' +
+          '<tbody>';
+
+    if (!filtered.length) {
+      html += '<tr><td colspan="14" style="text-align:center; padding:32px 16px; color:#64748b; background:#fff; font-size:12px;">' +
+        'Tidak ada data garapan yang cocok dengan filter.<br>Gunakan tombol <b>+ INPUT</b> di Beranda untuk menambah garapan baru.' +
+      '</td></tr>';
+    } else {
+      html += filtered.map(function (o) {
+        var notaNum = o.noteNumber || (o.noteNumberRaw ? String(o.noteNumberRaw) : (o.internalRef || o.id.slice(-4)));
+        var st = o.serviceStatus || 'Progress';
+        var stTone = (st === 'Done Diambil' ? 'st-ambil'
+          : (st === 'Done' ? 'st-done'
+          : (st === 'Progress' ? 'st-prog'
+          : (st === 'Cancel' ? 'st-cancel'
+          : (st === 'Cancel Diambil' ? 'st-cambil'
+          : (st === 'Return' ? 'st-return' : 'st-ngg'))))));
+
+        var tek = (o.technician || o.handling || 'SMD').trim().toUpperCase();
+        if (tek.indexOf(' ') >= 0) tek = tek.split(' ')[0];
+        if (tek.length > 5) tek = tek.slice(0, 4);
+
+        var uName = (o.customerName || '-').toUpperCase();
+        var wa = o.whatsapp || '-';
+        var dev = (o.device || '-').toUpperCase();
+        var kel = (o.complaint || '-').toUpperCase();
+        var tglMasuk = formatTglBB(o.receivedAt || o.createdAt);
+        var biaya = rupiah(o.totalCost || 0);
+        var modal = rupiah(o.totalPart || 0);
+        var jasa = rupiah(o.serviceFee != null ? o.serviceFee : ((o.totalCost || 0) - (o.totalPart || 0)));
+        var tglAmbil = (o.serviceStatus === 'Done Diambil' || o.serviceStatus === 'Cancel Diambil')
+          ? formatTglBB(o.takenAt || o.completedAt || o.updatedAt) : '-';
+        var garansi = (o.warranty || (o.warrantyNote && o.warrantyNote.warranty) || (o.serviceStatus === 'Done Diambil' ? '30 HARI' : '-')).toUpperCase();
+        var bayar = (o.paymentMethod || (o.payments && o.payments[0] && o.payments[0].paymentMethod) || (o.paymentStatus === 'Lunas' ? 'CASH' : '-')).toUpperCase();
+
+        return '<tr data-open="' + esc(o.id) + '">' +
+          '<td style="text-align:center; font-weight:700;">' + esc(notaNum) + '</td>' +
+          '<td style="text-align:center;"><span class="mc-bb-st ' + stTone + '">' + esc(o.serviceStatus) + '</span></td>' +
+          '<td style="text-align:center; font-weight:600;">' + esc(tek) + '</td>' +
+          '<td>' + esc(uName) + '</td>' +
+          '<td>' + esc(wa) + '</td>' +
+          '<td>' + esc(dev) + '</td>' +
+          '<td>' + esc(kel) + '</td>' +
+          '<td style="text-align:center;">' + esc(tglMasuk) + '</td>' +
+          '<td style="text-align:right; font-weight:600;">' + esc(biaya) + '</td>' +
+          '<td style="text-align:right; color:#64748b;">' + esc(modal) + '</td>' +
+          '<td style="text-align:right; font-weight:700; color:#15803d;">' + esc(jasa) + '</td>' +
+          '<td style="text-align:center;">' + esc(tglAmbil) + '</td>' +
+          '<td style="text-align:center;">' + esc(garansi) + '</td>' +
+          '<td style="text-align:center; font-weight:600;">' + esc(bayar) + '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    html += '</tbody>' +
+      '<tfoot>' +
+        '<tr>' +
+          '<td colspan="8" style="text-align:right;">TOTAL DITAMPILKAN (' + filtered.length + ' NOTA):</td>' +
+          '<td style="text-align:right; color:#30d97a;">' + rupiah(totBiaya) + '</td>' +
+          '<td style="text-align:right; color:#ff6369;">' + rupiah(totModal) + '</td>' +
+          '<td style="text-align:right; color:#38bdf8;">' + rupiah(totJasa) + '</td>' +
+          '<td colspan="3"></td>' +
+        '</tr>' +
+      '</tfoot>' +
+    '</table>' +
+    '</div>' +
     '</div>';
 
-    if (M.filter === 'range') {
-      html += '<div class="mc-row2">' +
-        '<input class="mc-inp" id="mcFrom" type="date" value="' + esc(M.from) + '">' +
-        '<input class="mc-inp" id="mcTo" type="date" value="' + esc(M.to) + '">' +
-      '</div>';
-    }
-    html += '<button class="mc-chip range' + (M.filter === 'range' ? ' on' : '') + '" data-filter="range">Rentang tanggal</button>';
-
-    // Penyaringan status yang sedang aktif. Tanpa penanda ini dan tanpa
-    // jalan melepasnya, pengguna terjebak melihat daftar kosong tanpa
-    // tahu sedang disaring apa.
-    if (M.status) {
-      html += '<div class="mc-statusbar">' +
-        '<span class="mc-statusbar-lbl">Status</span>' +
-        '<span class="mc-chip on">' + esc(pendekStatus(M.status)) + '</span>' +
-        '<button class="mc-chip mc-clearst" data-clearstatus="1"' +
-        ' aria-label="Lepas penyaringan status">Lepas filter</button>' +
-      '</div>';
-    }
-
-    var items = M.list;
-    html += '<div class="mc-count">' + items.length + ' servis' + (f ? ' untuk "' + esc(f) + '"' : '') + '</div>';
-    html += items.length
-      ? items.map(orderCard).join('')
-      : '<p class="mc-empty">Tidak ada servis yang cocok.</p>';
-
-    html += '</div>';
     s.innerHTML = html;
   }
 
@@ -3535,6 +3792,7 @@
   }
 
   function close() {
+    exitLandscape();
     var m = document.getElementById('mc');
     if (!m) return;
     m.classList.add('hidden');
@@ -3558,6 +3816,42 @@
 
     m.addEventListener('click', function (e) {
       var t;
+
+      // Filter Buku Besar
+      if (e.target.id === 'bbBtnReset') {
+        var tNow = new Date();
+        var todayStr = tNow.toISOString().slice(0, 10);
+        var firstDayStr = todayStr.slice(0, 8) + '01';
+        M.bbFilter = {
+          fromActive: true,
+          from: firstDayStr,
+          toActive: true,
+          to: todayStr,
+          technician: '',
+          status: '',
+          payment: '',
+          noteNo: ''
+        };
+        M.status = '';
+        render();
+        return;
+      }
+      if (e.target.id === 'bbBtnCari') {
+        var inp = document.getElementById('bbInpNota');
+        if (inp) M.bbFilter.noteNo = inp.value.trim();
+        render();
+        return;
+      }
+      if (e.target.id === 'bbBtnRotate') {
+        M.bbRotated = !M.bbRotated;
+        var mcEl = document.getElementById('mc');
+        if (mcEl) {
+          if (M.bbRotated) mcEl.classList.add('mc-bb-rotated');
+          else mcEl.classList.remove('mc-bb-rotated');
+        }
+        render();
+        return;
+      }
 
       // navigasi view
       if ((t = e.target.closest('[data-mv]'))) {
@@ -3621,14 +3915,32 @@
       }
       if (e.target.id === 'mcFrom') M.from = e.target.value;
       if (e.target.id === 'mcTo') M.to = e.target.value;
+      if (e.target.id === 'bbInpNota') {
+        if (!M.bbFilter) M.bbFilter = {};
+        M.bbFilter.noteNo = e.target.value;
+      }
     });
 
     m.addEventListener('change', function (e) {
       if (e.target.id === 'mcFrom' || e.target.id === 'mcTo') loadList();
+      if (!M.bbFilter) M.bbFilter = {};
+      if (e.target.id === 'bbChkFrom') { M.bbFilter.fromActive = e.target.checked; render(); }
+      if (e.target.id === 'bbInpFrom') { M.bbFilter.from = e.target.value; render(); }
+      if (e.target.id === 'bbChkTo') { M.bbFilter.toActive = e.target.checked; render(); }
+      if (e.target.id === 'bbInpTo') { M.bbFilter.to = e.target.value; render(); }
+      if (e.target.id === 'bbSelTeknisi') { M.bbFilter.technician = e.target.value; render(); }
+      if (e.target.id === 'bbSelStatus') { M.bbFilter.status = e.target.value; render(); }
+      if (e.target.id === 'bbSelPayment') { M.bbFilter.payment = e.target.value; render(); }
     });
 
-    // tombol kembali Android
-    document.addEventListener('keydown', function (e) {
+    m.addEventListener('keydown', function (e) {
+      if (e.target.id === 'bbInpNota' && e.key === 'Enter') {
+        e.preventDefault();
+        if (!M.bbFilter) M.bbFilter = {};
+        M.bbFilter.noteNo = e.target.value.trim();
+        render();
+      }
+      // tombol kembali Android
       if (e.key === 'Escape' && isOpen()) back();
     });
   }
@@ -3638,6 +3950,7 @@
   }
 
   function back() {
+    exitLandscape();
     if (M.view === 'home') {
       if (w.App && w.App.go) w.App.go('home');
       else close();

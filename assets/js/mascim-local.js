@@ -277,6 +277,20 @@
     if (!Array.isArray(cache.cashflow)) cache.cashflow = [];
     if (!Array.isArray(cache.bank)) cache.bank = [];
     if (!cache.settings) cache.settings = { bankFundInitial: 0, noteCounter: 0 };
+
+    // Reset dan hapus semua garapan di Mas Cim untuk tahap uji coba
+    if (!cache._vResetUjiCoba2026) {
+      cache.orders = [];
+      cache.parts = [];
+      cache.payments = [];
+      cache.cashflow = [];
+      cache.bank = [];
+      cache.deletedOrderIds = [];
+      cache.settings = { bankFundInitial: 0, noteCounter: 0, seeded: true };
+      cache._vResetUjiCoba2026 = true;
+      save();
+    }
+
     var m1 = migrate();
     var m2 = sanitizeDangling();
     if (m1 || m2) save();
