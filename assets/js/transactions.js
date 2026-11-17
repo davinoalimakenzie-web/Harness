@@ -455,10 +455,16 @@
         }).join('') + '</div>';
     }
 
-    // Bar kategori (semua jenis) dengan accordion detail by date & by keterangan
-    var max = s.categories.reduce(function (m, c) { return Math.max(m, c.total); }, 0) || 1;
-    cEl.innerHTML = s.categories.length
-      ? s.categories.map(function (c) {
+    // Bar kategori: urutkan pemasukan dulu (atas) dari nominal terbanyak ke terkecil,
+    // lalu pengeluaran (bawah) dari nominal terbanyak ke terkecil
+    var sortedCats = s.categories.slice().sort(function (a, b) {
+      if (a.type !== b.type) return a.type === 'in' ? -1 : 1;
+      return b.total - a.total;
+    });
+
+    var max = sortedCats.reduce(function (m, c) { return Math.max(m, c.total); }, 0) || 1;
+    cEl.innerHTML = sortedCats.length
+      ? sortedCats.map(function (c) {
           var catKey = (c.group || '') + '|' + (c.sub || '') + '|' + c.type;
           var label = c.sub ? c.group + ' · ' + c.sub : c.group;
           var isOpen = !!openCats[catKey];
@@ -552,6 +558,7 @@
      TAB: KAS (Kas Darurat & Kas SDH)
      ========================================================= */
   var openBankDays = {};
+  var bankYM = null;
 
   function renderBankView() {
     if (!w.NavaBank) return;
@@ -560,8 +567,16 @@
       B.syncAutoWajib(Tx.active());
     }
     var g = B.get();
-    var ym = S.ymOf(S.todayStr());
-    var due = B.wajibSetoranBulanan(Tx.active(), ym);
+    if (!bankYM) bankYM = recapYM || S.ymOf(S.todayStr());
+
+    var vbLabel = $('#vbLabel'); if (vbLabel) vbLabel.textContent = S.monthLabel(bankYM);
+
+    var allEntries = B.entries().slice().reverse();
+    var monthEntries = allEntries.filter(function (e) {
+      return (e.date || '').slice(0, 7) === bankYM;
+    });
+
+    var vbCount = $('#vbCount'); if (vbCount) vbCount.textContent = monthEntries.length + ' transaksi';
 
     var availEl = $('#vbAvail');
     if (availEl) {
@@ -579,32 +594,13 @@
     var outEl = $('#vbOut');
     if (outEl) outEl.textContent = money(g.totalOut);
 
-    var descEl = $('#vbWajibDesc');
-    var barEl = $('#vbWajibBar');
-    var badgeEl = $('#vbWajibBadge');
-    var actWrap = $('#vbWajibActionWrap');
-
-    if (descEl) {
-      if (due > 0) {
-        descEl.innerHTML = 'Setoran 10% otomatis langsung disetor tiap ada transaksi pemasukan berapapun (terbagi: <b>5% Kas Darurat</b> & <b>5% Kas Sedekah</b>). Total disetor bulan ini: <b>' + money(due) + '</b>.';
-        if (badgeEl) { badgeEl.textContent = '100% OTOMATIS'; badgeEl.className = 'tag done'; }
-        if (barEl) barEl.style.width = '100%';
-      } else {
-        descEl.textContent = 'Belum ada pemasukan bulan ini. Setoran 10% otomatis langsung disetor saat ada transaksi pemasukan.';
-        if (badgeEl) { badgeEl.textContent = 'OTOMATIS AKTIF'; badgeEl.className = 'tag done'; }
-        if (barEl) barEl.style.width = '0%';
-      }
-      if (actWrap) actWrap.innerHTML = ''; // Tombol manual dihilangkan sepenuhnya
-    }
-
     var listEl = $('#vbHistoryList');
     if (listEl) {
-      var entries = B.entries().slice().reverse();
-      if (!entries.length) {
-        listEl.innerHTML = '<div class="empty"><b>Belum ada transaksi Kas</b>Gunakan tombol aksi di atas untuk mencatat.</div>';
+      if (!monthEntries.length) {
+        listEl.innerHTML = '<div class="empty"><b>Belum ada transaksi Kas pada bulan ini</b>Gunakan tombol aksi di atas untuk mencatat.</div>';
       } else {
         var byDay = {};
-        entries.forEach(function (e) {
+        monthEntries.forEach(function (e) {
           var d = e.date || 'Lainnya';
           (byDay[d] = byDay[d] || []).push(e);
         });
@@ -1425,14 +1421,32 @@
     var rPrevBtn = $('#rPrev');
     if (rPrevBtn) rPrevBtn.addEventListener('click', function () {
       recapYM = S.shiftMonth(recapYM, -1);
+      bankYM = recapYM;
       filter.from = recapYM + '-01'; filter.to = recapYM + '-31';
-      renderRecap(); renderHistory(); TG.haptic('select');
+      renderRecap(); renderHistory(); renderBankView(); TG.haptic('select');
     });
     var rNextBtn = $('#rNext');
     if (rNextBtn) rNextBtn.addEventListener('click', function () {
       recapYM = S.shiftMonth(recapYM, 1);
+      bankYM = recapYM;
       filter.from = recapYM + '-01'; filter.to = recapYM + '-31';
-      renderRecap(); renderHistory(); TG.haptic('select');
+      renderRecap(); renderHistory(); renderBankView(); TG.haptic('select');
+    });
+
+    /* --- Dana Bank Month Switcher --- */
+    var vbPrevBtn = $('#vbPrev');
+    if (vbPrevBtn) vbPrevBtn.addEventListener('click', function () {
+      bankYM = S.shiftMonth(bankYM || recapYM, -1);
+      recapYM = bankYM;
+      filter.from = recapYM + '-01'; filter.to = recapYM + '-31';
+      renderRecap(); renderHistory(); renderBankView(); TG.haptic('select');
+    });
+    var vbNextBtn = $('#vbNext');
+    if (vbNextBtn) vbNextBtn.addEventListener('click', function () {
+      bankYM = S.shiftMonth(bankYM || recapYM, 1);
+      recapYM = bankYM;
+      filter.from = recapYM + '-01'; filter.to = recapYM + '-31';
+      renderRecap(); renderHistory(); renderBankView(); TG.haptic('select');
     });
 
     /* --- Aksi di Tab Kas --- */

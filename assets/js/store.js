@@ -654,14 +654,17 @@
       var byCat = {};
       list.forEach(function (t) {
         if (t.type === 'in') rin += t.amount; else rout += t.amount;
-        var key = (t.group || 'Lainnya') + '|' + (t.sub || '');
+        var key = (t.group || 'Lainnya') + '|' + (t.sub || '') + '|' + (t.type || '');
         if (!byCat[key]) byCat[key] = { group: t.group, sub: t.sub, type: t.type, total: 0, count: 0, items: [] };
         byCat[key].total += t.amount;
         byCat[key].count += 1;
         byCat[key].items.push(t);
       });
       var cats = Object.keys(byCat).map(function (k) { return byCat[k]; });
-      cats.sort(function (a, b) { return b.total - a.total; });
+      cats.sort(function (a, b) {
+        if (a.type !== b.type) return a.type === 'in' ? -1 : 1;
+        return b.total - a.total;
+      });
       return { in: rin, out: rout, net: rin - rout, count: list.length, categories: cats, list: list };
     },
 

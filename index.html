@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Cashflow Alima</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261117b">
+<link rel="stylesheet" href="assets/css/style.css?v=20261117c">
 </head>
 <body>
 
@@ -74,13 +74,28 @@
 
   <!-- ============ TAB: DANA BANK (Kas Darurat & Kas Sedekah) ============ -->
   <section id="view-bank" class="view">
-    <!-- Kartu Saldo Dana Bank & 2 Variabel (Darurat & Sedekah) -->
-    <div class="balance card" style="text-align:center;padding:16px 14px 14px;">
-      <span class="lbl" style="letter-spacing:.5px;font-size:12px;text-transform:uppercase;">Total Saldo Dana Bank</span>
-      <strong id="vbAvail" class="balance-val" style="font-size:26px;">Rp0</strong>
 
-      <!-- 2 Variabel: Kas Darurat & Kas Sedekah -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;text-align:left;">
+    <!-- Strip Bulan & Total Saldo Dana Bank Sejajar Sebaris (Sama persis layout Beranda) -->
+    <div class="card" style="margin-bottom:12px;padding:10px 14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button id="vbPrev" class="icon-btn sm" aria-label="Sebelumnya" style="width:30px;height:30px;font-size:18px;">‹</button>
+          <div>
+            <strong id="vbLabel" style="font-size:14.5px;font-weight:750;display:block;line-height:1.2;">—</strong>
+            <span class="muted xs" id="vbCount" style="font-size:11px;line-height:1;">—</span>
+          </div>
+          <button id="vbNext" class="icon-btn sm" aria-label="Berikutnya" style="width:30px;height:30px;font-size:18px;">›</button>
+        </div>
+        <div style="text-align:right;">
+          <span style="font-size:10px;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;display:block;">Total Saldo Bank</span>
+          <strong id="vbAvail" style="font-size:16.5px;font-weight:750;display:block;line-height:1.2;color:var(--success);">Rp0</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 Variabel: Kas Darurat & Kas Sedekah + Saldo Awal & Terpakai -->
+    <div class="card" style="margin-bottom:12px;padding:12px 14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:left;">
         <div style="background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:12px;padding:10px 12px;">
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <span style="font-size:11.5px;font-weight:700;color:var(--text-2);text-transform:uppercase;">🚨 Kas Darurat</span>
@@ -99,38 +114,25 @@
         </div>
       </div>
 
-      <div class="balance-meta" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">
+      <div class="balance-meta" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);display:flex;justify-content:space-around;">
         <span><i class="dot in"></i> Saldo awal <b id="vbInitial">Rp0</b></span>
         <span><i class="dot out"></i> Terpakai <b id="vbOut">Rp0</b></span>
       </div>
     </div>
 
-    <!-- Kartu Setoran Kas Wajib Otomatis (10% Pemasukan -> Otomatis Terbagi 5% Darurat + 5% Sedekah) -->
-    <div class="card" id="vbWajibCard" style="margin-top:12px;">
-      <div class="list-head tight">
-        <strong>Setoran Kas Wajib Otomatis</strong>
-        <span id="vbWajibBadge" class="tag done" style="font-size:11px;">100% OTOMATIS</span>
-      </div>
-      <p id="vbWajibDesc" class="nb-hint" style="margin-top:6px;font-size:13px;">-</p>
-      <div class="nb-bar" style="margin-top:8px;height:8px;background:var(--line);border-radius:4px;overflow:hidden;">
-        <i id="vbWajibBar" style="display:block;height:100%;background:var(--success);width:100%;transition:width .3s;"></i>
-      </div>
-      <div id="vbWajibActionWrap" style="margin-top:0;"></div>
-    </div>
-
     <!-- Tombol Aksi Dana Bank -->
-    <div class="field-row" style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+    <div class="field-row" style="margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
       <button class="btn primary" id="vbBtnOutBon" style="padding:10px 8px;font-size:13px;">🚨 Out Kas Darurat</button>
       <button class="btn ghost" id="vbBtnOutSDH" style="padding:10px 8px;font-size:13px;border-color:var(--warn);color:var(--warn);">🔒 Out Kas Sedekah</button>
     </div>
     <!-- Aksi Owner: Atur Saldo Awal & Reset Dana Bank sejajar / sebaris -->
-    <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+    <div style="margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
       <button class="btn ghost block" id="vbBtnInitial" style="padding:8px 8px;font-size:12.5px;margin:0;">⚙️ Atur Saldo Awal</button>
       <button class="btn ghost block" id="vbBtnResetBank" style="padding:8px 8px;font-size:12.5px;margin:0;border-color:var(--danger,#ef4444);color:var(--danger,#ef4444);">🔄 Reset Dana Bank</button>
     </div>
 
     <!-- Riwayat Transaksi Dana Bank -->
-    <div class="list-head" style="margin-top:16px;">
+    <div class="list-head tight" style="margin-top:14px;margin-bottom:6px;">
       <strong>Riwayat Transaksi Dana Bank</strong>
     </div>
     <div id="vbHistoryList" class="list"></div>
@@ -890,12 +892,12 @@
 </div>
 
 <script src="assets/js/tg.js?v=20261014l"></script>
-<script src="assets/js/store.js?v=20261117a"></script>
+<script src="assets/js/store.js?v=20261117c"></script>
 <script src="assets/js/nava-bank.js?v=20261117a"></script>
 <script src="assets/js/scan.js?v=20261014l"></script>
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
-<script src="assets/js/transactions.js?v=20261117b"></script>
+<script src="assets/js/transactions.js?v=20261117c"></script>
 <script src="assets/js/ronce.js?v=20261117b"></script>
 <script src="assets/js/ronce-sync.js?v=20261019c"></script>
 <script src="assets/js/calc.js?v=20261022a"></script>
