@@ -249,11 +249,12 @@ body.mitra-mode .kalk-sticky-header{ top:0; }
   margin-top:3px; font-size:11.5px; color:var(--text-2);
 }
 
-/* Tombol filter rekap (Periode Hari Ini, Bulan Ini, dan Dropdown Mitra) */
+/* Tombol filter rekap (Belum Lunas, Sudah Lunas, dan Dropdown Mitra) */
 .ronce-rekap-filter-bar{
   display:flex; gap:8px; align-items:center; margin-top:8px; margin-bottom:12px; width:100%;
 }
-.ronce-rekap-filter-bar #ronceFilters{
+.ronce-rekap-filter-bar #ronceFilters,
+.ronce-rekap-filter-bar #ronceMitraFilters{
   display:flex; gap:4px; flex-shrink:0;
 }
 .ronce-rekap-filter-bar .chip{
@@ -266,6 +267,120 @@ body.mitra-mode .kalk-sticky-header{ top:0; }
   width:100%; height:34px; padding:4px 8px; font-size:12.5px; font-weight:600;
   border-radius:8px; background:var(--bg-elev); color:var(--text);
   border:1px solid var(--line); outline:none; box-sizing:border-box;
+}
+
+/* Filter chip dots */
+.chip-dot{
+  display:inline-block; width:7px; height:7px; border-radius:50%;
+  margin-right:6px; vertical-align:middle;
+}
+.chip-dot.unpaid{ background:#f59e0b; box-shadow:0 0 6px rgba(245,158,11,.6); }
+.chip-dot.paid{ background:#10b981; box-shadow:0 0 6px rgba(16,185,129,.6); }
+
+/* Hero Card Rekap Elegan */
+.rekap-hero-card{
+  border-radius:16px; padding:16px 18px; margin-bottom:12px;
+  background:linear-gradient(145deg, rgba(30,41,59,.75) 0%, rgba(15,23,42,.9) 100%);
+  border:1px solid var(--line);
+  box-shadow:0 4px 20px rgba(0,0,0,.15);
+  position:relative; overflow:hidden;
+  transition:all .25s ease;
+}
+.rekap-hero-card.unpaid{
+  border-left:5px solid #f59e0b;
+  border-color:rgba(245,158,11,.25);
+  box-shadow:0 4px 24px rgba(245,158,11,.08);
+}
+.rekap-hero-card.paid{
+  border-left:5px solid #10b981;
+  border-color:rgba(16,185,129,.25);
+  box-shadow:0 4px 24px rgba(16,185,129,.08);
+}
+.rekap-hero-top{
+  display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:4px;
+}
+.rekap-hero-badge{
+  font-size:9.5px; font-weight:800; letter-spacing:.06em;
+  padding:2px 8px; border-radius:6px;
+  background:rgba(255,255,255,.08); color:var(--text-2);
+}
+.rekap-hero-sub{
+  font-size:11px; font-weight:800; letter-spacing:.05em; color:var(--text-2);
+}
+.rekap-hero-card.unpaid .rekap-hero-sub{ color:#f59e0b; }
+.rekap-hero-card.paid .rekap-hero-sub{ color:#10b981; }
+.rekap-hero-amt{
+  font-size:26px; font-weight:850; font-variant-numeric:tabular-nums;
+  margin:4px 0 2px; letter-spacing:-.02em; color:var(--text);
+}
+.rekap-hero-card.unpaid .rekap-hero-amt{
+  color:#fbbf24;
+  text-shadow:0 2px 10px rgba(245,158,11,.2);
+}
+.rekap-hero-card.paid .rekap-hero-amt{
+  color:#34d399;
+  text-shadow:0 2px 10px rgba(16,185,129,.2);
+}
+.rekap-hero-meta{
+  font-size:11.5px; color:var(--text-2);
+}
+
+/* Item baris rekap & garapan berjalan elegan */
+.rekap-card-item{
+  background:var(--bg-elev); border:1px solid var(--line);
+  border-radius:14px; padding:12px 14px; margin-bottom:8px;
+  box-shadow:0 2px 8px rgba(0,0,0,.04);
+  transition:all .15s ease;
+}
+.rekap-card-item.is-unpaid{
+  border-left:4px solid #f59e0b;
+}
+.rekap-card-item.is-paid{
+  border-left:4px solid #10b981;
+}
+.rekap-item-row1{
+  display:flex; justify-content:space-between; align-items:flex-start; gap:10px;
+}
+.rekap-item-title{
+  font-weight:700; font-size:14px; color:var(--text); overflow-wrap:anywhere;
+}
+.rekap-item-row2{
+  display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px;
+  font-size:11.5px; color:var(--text-2); margin:4px 0 8px;
+}
+.rekap-item-row3{
+  display:flex; justify-content:space-between; align-items:center; gap:8px;
+  padding-top:6px; border-top:1px dashed var(--line);
+}
+.rekap-item-jasa{
+  font-size:14.5px; font-weight:800; color:var(--accent,#22d3ee); font-variant-numeric:tabular-nums;
+}
+.btn-lunasi{
+  display:inline-flex; align-items:center; gap:5px;
+  background:linear-gradient(135deg, #10b981, #059669);
+  color:#ffffff; font-weight:750; font-size:11.5px;
+  padding:6px 12px; border-radius:8px; border:none;
+  cursor:pointer; box-shadow:0 2px 8px rgba(16,185,129,.3);
+  transition:all .15s ease;
+}
+.btn-lunasi:active{ transform:scale(0.96); }
+.btn-lunasi:hover{ filter:brightness(1.08); }
+
+.rekap-badge-lunas{
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:11px; font-weight:750; color:#10b981;
+  background:rgba(16,185,129,.12); padding:3px 9px; border-radius:6px;
+  border:1px solid rgba(16,185,129,.25);
+}
+.rekap-badge-peran{
+  font-size:9.5px; font-weight:800; letter-spacing:.04em;
+  padding:2px 7px; border-radius:6px; flex-shrink:0;
+}
+.rekap-badge-peran.owner{
+  background:rgba(168,85,247,.15); color:#a855f7; border:1px solid rgba(168,85,247,.3);
+}
+.rekap-badge-peran.mitra{
+  background:rgba(14,165,233,.15); color:#0ea5e9; border:1px solid rgba(14,165,233,.3);
 }
 
 /* Tampungan sementara garapan (draft) sebelum dikirim ke mitra */

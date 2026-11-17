@@ -48,7 +48,7 @@
   var sesi = null;
   var layar = 'pilih'; // pilih | pin | app
   var tabAktif = 'input';
-  var filter = 'month';
+  var filter = 'unpaid'; // unpaid (Belum Lunas) | paid (Sudah Lunas)
   var selectedMonth = -1;
   var pinTempu = '';
   var pesanPin = '';
@@ -818,60 +818,166 @@
     }).join('');
   }
 
-  var filterInputStatus = 'all'; // 'all' | 'proses' | 'titip'
-
-  function toggleFilterBerjalan(status) {
-    if (filterInputStatus === status) {
-      filterInputStatus = 'all';
-    } else {
-      filterInputStatus = status;
-    }
-    renderInputHistoryOnly();
+  /* Cek apakah garapan (mitra maupun owner) sudah lunas */
+  function isTaskLunas(t) {
+    if (!t) return false;
+    if (t.isLunas === true || t.lunas === true) return true;
+    if (sudahLunas(t)) return true;
+    if (t.pribadi && t.status === 'completed') return true;
+    return false;
   }
 
-  function renderInputHistoryOnly(prosesArr, titipArr) {
-    if (!prosesArr || !titipArr) {
-      var tasks = data.tasks.slice().sort(function (a, b) {
-        return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
-      });
-      prosesArr = tasks.filter(function (t) { return !t.pribadi && (t.status === 'terkirim' || t.status === 'pending'); });
-      titipArr = tasks.filter(function (t) { return !t.pribadi && t.status === 'completed' && !sudahLunas(t); });
+  /*
+     Pelunasan satu garapan (baik mitra maupun owner).
+     - Menandai garapan lunas (isLunas = true, status = 'completed').
+     - Otomatis tersimpan di Cashflow Alima sebagai pemasukan Ronce
+       (type: 'in', group: 'Income Hima', sub: 'Roncelia').
+     - Otomatis 10% masuk ke Kas Wajib Dana Bank (5% Darurat + 5% Sedekah).
+  */
+  function lunasiGarapan(id) {
+    if (!adalahOwner()) {
+      w.App.toast('Hanya owner yang dapat melunasi garapan');
+      return;
+    }
+    var t = cariTugas(id);
+    if (!t) {
+      w.App.toast('Garapan tidak ditemukan');
+      return;
+    }
+    if (isTaskLunas(t)) {
+      w.App.toast('Garapan ini sudah lunas');
+      return;
     }
 
-    var cp = $('#cardFilterProses') || $('.mt-sum-card.proses');
-    var ct = $('#cardFilterTitip') || $('.mt-sum-card.titip');
-    if (cp) cp.classList.toggle('active', filterInputStatus === 'proses');
-    if (ct) ct.classList.toggle('active', filterInputStatus === 'titip');
+    var fee = num(t.deliveryFee);
+    var nama = namaGarapan(t.serviceId) + (t.quantity > 1 ? ' x' + t.quantity : '');
+    var pekerja = t.pribadi ? 'Owner' : (t.employeeName || 'Mitra');
 
-    var titleEl = $('#rjHistoryTitle');
-    var badgeEl = $('#rjHistoryFilterBadge');
-    if (titleEl) {
-      if (filterInputStatus === 'proses') {
-        titleEl.textContent = 'Garapan Berjalan — Sedang Proses (' + prosesArr.length + ')';
-      } else if (filterInputStatus === 'titip') {
-        titleEl.textContent = 'Garapan Berjalan — Titip Bayar (' + titipArr.length + ')';
-      } else {
-        titleEl.textContent = 'Garapan Berjalan (' + (prosesArr.length + titipArr.length) + ')';
+    mintaKonfirmasi('Lunasi garapan ' + nama + ' (' + pekerja + ') senilai ' + formatIDR(fee) + '?\n\nOtomatis masuk Cashflow Alima (Pemasukan Ronce) dan 10% Kas Wajib Dana Bank.', function () {
+      t.isLunas = true;
+      t.status = 'completed';
+      t.completedAt = t.completedAt || new Date().toISOString();
+      t.paidAt = new Date().toISOString();
+      t._u = new Date().toISOString();
+
+      // Jika ada payment request terkait mitra ini, tandai dibayar
+      if (data.paymentRequests && data.paymentRequests.length) {
+        for (var p = 0; p < data.paymentRequests.length; p++) {
+          var pr = data.paymentRequests[p];
+          if (pr.taskIds && pr.taskIds.indexOf(t.id) >= 0 && pr.status !== 'dibayar') {
+            pr.status = 'dibayar';
+            pr.paidAt = new Date().toISOString();
+            pr._u = new Date().toISOString();
+          }
+        }
       }
-    }
-    if (badgeEl) {
-      badgeEl.style.display = (filterInputStatus !== 'all') ? 'inline-block' : 'none';
-      badgeEl.textContent = 'Tampilkan Semua';
-    }
 
-    var h = $('#rjHistory');
-    if (h) {
-      var tampil = [];
-      if (filterInputStatus === 'proses') tampil = prosesArr;
-      else if (filterInputStatus === 'titip') tampil = titipArr;
-      else tampil = prosesArr.concat(titipArr);
+      // Catat transaksi pemasukan ke Cashflow Alima
+      var S = w.Store;
+      if (S && S.Tx && typeof S.Tx.create === 'function') {
+        var idem = 'ronce-pelunasan:' + t.id;
+        var tgl = t.date || hariIni();
+        var today = S.todayStr ? S.todayStr() : hariIni();
+        if (tgl > today) tgl = today;
 
-      h.innerHTML = tampil.length
-        ? tampil.map(function (t) { return rjRow(t); }).join('')
-        : '<div class="empty">Tidak ada garapan ' + (filterInputStatus === 'proses' ? 'sedang proses' : (filterInputStatus === 'titip' ? 'titip bayar' : 'berjalan')) + '</div>';
-    }
+        var ket = 'Pelunasan Jasa Ronce (' + pekerja + ') — ' + nama + (t.note ? ' [' + t.note + ']' : '');
+
+        var payload = {
+          type: 'in',
+          group: 'Income Hima',
+          sub: 'Roncelia',
+          amount: fee,
+          date: tgl,
+          note: ket
+        };
+
+        var allTx = S.Tx.all ? S.Tx.all() : [];
+        var existingTx = null;
+        for (var x = 0; x < allTx.length; x++) {
+          if (allTx[x].idem_key === idem || allTx[x].idem_key === ('ronce-pribadi:' + t.id)) {
+            existingTx = allTx[x];
+            break;
+          }
+        }
+
+        if (existingTx) {
+          if (existingTx.deleted_at && typeof S.Tx.restore === 'function') S.Tx.restore(existingTx.id);
+          if (typeof S.Tx.update === 'function') S.Tx.update(existingTx.id, payload);
+        } else {
+          S.Tx.create(payload, idem);
+        }
+      }
+
+      // Sinkronkan ke NavaBank (Kas Wajib 10%)
+      try {
+        if (w.NavaBank && typeof w.NavaBank.syncAutoWajib === 'function') {
+          w.NavaBank.syncAutoWajib();
+        }
+      } catch (eBank) {
+        console.warn('Sync NavaBank error:', eBank);
+      }
+
+      catat('Garapan dilunasi: ' + nama + ' (' + pekerja + ') ' + formatIDR(fee));
+      simpan();
+
+      var kasWajib10 = Math.round(fee * 0.1);
+      w.App.toast('Berhasil dilunasi ' + formatIDR(fee) + '!\n✓ Pemasukan Ronce tercatat di Cashflow\n✓ ' + formatIDR(kasWajib10) + ' disetor ke Kas Wajib Dana Bank (10%)', 4000);
+
+      if (w.TxUI && typeof w.TxUI.render === 'function') {
+        try { w.TxUI.render(); } catch (e) {}
+      }
+      if (w.App && typeof w.App.render === 'function') {
+        try { w.App.render(); } catch (e) {}
+      }
+      renderRekap();
+      renderInput();
+    });
   }
 
+  /* Render kartu garapan modern dan elegan (untuk Input & Rekap) */
+  function renderGarapanCard(t, isPaid) {
+    var s = cariGarapan(t.serviceId);
+    var set = s && s.isSetEnabled;
+    var nama = esc(namaGarapan(t.serviceId)) + ' &times;' + t.quantity + (set ? ' Set' : ' pcs');
+    var isOwner = !!t.pribadi;
+    var pekerja = isOwner ? 'Owner' : (t.employeeName || 'Mitra');
+    var badgePeran = isOwner
+      ? '<span class="rekap-badge-peran owner">OWNER</span>'
+      : '<span class="rekap-badge-peran mitra">MITRA: ' + esc(pekerja) + '</span>';
+
+    var tgl = t.date ? formatTanggal(t.date) : '-';
+    var catatan = t.note ? ' &middot; ' + esc(t.note) : '';
+
+    var aksiKanan = '';
+    if (isPaid) {
+      aksiKanan = '<span class="rekap-badge-lunas">✓ LUNAS · Cashflow &amp; Bank 10%</span>';
+    } else {
+      aksiKanan = '<button type="button" class="btn-lunasi" data-lunasi-id="' + esc(t.id) + '" title="Lunasi garapan ini">⚡ Lunasi</button>';
+    }
+
+    var btnHapus = adalahOwner()
+      ? '<button type="button" class="mini-btn danger" data-task-del="' + esc(t.id) + '" title="Hapus garapan" style="font-size:11px;padding:3px 7px;cursor:pointer;border-radius:6px;margin-left:6px;">🗑️</button>'
+      : '';
+
+    return '<div class="rekap-card-item ' + (isPaid ? 'is-paid' : 'is-unpaid') + '">'
+      + '<div class="rekap-item-row1">'
+      +   '<span class="rekap-item-title">' + nama + '</span>'
+      +   badgePeran
+      + '</div>'
+      + '<div class="rekap-item-row2">'
+      +   '<span>📅 ' + tgl + catatan + '</span>'
+      + '</div>'
+      + '<div class="rekap-item-row3">'
+      +   '<span class="rekap-item-jasa">' + formatIDR(t.deliveryFee) + '</span>'
+      +   '<div style="display:flex;align-items:center;">'
+      +     aksiKanan
+      +     btnHapus
+      +   '</div>'
+      + '</div>'
+      + '</div>';
+  }
+
+  /* ---------------- Tab: Input (Owner) ---------------- */
   function renderInput() {
     renderAkun();
     renderOwnerJobRequests();
@@ -879,52 +985,28 @@
     if (m) m.innerHTML = optsMitra(true);
     if (g) g.innerHTML = optsGarapan();
 
-    /* Ringkasan & daftar: HANYA garapan yang masih PROSES dan yang sudah
-       TITIP BAYAR (selesai tapi belum dilunasi). Pelunasan & cicil
-       pelunasan dilakukan di tab Rekap. */
-    var tasks = data.tasks.slice().sort(function (a, b) {
+    // Tampilkan garapan berjalan (yang belum lunas), baik milik mitra maupun owner
+    var berjalan = data.tasks.filter(function (t) {
+      return !isTaskLunas(t);
+    }).sort(function (a, b) {
       return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
     });
-    /* Garapan pribadi owner tampil di kartunya sendiri, tidak dicampur. */
-    var proses = tasks.filter(function (t) { return !t.pribadi && (t.status === 'terkirim' || t.status === 'pending'); });
-    var titip = tasks.filter(function (t) { return !t.pribadi && t.status === 'completed' && !sudahLunas(t); });
-    var jml = function (a) { return a.reduce(function (s, t) { return s + num(t.deliveryFee); }, 0); };
-    var set = function (sel, v) { var e = $(sel); if (e) e.textContent = v; };
-    set('#rjProsesTotal', formatIDR(jml(proses)));
-    set('#rjProsesCount', proses.length + ' garapan');
-    set('#rjTitipTotal', formatIDR(jml(titip)));
-    set('#rjTitipCount', titip.length + ' garapan');
 
-    renderInputHistoryOnly(proses, titip);
+    var badge = $('#rjHistoryBadge');
+    if (badge) badge.textContent = berjalan.length + ' Tugas';
 
-    /* Kartu tampungan & garapan pribadi WAJIB selalu digambar ulang. Dulu ada
-       `return` lebih awal di sini, sehingga keduanya terlewat ketika tidak ada
-       garapan mitra yang berjalan — tugas pribadi yang baru dibuat jadi tidak
-       terlihat dan terasa "jumlahnya tidak tersimpan". */
+    var h = $('#rjHistory');
+    if (h) {
+      if (!berjalan.length) {
+        h.innerHTML = '<div class="empty" style="text-align:center;padding:16px 0;color:var(--text-2);font-size:12.5px;">Tidak ada garapan yang sedang berjalan. Semua tugas sudah lunas!</div>';
+      } else {
+        h.innerHTML = berjalan.map(function (t) {
+          return renderGarapanCard(t, false);
+        }).join('');
+      }
+    }
+
     renderDraft();
-    renderPribadiList();
-  }
-
-  /* Satu baris garapan di tab Input (owner). */
-  function rjRow(t) {
-    var s = cariGarapan(t.serviceId);
-    var set = s && s.isSetEnabled;
-    var selesai = t.status === 'completed';
-    return '<div class="mt-row' + (selesai ? ' done' : '') + '">'
-      + '<div class="mt-row-top">'
-      +   '<span class="mt-row-nama">' + esc(namaGarapan(t.serviceId)) + '</span>'
-      +   '<div style="display:flex;align-items:center;gap:6px">'
-      +     '<span class="mt-tag ' + (selesai ? 'titip' : 'proses') + '">' + (selesai ? 'TITIP BAYAR' : 'TERKIRIM') + '</span>'
-      +     (adalahOwner() ? '<button type="button" class="mini-btn danger" data-task-del="' + esc(t.id) + '" title="Hapus garapan" style="font-size:11px;padding:2px 6px;cursor:pointer;">🗑️</button>' : '')
-      +   '</div>'
-      + '</div>'
-      + '<div class="mt-row-mid">' + esc(t.employeeName) + ' &middot; ' + t.quantity + (set ? ' Set' : ' pcs') + ' &middot; ' + formatTanggal(t.date) + '</div>'
-      + (t.note ? '<div class="mt-row-note">Catatan: ' + esc(t.note) + '</div>' : '')
-      + '<div class="mt-row-bottom">'
-      +   '<span class="mt-row-jasa">' + formatIDR(t.deliveryFee) + '</span>'
-      +   '<span class="mt-row-ok">' + (selesai ? 'Menunggu pelunasan di Rekap' : 'Menunggu laporan mitra') + '</span>'
-      + '</div>'
-      + '</div>';
   }
 
   function hapusTask(id) {
@@ -933,11 +1015,11 @@
     if (!t) return;
     var doHapus = function () {
       try {
-        if (t.pribadi && w.Store && w.Store.Tx && w.Store.Tx.all) {
+        if (w.Store && w.Store.Tx && w.Store.Tx.all) {
           var allTx = w.Store.Tx.all() || [];
           for (var txIdx = 0; txIdx < allTx.length; txIdx++) {
             var txItem = allTx[txIdx];
-            if (txItem.idem_key === ('ronce-pribadi:' + id) || txItem.refId === ('ronce_pribadi_' + id)) {
+            if (txItem.idem_key === ('ronce-pelunasan:' + id) || txItem.idem_key === ('ronce-pribadi:' + id) || txItem.refId === ('ronce_pribadi_' + id)) {
               if (w.Store.Tx.remove) w.Store.Tx.remove(txItem.id);
               break;
             }
@@ -1218,20 +1300,27 @@
 
   function renderRekap() {
     var own = adalahOwner();
-    if (filter !== 'today' && filter !== 'month') filter = 'month';
+    if (filter !== 'unpaid' && filter !== 'paid') filter = 'unpaid';
+
+    // Update chips Owner
     document.querySelectorAll('#ronceFilters .chip').forEach(function (c) {
       c.classList.toggle('on', c.dataset.rfilter === filter);
     });
+    // Update chips Mitra
+    document.querySelectorAll('#ronceMitraFilters .chip').forEach(function (c) {
+      c.classList.toggle('on', c.dataset.mfilter === filter);
+    });
+
     var ro = $('#ronceRekapOwner'), rm = $('#ronceRekapMitra');
     if (ro) ro.hidden = !own;
     if (rm) rm.hidden = own;
     if (!own) { renderRekapMitra(); return; }
 
-    /* ---- OWNER: filter mitra + rekap per mitra ---- */
+    // Dropdown Mitra Filter
     var mf = $('#ronceMitraFilter');
     if (mf) {
       var currentVal = selectedMitraFilter || '';
-      var opts = '<option value="">Semua Mitra</option>';
+      var opts = '<option value="">Semua (Mitra &amp; Owner)</option>';
       data.users.forEach(function (u) {
         var isOwner = (u.role === 'owner');
         var label = isOwner ? (esc(u.name) + ' (Owner)') : esc(u.name);
@@ -1240,127 +1329,114 @@
       mf.innerHTML = opts;
       mf.value = currentVal;
     }
-    var tk = $('#ronceTotalKomisi');
-    if (tk) tk.textContent = formatIDR(totalKomisiSemua());
-    renderRekapSummary();
-    renderPribadiRekap();
 
-    var pr = $('#roncePayReq');
-    if (pr) {
-      var reqs = data.paymentRequests.slice().reverse();
-      if (selectedMitraFilter) reqs = reqs.filter(function (r) { return r.employeeId === selectedMitraFilter; });
-      pr.innerHTML = reqs.length ? reqs.map(function (r) {
-        var ok = r.status === 'dibayar';
-        return '<div class="mt-pay ' + (ok ? 'ok' : 'wait') + '">'
-          + '<div class="mt-pay-l"><b>' + esc(r.employeeName) + ' &middot; ' + formatIDR(r.amount) + '</b>'
-          + '<span>' + formatTanggal(r.date) + '</span></div>'
-          + (ok
-              ? '<span class="mt-tag done">DIBAYAR</span>'
-              : '<button class="mini-btn" data-rpay="' + esc(r.id) + '">Tandai Dibayar</button>')
-          + '</div>';
-      }).join('') : '<div class="mt-empty">Belum ada pengajuan dari mitra</div>';
-    }
-  }
+    // Ambil semua task (mitra + owner)
+    var allTasks = data.tasks.slice().sort(function (a, b) {
+      return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+    });
 
-  /* Ringkasan per mitra: garapan done, pengajuan pembayaran, sudah lunas. */
-  function renderRekapSummary() {
-    var el = $('#ronceMitraSummary');
-    if (!el) return;
-    var users = data.users.slice();
+    // Saring jika dropdown mitra dipilih
     if (selectedMitraFilter) {
-      users = users.filter(function (u) { return u.id === selectedMitraFilter; });
-    } else {
-      users = users.filter(function (u) { return u.role !== 'owner'; });
+      var selUser = cariMitra(selectedMitraFilter);
+      if (selUser && selUser.role === 'owner') {
+        allTasks = allTasks.filter(function (t) { return t.pribadi || t.employeeId === selUser.id; });
+      } else {
+        allTasks = allTasks.filter(function (t) { return !t.pribadi && t.employeeId === selectedMitraFilter; });
+      }
     }
-    if (!users.length) {
-      el.innerHTML = '<div class="empty" style="padding:10px 0;text-align:center;font-size:12px;color:var(--text-2);">Tidak ada data untuk mitra yang dipilih</div>';
-      return;
+
+    var isPaidFilter = (filter === 'paid');
+    var filteredTasks = allTasks.filter(function (t) {
+      return isPaidFilter ? isTaskLunas(t) : !isTaskLunas(t);
+    });
+
+    var totalNominal = filteredTasks.reduce(function (sum, t) {
+      return sum + num(t.deliveryFee);
+    }, 0);
+
+    // Update Hero Summary Card
+    var heroCard = $('#rekapHeroCard');
+    if (heroCard) {
+      heroCard.classList.toggle('unpaid', !isPaidFilter);
+      heroCard.classList.toggle('paid', isPaidFilter);
     }
-    el.innerHTML = users.map(function (u) {
-      var isOwner = (u.role === 'owner');
-      var tasks = data.tasks.filter(function (t) {
-        return (isOwner ? (t.pribadi || t.employeeId === u.id) : (t.employeeId === u.id)) && dalamPeriode(t.date || t.createdAt);
-      });
-      var done = tasks.filter(function (t) { return t.status === 'completed'; });
-      var reqs = data.paymentRequests.filter(function (r) {
-        return r.employeeId === u.id && dalamPeriode(r.date || r.createdAt);
-      });
-      var diajukan = reqs.filter(function (r) { return r.status !== 'dibayar'; })
-        .reduce(function (s, r) { return s + num(r.amount); }, 0);
-      var lunas = reqs.filter(function (r) { return r.status === 'dibayar'; })
-        .reduce(function (s, r) { return s + num(r.amount); }, 0);
-      var totalJasa = done.reduce(function (s, t) { return s + num(t.deliveryFee); }, 0);
+    var lbl = $('#rekapHeroLabel');
+    if (lbl) lbl.textContent = isPaidFilter ? 'TOTAL SUDAH LUNAS' : 'TOTAL BELUM LUNAS';
+    var tot = $('#rekapHeroTotal');
+    if (tot) tot.textContent = formatIDR(totalNominal);
+    var meta = $('#rekapHeroMeta');
+    if (meta) {
+      meta.textContent = isPaidFilter
+        ? (filteredTasks.length + ' garapan sudah lunas · Tercatat di Cashflow & 10% Kas Wajib Dana Bank')
+        : (filteredTasks.length + ' garapan menunggu pelunasan (Mitra & Owner)');
+    }
 
-      var badgePeran = isOwner ? '<span class="tag" style="font-size:10px;padding:1px 6px;">OWNER</span>' : '<span class="tag ok" style="font-size:10px;padding:1px 6px;">MITRA</span>';
+    // Update Section Header
+    var tHead = $('#rekapListTitle');
+    if (tHead) tHead.textContent = isPaidFilter ? 'Daftar Garapan Sudah Lunas' : 'Daftar Garapan Belum Lunas';
+    var cHead = $('#rekapListCount');
+    if (cHead) cHead.textContent = filteredTasks.length + ' Garapan';
 
-      return '<div class="item" style="padding:10px 12px;margin-bottom:6px;border-radius:10px;background:var(--bg-elev);border:1px solid var(--line);">'
-        + '<div class="item-body" style="width:100%">'
-        +   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
-        +     '<div style="font-weight:700;font-size:13.5px;color:var(--text);">' + esc(u.name) + '</div>'
-        +     badgePeran
-        +   '</div>'
-        +   '<div class="item-sub" style="display:flex;flex-wrap:wrap;gap:8px 12px;font-size:11.5px;color:var(--text-2);">'
-        +     '<span><b>' + done.length + '</b> selesai (<b style="color:var(--accent,#22d3ee);">' + formatIDR(totalJasa) + '</b>)</span>'
-        +     (!isOwner ? '<span>Menunggu: <b style="color:var(--warn,#f59e0b);">' + formatIDR(diajukan) + '</b></span>' : '')
-        +     (!isOwner ? '<span>Dibayar: <b style="color:var(--ok,#22c55e);">' + formatIDR(lunas) + '</b></span>' : '')
-        +   '</div>'
-        + '</div>'
-        + '</div>';
-    }).join('');
+    // Render List Terpadu
+    var listEl = $('#ronceRekapListUnified');
+    if (listEl) {
+      if (!filteredTasks.length) {
+        listEl.innerHTML = '<div class="empty" style="text-align:center;padding:26px 12px;color:var(--text-2);font-size:13px;">'
+          + (isPaidFilter
+              ? 'Belum ada garapan yang berstatus sudah lunas.'
+              : '🎉 Luar biasa! Semua garapan sudah lunas, tidak ada tagihan tertunda.')
+          + '</div>';
+      } else {
+        listEl.innerHTML = filteredTasks.map(function (t) {
+          return renderGarapanCard(t, isPaidFilter);
+        }).join('');
+      }
+    }
   }
 
   /* Tampilan Rekap untuk MITRA: HANYA rekapan garapan selesai
-     (belum dibayar / sudah dibayar) + ceklist pengajuan pelunasan. */
+     (belum dibayar / sudah dibayar) */
   function renderRekapMitra() {
     var list = $('#ronceRekapList');
     if (!list) return;
     var mitraId = sesi ? sesi.id : '';
-    var doneTasks = data.tasks.filter(function (t) {
-      return t.employeeId === mitraId && t.status === 'completed';
+    var isPaidFilter = (filter === 'paid');
+
+    var mitraTasks = data.tasks.filter(function (t) {
+      return t.employeeId === mitraId && !t.pribadi;
+    }).sort(function (a, b) {
+      return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
     });
-    var belum = doneTasks.filter(function (t) { return !sudahLunas(t); });
-    var lunas = doneTasks.filter(function (t) { return sudahLunas(t); });
-    var jml = function (a) { return a.reduce(function (s, t) { return s + num(t.deliveryFee); }, 0); };
-    var set = function (sel, v) { var e = $(sel); if (e) e.textContent = v; };
-    set('#rkBelumTotal', formatIDR(jml(belum)));
-    set('#rkBelumN', belum.length + ' garapan');
-    set('#rkLunasTotal', formatIDR(jml(lunas)));
-    set('#rkLunasN', lunas.length + ' garapan');
 
-    var h = '';
-    h += doneTasks.length ? doneTasks.map(function (t) {
-      var diajukan = sudahDiajukan(t.id);
-      var sudahLunasT = sudahLunas(t);
-      var badge, action;
-      if (sudahLunasT) {
-        badge = '<span class="mt-tag done">LUNAS</span>';
-        action = '<span class="mt-row-ok">Sudah dibayar</span>';
-      } else if (diajukan) {
-        badge = '<span class="mt-tag tunggu">MENUNGGU OWNER</span>';
-        action = '<span class="mt-row-ok" style="color:var(--warn);font-weight:600">Menunggu owner</span>';
-      } else {
-        badge = '<span class="mt-tag proses">SELESAI</span>';
-        action = '<div style="display:flex;align-items:center;gap:6px">'
-          + '<input type="checkbox" class="mt-pilih-direct" data-ajukan-id="' + esc(t.id) + '" style="width:18px;height:18px;cursor:pointer" title="Centang untuk ajukan">'
-          + '<button type="button" class="mini-btn primary" data-ajukan-btn="' + esc(t.id) + '" style="font-size:11px;padding:3px 8px;cursor:pointer">Ajukan Pelunasan</button>'
-          + '</div>';
-      }
-      return '<div class="mt-row done' + (diajukan ? ' diajukan' : '') + '">'
-        + '<div class="mt-row-top">'
-        +   '<span class="mt-row-nama">' + esc(namaGarapan(t.serviceId)) + '</span>'
-        +   badge
-        + '</div>'
-        + '<div class="mt-row-mid">' + t.quantity + ' &middot; ' + formatTanggal(t.date) + '</div>'
-        + '<div class="mt-row-bottom">'
-        +   '<span class="mt-row-jasa">' + formatIDR(t.deliveryFee) + '</span>'
-        +   action
-        + '</div>'
+    var filtered = mitraTasks.filter(function (t) {
+      return isPaidFilter ? isTaskLunas(t) : !isTaskLunas(t);
+    });
+
+    var totalNominal = filtered.reduce(function (sum, t) {
+      return sum + num(t.deliveryFee);
+    }, 0);
+
+    var card = $('#rekapMitraHeroCard');
+    if (card) {
+      card.classList.toggle('unpaid', !isPaidFilter);
+      card.classList.toggle('paid', isPaidFilter);
+    }
+    var lbl = $('#rkHeroLabel');
+    if (lbl) lbl.textContent = isPaidFilter ? 'TOTAL SUDAH DIBAYAR' : 'TOTAL BELUM DIBAYAR';
+    var tot = $('#rkBelumTotal');
+    if (tot) tot.textContent = formatIDR(totalNominal);
+    var meta = $('#rkBelumN');
+    if (meta) meta.textContent = filtered.length + ' garapan ' + (isPaidFilter ? 'sudah dibayar' : 'menunggu owner');
+
+    if (!filtered.length) {
+      list.innerHTML = '<div class="empty" style="text-align:center;padding:20px 0;color:var(--text-2);font-size:12.5px;">'
+        + (isPaidFilter ? 'Belum ada garapan yang sudah dibayar.' : 'Tidak ada garapan yang belum dibayar.')
         + '</div>';
-    }).join('') : '<div class="empty">Belum ada garapan selesai</div>';
-    list.innerHTML = h;
-
-    var aj = $('#mtAjukan');
-    if (aj) aj.style.display = 'none';
+    } else {
+      list.innerHTML = filtered.map(function (t) {
+        return renderGarapanCard(t, isPaidFilter);
+      }).join('');
+    }
   }
 
   /* Tombol "Ajukan Pelunasan (N)" + sorotan baris yang terceklis. Dipakai
@@ -2221,37 +2297,31 @@
       var del = e.target.closest('[data-draft-del]');
       if (del) { w.Ronce.hapusDraftJob(parseInt(del.dataset.draftDel, 10)); return; }
 
-      // Filter interaktif tombol Sedang Proses & Titip Bayar di tab Input
-      var cardProses = e.target.closest('#cardFilterProses') || e.target.closest('.mt-sum-card.proses');
-      if (cardProses && e.target.closest('#ronceTab-input')) {
-        toggleFilterBerjalan('proses');
-        return;
-      }
-      var cardTitip = e.target.closest('#cardFilterTitip') || e.target.closest('.mt-sum-card.titip');
-      if (cardTitip && e.target.closest('#ronceTab-input')) {
-        toggleFilterBerjalan('titip');
-        return;
-      }
-      var resetBadge = e.target.closest('#rjHistoryFilterBadge');
-      if (resetBadge) {
-        toggleFilterBerjalan('all');
-        return;
-      }
       var taskDel = e.target.closest('[data-task-del]');
       if (taskDel) {
         hapusTask(taskDel.dataset.taskDel);
         return;
       }
+      var lun = e.target.closest('[data-lunasi-id]');
+      if (lun) {
+        lunasiGarapan(lun.dataset.lunasiId);
+        return;
+      }
     });
 
-
-
-    // Rekap filter
+    // Rekap filter (Belum Lunas & Sudah Lunas)
     document.addEventListener('click', function (e) {
       var f = e.target.closest('[data-rfilter]');
       if (f) {
         filter = f.dataset.rfilter;
         renderRekap();
+        return;
+      }
+      var mf = e.target.closest('[data-mfilter]');
+      if (mf) {
+        filter = mf.dataset.mfilter;
+        renderRekap();
+        return;
       }
     });
 
@@ -2390,7 +2460,8 @@
     selesaiPribadi: selesaiPribadi,
     hapusPribadi: hapusPribadi,
     hapusTask: hapusTask,
-    toggleFilterBerjalan: toggleFilterBerjalan,
+    lunasiGarapan: lunasiGarapan,
+    isTaskLunas: isTaskLunas,
     syncRoncePribadiToCashflow: syncRoncePribadiToCashflow,
     syncAllCompletedPribadi: syncAllCompletedPribadi,
     ajukanBon: ajukanBon,

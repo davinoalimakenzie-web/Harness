@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Cashflow Alima</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261117d">
+<link rel="stylesheet" href="assets/css/style.css?v=20261117e">
 </head>
 <body>
 
@@ -547,32 +547,12 @@
             <button type="button" class="btn block" id="rjPribadi">Pribadi</button>
             <button type="button" class="btn primary block grow" id="rjSimpan">Kirim Tugas</button>
           </div>
-          <p class="hint xs">Tanggal otomatis hari ini &middot; jasa dihitung otomatis dari komisi garapan. Tambahkan beberapa garapan lalu kirim sekaligus ke mitra.</p>
+          <p class="hint xs">Tanggal otomatis hari ini &middot; jasa dihitung otomatis dari komisi garapan. Tekan <b>Pribadi</b> untuk garapan owner, atau <b>Input Tugas</b> lalu <b>Kirim Tugas</b> untuk mitra.</p>
         </div>
 
-        <div class="mt-sum">
-          <div class="mt-sum-card proses" id="cardFilterProses" title="Klik untuk filter Sedang Proses">
-            <span>SEDANG PROSES</span>
-            <b id="rjProsesTotal">Rp0</b>
-            <i id="rjProsesCount">0 garapan</i>
-          </div>
-          <div class="mt-sum-card titip" id="cardFilterTitip" title="Klik untuk filter Titip Bayar">
-            <span>TITIP BAYAR</span>
-            <b id="rjTitipTotal">Rp0</b>
-            <i id="rjTitipCount">0 garapan</i>
-          </div>
-        </div>
-        <p class="hint xs">Garapan yang sudah lunas otomatis keluar dari daftar ini. Klik salah satu kartu di atas untuk memfilter daftar.</p>
-
-        <div class="card" style="margin-top:10px">
-          <div class="list-head tight"><strong>Garapan Pribadi</strong></div>
-          <p class="hint xs">Tugas ronce yang kamu kerjakan sendiri. Tekan <b>SELESAI</b> kalau sudah jadi &mdash; otomatis masuk rekap.</p>
-          <div id="rjPribadiList" class="list"></div>
-        </div>
-
-        <div class="list-head" style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="list-head" style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
           <strong id="rjHistoryTitle">Garapan Berjalan</strong>
-          <span id="rjHistoryFilterBadge" class="tag" style="display:none;font-size:10px;cursor:pointer;padding:2px 8px;" title="Reset filter">Tampilkan Semua</span>
+          <span class="tag" id="rjHistoryBadge" style="font-size:10px;padding:2px 8px;">0 Tugas</span>
         </div>
         <div id="rjHistory" class="list"></div>
       </div>
@@ -621,57 +601,62 @@
 
         <!-- ============ OWNER ============ -->
         <div id="ronceRekapOwner">
-          <!-- Filter Rekap Terpadu: Periode (Hari Ini, Bulan Ini) + Dropdown Mitra -->
+          <!-- Filter Rekap Terpadu: Belum Lunas & Sudah Lunas + Dropdown Mitra/Owner -->
           <div class="ronce-rekap-filter-bar">
-            <div class="chips" id="ronceFilters">
-              <button type="button" class="chip" data-rfilter="today">Hari Ini</button>
-              <button type="button" class="chip on" data-rfilter="month">Bulan Ini</button>
+            <div class="chips ronce-rekap-chips" id="ronceFilters">
+              <button type="button" class="chip on" data-rfilter="unpaid">
+                <span class="chip-dot unpaid"></span>Belum Lunas
+              </button>
+              <button type="button" class="chip" data-rfilter="paid">
+                <span class="chip-dot paid"></span>Sudah Lunas
+              </button>
             </div>
             <div id="ronceMitraFilterWrap">
-              <select id="ronceMitraFilter"><option value="">Semua Mitra</option></select>
+              <select id="ronceMitraFilter"><option value="">Semua (Mitra &amp; Owner)</option></select>
             </div>
           </div>
 
-          <!-- Garapan yang dikerjakan owner sendiri (tanpa mitra) -->
-          <div class="card" id="roncePribadiCard">
-            <div class="list-head tight" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-              <strong>GARAPAN PRIBADI</strong>
-              <b id="pribDoneTotal" style="font-size:14px;font-weight:750;color:var(--accent,#22d3ee)">Rp0</b>
+          <!-- Hero Summary Card Elegan -->
+          <div class="rekap-hero-card unpaid" id="rekapHeroCard">
+            <div class="rekap-hero-top">
+              <span class="rekap-hero-badge" id="rekapHeroBadge">STATUS GARAPAN</span>
+              <span class="rekap-hero-sub" id="rekapHeroLabel">TOTAL BELUM LUNAS</span>
             </div>
-            <div id="roncePribadiList" class="list" style="margin-top:8px"></div>
+            <div class="rekap-hero-amt" id="rekapHeroTotal">Rp0</div>
+            <div class="rekap-hero-meta" id="rekapHeroMeta">0 garapan menunggu pelunasan (Mitra &amp; Owner)</div>
           </div>
 
-          <!-- Garapan Mitra -->
-          <div class="card" style="margin-bottom:10px">
-            <div class="list-head tight" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-              <strong>GARAPAN MITRA</strong>
-              <b id="ronceTotalKomisi" style="font-size:14px;font-weight:750;color:var(--accent,#22d3ee)">Rp0</b>
-            </div>
-            <!-- Ringkasan per mitra -->
-            <div id="ronceMitraSummary" class="list" style="margin-top:8px"></div>
+          <!-- Daftar Rekap Terpadu (Mitra + Owner) -->
+          <div class="list-head" style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
+            <strong id="rekapListTitle">Daftar Garapan Belum Lunas</strong>
+            <span class="tag" id="rekapListCount" style="font-size:10px;padding:2px 8px;">0 Garapan</span>
           </div>
-
-          <div class="list-head"><strong>Pengajuan Pembayaran Mitra</strong></div>
-          <div id="roncePayReq" class="list"></div>
+          <div id="ronceRekapListUnified" class="list"></div>
         </div>
 
         <!-- ============ MITRA ============ -->
         <div id="ronceRekapMitra" hidden>
-          <!-- Rekapan: garapan selesai yang belum dibayar vs sudah dibayar -->
-          <div class="mt-sum">
-            <div class="mt-sum-card proses">
-              <span>BELUM DIBAYAR</span>
-              <b id="rkBelumTotal">Rp0</b>
-              <i id="rkBelumN">0 garapan</i>
-            </div>
-            <div class="mt-sum-card titip">
-              <span>SUDAH DIBAYAR</span>
-              <b id="rkLunasTotal">Rp0</b>
-              <i id="rkLunasN">0 garapan</i>
+          <div class="ronce-rekap-filter-bar">
+            <div class="chips ronce-rekap-chips" id="ronceMitraFilters">
+              <button type="button" class="chip on" data-mfilter="unpaid">
+                <span class="chip-dot unpaid"></span>Belum Dibayar
+              </button>
+              <button type="button" class="chip" data-mfilter="paid">
+                <span class="chip-dot paid"></span>Sudah Dibayar
+              </button>
             </div>
           </div>
 
-          <div class="list-head"><strong>GARAPAN SELESAI</strong></div>
+          <div class="rekap-hero-card unpaid" id="rekapMitraHeroCard">
+            <div class="rekap-hero-top">
+              <span class="rekap-hero-badge">GAJI MITRA</span>
+              <span class="rekap-hero-sub" id="rkHeroLabel">TOTAL BELUM DIBAYAR</span>
+            </div>
+            <div class="rekap-hero-amt" id="rkBelumTotal">Rp0</div>
+            <div class="rekap-hero-meta" id="rkBelumN">0 garapan selesai</div>
+          </div>
+
+          <div class="list-head" style="margin-top:14px"><strong>GARAPAN SELESAI</strong></div>
           <div id="ronceRekapList" class="list"></div>
         </div>
       </div>
@@ -900,7 +885,7 @@
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
 <script src="assets/js/transactions.js?v=20261117c"></script>
-<script src="assets/js/ronce.js?v=20261117c"></script>
+<script src="assets/js/ronce.js?v=20261117d"></script>
 <script src="assets/js/ronce-sync.js?v=20261019c"></script>
 <script src="assets/js/calc.js?v=20261022a"></script>
 <script src="assets/js/calc-sync.js?v=20261021d"></script>
