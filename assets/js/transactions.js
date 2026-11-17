@@ -170,21 +170,19 @@
       return;
     }
     var B = w.NavaBank;
+    if (typeof B.syncAutoWajib === 'function') {
+      B.syncAutoWajib(Tx.active());
+    }
     var g = B.get();
     var ym = S.ymOf(S.todayStr());
     var due = B.wajibSetoranBulanan(Tx.active(), ym);
-    var done = B.sudahWajib(ym);
-    var pct = B.persenTerpenuhi(Tx.active(), ym);
 
     var head =
       '<p class="nb-hint">Sisa tersedia <b>' + money(g.available) + '</b> · saldo awal ' +
         money(g.initial) + ' · dipakai ' + money(g.totalOut) + '</p>' +
       (due > 0
-        ? '<p class="nb-hint">' + (done
-            ? 'Setoran kas wajib bulan ini <b>' + money(due) + '</b> sudah tersimpan.'
-            : 'Belum disetor: <b>' + money(due) + '</b> (10% pemasukan bulan ini)') +
-          ' <span class="nb-bar"><i style="width:' + pct + '%"></i></span></p>'
-        : '<p class="nb-hint">Belum ada pemasukan bulan ini, jadi belum ada setoran wajib.</p>');
+        ? '<p class="nb-hint">Setoran kas wajib: <b>10% Otomatis</b> (5% Darurat + 5% Sedekah). Total bulan ini: <b>' + money(due) + '</b> <span class="nb-bar"><i style="width:100%"></i></span></p>'
+        : '<p class="nb-hint">Belum ada pemasukan bulan ini. Setoran 10% otomatis langsung aktif saat ada transaksi masuk.</p>');
 
     var acts =
       '<div class="field-row" style="margin-top:12px">' +
@@ -420,6 +418,8 @@
   /* =========================================================
      KOMPOSISI PENGELUARAN (Dipindah ke Tab Dashboard)
      ========================================================= */
+  var openCats = {};
+
   function renderKomposisi(s) {
     var dEl = $('#rDonut'), cEl = $('#rCats');
     if (!dEl || !cEl) return;
@@ -455,16 +455,76 @@
         }).join('') + '</div>';
     }
 
-    // Bar kategori (semua jenis)
+    // Bar kategori (semua jenis) dengan accordion detail by date & by keterangan
     var max = s.categories.reduce(function (m, c) { return Math.max(m, c.total); }, 0) || 1;
     cEl.innerHTML = s.categories.length
       ? s.categories.map(function (c) {
+          var catKey = (c.group || '') + '|' + (c.sub || '') + '|' + c.type;
           var label = c.sub ? c.group + ' · ' + c.sub : c.group;
-          return '<div class="cat-row">' +
-            '<div class="cr-top"><b>' + esc(label) + '</b>' +
-            '<span class="cr-amt ' + c.type + '">' + (c.type === 'in' ? '+' : '−') + money(c.total) + '</span></div>' +
+          var isOpen = !!openCats[catKey];
+          var items = c.items || [];
+
+          var itemsHtml = '';
+          if (isOpen) {
+            if (!items.length) {
+              itemsHtml = '<div class="cat-items"><div class="empty" style="padding:10px;font-size:12px;">Tidak ada transaksi detail.</div></div>';
+            } else {
+              var byDay = {};
+              items.forEach(function (t) {
+                var d = t.transaction_date || t.date || '';
+                (byDay[d] = byDay[d] || []).push(t);
+              });
+              var dates = Object.keys(byDay).sort().reverse();
+              var daysContent = dates.map(function (d) {
+                var dayTxs = byDay[d];
+                var daySum = dayTxs.reduce(function (a, t) { return a + (Number(t.amount) || 0); }, 0);
+                var rows = dayTxs.map(function (t) {
+                  var ini = t.type === 'in';
+                  var acc = accOf(t);
+                  var ket = t.note ? t.note : (t.sub || t.group || '-');
+                  var tagLabel = t.sub ? t.sub : t.group;
+                  return '<button type="button" class="item tx-row" data-open="' + esc(t.id) + '" style="margin-bottom:4px;border-radius:10px;text-align:left;width:100%;">' +
+                    '<span class="tx-icon ' + (ini ? 'in' : 'out') + '">' + esc(iconOfTx(t)) + '</span>' +
+                    '<span class="item-body">' +
+                      '<span class="item-title" style="font-size:13px;font-weight:600;">' + esc(ket) + '</span>' +
+                      '<span class="item-sub">' +
+                        (t.note && t.sub ? '<span class="tag" style="font-size:10px;padding:1px 5px;">' + esc(tagLabel) + '</span>' : '') +
+                        '<span>' + esc(S.dayLabel(t.transaction_date)) + '</span>' +
+                        (acc ? '<span>' + esc(acc.icon + ' ' + acc.name) + '</span>' : '') +
+                      '</span>' +
+                    '</span>' +
+                    '<span class="item-amt ' + (ini ? 'amt-in' : 'amt-out') + '">' + signedMoney(t) + '</span>' +
+                  '</button>';
+                }).join('');
+
+                return '<div class="cat-day-section" style="margin-bottom:8px;">' +
+                  '<div class="cat-day-head" style="font-size:11.5px;font-weight:700;color:var(--text-2);padding:4px 8px;display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;">' +
+                    '<span>📅 ' + esc(S.dayLabel(d)) + '</span>' +
+                    '<span style="color:' + (c.type === 'in' ? 'var(--success)' : 'var(--danger)') + ';">' + (c.type === 'in' ? '+' : '−') + money(daySum) + '</span>' +
+                  '</div>' +
+                  '<div class="cat-day-rows">' + rows + '</div>' +
+                '</div>';
+              }).join('');
+
+              itemsHtml = '<div class="cat-items" style="margin-top:8px;padding:8px;background:rgba(0,0,0,0.18);border:1px solid var(--line);border-radius:12px;">' +
+                daysContent +
+              '</div>';
+            }
+          }
+
+          return '<div class="cat-row' + (isOpen ? ' open' : '') + '" style="cursor:pointer;" data-cat-toggle="' + esc(catKey) + '">' +
+            '<div class="cr-top">' +
+              '<b style="display:flex;align-items:center;gap:6px;">' +
+                '<span class="cat-chevron" style="display:inline-block;font-size:9px;color:var(--text-2);transition:transform .2s ease;' + (isOpen ? 'transform:rotate(90deg);color:var(--accent);' : '') + '">▶</span>' +
+                esc(label) +
+                '<span class="tag" style="font-size:10px;padding:1px 5px;font-weight:500;">' + items.length + ' input</span>' +
+              '</b>' +
+              '<span class="cr-amt ' + c.type + '">' + (c.type === 'in' ? '+' : '−') + money(c.total) + '</span>' +
+            '</div>' +
             '<div class="cr-track"><i class="' + c.type + '" style="width:' +
-            (c.total / max * 100).toFixed(1) + '%"></i></div></div>';
+            (c.total / max * 100).toFixed(1) + '%"></i></div>' +
+            itemsHtml +
+          '</div>';
         }).join('')
       : '<div class="empty">Belum ada transaksi pada bulan ini.</div>';
   }
@@ -494,11 +554,12 @@
   function renderBankView() {
     if (!w.NavaBank) return;
     var B = w.NavaBank;
+    if (typeof B.syncAutoWajib === 'function') {
+      B.syncAutoWajib(Tx.active());
+    }
     var g = B.get();
     var ym = S.ymOf(S.todayStr());
     var due = B.wajibSetoranBulanan(Tx.active(), ym);
-    var done = B.sudahWajib(ym);
-    var pct = B.persenTerpenuhi(Tx.active(), ym);
 
     var availEl = $('#vbAvail');
     if (availEl) {
@@ -523,26 +584,15 @@
 
     if (descEl) {
       if (due > 0) {
-        if (done) {
-          descEl.innerHTML = 'Setoran wajib bulan ini <b>' + money(due) + '</b> sudah tersimpan (otomatis terbagi: 5% Kas Darurat & 5% Kas Sedekah).';
-          if (badgeEl) { badgeEl.textContent = 'LUNAS'; badgeEl.className = 'tag done'; }
-          if (barEl) barEl.style.width = '100%';
-          if (actWrap) actWrap.innerHTML = '';
-        } else {
-          descEl.innerHTML = 'Wajib setor <b>' + money(due) + '</b> (10% dari total pemasukan bulan ini). Saat disetor otomatis terbagi dua: <b>5% Kas Darurat</b> & <b>5% Kas Sedekah</b>.';
-          if (badgeEl) { badgeEl.textContent = pct + '%'; badgeEl.className = 'tag proses'; }
-          if (barEl) barEl.style.width = pct + '%';
-          if (actWrap) {
-            actWrap.innerHTML = '<button class="btn ghost block" id="vbBtnSetorWajibAuto" style="font-size:13px;padding:8px 12px;margin-top:6px;">' +
-              'Setorkan Wajib ' + money(due) + ' Sekarang (5% Darurat + 5% Sedekah)</button>';
-          }
-        }
+        descEl.innerHTML = 'Setoran 10% otomatis langsung disetor tiap ada transaksi pemasukan berapapun (terbagi: <b>5% Kas Darurat</b> & <b>5% Kas Sedekah</b>). Total disetor bulan ini: <b>' + money(due) + '</b>.';
+        if (badgeEl) { badgeEl.textContent = '100% OTOMATIS'; badgeEl.className = 'tag done'; }
+        if (barEl) barEl.style.width = '100%';
       } else {
-        descEl.textContent = 'Belum ada pemasukan bulan ini, jadi belum ada kewajiban setoran.';
-        if (badgeEl) { badgeEl.textContent = 'NIHIL'; badgeEl.className = 'tag'; }
+        descEl.textContent = 'Belum ada pemasukan bulan ini. Setoran 10% otomatis langsung disetor saat ada transaksi pemasukan.';
+        if (badgeEl) { badgeEl.textContent = 'OTOMATIS AKTIF'; badgeEl.className = 'tag done'; }
         if (barEl) barEl.style.width = '0%';
-        if (actWrap) actWrap.innerHTML = '';
       }
+      if (actWrap) actWrap.innerHTML = ''; // Tombol manual dihilangkan sepenuhnya
     }
 
     var listEl = $('#vbHistoryList');
@@ -1287,6 +1337,23 @@
     }
     if (el.hRecent) bindOpen(el.hRecent);
     if (el.hList) bindOpen(el.hList);
+    if (el.rCats) {
+      el.rCats.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-open]');
+        if (b) {
+          openDetail(b.dataset.open);
+          return;
+        }
+        var catToggle = e.target.closest('[data-cat-toggle]');
+        if (catToggle) {
+          var k = catToggle.dataset.catToggle;
+          openCats[k] = !openCats[k];
+          var s = Tx.summary({ from: recapYM + '-01', to: recapYM + '-31' });
+          renderKomposisi(s);
+          if (TG && typeof TG.haptic === 'function') TG.haptic('selection');
+        }
+      });
+    }
 
     /* --- Filter riwayat (jika elemen filter ada) --- */
     if (el.fQ) {
@@ -1373,14 +1440,6 @@
           doDel();
         }
         return;
-      }
-      if (e.target.closest('#vbBtnSetorWajibAuto')) {
-        if (!w.NavaBank) return;
-        var ym = S.ymOf(S.todayStr());
-        var due = w.NavaBank.wajibSetoranBulanan(Tx.active(), ym);
-        w.NavaBank.tambahSetoranWajib(due, ym);
-        if (w.App && w.App.toast) w.App.toast('Setoran kas wajib tersimpan (5% Darurat + 5% Sedekah)');
-        render();
       }
     });
 

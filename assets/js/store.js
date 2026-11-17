@@ -559,6 +559,11 @@
       state.txs.push(t);
       Tx.queueForPush(t, 'upsert');
       save();
+      try {
+        if (w.NavaBank && typeof w.NavaBank.syncAutoWajib === 'function') {
+          w.NavaBank.syncAutoWajib(state.txs.filter(function (x) { return !x.deleted_at; }));
+        }
+      } catch (eBank) {}
       return { ok: true, duplicate: false, tx: t };
     },
 
@@ -577,6 +582,11 @@
       t.note = String(input.note || '').trim();
       Tx.queueForPush(t, 'upsert');
       save();
+      try {
+        if (w.NavaBank && typeof w.NavaBank.syncAutoWajib === 'function') {
+          w.NavaBank.syncAutoWajib(state.txs.filter(function (x) { return !x.deleted_at; }));
+        }
+      } catch (eBank) {}
       return { ok: true, tx: t };
     },
 
@@ -587,6 +597,11 @@
       t.deleted_at = new Date().toISOString();
       Tx.queueForPush(t, 'delete');
       save();
+      try {
+        if (w.NavaBank && typeof w.NavaBank.syncAutoWajib === 'function') {
+          w.NavaBank.syncAutoWajib(state.txs.filter(function (x) { return !x.deleted_at; }));
+        }
+      } catch (eBank) {}
       return { ok: true, tx: t };
     },
 
@@ -597,6 +612,11 @@
       t.deleted_at = null;
       Tx.queueForPush(t, 'upsert');
       save();
+      try {
+        if (w.NavaBank && typeof w.NavaBank.syncAutoWajib === 'function') {
+          w.NavaBank.syncAutoWajib(state.txs.filter(function (x) { return !x.deleted_at; }));
+        }
+      } catch (eBank) {}
       return { ok: true, tx: t };
     },
 
@@ -635,9 +655,10 @@
       list.forEach(function (t) {
         if (t.type === 'in') rin += t.amount; else rout += t.amount;
         var key = (t.group || 'Lainnya') + '|' + (t.sub || '');
-        if (!byCat[key]) byCat[key] = { group: t.group, sub: t.sub, type: t.type, total: 0, count: 0 };
+        if (!byCat[key]) byCat[key] = { group: t.group, sub: t.sub, type: t.type, total: 0, count: 0, items: [] };
         byCat[key].total += t.amount;
         byCat[key].count += 1;
+        byCat[key].items.push(t);
       });
       var cats = Object.keys(byCat).map(function (k) { return byCat[k]; });
       cats.sort(function (a, b) { return b.total - a.total; });

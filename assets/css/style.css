@@ -736,6 +736,10 @@ button.item .item-sub{ margin-top:3px; }
 
 /* Bar komposisi kategori di Rekap */
 .cat-bars{ display:flex; flex-direction:column; gap:12px; }
+.cat-row{ border-radius:10px; padding:4px 6px; transition:background .15s ease; }
+.cat-row:hover{ background:rgba(255,255,255,0.02); }
+.cat-row:active{ background:rgba(255,255,255,0.05); }
+.cat-row.open{ background:rgba(255,255,255,0.025); }
 .cat-row .cr-top{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; font-size:13.5px; margin-bottom:5px; }
 .cat-row .cr-top b{ font-weight:600; }
 .cat-row .cr-top .cr-amt{ font-variant-numeric:tabular-nums; font-weight:700; }
@@ -745,6 +749,27 @@ button.item .item-sub{ margin-top:3px; }
 .cr-track i{ display:block; height:100%; border-radius:5px; }
 .cr-track i.in{ background:var(--success); }
 .cr-track i.out{ background:var(--danger); }
+.cat-items{ animation:catSlideDown .2s ease; cursor:default; }
+@keyframes catSlideDown{
+  from{ opacity:0; transform:translateY(-6px); }
+  to{ opacity:1; transform:translateY(0); }
+}
+.cat-day-head{
+  font-size:11.5px;
+  font-weight:700;
+  color:var(--text-2);
+  padding:4px 6px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+  margin-bottom:6px;
+}
+.cat-day-rows{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
 
 /* Bar Undo hapus (PRD: 8 detik) */
 .undo-bar{

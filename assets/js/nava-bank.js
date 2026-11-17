@@ -113,6 +113,7 @@
         var isSDH = !isReturn && (e.fund === 'sdh' || descUpper.indexOf('(KAS SDH)') !== -1 || descUpper.indexOf('SDH') !== -1 || descUpper.indexOf('SEDEKAH') !== -1);
         newEntries.push({
           id: e.id || uid(),
+          txId: e.txId || null,
           description: desc,
           moneyIn: mi,
           moneyOut: mo,
@@ -269,6 +270,11 @@
   }
 
   function get() {
+    try {
+      if (w.Store && w.Store.Tx && typeof w.Store.Tx.active === 'function') {
+        syncAutoWajib(w.Store.Tx.active());
+      }
+    } catch (eSync) {}
     var d = load();
     var bd = getBreakdown(d);
     return {
@@ -329,6 +335,7 @@
         if (rec._noSplit && (rec.fund === 'sdh' || rec.fund === 'darurat')) {
           var eExplicit = {
             id: rec.id || uid(),
+            txId: rec.txId || null,
             description: desc,
             moneyIn: mi,
             moneyOut: 0,
@@ -348,6 +355,7 @@
 
         var eDarurat = {
           id: (rec.id || uid()) + '_d',
+          txId: rec.txId || null,
           description: cleanWajibDesc + ' 5% (Kas Darurat)',
           moneyIn: half1,
           moneyOut: 0,
@@ -358,6 +366,7 @@
         };
         var eSDH = {
           id: (rec.id || uid()) + '_s',
+          txId: rec.txId || null,
           description: cleanWajibDesc + ' 5% (Kas Sedekah)',
           moneyIn: half2,
           moneyOut: 0,
@@ -495,30 +504,142 @@
     return { inserted: true, reason: '', entry: e1, amount: amt };
   }
 
-  // Sudah disetor untuk bulan itu?
+  // Setoran otomatis tiap ada transaksi berapa pun dan kapan pun tanpa harus nunggu awal bulan
+  function syncAutoWajib(txs) {
+    var d = load();
+    if (!txs) {
+      if (w.Store && w.Store.Tx && typeof w.Store.Tx.active === 'function') {
+        txs = w.Store.Tx.active();
+      } else {
+        return;
+      }
+    }
+    var inTxs = (txs || []).filter(function (t) {
+      return t && t.type === 'in' && !t.deleted_at && (Number(t.amount) || 0) > 0;
+    });
+
+    var activeTxIds = {};
+    inTxs.forEach(function (t) { activeTxIds[t.id] = true; });
+
+    var changed = false;
+
+    // 1. Bersihkan entri setoran wajib per-transaksi yang transaksinya sudah dihapus
+    var remaining = [];
+    d.entries.forEach(function (e) {
+      if (e.kind === 'wajib' && e.txId) {
+        if (!activeTxIds[e.txId]) {
+          changed = true;
+          return;
+        }
+      }
+      remaining.push(e);
+    });
+    d.entries = remaining;
+
+    // 2. Petakan entri setoran wajib yang sudah ada berdasarkan txId
+    var wajibEntriesByTx = {};
+    d.entries.forEach(function (e) {
+      if (e.kind === 'wajib' && e.txId) {
+        wajibEntriesByTx[e.txId] = wajibEntriesByTx[e.txId] || {};
+        if (e.fund === 'sdh') wajibEntriesByTx[e.txId].sdh = e;
+        else wajibEntriesByTx[e.txId].darurat = e;
+      }
+    });
+
+    // 3. Buat atau perbarui entri setoran wajib 10% (5% darurat + 5% sedekah)
+    inTxs.forEach(function (t) {
+      var amt = Math.round(Number(t.amount) || 0);
+      var totalWajib = Math.round(amt * RASIO_WAJIB);
+      if (totalWajib <= 0) return;
+
+      var half1 = Math.round(totalWajib / 2); // 5% Kas Darurat
+      var half2 = totalWajib - half1;          // 5% Kas Sedekah
+
+      var tgl = String(t.transaction_date || t.date || todayStr()).slice(0, 10);
+      var srcLabel = (t.group || 'Pemasukan') +
+        (t.sub ? (' · ' + t.sub) : '') +
+        (t.note ? (' (' + t.note + ')') : '');
+
+      var descDarurat = 'Setoran Kas Wajib 5% (Kas Darurat) · ' + srcLabel;
+      var descSDH = 'Setoran Kas Wajib 5% (Kas Sedekah) · ' + srcLabel;
+
+      var pair = wajibEntriesByTx[t.id];
+      if (pair && pair.darurat && pair.sdh) {
+        if (pair.darurat.moneyIn !== half1 || pair.darurat.date !== tgl || pair.darurat.description !== descDarurat) {
+          pair.darurat.moneyIn = half1;
+          pair.darurat.date = tgl;
+          pair.darurat.description = descDarurat;
+          changed = true;
+        }
+        if (pair.sdh.moneyIn !== half2 || pair.sdh.date !== tgl || pair.sdh.description !== descSDH) {
+          pair.sdh.moneyIn = half2;
+          pair.sdh.date = tgl;
+          pair.sdh.description = descSDH;
+          changed = true;
+        }
+      } else {
+        var eDarurat = {
+          id: (uid() + '_d').slice(0, 24),
+          txId: t.id,
+          description: descDarurat,
+          moneyIn: half1,
+          moneyOut: 0,
+          date: tgl,
+          note: t.note || '',
+          kind: 'wajib',
+          fund: 'darurat'
+        };
+        var eSDH = {
+          id: (uid() + '_s').slice(0, 24),
+          txId: t.id,
+          description: descSDH,
+          moneyIn: half2,
+          moneyOut: 0,
+          date: tgl,
+          note: t.note || '',
+          kind: 'wajib',
+          fund: 'sdh'
+        };
+        d.entries.push(eDarurat);
+        d.entries.push(eSDH);
+        changed = true;
+      }
+    });
+
+    // Update akumulasi per bulan
+    var ymSet = {};
+    inTxs.forEach(function (t) {
+      var ym = String(t.transaction_date || t.date || '').slice(0, 7);
+      if (/^\d{4}-\d{2}$/.test(ym)) ymSet[ym] = true;
+    });
+    var currentYM = todayStr().slice(0, 7);
+    ymSet[currentYM] = true;
+    Object.keys(ymSet).forEach(function (ym) {
+      var due = wajibSetoranBulanan(inTxs, ym);
+      d.wajibBulanan[ym] = { amount: due, at: todayStr() };
+    });
+
+    if (changed) {
+      save();
+    }
+    return true;
+  }
+
+  // Sudah disetor untuk bulan itu? Selalu true karena sekarang serba otomatis.
   function sudahWajib(ym) {
-    var d = load();
-    return !!d.wajibBulanan[String(ym || '')];
+    return true;
   }
 
-  // Otomatis: kalau belum disetor, catat 10% bulan itu sekarang.
-  // Dipanggil dari aplikasi setelah ada pemasukan baru.
+  // Otomatis: sinkronkan setoran wajib per-transaksi sekarang.
   function applyOtomatis(txs, ym) {
-    ym = String(ym || todayStr().slice(0, 7));
+    syncAutoWajib(txs);
     var due = wajibSetoranBulanan(txs, ym);
-    if (due <= 0) return { inserted: false, reason: 'belum ada pemasukan', amount: 0 };
-    return tambahSetoranWajib(due, ym);
+    return { inserted: true, reason: 'otomatis per transaksi', amount: due };
   }
 
-  // Berapa persen pemasukan bulan ini yang sudah disetor.
+  // Berapa persen pemasukan bulan ini yang sudah disetor. Selalu 100%.
   function persenTerpenuhi(txs, ym) {
-    var d = load();
-    var income = pemasukanBulan(txs, ym);
-    if (income <= 0) return 100;
-    var done = d.wajibBulanan[ym] ? d.wajibBulanan[ym].amount : 0;
-    var due = wajibSetoranBulanan(txs, ym);
-    if (due <= 0) return 100;
-    return Math.min(100, Math.round((done / due) * 100));
+    return 100;
   }
 
   /* ---------------- util ---------------- */
@@ -640,6 +761,7 @@
     pemasukanBulan: pemasukanBulan,
     wajibSetoranBulanan: wajibSetoranBulanan,
     tambahSetoranWajib: tambahSetoranWajib,
+    syncAutoWajib: syncAutoWajib,
     sudahWajib: sudahWajib,
     applyOtomatis: applyOtomatis,
     autoSettlePelunasanToNava: autoSettlePelunasanToNava,

@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Cashflow Alima</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261106c">
+<link rel="stylesheet" href="assets/css/style.css?v=20261117a">
 </head>
 <body>
 
@@ -105,17 +105,17 @@
       </div>
     </div>
 
-    <!-- Kartu Setoran Kas Wajib Bulanan (10% Pemasukan -> Otomatis Terbagi 5% Darurat + 5% Sedekah) -->
+    <!-- Kartu Setoran Kas Wajib Otomatis (10% Pemasukan -> Otomatis Terbagi 5% Darurat + 5% Sedekah) -->
     <div class="card" id="vbWajibCard" style="margin-top:12px;">
       <div class="list-head tight">
-        <strong>Setoran Kas Wajib Bulanan</strong>
-        <span id="vbWajibBadge" class="tag" style="font-size:11px;">10% Pemasukan</span>
+        <strong>Setoran Kas Wajib Otomatis</strong>
+        <span id="vbWajibBadge" class="tag done" style="font-size:11px;">100% OTOMATIS</span>
       </div>
       <p id="vbWajibDesc" class="nb-hint" style="margin-top:6px;font-size:13px;">-</p>
       <div class="nb-bar" style="margin-top:8px;height:8px;background:var(--line);border-radius:4px;overflow:hidden;">
-        <i id="vbWajibBar" style="display:block;height:100%;background:var(--accent);width:0%;transition:width .3s;"></i>
+        <i id="vbWajibBar" style="display:block;height:100%;background:var(--success);width:100%;transition:width .3s;"></i>
       </div>
-      <div id="vbWajibActionWrap" style="margin-top:10px;"></div>
+      <div id="vbWajibActionWrap" style="margin-top:0;"></div>
     </div>
 
     <!-- Tombol Aksi Dana Bank -->
@@ -889,12 +889,12 @@
 </div>
 
 <script src="assets/js/tg.js?v=20261014l"></script>
-<script src="assets/js/store.js?v=20261021a"></script>
-<script src="assets/js/nava-bank.js?v=20261029b"></script>
+<script src="assets/js/store.js?v=20261117a"></script>
+<script src="assets/js/nava-bank.js?v=20261117a"></script>
 <script src="assets/js/scan.js?v=20261014l"></script>
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
-<script src="assets/js/transactions.js?v=20261029b"></script>
+<script src="assets/js/transactions.js?v=20261117a"></script>
 <script src="assets/js/ronce.js?v=20261029a"></script>
 <script src="assets/js/ronce-sync.js?v=20261019c"></script>
 <script src="assets/js/calc.js?v=20261022a"></script>
