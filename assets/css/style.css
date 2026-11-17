@@ -438,7 +438,10 @@ body.mitra-mode #app{ padding-top:0; }
 .mt-sum-card{
   border-radius:12px; padding:10px 11px; display:flex; flex-direction:column; gap:2px;
   border:1px solid var(--line); background:var(--bg-elev);
+  cursor:pointer; user-select:none; transition:all .15s ease;
+  position:relative;
 }
+.mt-sum-card:active{ transform:scale(0.98); }
 .mt-sum-card span{ font-size:10px; font-weight:800; letter-spacing:.04em; color:var(--text-2); }
 .mt-sum-card b{ font-size:16px; font-weight:800; font-variant-numeric:tabular-nums; }
 .mt-sum-card i{ font-style:normal; font-size:10.5px; color:var(--hint); }
@@ -446,6 +449,11 @@ body.mitra-mode #app{ padding-top:0; }
 .mt-sum-card.proses b{ color:#b45309; }
 .mt-sum-card.titip{ border-left:4px solid #0ea5e9; }
 .mt-sum-card.titip b{ color:#0369a1; }
+.mt-sum-card.active{
+  border-color:var(--accent,#22d3ee) !important;
+  box-shadow:0 0 0 2px rgba(34,211,238,.35);
+  background:rgba(34,211,238,.07);
+}
 
 .mt-row{
   background:var(--bg-elev); border:1px solid var(--line); border-left:4px solid #f59e0b;

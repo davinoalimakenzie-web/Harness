@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Cashflow Alima</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261117c">
+<link rel="stylesheet" href="assets/css/style.css?v=20261117d">
 </head>
 <body>
 
@@ -539,30 +539,30 @@
               <select id="rjMitra"></select>
             </div>
             <div class="field" style="display:flex;align-items:flex-end">
-              <button class="btn primary block" id="rjTambahGarapan" style="width:100%;height:42px;margin:0">Input Tugas</button>
+              <button type="button" class="btn primary block" id="rjTambahGarapan" style="width:100%;height:42px;margin:0">Input Tugas</button>
             </div>
           </div>
           <div id="rjDraftList" class="list" style="margin-top:10px"></div>
           <div class="field-row" style="margin-top:10px">
-            <button class="btn block" id="rjPribadi">Pribadi</button>
-            <button class="btn primary block grow" id="rjSimpan">Kirim Tugas</button>
+            <button type="button" class="btn block" id="rjPribadi">Pribadi</button>
+            <button type="button" class="btn primary block grow" id="rjSimpan">Kirim Tugas</button>
           </div>
           <p class="hint xs">Tanggal otomatis hari ini &middot; jasa dihitung otomatis dari komisi garapan. Tambahkan beberapa garapan lalu kirim sekaligus ke mitra.</p>
         </div>
 
         <div class="mt-sum">
-          <div class="mt-sum-card proses">
+          <div class="mt-sum-card proses" id="cardFilterProses" title="Klik untuk filter Sedang Proses">
             <span>SEDANG PROSES</span>
             <b id="rjProsesTotal">Rp0</b>
             <i id="rjProsesCount">0 garapan</i>
           </div>
-          <div class="mt-sum-card titip">
+          <div class="mt-sum-card titip" id="cardFilterTitip" title="Klik untuk filter Titip Bayar">
             <span>TITIP BAYAR</span>
             <b id="rjTitipTotal">Rp0</b>
             <i id="rjTitipCount">0 garapan</i>
           </div>
         </div>
-        <p class="hint xs">Garapan yang sudah lunas otomatis keluar dari daftar ini.</p>
+        <p class="hint xs">Garapan yang sudah lunas otomatis keluar dari daftar ini. Klik salah satu kartu di atas untuk memfilter daftar.</p>
 
         <div class="card" style="margin-top:10px">
           <div class="list-head tight"><strong>Garapan Pribadi</strong></div>
@@ -570,7 +570,10 @@
           <div id="rjPribadiList" class="list"></div>
         </div>
 
-        <div class="list-head"><strong>Garapan Berjalan</strong></div>
+        <div class="list-head" style="display:flex;justify-content:space-between;align-items:center;">
+          <strong id="rjHistoryTitle">Garapan Berjalan</strong>
+          <span id="rjHistoryFilterBadge" class="tag" style="display:none;font-size:10px;cursor:pointer;padding:2px 8px;" title="Reset filter">Tampilkan Semua</span>
+        </div>
         <div id="rjHistory" class="list"></div>
       </div>
 
@@ -639,15 +642,14 @@
           </div>
 
           <!-- Garapan Mitra -->
-          <div class="card">
+          <div class="card" style="margin-bottom:10px">
             <div class="list-head tight" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
               <strong>GARAPAN MITRA</strong>
               <b id="ronceTotalKomisi" style="font-size:14px;font-weight:750;color:var(--accent,#22d3ee)">Rp0</b>
             </div>
+            <!-- Ringkasan per mitra -->
+            <div id="ronceMitraSummary" class="list" style="margin-top:8px"></div>
           </div>
-
-          <!-- Total per mitra: garapan done, pengajuan pembayaran, sudah lunas -->
-          <div id="ronceMitraSummary" class="list"></div>
 
           <div class="list-head"><strong>Pengajuan Pembayaran Mitra</strong></div>
           <div id="roncePayReq" class="list"></div>
@@ -898,7 +900,7 @@
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
 <script src="assets/js/transactions.js?v=20261117c"></script>
-<script src="assets/js/ronce.js?v=20261117b"></script>
+<script src="assets/js/ronce.js?v=20261117c"></script>
 <script src="assets/js/ronce-sync.js?v=20261019c"></script>
 <script src="assets/js/calc.js?v=20261022a"></script>
 <script src="assets/js/calc-sync.js?v=20261021d"></script>

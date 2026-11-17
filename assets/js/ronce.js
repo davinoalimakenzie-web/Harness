@@ -294,22 +294,34 @@
     }
     return komisiMitra(id) - keluar;
   }
+  function mintaKonfirmasi(pesan, cb) {
+    if (w.TG && typeof w.TG.confirm === 'function') {
+      w.TG.confirm(pesan, function (ok) {
+        if (ok) cb();
+      });
+    } else if (confirm(pesan)) {
+      cb();
+    }
+  }
+
   function totalKomisiSemua() {
     var t = 0, i;
-    for (i = 0; i < data.jobs.length; i++) {
-      var jb = data.jobs[i];
-      if (dalamPeriode(jb.date || jb.createdAt)) {
-        if (!selectedMitraFilter || jb.employeeId === selectedMitraFilter) {
-          t += num(jb.deliveryFee);
+    for (i = 0; i < data.tasks.length; i++) {
+      var tk = data.tasks[i];
+      if (tk.pribadi) continue;
+      if (tk.status === 'completed' && dalamPeriode(tk.date || tk.createdAt)) {
+        if (!selectedMitraFilter || tk.employeeId === selectedMitraFilter) {
+          t += num(tk.deliveryFee);
         }
       }
     }
-    /* Garapan pribadi owner bukan komisi mitra, jadi tidak dihitung. */
-    for (i = 0; i < data.tasks.length; i++) {
-      if (data.tasks[i].pribadi) continue;
-      if (data.tasks[i].status === 'completed' && dalamPeriode(data.tasks[i].date || data.tasks[i].createdAt)) {
-        if (!selectedMitraFilter || data.tasks[i].employeeId === selectedMitraFilter) {
-          t += num(data.tasks[i].deliveryFee);
+    if (data.jobs && data.jobs.length) {
+      for (i = 0; i < data.jobs.length; i++) {
+        var jb = data.jobs[i];
+        if (dalamPeriode(jb.date || jb.createdAt)) {
+          if (!selectedMitraFilter || jb.employeeId === selectedMitraFilter) {
+            t += num(jb.deliveryFee);
+          }
         }
       }
     }
@@ -497,11 +509,27 @@
   var BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   function dalamPeriode(iso) {
     if (!iso) return true;
+    var str = String(iso).slice(0, 10);
+    var now = new Date();
+    var yr = now.getFullYear();
+    var mo = String(now.getMonth() + 1);
+    if (mo.length < 2) mo = '0' + mo;
+    var da = String(now.getDate());
+    if (da.length < 2) da = '0' + da;
+    var todayStr = yr + '-' + mo + '-' + da;
+    var thisMonthStr = yr + '-' + mo;
+
+    var parts = str.split('-');
+    if (parts.length >= 2 && parts[0].length === 4) {
+      if (filter === 'today') return str === todayStr;
+      if (filter === 'month' || !filter) return (parts[0] + '-' + parts[1]) === thisMonthStr;
+      return true;
+    }
+
     var d = new Date(iso);
     if (isNaN(d.getTime())) return true;
-    var now = new Date();
-    if (filter === 'today') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
-    if (filter === 'month' || !filter) return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    if (filter === 'today') return d.getFullYear() === yr && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+    if (filter === 'month' || !filter) return d.getFullYear() === yr && d.getMonth() === now.getMonth();
     return true;
   }
 
@@ -790,6 +818,60 @@
     }).join('');
   }
 
+  var filterInputStatus = 'all'; // 'all' | 'proses' | 'titip'
+
+  function toggleFilterBerjalan(status) {
+    if (filterInputStatus === status) {
+      filterInputStatus = 'all';
+    } else {
+      filterInputStatus = status;
+    }
+    renderInputHistoryOnly();
+  }
+
+  function renderInputHistoryOnly(prosesArr, titipArr) {
+    if (!prosesArr || !titipArr) {
+      var tasks = data.tasks.slice().sort(function (a, b) {
+        return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+      });
+      prosesArr = tasks.filter(function (t) { return !t.pribadi && (t.status === 'terkirim' || t.status === 'pending'); });
+      titipArr = tasks.filter(function (t) { return !t.pribadi && t.status === 'completed' && !sudahLunas(t); });
+    }
+
+    var cp = $('#cardFilterProses') || $('.mt-sum-card.proses');
+    var ct = $('#cardFilterTitip') || $('.mt-sum-card.titip');
+    if (cp) cp.classList.toggle('active', filterInputStatus === 'proses');
+    if (ct) ct.classList.toggle('active', filterInputStatus === 'titip');
+
+    var titleEl = $('#rjHistoryTitle');
+    var badgeEl = $('#rjHistoryFilterBadge');
+    if (titleEl) {
+      if (filterInputStatus === 'proses') {
+        titleEl.textContent = 'Garapan Berjalan — Sedang Proses (' + prosesArr.length + ')';
+      } else if (filterInputStatus === 'titip') {
+        titleEl.textContent = 'Garapan Berjalan — Titip Bayar (' + titipArr.length + ')';
+      } else {
+        titleEl.textContent = 'Garapan Berjalan (' + (prosesArr.length + titipArr.length) + ')';
+      }
+    }
+    if (badgeEl) {
+      badgeEl.style.display = (filterInputStatus !== 'all') ? 'inline-block' : 'none';
+      badgeEl.textContent = 'Tampilkan Semua';
+    }
+
+    var h = $('#rjHistory');
+    if (h) {
+      var tampil = [];
+      if (filterInputStatus === 'proses') tampil = prosesArr;
+      else if (filterInputStatus === 'titip') tampil = titipArr;
+      else tampil = prosesArr.concat(titipArr);
+
+      h.innerHTML = tampil.length
+        ? tampil.map(function (t) { return rjRow(t); }).join('')
+        : '<div class="empty">Tidak ada garapan ' + (filterInputStatus === 'proses' ? 'sedang proses' : (filterInputStatus === 'titip' ? 'titip bayar' : 'berjalan')) + '</div>';
+    }
+  }
+
   function renderInput() {
     renderAkun();
     renderOwnerJobRequests();
@@ -813,13 +895,8 @@
     set('#rjTitipTotal', formatIDR(jml(titip)));
     set('#rjTitipCount', titip.length + ' garapan');
 
-    var h = $('#rjHistory');
-    if (h) {
-      var tampil = proses.concat(titip);
-      h.innerHTML = tampil.length
-        ? tampil.map(function (t) { return rjRow(t); }).join('')
-        : '<div class="empty">Belum ada garapan berjalan</div>';
-    }
+    renderInputHistoryOnly(proses, titip);
+
     /* Kartu tampungan & garapan pribadi WAJIB selalu digambar ulang. Dulu ada
        `return` lebih awal di sini, sehingga keduanya terlewat ketika tidak ada
        garapan mitra yang berjalan — tugas pribadi yang baru dibuat jadi tidak
@@ -836,7 +913,10 @@
     return '<div class="mt-row' + (selesai ? ' done' : '') + '">'
       + '<div class="mt-row-top">'
       +   '<span class="mt-row-nama">' + esc(namaGarapan(t.serviceId)) + '</span>'
-      +   '<span class="mt-tag ' + (selesai ? 'titip' : 'proses') + '">' + (selesai ? 'TITIP BAYAR' : 'TERKIRIM') + '</span>'
+      +   '<div style="display:flex;align-items:center;gap:6px">'
+      +     '<span class="mt-tag ' + (selesai ? 'titip' : 'proses') + '">' + (selesai ? 'TITIP BAYAR' : 'TERKIRIM') + '</span>'
+      +     (adalahOwner() ? '<button type="button" class="mini-btn danger" data-task-del="' + esc(t.id) + '" title="Hapus garapan" style="font-size:11px;padding:2px 6px;cursor:pointer;">🗑️</button>' : '')
+      +   '</div>'
       + '</div>'
       + '<div class="mt-row-mid">' + esc(t.employeeName) + ' &middot; ' + t.quantity + (set ? ' Set' : ' pcs') + ' &middot; ' + formatTanggal(t.date) + '</div>'
       + (t.note ? '<div class="mt-row-note">Catatan: ' + esc(t.note) + '</div>' : '')
@@ -845,6 +925,44 @@
       +   '<span class="mt-row-ok">' + (selesai ? 'Menunggu pelunasan di Rekap' : 'Menunggu laporan mitra') + '</span>'
       + '</div>'
       + '</div>';
+  }
+
+  function hapusTask(id) {
+    if (!adalahOwner()) return;
+    var t = cariTugas(id);
+    if (!t) return;
+    var doHapus = function () {
+      try {
+        if (t.pribadi && w.Store && w.Store.Tx && w.Store.Tx.all) {
+          var allTx = w.Store.Tx.all() || [];
+          for (var txIdx = 0; txIdx < allTx.length; txIdx++) {
+            var txItem = allTx[txIdx];
+            if (txItem.idem_key === ('ronce-pribadi:' + id) || txItem.refId === ('ronce_pribadi_' + id)) {
+              if (w.Store.Tx.remove) w.Store.Tx.remove(txItem.id);
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error removing sync tx:', e);
+      }
+
+      data.tasks = data.tasks.filter(function (x) { return x.id !== id; });
+
+      if (!data.hapus) data.hapus = { users: [], tasks: [], services: [] };
+      if (!Array.isArray(data.hapus.tasks)) data.hapus.tasks = [];
+      data.hapus.tasks.push({ id: id, t: new Date().toISOString() });
+
+      catat('Garapan dihapus: ' + namaGarapan(t.serviceId) + (t.employeeName ? ' (' + t.employeeName + ')' : ''));
+      simpan();
+      w.App.toast('Garapan dihapus');
+      renderInput();
+      renderRekap();
+    };
+
+    mintaKonfirmasi('Hapus garapan ini?', function () {
+      doHapus();
+    });
   }
 
   /* Garapan LUNAS = id-nya ada di pengajuan yang sudah dibayar. */
@@ -1064,19 +1182,21 @@
     }
     if (!r) return;
     if (r.status === 'dibayar') { w.App.toast('Pengajuan ini sudah dibayar'); return; }
-    if (!w.confirm('Tandai pengajuan ' + formatIDR(r.amount) + ' dari ' + r.employeeName + ' sudah dibayar?')) return;
-    data.transactions.push({
-      id: uid(), employeeId: r.employeeId, type: 'pelunasan', amount: num(r.amount),
-      date: hariIni(), note: 'Pelunasan pengajuan ' + formatTanggal(r.date),
-      createdAt: new Date().toISOString()
+
+    mintaKonfirmasi('Tandai pengajuan ' + formatIDR(r.amount) + ' dari ' + r.employeeName + ' sudah dibayar?', function () {
+      data.transactions.push({
+        id: uid(), employeeId: r.employeeId, type: 'pelunasan', amount: num(r.amount),
+        date: hariIni(), note: 'Pelunasan pengajuan ' + formatTanggal(r.date),
+        createdAt: new Date().toISOString()
+      });
+      r.status = 'dibayar';
+      r.paidAt = new Date().toISOString();
+      r._u = new Date().toISOString();
+      catat('Pengajuan ' + formatIDR(r.amount) + ' dari ' + r.employeeName + ' dibayar');
+      simpan();
+      w.App.toast('Ditandai sudah dibayar');
+      renderRekap();
     });
-    r.status = 'dibayar';
-    r.paidAt = new Date().toISOString();
-    r._u = new Date().toISOString();
-    catat('Pengajuan ' + formatIDR(r.amount) + ' dari ' + r.employeeName + ' dibayar');
-    simpan();
-    w.App.toast('Ditandai sudah dibayar');
-    renderRekap();
   }
 
   /* ---------------- Tab: Rekap ---------------- */
@@ -1152,7 +1272,10 @@
     } else {
       users = users.filter(function (u) { return u.role !== 'owner'; });
     }
-    if (!users.length) { el.innerHTML = '<div class="empty">Tidak ada data untuk mitra yang dipilih</div>'; return; }
+    if (!users.length) {
+      el.innerHTML = '<div class="empty" style="padding:10px 0;text-align:center;font-size:12px;color:var(--text-2);">Tidak ada data untuk mitra yang dipilih</div>';
+      return;
+    }
     el.innerHTML = users.map(function (u) {
       var isOwner = (u.role === 'owner');
       var tasks = data.tasks.filter(function (t) {
@@ -1167,9 +1290,22 @@
       var lunas = reqs.filter(function (r) { return r.status === 'dibayar'; })
         .reduce(function (s, r) { return s + num(r.amount); }, 0);
       var totalJasa = done.reduce(function (s, t) { return s + num(t.deliveryFee); }, 0);
-      return '<div class="item"><div class="item-body"><div class="item-title">' + esc(u.name) + (isOwner ? ' (Owner)' : '') + '</div>'
-        + '<div class="item-sub"><span>' + done.length + ' garapan selesai (' + formatIDR(totalJasa) + ')</span>'
-        + (!isOwner ? '<span>Pengajuan ' + formatIDR(diajukan) + '</span><span>Lunas ' + formatIDR(lunas) + '</span>' : '') + '</div></div></div>';
+
+      var badgePeran = isOwner ? '<span class="tag" style="font-size:10px;padding:1px 6px;">OWNER</span>' : '<span class="tag ok" style="font-size:10px;padding:1px 6px;">MITRA</span>';
+
+      return '<div class="item" style="padding:10px 12px;margin-bottom:6px;border-radius:10px;background:var(--bg-elev);border:1px solid var(--line);">'
+        + '<div class="item-body" style="width:100%">'
+        +   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
+        +     '<div style="font-weight:700;font-size:13.5px;color:var(--text);">' + esc(u.name) + '</div>'
+        +     badgePeran
+        +   '</div>'
+        +   '<div class="item-sub" style="display:flex;flex-wrap:wrap;gap:8px 12px;font-size:11.5px;color:var(--text-2);">'
+        +     '<span><b>' + done.length + '</b> selesai (<b style="color:var(--accent,#22d3ee);">' + formatIDR(totalJasa) + '</b>)</span>'
+        +     (!isOwner ? '<span>Menunggu: <b style="color:var(--warn,#f59e0b);">' + formatIDR(diajukan) + '</b></span>' : '')
+        +     (!isOwner ? '<span>Dibayar: <b style="color:var(--ok,#22c55e);">' + formatIDR(lunas) + '</b></span>' : '')
+        +   '</div>'
+        + '</div>'
+        + '</div>';
     }).join('');
   }
 
@@ -1366,25 +1502,35 @@
 
   /* ---------------- Actions ---------------- */
 
+  var isSubmittingDraft = false;
+  var isSubmittingKirim = false;
+  var isSubmittingPribadi = false;
+
   /* Tambah garapan ke tampungan sementara (draft) sebelum dikirim ke mitra. */
   function tambahDraftJob() {
-    var serviceId = ($('#rjGarapan') || {}).value || '';
-    var quantity = ($('#rjQty') || {}).value || '';
-    if (!serviceId) { w.App.toast('Pilih jenis garapan!'); return; }
-    if (num(quantity) <= 0) { w.App.toast('Jumlah minimal 1!'); return; }
-    var qtyNum = num(quantity);
-    draftJobs.push({
-      serviceId: serviceId,
-      quantity: qtyNum,
-      deliveryFee: feeOtomatis(serviceId, qtyNum)
-    });
-    /* Jumlah sengaja TIDAK dikosongkan. Pengguna sering langsung menekan
-       "Pribadi" setelah menambah ke tampungan; dulu field kosong sehingga
-       "Pribadi" gagal "Jumlah minimal 1". Nilainya tetap diingat sebagai
-       cadangan bila field memang terkosong. */
-    qtyTerakhir = qtyNum;
-    w.App.toast('Garapan ditambahkan ke tampungan');
-    renderDraft();
+    if (isSubmittingDraft) return;
+    isSubmittingDraft = true;
+    try {
+      var serviceId = ($('#rjGarapan') || {}).value || '';
+      var quantity = ($('#rjQty') || {}).value || '';
+      if (!serviceId) { w.App.toast('Pilih jenis garapan!'); return; }
+      if (num(quantity) <= 0) { w.App.toast('Jumlah minimal 1!'); return; }
+      var qtyNum = num(quantity);
+      var fee = feeOtomatis(serviceId, qtyNum);
+      if (!fee) { w.App.toast('Jenis garapan belum aktif atau belum ada harganya'); return; }
+
+      draftJobs.push({
+        serviceId: serviceId,
+        quantity: qtyNum,
+        deliveryFee: fee
+      });
+      qtyTerakhir = qtyNum;
+      var q = $('#rjQty'); if (q) q.value = '';
+      w.App.toast('Garapan ditambahkan ke tampungan');
+      renderDraft();
+    } finally {
+      setTimeout(function () { isSubmittingDraft = false; }, 300);
+    }
   }
 
   /* Hapus garapan dari tampungan sementara. */
@@ -1407,39 +1553,47 @@
         + '<div class="rj-draft-name">' + esc(namaGarapan(d.serviceId)) + ' x' + d.quantity + '</div>'
         + '<div class="rj-draft-sub">Jasa: ' + formatIDR(d.deliveryFee) + '</div>'
         + '</div>'
-        + '<button class="rj-draft-del" data-draft-del="' + i + '" title="Hapus">&times;</button>'
+        + '<button type="button" class="rj-draft-del" data-draft-del="' + i + '" title="Hapus">&times;</button>'
         + '</div>';
     }).join('');
   }
 
   /* Kirim semua garapan di tampungan ke mitra atau owner. */
   function kirimDraftJobs() {
+    if (isSubmittingKirim) return;
     if (!draftJobs.length) { w.App.toast('Tampungan kosong!'); return; }
     var employeeId = ($('#rjMitra') || {}).value || '';
     var catatan = (($('#rjCatatan') || {}).value || '').trim();
     if (!employeeId) { w.App.toast('Pilih mitra dulu!'); return; }
     var u = cariMitra(employeeId);
     if (!u) { w.App.toast('Data mitra tidak ditemukan!'); return; }
-    var isPribadi = (u.role === 'owner');
-    var count = 0;
-    draftJobs.forEach(function (d) {
-      data.tasks.unshift({
-        id: uid(), employeeId: employeeId, employeeName: u.name,
-        serviceId: d.serviceId, quantity: d.quantity,
-        deliveryFee: d.deliveryFee,
-        date: hariIni(), note: catatan, status: 'terkirim',
-        pribadi: isPribadi,
-        createdAt: new Date().toISOString()
+
+    isSubmittingKirim = true;
+    try {
+      var isPribadi = (u.role === 'owner');
+      var count = 0;
+      draftJobs.forEach(function (d) {
+        data.tasks.unshift({
+          id: uid(), employeeId: employeeId, employeeName: u.name,
+          serviceId: d.serviceId, quantity: d.quantity,
+          deliveryFee: d.deliveryFee || feeOtomatis(d.serviceId, d.quantity),
+          date: hariIni(), note: catatan, status: 'terkirim',
+          pribadi: isPribadi,
+          createdAt: new Date().toISOString()
+        });
+        count++;
       });
-      count++;
-    });
-    catat(count + ' garapan ' + (isPribadi ? 'pribadi dicatat' : ('dikirim ke ' + u.name)));
-    simpan();
-    w.App.toast(count + ' garapan ' + (isPribadi ? 'pribadi tercatat' : ('terkirim ke ' + u.name)));
-    draftJobs = [];
-    var c = $('#rjCatatan'); if (c) c.value = '';
-    renderDraft();
-    renderInput();
+      catat(count + ' garapan ' + (isPribadi ? 'pribadi dicatat' : ('dikirim ke ' + u.name)));
+      simpan();
+      w.App.toast(count + ' garapan ' + (isPribadi ? 'pribadi tercatat' : ('terkirim ke ' + u.name)));
+      draftJobs = [];
+      var c = $('#rjCatatan'); if (c) c.value = '';
+      var q = $('#rjQty'); if (q) q.value = '';
+      renderDraft();
+      renderInput();
+    } finally {
+      setTimeout(function () { isSubmittingKirim = false; }, 350);
+    }
   }
 
   /* ---------------- Tugas PRIBADI (owner mengerjakan sendiri) ----------------
@@ -1456,31 +1610,78 @@
     return null;
   }
 
-  /* Catat satu garapan untuk owner sendiri, langsung tersimpan. */
+  /* Catat satu garapan atau seluruh draft untuk owner sendiri, langsung tersimpan. */
   function catatPribadi() {
-    var serviceId = ($('#rjGarapan') || {}).value || '';
-    var qty = num(($('#rjQty') || {}).value) || qtyTerakhir;
-    if (!serviceId) { w.App.toast('Pilih jenis garapan dulu'); return; }
-    if (qty <= 0) qty = qtyTerakhir;
-    if (qty <= 0) { w.App.toast('Jumlah minimal 1'); return; }
-    if (!feeOtomatis(serviceId, qty)) { w.App.toast('Jenis garapan belum aktif atau belum ada harganya'); return; }
-    var o = cariOwnerAkun();
-    if (!o) { w.App.toast('Akun owner tidak ditemukan'); return; }
-    data.tasks.unshift({
-      id: uid(), employeeId: o.id, employeeName: o.name,
-      serviceId: serviceId, quantity: qty,
-      deliveryFee: feeOtomatis(serviceId, qty),
-      date: hariIni(), note: (($('#rjCatatan') || {}).value || '').trim(),
-      status: 'terkirim', pribadi: true,
-      createdAt: new Date().toISOString()
-    });
-    catat('Tugas pribadi tercatat: ' + namaGarapan(serviceId) + ' x' + qty);
-    simpan();
-    w.App.toast('Tugas pribadi tercatat');
-    var q = $('#rjQty'); if (q) q.value = '';
-    var c = $('#rjCatatan'); if (c) c.value = '';
-    qtyTerakhir = qty;
-    renderInput();
+    if (isSubmittingPribadi) return;
+    isSubmittingPribadi = true;
+    try {
+      var o = (sesi && sesi.role === 'owner') ? sesi : cariOwnerAkun();
+      if (!o) {
+        for (var uIdx = 0; uIdx < data.users.length; uIdx++) {
+          if (data.users[uIdx].role === 'owner') { o = data.users[uIdx]; break; }
+        }
+      }
+      if (!o && data.users.length > 0) o = data.users[0];
+      if (!o) { w.App.toast('Akun owner tidak ditemukan'); return; }
+
+      var catatan = (($('#rjCatatan') || {}).value || '').trim();
+
+      // KASUS A: Ada tampungan draft -> masukkan semua draft sebagai tugas pribadi owner
+      if (draftJobs && draftJobs.length > 0) {
+        var count = 0;
+        draftJobs.forEach(function (d) {
+          data.tasks.unshift({
+            id: uid(), employeeId: o.id, employeeName: o.name,
+            serviceId: d.serviceId, quantity: d.quantity,
+            deliveryFee: d.deliveryFee || feeOtomatis(d.serviceId, d.quantity),
+            date: hariIni(), note: catatan,
+            status: 'terkirim', pribadi: true,
+            createdAt: new Date().toISOString()
+          });
+          count++;
+        });
+        catat(count + ' tugas pribadi tercatat dari draft');
+        draftJobs = [];
+        var qEl = $('#rjQty'); if (qEl) qEl.value = '';
+        var cEl = $('#rjCatatan'); if (cEl) cEl.value = '';
+        simpan();
+        w.App.toast(count + ' tugas pribadi tercatat');
+        renderDraft();
+        renderInput();
+        return;
+      }
+
+      // KASUS B: Dari form langsung
+      var serviceId = ($('#rjGarapan') || {}).value || '';
+      var qtyVal = ($('#rjQty') || {}).value;
+      var qty = num(qtyVal) || qtyTerakhir || 1;
+      if (!serviceId) { w.App.toast('Pilih jenis garapan dulu'); return; }
+      if (qty <= 0) { w.App.toast('Jumlah minimal 1'); return; }
+      var fee = feeOtomatis(serviceId, qty);
+      if (!fee) { w.App.toast('Jenis garapan belum aktif atau belum ada harganya'); return; }
+
+      data.tasks.unshift({
+        id: uid(), employeeId: o.id, employeeName: o.name,
+        serviceId: serviceId, quantity: qty,
+        deliveryFee: fee,
+        date: hariIni(), note: catatan,
+        status: 'terkirim', pribadi: true,
+        createdAt: new Date().toISOString()
+      });
+      catat('Tugas pribadi tercatat: ' + namaGarapan(serviceId) + ' x' + qty);
+      simpan();
+      w.App.toast('Tugas pribadi tercatat');
+      var q = $('#rjQty'); if (q) q.value = '';
+      var c = $('#rjCatatan'); if (c) c.value = '';
+      qtyTerakhir = qty;
+      renderDraft();
+      renderInput();
+    } catch (e) {
+      console.error('Error catatPribadi:', e);
+      w.App.toast('Gagal mencatat garapan pribadi');
+    } finally {
+      setTimeout(function () { isSubmittingPribadi = false; }, 350);
+    }
   }
 
   /*
@@ -1546,8 +1747,12 @@
       res = { created: !r.duplicate, duplicate: !!r.duplicate, amount: fee, id: r.tx && r.tx.id };
     }
 
-    if (w.TxUI && typeof w.TxUI.render === 'function') w.TxUI.render();
-    if (w.App && typeof w.App.render === 'function') w.App.render();
+    if (w.TxUI && typeof w.TxUI.render === 'function') {
+      try { w.TxUI.render(); } catch (e) { console.error('TxUI render error:', e); }
+    }
+    if (w.App && typeof w.App.render === 'function') {
+      try { w.App.render(); } catch (e) { console.error('App render error:', e); }
+    }
     return res;
   }
 
@@ -1666,7 +1871,7 @@
   }
 
   function hapusPribadi(id) {
-    if (sesi && sesi.role !== 'owner') return;
+    if (!adalahOwner()) return;
     var idx = -1;
     for (var i = 0; i < data.tasks.length; i++) {
       if (data.tasks[i].id === id && data.tasks[i].pribadi) {
@@ -1677,16 +1882,27 @@
     if (idx < 0) return;
     var t = data.tasks[idx];
     var doHapus = function () {
-      if (w.Store && w.Store.Tx && w.Store.Tx.all) {
-        var allTx = w.Store.Tx.all();
-        var syncTx = allTx.find(function (tx) {
-          return tx.idem_key === ('ronce-pribadi:' + id) || tx.refId === ('ronce_pribadi_' + id);
-        });
-        if (syncTx && w.Store.Tx.remove) {
-          w.Store.Tx.remove(syncTx.id);
+      try {
+        if (w.Store && w.Store.Tx && w.Store.Tx.all) {
+          var allTx = w.Store.Tx.all() || [];
+          for (var txIdx = 0; txIdx < allTx.length; txIdx++) {
+            var txItem = allTx[txIdx];
+            if (txItem.idem_key === ('ronce-pribadi:' + id) || txItem.refId === ('ronce_pribadi_' + id)) {
+              if (w.Store.Tx.remove) w.Store.Tx.remove(txItem.id);
+              break;
+            }
+          }
         }
+      } catch (e) {
+        console.error('Error removing sync tx:', e);
       }
+
       data.tasks.splice(idx, 1);
+
+      if (!data.hapus) data.hapus = { users: [], tasks: [], services: [] };
+      if (!Array.isArray(data.hapus.tasks)) data.hapus.tasks = [];
+      data.hapus.tasks.push({ id: id, t: new Date().toISOString() });
+
       catat('Garapan pribadi dihapus: ' + namaGarapan(t.serviceId));
       simpan();
       w.App.toast('Garapan pribadi dihapus');
@@ -1694,13 +1910,9 @@
       renderRekap();
     };
 
-    if (w.TG && typeof w.TG.confirm === 'function') {
-      w.TG.confirm('Hapus garapan pribadi ini?', function (ok) {
-        if (ok) doHapus();
-      });
-    } else if (confirm('Hapus garapan pribadi ini?')) {
+    mintaKonfirmasi('Hapus garapan pribadi ini?', function () {
       doHapus();
-    }
+    });
   }
 
 
@@ -2008,6 +2220,28 @@
       if (pribadi) { w.Ronce.catatPribadi(); return; }
       var del = e.target.closest('[data-draft-del]');
       if (del) { w.Ronce.hapusDraftJob(parseInt(del.dataset.draftDel, 10)); return; }
+
+      // Filter interaktif tombol Sedang Proses & Titip Bayar di tab Input
+      var cardProses = e.target.closest('#cardFilterProses') || e.target.closest('.mt-sum-card.proses');
+      if (cardProses && e.target.closest('#ronceTab-input')) {
+        toggleFilterBerjalan('proses');
+        return;
+      }
+      var cardTitip = e.target.closest('#cardFilterTitip') || e.target.closest('.mt-sum-card.titip');
+      if (cardTitip && e.target.closest('#ronceTab-input')) {
+        toggleFilterBerjalan('titip');
+        return;
+      }
+      var resetBadge = e.target.closest('#rjHistoryFilterBadge');
+      if (resetBadge) {
+        toggleFilterBerjalan('all');
+        return;
+      }
+      var taskDel = e.target.closest('[data-task-del]');
+      if (taskDel) {
+        hapusTask(taskDel.dataset.taskDel);
+        return;
+      }
     });
 
 
@@ -2155,6 +2389,8 @@
     catatPribadi: catatPribadi,
     selesaiPribadi: selesaiPribadi,
     hapusPribadi: hapusPribadi,
+    hapusTask: hapusTask,
+    toggleFilterBerjalan: toggleFilterBerjalan,
     syncRoncePribadiToCashflow: syncRoncePribadiToCashflow,
     syncAllCompletedPribadi: syncAllCompletedPribadi,
     ajukanBon: ajukanBon,
