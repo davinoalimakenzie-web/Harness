@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Cashflow Alima</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261117e">
+<link rel="stylesheet" href="assets/css/style.css?v=20261117g">
 </head>
 <body>
 
@@ -535,26 +535,24 @@
           </div>
           <div class="field-row mt">
             <div class="field">
-              <label class="lbl" for="rjMitra">Mitra</label>
+              <label class="lbl" for="rjMitra">Pekerja (Mitra / Owner)</label>
               <select id="rjMitra"></select>
             </div>
-            <div class="field" style="display:flex;align-items:flex-end">
-              <button type="button" class="btn primary block" id="rjTambahGarapan" style="width:100%;height:42px;margin:0">Input Tugas</button>
+            <div class="field date-field" style="position:relative;">
+              <label class="lbl" for="rjTanggal">Tanggal Garapan</label>
+              <div class="date-picker-btn-wrap" style="position:relative;">
+                <button type="button" class="btn block" id="rjBtnTanggal" style="width:100%;height:42px;margin:0;text-align:left;display:flex;align-items:center;gap:6px;font-size:13px;padding:0 12px;background:var(--bg-elev);border:1px solid var(--line);">
+                  <span>📅</span> <span id="rjTglLabel">Hari Ini</span>
+                </button>
+                <input type="date" id="rjTanggal" style="position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;cursor:pointer;">
+              </div>
             </div>
           </div>
-          <div id="rjDraftList" class="list" style="margin-top:10px"></div>
-          <div class="field-row" style="margin-top:10px">
-            <button type="button" class="btn block" id="rjPribadi">Pribadi</button>
-            <button type="button" class="btn primary block grow" id="rjSimpan">Kirim Tugas</button>
+          <div class="field-row mt" style="margin-top:12px">
+            <button type="button" class="btn primary block grow" id="rjSubmit" style="width:100%;height:44px;font-weight:750;font-size:14px;margin:0">Submit Garapan</button>
           </div>
-          <p class="hint xs">Tanggal otomatis hari ini &middot; jasa dihitung otomatis dari komisi garapan. Tekan <b>Pribadi</b> untuk garapan owner, atau <b>Input Tugas</b> lalu <b>Kirim Tugas</b> untuk mitra.</p>
+          <p class="hint xs" style="margin-top:8px">Garapan yang disubmit langsung tersimpan dan otomatis masuk ke tab <b>Rekap</b>.</p>
         </div>
-
-        <div class="list-head" style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
-          <strong id="rjHistoryTitle">Garapan Berjalan</strong>
-          <span class="tag" id="rjHistoryBadge" style="font-size:10px;padding:2px 8px;">0 Tugas</span>
-        </div>
-        <div id="rjHistory" class="list"></div>
       </div>
 
       <!-- Tab: Dashboard Mitra (tab "Dashboard") — HANYA tugas yang sedang
@@ -601,6 +599,18 @@
 
         <!-- ============ OWNER ============ -->
         <div id="ronceRekapOwner">
+          <!-- Saldo Deposit Card (Owner) -->
+          <div class="rekap-deposit-card" id="rekapDepositCard">
+            <div class="rekap-deposit-main">
+              <div class="rekap-deposit-info">
+                <span class="rekap-deposit-lbl">SALDO DEPOSIT</span>
+                <span class="rekap-deposit-val" id="rekapDepositSaldo">Rp0</span>
+                <span class="rekap-deposit-sub">Otomatis memotong setiap pelunasan garapan</span>
+              </div>
+              <button type="button" class="btn sm primary" id="btnBukaTambahDeposit" style="white-space:nowrap;font-size:12px;padding:7px 12px;border-radius:8px;">+ Tambah Deposit</button>
+            </div>
+          </div>
+
           <!-- Filter Rekap Terpadu: Belum Lunas & Sudah Lunas + Dropdown Mitra/Owner -->
           <div class="ronce-rekap-filter-bar">
             <div class="chips ronce-rekap-chips" id="ronceFilters">
@@ -878,6 +888,125 @@
   <div id="ntScreen" class="nt-screen"></div>
 </div>
 
+<!-- ============ MODAL PELUNASAN RONCE ============ -->
+<div id="modalPelunasanRonce" class="modal-wrap hidden" aria-hidden="true">
+  <div class="modal-backdrop" data-close-mp="1"></div>
+  <div class="modal-card modal-pelunasan-box">
+    <div class="modal-head">
+      <div>
+        <strong id="mpJudul">Pelunasan Garapan</strong>
+        <div class="modal-sub" id="mpSubJudul">-</div>
+      </div>
+      <button type="button" class="icon-btn" data-close-mp="1" aria-label="Tutup">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Deposit Status Bar -->
+      <div class="mp-deposit-bar">
+        <div class="mp-dep-info">
+          <span class="mp-dep-lbl">Saldo Deposit Tersedia</span>
+          <strong class="mp-dep-val" id="mpSaldoDeposit">Rp0</strong>
+        </div>
+        <button type="button" class="btn xs" id="mpBtnQuickTopup" style="font-size:11px;padding:4px 8px;">+ Tambah</button>
+      </div>
+
+      <!-- Rincian Biaya & Tambahan -->
+      <div class="mp-section">
+        <div class="mp-row">
+          <span>Komisi Garapan</span>
+          <strong id="mpKomisiAwal">Rp0</strong>
+        </div>
+
+        <!-- Input Tambahan Fee/Bonus (Khusus Owner atau Kelebihan Mitra) -->
+        <div class="field mt" id="mpWrapBonus" style="margin-top:10px;">
+          <label class="lbl" id="mpLblBonus" for="mpInputBonus">Fee / Bonus Tambahan</label>
+          <input type="text" id="mpInputBonus" inputmode="numeric" placeholder="0" value="0">
+          <p class="hint xs" id="mpHintBonus" style="margin-top:4px;">Bonus diambil dari deposit dan ditambahkan ke total pelunasan.</p>
+        </div>
+
+        <div class="mp-row mp-total-row" style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);">
+          <strong>Total Yang Dilunasi</strong>
+          <strong class="text-accent" id="mpTotalBayar" style="font-size:16px;">Rp0</strong>
+        </div>
+      </div>
+
+      <!-- Mode Pelunasan -->
+      <div class="mp-section" style="margin-top:12px;">
+        <label class="lbl" style="margin-bottom:6px;">Metode Pembayaran</label>
+        <div class="chips mp-mode-chips" id="mpModeChips" style="gap:6px;">
+          <button type="button" class="chip on" data-mpmode="auto">Potong Deposit</button>
+          <button type="button" class="chip" data-mpmode="cash">Full Cash</button>
+          <button type="button" class="chip" data-mpmode="custom">Kombinasi</button>
+        </div>
+
+        <!-- Input Nominal Potong Deposit jika mode custom -->
+        <div class="field mt" id="mpWrapCustomDep" style="margin-top:10px;display:none;">
+          <label class="lbl" for="mpInputCustomDep">Nominal Dari Deposit</label>
+          <input type="text" id="mpInputCustomDep" inputmode="numeric" placeholder="Nominal yang dipotong">
+        </div>
+      </div>
+
+      <!-- Breakdown Hasil Perhitungan -->
+      <div class="mp-breakdown-card" style="margin-top:12px;">
+        <div class="mp-b-row">
+          <span>Potong Deposit</span>
+          <b class="text-danger" id="mpBrdPotongDep">- Rp0</b>
+        </div>
+        <div class="mp-b-row">
+          <span>Sisa Saldo Deposit</span>
+          <b id="mpBrdSisaDep">Rp0</b>
+        </div>
+        <div class="mp-b-row mp-b-cash" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);">
+          <span>Bayar via Cash</span>
+          <b class="text-success" id="mpBrdCash">Rp0</b>
+        </div>
+      </div>
+
+      <!-- Hint Cashflow & Kas Wajib (Owner vs Mitra) -->
+      <div id="mpAlimaInfo" class="hint xs" style="margin-top:12px;padding:8px 10px;background:var(--bg-elev);border-radius:8px;line-height:1.4;">
+        ℹ️ Garapan Owner otomatis masuk <b>Cashflow Alima</b> dan 10% ke <b>Kas Wajib Dana Bank</b>.
+      </div>
+    </div>
+
+    <div class="modal-foot" style="display:flex;gap:8px;margin-top:14px;">
+      <button type="button" class="btn block" data-close-mp="1" style="flex:1;">Batal</button>
+      <button type="button" class="btn primary block" id="mpBtnKonfirmasi" style="flex:2;font-weight:750;">Konfirmasi Lunasi</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL TAMBAH DEPOSIT ============ -->
+<div id="modalDepositRonce" class="modal-wrap hidden" aria-hidden="true">
+  <div class="modal-backdrop" data-close-md="1"></div>
+  <div class="modal-card modal-deposit-box">
+    <div class="modal-head">
+      <strong>Tambah Saldo Deposit</strong>
+      <button type="button" class="icon-btn" data-close-md="1" aria-label="Tutup">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="hint sm" style="margin-bottom:12px;">Deposit digunakan untuk memotong pelunasan garapan dan bonus/fee secara otomatis.</p>
+      <div class="field">
+        <label class="lbl" for="mdInputNominal">Nominal Tambah Deposit (Rp)</label>
+        <input type="text" id="mdInputNominal" inputmode="numeric" placeholder="Contoh: 100000">
+      </div>
+      <div class="chips" style="margin-top:8px;flex-wrap:wrap;gap:6px;">
+        <button type="button" class="chip" data-quick-dep="50000">+50rb</button>
+        <button type="button" class="chip" data-quick-dep="100000">+100rb</button>
+        <button type="button" class="chip" data-quick-dep="250000">+250rb</button>
+        <button type="button" class="chip" data-quick-dep="500000">+500rb</button>
+      </div>
+      <div class="field mt" style="margin-top:10px;">
+        <label class="lbl" for="mdInputCatatan">Catatan (Opsional)</label>
+        <input type="text" id="mdInputCatatan" placeholder="Contoh: Setoran modal deposit">
+      </div>
+    </div>
+    <div class="modal-foot" style="display:flex;gap:8px;margin-top:14px;">
+      <button type="button" class="btn block" data-close-md="1" style="flex:1;">Batal</button>
+      <button type="button" class="btn primary block" id="mdBtnSimpan" style="flex:2;font-weight:750;">Simpan Saldo</button>
+    </div>
+  </div>
+</div>
+
 <script src="assets/js/tg.js?v=20261014l"></script>
 <script src="assets/js/store.js?v=20261117c"></script>
 <script src="assets/js/nava-bank.js?v=20261117a"></script>
@@ -885,7 +1014,7 @@
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
 <script src="assets/js/transactions.js?v=20261117c"></script>
-<script src="assets/js/ronce.js?v=20261117d"></script>
+<script src="assets/js/ronce.js?v=20261117e"></script>
 <script src="assets/js/ronce-sync.js?v=20261019c"></script>
 <script src="assets/js/calc.js?v=20261022a"></script>
 <script src="assets/js/calc-sync.js?v=20261021d"></script>

@@ -39,6 +39,7 @@
     centralBalance: 0,
     log: [],
     bon: { total: 0, remaining: 0, history: [] },
+    deposit: { saldo: 0, riwayat: [] },
     /* Sinkronisasi antar perangkat: stempel waktu dokumen + tombstone
        supaya item yang dihapus tidak "hidup lagi" saat digabung. */
     updatedAt: '',
@@ -137,6 +138,9 @@
     });
     if (!data.bon || typeof data.bon !== 'object') data.bon = { total: 0, remaining: 0, history: [] };
     if (!Array.isArray(data.bon.history)) data.bon.history = [];
+    if (!data.deposit || typeof data.deposit !== 'object') data.deposit = { saldo: 0, riwayat: [] };
+    if (typeof data.deposit.saldo !== 'number') data.deposit.saldo = num(data.deposit.saldo);
+    if (!Array.isArray(data.deposit.riwayat)) data.deposit.riwayat = [];
     if (typeof data.centralBalance !== 'number') data.centralBalance = 0;
     if (typeof data.updatedAt !== 'string') data.updatedAt = '';
     if (!data.hapus || typeof data.hapus !== 'object') data.hapus = { users: [], tasks: [], services: [] };
@@ -823,18 +827,14 @@
     if (!t) return false;
     if (t.isLunas === true || t.lunas === true) return true;
     if (sudahLunas(t)) return true;
-    if (t.pribadi && t.status === 'completed') return true;
     return false;
   }
 
-  /*
-     Pelunasan satu garapan (baik mitra maupun owner).
-     - Menandai garapan lunas (isLunas = true, status = 'completed').
-     - Otomatis tersimpan di Cashflow Alima sebagai pemasukan Ronce
-       (type: 'in', group: 'Income Hima', sub: 'Roncelia').
-     - Otomatis 10% masuk ke Kas Wajib Dana Bank (5% Darurat + 5% Sedekah).
-  */
-  function lunasiGarapan(id) {
+  /* ---------------- Modal Pelunasan & Deposit (Revisi Khusus) ---------------- */
+  var taskSedangDilunasi = null;
+  var modePelunasan = 'auto'; // 'auto' (Potong Deposit) | 'cash' (Full Cash) | 'custom' (Kombinasi)
+
+  function bukaModalPelunasan(id) {
     if (!adalahOwner()) {
       w.App.toast('Hanya owner yang dapat melunasi garapan');
       return;
@@ -849,30 +849,174 @@
       return;
     }
 
-    var fee = num(t.deliveryFee);
+    taskSedangDilunasi = t;
+    modePelunasan = 'auto';
+
+    var modal = $('#modalPelunasanRonce');
+    if (!modal) {
+      return;
+    }
+
+    var nama = namaGarapan(t.serviceId) + (t.quantity > 1 ? ' x' + t.quantity : '');
+    var pekerja = t.pribadi ? 'Owner' : (t.employeeName || 'Mitra');
+    var tgl = t.date ? formatTanggal(t.date) : '-';
+
+    var jEl = $('#mpJudul'); if (jEl) jEl.textContent = 'Pelunasan Garapan';
+    var sjEl = $('#mpSubJudul'); if (sjEl) sjEl.textContent = nama + ' · ' + pekerja + ' · 📅 ' + tgl;
+
+    var saldo = (data.deposit && typeof data.deposit.saldo === 'number') ? data.deposit.saldo : 0;
+    var sdEl = $('#mpSaldoDeposit'); if (sdEl) sdEl.textContent = formatIDR(saldo);
+
+    var komisi = num(t.deliveryFee);
+    var kaEl = $('#mpKomisiAwal'); if (kaEl) kaEl.textContent = formatIDR(komisi);
+
+    var inpBonus = $('#mpInputBonus');
+    if (inpBonus) inpBonus.value = '0';
+
+    var lblBonus = $('#mpLblBonus');
+    var hintBonus = $('#mpHintBonus');
+    if (t.pribadi) {
+      if (lblBonus) lblBonus.textContent = 'Fee / Bonus Tambahan (Owner)';
+      if (hintBonus) hintBonus.textContent = 'Bonus diambil dari deposit dan ditambahkan ke pelunasan owner (masuk Cashflow Alima & 10% Kas Wajib Dana Bank).';
+    } else {
+      if (lblBonus) lblBonus.textContent = 'Pelunasan Tambahan / Kelebihan (opsional)';
+      if (hintBonus) hintBonus.textContent = 'Kelebihan pelunasan diambilkan dari deposit (rekapan penagihan mitra).';
+    }
+
+    // Reset chips mode
+    document.querySelectorAll('#mpModeChips .chip').forEach(function (c) {
+      c.classList.toggle('on', c.dataset.mpmode === 'auto');
+    });
+
+    var wCust = $('#mpWrapCustomDep');
+    if (wCust) wCust.style.display = 'none';
+    var inpCust = $('#mpInputCustomDep');
+    if (inpCust) inpCust.value = '';
+
+    kalkulasiPelunasan();
+    modal.classList.remove('hidden');
+    modal.removeAttribute('aria-hidden');
+  }
+
+  function tutupModalPelunasan() {
+    var modal = $('#modalPelunasanRonce');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+    taskSedangDilunasi = null;
+  }
+
+  function kalkulasiPelunasan() {
+    if (!taskSedangDilunasi) return;
+    var t = taskSedangDilunasi;
+    var komisi = num(t.deliveryFee);
+    var bonus = num(($('#mpInputBonus') || {}).value) || 0;
+    var totalBayar = komisi + bonus;
+
+    var saldo = (data.deposit && typeof data.deposit.saldo === 'number') ? data.deposit.saldo : 0;
+    var potongDeposit = 0;
+
+    if (modePelunasan === 'auto') {
+      potongDeposit = Math.min(saldo, totalBayar);
+    } else if (modePelunasan === 'cash') {
+      potongDeposit = 0;
+    } else if (modePelunasan === 'custom') {
+      var customDep = num(($('#mpInputCustomDep') || {}).value) || 0;
+      potongDeposit = Math.min(saldo, Math.min(customDep, totalBayar));
+    }
+
+    var bayarCash = totalBayar - potongDeposit;
+    var sisaDeposit = saldo - potongDeposit;
+
+    var tbEl = $('#mpTotalBayar'); if (tbEl) tbEl.textContent = formatIDR(totalBayar);
+    var pdEl = $('#mpBrdPotongDep'); if (pdEl) pdEl.textContent = '- ' + formatIDR(potongDeposit);
+    var sdEl = $('#mpBrdSisaDep'); if (sdEl) sdEl.textContent = formatIDR(sisaDeposit);
+    var bcEl = $('#mpBrdCash'); if (bcEl) bcEl.textContent = formatIDR(bayarCash);
+
+    var info = $('#mpAlimaInfo');
+    if (info) {
+      if (t.pribadi) {
+        var wajib10 = Math.round(totalBayar * 0.1);
+        info.innerHTML = 'ℹ️ <b>Garapan Owner</b>: Otomatis masuk <b>Cashflow Alima</b> (Pemasukan ' + formatIDR(totalBayar) + ') dan 10% (' + formatIDR(wajib10) + ') disetor ke <b>Kas Wajib Dana Bank</b>.';
+        info.style.background = 'rgba(16,185,129,0.12)';
+        info.style.border = '1px solid rgba(16,185,129,0.25)';
+      } else {
+        info.innerHTML = 'ℹ️ <b>Garapan Mitra (' + esc(t.employeeName || 'Mitra') + ')</b>: HANYA sebagai <b>rekapan penagihan biasa</b>. Tidak masuk Cashflow Alima &amp; Kas Wajib Dana Bank.';
+        info.style.background = 'rgba(59,130,246,0.12)';
+        info.style.border = '1px solid rgba(59,130,246,0.25)';
+      }
+    }
+  }
+
+  function konfirmasiPelunasan() {
+    if (!taskSedangDilunasi) return;
+    var t = taskSedangDilunasi;
+    var komisi = num(t.deliveryFee);
+    var bonus = num(($('#mpInputBonus') || {}).value) || 0;
+    var totalBayar = komisi + bonus;
+
+    var saldo = (data.deposit && typeof data.deposit.saldo === 'number') ? data.deposit.saldo : 0;
+    var potongDeposit = 0;
+
+    if (modePelunasan === 'auto') {
+      potongDeposit = Math.min(saldo, totalBayar);
+    } else if (modePelunasan === 'cash') {
+      potongDeposit = 0;
+    } else if (modePelunasan === 'custom') {
+      var customDep = num(($('#mpInputCustomDep') || {}).value) || 0;
+      potongDeposit = Math.min(saldo, Math.min(customDep, totalBayar));
+    }
+
+    var bayarCash = totalBayar - potongDeposit;
+    var sisaDeposit = saldo - potongDeposit;
+
+    // Potong deposit jika digunakan
+    if (potongDeposit > 0) {
+      data.deposit.saldo = Math.max(0, sisaDeposit);
+      if (!data.deposit.riwayat) data.deposit.riwayat = [];
+      data.deposit.riwayat.unshift({
+        id: uid(),
+        waktu: new Date().toISOString(),
+        tipe: 'potong',
+        nominal: potongDeposit,
+        taskId: t.id,
+        catatan: 'Pelunasan: ' + namaGarapan(t.serviceId) + ' (' + (t.pribadi ? 'Owner' : (t.employeeName || 'Mitra')) + ')',
+        sisa: data.deposit.saldo
+      });
+    }
+
+    t.isLunas = true;
+    t.status = 'completed';
+    t.paidAt = new Date().toISOString();
+    t.completedAt = t.completedAt || new Date().toISOString();
+    t._u = new Date().toISOString();
+    t.pelunasanInfo = {
+      total: totalBayar,
+      komisi: komisi,
+      bonus: bonus,
+      potongDeposit: potongDeposit,
+      bayarCash: bayarCash,
+      mode: modePelunasan
+    };
+
+    // Jika ada payment request terkait mitra ini, tandai dibayar
+    if (data.paymentRequests && data.paymentRequests.length) {
+      for (var p = 0; p < data.paymentRequests.length; p++) {
+        var pr = data.paymentRequests[p];
+        if (pr.taskIds && pr.taskIds.indexOf(t.id) >= 0 && pr.status !== 'dibayar') {
+          pr.status = 'dibayar';
+          pr.paidAt = new Date().toISOString();
+          pr._u = new Date().toISOString();
+        }
+      }
+    }
+
     var nama = namaGarapan(t.serviceId) + (t.quantity > 1 ? ' x' + t.quantity : '');
     var pekerja = t.pribadi ? 'Owner' : (t.employeeName || 'Mitra');
 
-    mintaKonfirmasi('Lunasi garapan ' + nama + ' (' + pekerja + ') senilai ' + formatIDR(fee) + '?\n\nOtomatis masuk Cashflow Alima (Pemasukan Ronce) dan 10% Kas Wajib Dana Bank.', function () {
-      t.isLunas = true;
-      t.status = 'completed';
-      t.completedAt = t.completedAt || new Date().toISOString();
-      t.paidAt = new Date().toISOString();
-      t._u = new Date().toISOString();
-
-      // Jika ada payment request terkait mitra ini, tandai dibayar
-      if (data.paymentRequests && data.paymentRequests.length) {
-        for (var p = 0; p < data.paymentRequests.length; p++) {
-          var pr = data.paymentRequests[p];
-          if (pr.taskIds && pr.taskIds.indexOf(t.id) >= 0 && pr.status !== 'dibayar') {
-            pr.status = 'dibayar';
-            pr.paidAt = new Date().toISOString();
-            pr._u = new Date().toISOString();
-          }
-        }
-      }
-
-      // Catat transaksi pemasukan ke Cashflow Alima
+    // HANYA jika OWNER: Catat transaksi pemasukan ke Cashflow Alima dan Kas Wajib Dana Bank 10%
+    if (t.pribadi) {
       var S = w.Store;
       if (S && S.Tx && typeof S.Tx.create === 'function') {
         var idem = 'ronce-pelunasan:' + t.id;
@@ -880,13 +1024,13 @@
         var today = S.todayStr ? S.todayStr() : hariIni();
         if (tgl > today) tgl = today;
 
-        var ket = 'Pelunasan Jasa Ronce (' + pekerja + ') — ' + nama + (t.note ? ' [' + t.note + ']' : '');
+        var ket = 'Pelunasan Jasa Ronce (Owner) — ' + nama + (bonus > 0 ? ' [Komisi ' + formatIDR(komisi) + ' + Bonus ' + formatIDR(bonus) + ']' : '') + (t.note ? ' [' + t.note + ']' : '');
 
         var payload = {
           type: 'in',
           group: 'Income Hima',
           sub: 'Roncelia',
-          amount: fee,
+          amount: totalBayar,
           date: tgl,
           note: ket
         };
@@ -917,24 +1061,86 @@
         console.warn('Sync NavaBank error:', eBank);
       }
 
-      catat('Garapan dilunasi: ' + nama + ' (' + pekerja + ') ' + formatIDR(fee));
-      simpan();
+      var kasWajib10 = Math.round(totalBayar * 0.1);
+      w.App.toast('Berhasil dilunasi ' + formatIDR(totalBayar) + '!\n✓ Masuk Cashflow Alima\n✓ ' + formatIDR(kasWajib10) + ' disetor ke Kas Wajib Dana Bank (10%)\n(Deposit: ' + formatIDR(potongDeposit) + ', Cash: ' + formatIDR(bayarCash) + ')', 4000);
+    } else {
+      // MITRA: HANYA rekapan penagihan biasa
+      w.App.toast('Garapan mitra dilunasi ' + formatIDR(totalBayar) + ' (Rekap Penagihan)\n(Deposit: ' + formatIDR(potongDeposit) + ', Cash: ' + formatIDR(bayarCash) + ')', 3500);
+    }
 
-      var kasWajib10 = Math.round(fee * 0.1);
-      w.App.toast('Berhasil dilunasi ' + formatIDR(fee) + '!\n✓ Pemasukan Ronce tercatat di Cashflow\n✓ ' + formatIDR(kasWajib10) + ' disetor ke Kas Wajib Dana Bank (10%)', 4000);
+    catat('Garapan dilunasi: ' + nama + ' (' + pekerja + ') ' + formatIDR(totalBayar));
+    simpan();
 
-      if (w.TxUI && typeof w.TxUI.render === 'function') {
-        try { w.TxUI.render(); } catch (e) {}
-      }
-      if (w.App && typeof w.App.render === 'function') {
-        try { w.App.render(); } catch (e) {}
-      }
-      renderRekap();
-      renderInput();
-    });
+    if (w.TxUI && typeof w.TxUI.render === 'function') {
+      try { w.TxUI.render(); } catch (e) {}
+    }
+    if (w.App && typeof w.App.render === 'function') {
+      try { w.App.render(); } catch (e) {}
+    }
+
+    tutupModalPelunasan();
+    renderRekap();
+    renderInput();
   }
 
-  /* Render kartu garapan modern dan elegan (untuk Input & Rekap) */
+  function bukaModalDeposit() {
+    var modal = $('#modalDepositRonce');
+    if (!modal) return;
+    var inp = $('#mdInputNominal'); if (inp) inp.value = '';
+    var cat = $('#mdInputCatatan'); if (cat) cat.value = '';
+    modal.classList.remove('hidden');
+    modal.removeAttribute('aria-hidden');
+    if (inp) inp.focus();
+  }
+
+  function tutupModalDeposit() {
+    var modal = $('#modalDepositRonce');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  function simpanTambahDeposit() {
+    var inp = $('#mdInputNominal');
+    var nominal = num(inp ? inp.value : 0);
+    if (nominal <= 0) {
+      w.App.toast('Masukkan nominal deposit yang valid');
+      return;
+    }
+    var catatan = (($('#mdInputCatatan') || {}).value || '').trim() || 'Topup Deposit';
+
+    if (!data.deposit || typeof data.deposit !== 'object') {
+      data.deposit = { saldo: 0, riwayat: [] };
+    }
+    data.deposit.saldo = (num(data.deposit.saldo) || 0) + nominal;
+    if (!Array.isArray(data.deposit.riwayat)) data.deposit.riwayat = [];
+    data.deposit.riwayat.unshift({
+      id: uid(),
+      waktu: new Date().toISOString(),
+      tipe: 'tambah',
+      nominal: nominal,
+      catatan: catatan,
+      sisa: data.deposit.saldo
+    });
+
+    catat('Deposit bertambah: ' + formatIDR(nominal) + ' (' + catatan + ')');
+    simpan();
+
+    w.App.toast('Deposit bertambah ' + formatIDR(nominal) + '!\nSaldo sekarang: ' + formatIDR(data.deposit.saldo));
+    tutupModalDeposit();
+
+    // Jika modal pelunasan sedang terbuka, update kalkulasinya
+    if (taskSedangDilunasi) {
+      var sdEl = $('#mpSaldoDeposit');
+      if (sdEl) sdEl.textContent = formatIDR(data.deposit.saldo);
+      kalkulasiPelunasan();
+    }
+
+    renderRekap();
+  }
+
+  /* Render kartu garapan modern dan elegan (untuk Rekap) */
   function renderGarapanCard(t, isPaid) {
     var s = cariGarapan(t.serviceId);
     var set = s && s.isSetEnabled;
@@ -948,9 +1154,23 @@
     var tgl = t.date ? formatTanggal(t.date) : '-';
     var catatan = t.note ? ' &middot; ' + esc(t.note) : '';
 
+    var infoPelunasan = '';
+    if (isPaid && t.pelunasanInfo) {
+      var pi = t.pelunasanInfo;
+      infoPelunasan = '<div style="font-size:11px;color:var(--text-2);margin-top:3px;">'
+        + 'Dilunasi: ' + formatIDR(pi.total)
+        + (pi.potongDeposit > 0 ? ' · Dipotong Deposit: ' + formatIDR(pi.potongDeposit) : '')
+        + (pi.bayarCash > 0 ? ' · Cash: ' + formatIDR(pi.bayarCash) : '')
+        + '</div>';
+    }
+
     var aksiKanan = '';
     if (isPaid) {
-      aksiKanan = '<span class="rekap-badge-lunas">✓ LUNAS · Cashflow &amp; Bank 10%</span>';
+      if (isOwner) {
+        aksiKanan = '<span class="rekap-badge-lunas">✓ LUNAS · Cashflow &amp; Bank 10%</span>';
+      } else {
+        aksiKanan = '<span class="rekap-badge-lunas">✓ LUNAS · Rekap Mitra</span>';
+      }
     } else {
       aksiKanan = '<button type="button" class="btn-lunasi" data-lunasi-id="' + esc(t.id) + '" title="Lunasi garapan ini">⚡ Lunasi</button>';
     }
@@ -959,14 +1179,15 @@
       ? '<button type="button" class="mini-btn danger" data-task-del="' + esc(t.id) + '" title="Hapus garapan" style="font-size:11px;padding:3px 7px;cursor:pointer;border-radius:6px;margin-left:6px;">🗑️</button>'
       : '';
 
-    return '<div class="rekap-card-item ' + (isPaid ? 'is-paid' : 'is-unpaid') + '">'
+    return '<div class="card rekap-item-card" data-tid="' + esc(t.id) + '">'
       + '<div class="rekap-item-row1">'
-      +   '<span class="rekap-item-title">' + nama + '</span>'
+      +   '<strong class="rekap-item-title">' + nama + '</strong>'
       +   badgePeran
       + '</div>'
       + '<div class="rekap-item-row2">'
       +   '<span>📅 ' + tgl + catatan + '</span>'
       + '</div>'
+      + infoPelunasan
       + '<div class="rekap-item-row3">'
       +   '<span class="rekap-item-jasa">' + formatIDR(t.deliveryFee) + '</span>'
       +   '<div style="display:flex;align-items:center;">'
@@ -978,6 +1199,67 @@
   }
 
   /* ---------------- Tab: Input (Owner) ---------------- */
+  function updateTanggalLabel() {
+    var inp = $('#rjTanggal');
+    var lbl = $('#rjTglLabel');
+    if (!inp || !lbl) return;
+    if (!inp.value) inp.value = hariIni();
+    if (inp.value === hariIni()) {
+      lbl.textContent = 'Hari Ini (' + formatTanggal(inp.value) + ')';
+    } else {
+      lbl.textContent = formatTanggal(inp.value);
+    }
+  }
+
+  function submitGarapan() {
+    var serviceId = ($('#rjGarapan') || {}).value || '';
+    var qtyVal = ($('#rjQty') || {}).value;
+    var qty = num(qtyVal) || 1;
+    var mitraId = ($('#rjMitra') || {}).value || '';
+    var tgl = ($('#rjTanggal') || {}).value || hariIni();
+    var catatan = (($('#rjCatatan') || {}).value || '').trim();
+
+    if (!serviceId) { w.App.toast('Pilih jenis garapan dulu'); return; }
+    if (qty <= 0) { w.App.toast('Jumlah minimal 1'); return; }
+    if (!mitraId) { w.App.toast('Pilih pekerja (Mitra atau Owner) dulu'); return; }
+
+    var fee = feeOtomatis(serviceId, qty);
+    if (!fee) { w.App.toast('Jenis garapan belum aktif atau belum ada harganya'); return; }
+
+    var u = cariMitra(mitraId);
+    if (!u) { w.App.toast('Pekerja tidak valid'); return; }
+
+    var isOwner = (u.role === 'owner');
+
+    var taskBaru = {
+      id: uid(),
+      employeeId: u.id,
+      employeeName: u.name,
+      serviceId: serviceId,
+      quantity: qty,
+      deliveryFee: fee,
+      date: tgl,
+      note: catatan,
+      status: 'pending',
+      isLunas: false,
+      pribadi: isOwner,
+      createdAt: new Date().toISOString()
+    };
+
+    data.tasks.unshift(taskBaru);
+    catat('Garapan disubmit: ' + namaGarapan(serviceId) + ' x' + qty + ' (' + (isOwner ? 'Owner' : u.name) + ')');
+    simpan();
+
+    w.App.toast('Garapan berhasil disubmit & otomatis masuk tab Rekap!');
+
+    var qEl = $('#rjQty'); if (qEl) qEl.value = '';
+    var cEl = $('#rjCatatan'); if (cEl) cEl.value = '';
+    qtyTerakhir = qty;
+
+    renderInput();
+    renderRekap();
+  }
+
   function renderInput() {
     renderAkun();
     renderOwnerJobRequests();
@@ -985,28 +1267,11 @@
     if (m) m.innerHTML = optsMitra(true);
     if (g) g.innerHTML = optsGarapan();
 
-    // Tampilkan garapan berjalan (yang belum lunas), baik milik mitra maupun owner
-    var berjalan = data.tasks.filter(function (t) {
-      return !isTaskLunas(t);
-    }).sort(function (a, b) {
-      return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
-    });
-
-    var badge = $('#rjHistoryBadge');
-    if (badge) badge.textContent = berjalan.length + ' Tugas';
-
-    var h = $('#rjHistory');
-    if (h) {
-      if (!berjalan.length) {
-        h.innerHTML = '<div class="empty" style="text-align:center;padding:16px 0;color:var(--text-2);font-size:12.5px;">Tidak ada garapan yang sedang berjalan. Semua tugas sudah lunas!</div>';
-      } else {
-        h.innerHTML = berjalan.map(function (t) {
-          return renderGarapanCard(t, false);
-        }).join('');
-      }
+    var inpTgl = $('#rjTanggal');
+    if (inpTgl && !inpTgl.value) {
+      inpTgl.value = hariIni();
     }
-
-    renderDraft();
+    updateTanggalLabel();
   }
 
   function hapusTask(id) {
@@ -1302,6 +1567,13 @@
     var own = adalahOwner();
     if (filter !== 'unpaid' && filter !== 'paid') filter = 'unpaid';
 
+    // Update Saldo Deposit Card (Owner)
+    var salEl = $('#rekapDepositSaldo');
+    if (salEl) {
+      var sld = (data.deposit && typeof data.deposit.saldo === 'number') ? data.deposit.saldo : 0;
+      salEl.textContent = formatIDR(sld);
+    }
+
     // Update chips Owner
     document.querySelectorAll('#ronceFilters .chip').forEach(function (c) {
       c.classList.toggle('on', c.dataset.rfilter === filter);
@@ -1367,7 +1639,7 @@
     var meta = $('#rekapHeroMeta');
     if (meta) {
       meta.textContent = isPaidFilter
-        ? (filteredTasks.length + ' garapan sudah lunas · Tercatat di Cashflow & 10% Kas Wajib Dana Bank')
+        ? (filteredTasks.length + ' garapan sudah lunas · Garapan Owner otomatis masuk Cashflow & 10% Kas Wajib Dana Bank')
         : (filteredTasks.length + ' garapan menunggu pelunasan (Mitra & Owner)');
     }
 
@@ -2286,8 +2558,99 @@
       if (tb) { tabAktif = tb.dataset.rtab; renderTab(); }
     });
 
-    // Input tab — event delegation untuk semua tombol di tab Input
+    // Input tab & Modal Pelunasan & Modal Deposit — event delegation
     document.addEventListener('click', function (e) {
+      // Tombol Submit Garapan (Tab Input)
+      var sub = e.target.closest('#rjSubmit');
+      if (sub) { submitGarapan(); return; }
+
+      // Tombol Kalender (Tab Input)
+      var btnTgl = e.target.closest('#rjBtnTanggal');
+      if (btnTgl) {
+        var inpT = $('#rjTanggal');
+        if (inpT) {
+          if (typeof inpT.showPicker === 'function') {
+            try { inpT.showPicker(); } catch (err) {}
+          }
+          inpT.focus();
+        }
+        return;
+      }
+
+      // Hapus Task (Owner)
+      var taskDel = e.target.closest('[data-task-del]');
+      if (taskDel) {
+        hapusTask(taskDel.dataset.taskDel);
+        return;
+      }
+
+      // Buka Modal Pelunasan
+      var lun = e.target.closest('[data-lunasi-id]');
+      if (lun) {
+        bukaModalPelunasan(lun.dataset.lunasiId);
+        return;
+      }
+
+      // Tutup Modal Pelunasan
+      var closeMp = e.target.closest('[data-close-mp]');
+      if (closeMp) {
+        tutupModalPelunasan();
+        return;
+      }
+
+      // Ganti Mode Pelunasan (Auto Deposit | Full Cash | Custom Kombinasi)
+      var modeBtn = e.target.closest('[data-mpmode]');
+      if (modeBtn) {
+        modePelunasan = modeBtn.dataset.mpmode;
+        document.querySelectorAll('#mpModeChips .chip').forEach(function (c) {
+          c.classList.toggle('on', c === modeBtn);
+        });
+        var wCust = $('#mpWrapCustomDep');
+        if (wCust) wCust.style.display = (modePelunasan === 'custom') ? 'block' : 'none';
+        kalkulasiPelunasan();
+        return;
+      }
+
+      // Konfirmasi Pelunasan
+      var konfMp = e.target.closest('#mpBtnKonfirmasi');
+      if (konfMp) {
+        konfirmasiPelunasan();
+        return;
+      }
+
+      // Buka Modal Tambah Deposit (dari Rekap atau dari Modal Pelunasan)
+      var bukaDep = e.target.closest('#btnBukaTambahDeposit') || e.target.closest('#mpBtnQuickTopup');
+      if (bukaDep) {
+        bukaModalDeposit();
+        return;
+      }
+
+      // Tutup Modal Deposit
+      var closeMd = e.target.closest('[data-close-md]');
+      if (closeMd) {
+        tutupModalDeposit();
+        return;
+      }
+
+      // Quick chip tambah deposit (+50rb, +100rb, etc)
+      var qDep = e.target.closest('[data-quick-dep]');
+      if (qDep) {
+        var inpNom = $('#mdInputNominal');
+        if (inpNom) {
+          var curVal = num(inpNom.value) || 0;
+          inpNom.value = curVal + num(qDep.dataset.quickDep);
+        }
+        return;
+      }
+
+      // Simpan Tambah Deposit
+      var simpanDep = e.target.closest('#mdBtnSimpan');
+      if (simpanDep) {
+        simpanTambahDeposit();
+        return;
+      }
+
+      // Legacy fallback draft
       var tambah = e.target.closest('#rjTambahGarapan');
       if (tambah) { w.Ronce.tambahDraftJob(); return; }
       var kirim = e.target.closest('#rjSimpan');
@@ -2296,17 +2659,6 @@
       if (pribadi) { w.Ronce.catatPribadi(); return; }
       var del = e.target.closest('[data-draft-del]');
       if (del) { w.Ronce.hapusDraftJob(parseInt(del.dataset.draftDel, 10)); return; }
-
-      var taskDel = e.target.closest('[data-task-del]');
-      if (taskDel) {
-        hapusTask(taskDel.dataset.taskDel);
-        return;
-      }
-      var lun = e.target.closest('[data-lunasi-id]');
-      if (lun) {
-        lunasiGarapan(lun.dataset.lunasiId);
-        return;
-      }
     });
 
     // Rekap filter (Belum Lunas & Sudah Lunas)
@@ -2391,8 +2743,13 @@
       var bno = e.target.closest('[data-bon-no]');
       if (bno) { tolakBon(bno.dataset.bonNo); return; }
     });
-        // Filter mitra dropdown di tab Rekap + ceklist garapan selesai (mitra)
+    // Filter mitra dropdown di tab Rekap + ceklist garapan selesai (mitra) + tanggal kalender
     document.addEventListener('change', function (e) {
+      var tglInp = e.target.closest('#rjTanggal');
+      if (tglInp) {
+        updateTanggalLabel();
+        return;
+      }
       var cd = e.target.closest('.mt-pilih-direct');
       if (cd) {
         if (cd.checked) {
@@ -2410,6 +2767,13 @@
       if (kp) { kasbonMitraPick = kp.value; renderKasbon(); return; }
       var mf = e.target.closest('#ronceMitraFilter');
       if (mf) { selectedMitraFilter = mf.value; renderRekap(); }
+    });
+
+    // Kalkulasi dinamis modal pelunasan saat mengetik bonus / custom deposit
+    document.addEventListener('input', function (e) {
+      if (e.target.closest('#mpInputBonus') || e.target.closest('#mpInputCustomDep')) {
+        kalkulasiPelunasan();
+      }
     });
 
     // Setting actions
@@ -2459,8 +2823,15 @@
     catatPribadi: catatPribadi,
     selesaiPribadi: selesaiPribadi,
     hapusPribadi: hapusPribadi,
+    submitGarapan: submitGarapan,
+    bukaModalPelunasan: bukaModalPelunasan,
+    tutupModalPelunasan: tutupModalPelunasan,
+    konfirmasiPelunasan: konfirmasiPelunasan,
+    bukaModalDeposit: bukaModalDeposit,
+    tutupModalDeposit: tutupModalDeposit,
+    simpanTambahDeposit: simpanTambahDeposit,
     hapusTask: hapusTask,
-    lunasiGarapan: lunasiGarapan,
+    lunasiGarapan: bukaModalPelunasan,
     isTaskLunas: isTaskLunas,
     syncRoncePribadiToCashflow: syncRoncePribadiToCashflow,
     syncAllCompletedPribadi: syncAllCompletedPribadi,
