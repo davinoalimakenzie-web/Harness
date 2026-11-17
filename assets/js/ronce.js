@@ -501,15 +501,7 @@
     if (isNaN(d.getTime())) return true;
     var now = new Date();
     if (filter === 'today') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
-    if (filter === 'week') {
-      var hari = d.getDay(); if (hari === 0) hari = 7;
-      var nowHari = now.getDay(); if (nowHari === 0) nowHari = 7;
-      var dSenin = new Date(d.getFullYear(), d.getMonth(), d.getDate() - (hari - 1));
-      var nSenin = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (nowHari - 1));
-      return dSenin.getTime() === nSenin.getTime();
-    }
-    if (filter === 'month') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-
+    if (filter === 'month' || !filter) return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
     return true;
   }
 
@@ -518,17 +510,17 @@
 
   /* ---------------- Option builders ---------------- */
 
-  /* hanyaAktif = true: hanya mitra yang sudah ganti PIN (aktif) yang muncul.
-     Dipakai di tab Input supaya mitra belum aktif tidak bisa diberi tugas. */
+  /* hanyaAktif = true: hanya mitra yang aktif yang muncul.
+     Owner disertakan agar garapan ronce bisa dialokasikan langsung ke owner. */
   function optsMitra(hanyaAktif) {
     var pil = ($('#rjMitra') || {}).value || '';
     var h = '<option value="">-- Pilih Mitra --</option>', i;
     for (i = 0; i < data.users.length; i++) {
       var u = data.users[i];
-      if (u.role === 'owner') continue;   /* owner bukan penerima tugas */
-      if (hanyaAktif && !u.aktif) continue;
-      h += '<option value="' + esc(u.id) + '"' + (pil === u.id ? ' selected' : '') + '>' + esc(u.name) +
-        (u.aktif ? '' : ' (belum aktif)') + '</option>';
+      if (hanyaAktif && !u.aktif && u.role !== 'owner') continue;
+      var isOwner = (u.role === 'owner');
+      var label = isOwner ? (esc(u.name) + ' (Owner)') : (esc(u.name) + (u.aktif ? '' : ' (belum aktif)'));
+      h += '<option value="' + esc(u.id) + '"' + (pil === u.id ? ' selected' : '') + '>' + label + '</option>';
     }
     return h;
   }
@@ -1106,7 +1098,7 @@
 
   function renderRekap() {
     var own = adalahOwner();
-    if (filter !== 'today' && filter !== 'week' && filter !== 'month') filter = 'month';
+    if (filter !== 'today' && filter !== 'month') filter = 'month';
     document.querySelectorAll('#ronceFilters .chip').forEach(function (c) {
       c.classList.toggle('on', c.dataset.rfilter === filter);
     });
@@ -1118,12 +1110,15 @@
     /* ---- OWNER: filter mitra + rekap per mitra ---- */
     var mf = $('#ronceMitraFilter');
     if (mf) {
+      var currentVal = selectedMitraFilter || '';
       var opts = '<option value="">Semua Mitra</option>';
       data.users.forEach(function (u) {
-        if (u.role === 'owner') return;
-        opts += '<option value="' + esc(u.id) + '"' + (selectedMitraFilter === u.id ? ' selected' : '') + '>' + esc(u.name) + '</option>';
+        var isOwner = (u.role === 'owner');
+        var label = isOwner ? (esc(u.name) + ' (Owner)') : esc(u.name);
+        opts += '<option value="' + esc(u.id) + '"' + (currentVal === u.id ? ' selected' : '') + '>' + label + '</option>';
       });
       mf.innerHTML = opts;
+      mf.value = currentVal;
     }
     var tk = $('#ronceTotalKomisi');
     if (tk) tk.textContent = formatIDR(totalKomisiSemua());
@@ -1151,12 +1146,17 @@
   function renderRekapSummary() {
     var el = $('#ronceMitraSummary');
     if (!el) return;
-    var users = data.users.filter(function (u) { return u.role !== 'owner'; });
-    if (selectedMitraFilter) users = users.filter(function (u) { return u.id === selectedMitraFilter; });
-    if (!users.length) { el.innerHTML = '<div class="empty">Belum ada mitra</div>'; return; }
+    var users = data.users.slice();
+    if (selectedMitraFilter) {
+      users = users.filter(function (u) { return u.id === selectedMitraFilter; });
+    } else {
+      users = users.filter(function (u) { return u.role !== 'owner'; });
+    }
+    if (!users.length) { el.innerHTML = '<div class="empty">Tidak ada data untuk mitra yang dipilih</div>'; return; }
     el.innerHTML = users.map(function (u) {
+      var isOwner = (u.role === 'owner');
       var tasks = data.tasks.filter(function (t) {
-        return t.employeeId === u.id && dalamPeriode(t.date || t.createdAt);
+        return (isOwner ? (t.pribadi || t.employeeId === u.id) : (t.employeeId === u.id)) && dalamPeriode(t.date || t.createdAt);
       });
       var done = tasks.filter(function (t) { return t.status === 'completed'; });
       var reqs = data.paymentRequests.filter(function (r) {
@@ -1166,10 +1166,10 @@
         .reduce(function (s, r) { return s + num(r.amount); }, 0);
       var lunas = reqs.filter(function (r) { return r.status === 'dibayar'; })
         .reduce(function (s, r) { return s + num(r.amount); }, 0);
-      return '<div class="item"><div class="item-body"><div class="item-title">' + esc(u.name) + '</div>'
-        + '<div class="item-sub"><span>' + done.length + ' garapan done</span>'
-        + '<span>Pengajuan ' + formatIDR(diajukan) + '</span>'
-        + '<span>Lunas ' + formatIDR(lunas) + '</span></div></div></div>';
+      var totalJasa = done.reduce(function (s, t) { return s + num(t.deliveryFee); }, 0);
+      return '<div class="item"><div class="item-body"><div class="item-title">' + esc(u.name) + (isOwner ? ' (Owner)' : '') + '</div>'
+        + '<div class="item-sub"><span>' + done.length + ' garapan selesai (' + formatIDR(totalJasa) + ')</span>'
+        + (!isOwner ? '<span>Pengajuan ' + formatIDR(diajukan) + '</span><span>Lunas ' + formatIDR(lunas) + '</span>' : '') + '</div></div></div>';
     }).join('');
   }
 
@@ -1412,7 +1412,7 @@
     }).join('');
   }
 
-  /* Kirim semua garapan di tampungan ke mitra. */
+  /* Kirim semua garapan di tampungan ke mitra atau owner. */
   function kirimDraftJobs() {
     if (!draftJobs.length) { w.App.toast('Tampungan kosong!'); return; }
     var employeeId = ($('#rjMitra') || {}).value || '';
@@ -1420,6 +1420,7 @@
     if (!employeeId) { w.App.toast('Pilih mitra dulu!'); return; }
     var u = cariMitra(employeeId);
     if (!u) { w.App.toast('Data mitra tidak ditemukan!'); return; }
+    var isPribadi = (u.role === 'owner');
     var count = 0;
     draftJobs.forEach(function (d) {
       data.tasks.unshift({
@@ -1427,13 +1428,14 @@
         serviceId: d.serviceId, quantity: d.quantity,
         deliveryFee: d.deliveryFee,
         date: hariIni(), note: catatan, status: 'terkirim',
+        pribadi: isPribadi,
         createdAt: new Date().toISOString()
       });
       count++;
     });
-    catat(count + ' garapan dikirim ke ' + u.name);
+    catat(count + ' garapan ' + (isPribadi ? 'pribadi dicatat' : ('dikirim ke ' + u.name)));
     simpan();
-    w.App.toast(count + ' garapan terkirim ke ' + u.name);
+    w.App.toast(count + ' garapan ' + (isPribadi ? 'pribadi tercatat' : ('terkirim ke ' + u.name)));
     draftJobs = [];
     var c = $('#rjCatatan'); if (c) c.value = '';
     renderDraft();
@@ -1613,12 +1615,22 @@
   function renderPribadiRekap() {
     var card = $('#roncePribadiCard');
     if (!card) return;
+
+    /* Sembunyikan garapan pribadi jika filter memilih mitra non-owner */
+    if (selectedMitraFilter) {
+      var selU = cariMitra(selectedMitraFilter);
+      if (!selU || selU.role !== 'owner') {
+        card.hidden = true;
+        return;
+      }
+    }
+    card.hidden = false;
+
     var list = $('#roncePribadiList');
     var pribadi = data.tasks.filter(function (t) {
       return t.pribadi && t.status === 'completed' && dalamPeriode(t.date || t.createdAt);
     }).sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
 
-    card.hidden = false;
     var total = pribadi.reduce(function (s, t) { return s + num(t.deliveryFee); }, 0);
     var set = function (sel, v) { var e = $(sel); if (e) e.textContent = v; };
     set('#pribDoneN', String(pribadi.length));
@@ -1742,15 +1754,15 @@
     if (!name) { w.App.toast('Isi nama mitra!'); return; }
     var ada = data.users.some(function (u) { return u.name.toUpperCase() === name; });
     if (ada) { w.App.toast('Nama mitra sudah terdaftar!'); return; }
-    /* PIN default 0000 — akun belum aktif sampai mitra mengganti PIN-nya. */
-    var u = { id: 'u_' + uid(), name: name, role: 'mitra', pin: '0000', wa: wa, aktif: false };
+    /* Tambah mitra manual: langsung AKTIF dan siap terima tugas tanpa harus kirim link */
+    var u = { id: 'u_' + uid(), name: name, role: 'mitra', pin: '0000', wa: wa, aktif: true };
     data.users.push(u);
-    catat('Mitra ' + name + ' ditambahkan (PIN default 0000)');
+    catat('Mitra ' + name + ' ditambahkan secara manual (langsung aktif)');
     simpan();
     var nm = $('#rsNamaMitra'); if (nm) nm.value = '';
     var wm = $('#rsWaMitra'); if (wm) wm.value = '';
     renderSetting();
-    kirimLinkWa(u);
+    w.App.toast('Mitra ' + name + ' berhasil ditambahkan & langsung aktif');
   }
 
   function hapusMitra(id) {

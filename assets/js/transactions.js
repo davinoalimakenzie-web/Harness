@@ -551,6 +551,8 @@
   /* =========================================================
      TAB: KAS (Kas Darurat & Kas SDH)
      ========================================================= */
+  var openBankDays = {};
+
   function renderBankView() {
     if (!w.NavaBank) return;
     var B = w.NavaBank;
@@ -601,23 +603,60 @@
       if (!entries.length) {
         listEl.innerHTML = '<div class="empty"><b>Belum ada transaksi Kas</b>Gunakan tombol aksi di atas untuk mencatat.</div>';
       } else {
-        listEl.innerHTML = entries.map(function (e) {
-          var masuk = e.moneyIn > 0, jumlah = masuk ? e.moneyIn : e.moneyOut;
-          var tgl = e.date ? S.dayLabel(e.date) : '-';
-          var isSDH = (e.fund === 'sdh');
-          var fundBadge = isSDH
-            ? '<span class="tag done" style="font-size:10px;padding:2px 6px;margin-right:6px;">Kas Sedekah</span>'
-            : '<span class="tag" style="font-size:10px;padding:2px 6px;margin-right:6px;">Kas Darurat</span>';
-          return '<div class="item" style="padding:10px 12px;display:flex;align-items:center;">' +
-            '<div class="item-body" style="flex:1;min-width:0;">' +
-              '<div class="item-title" style="font-size:13.5px;font-weight:600;">' + fundBadge + esc(e.description || (masuk ? 'Dana masuk' : 'Dana keluar')) + '</div>' +
-              '<div class="item-sub"><span style="font-size:11.5px;color:var(--text-2);">' + esc(tgl) + '</span></div>' +
-            '</div>' +
-            '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
-              '<span class="stat-val ' + (masuk ? 'pos' : 'neg') + '" style="font-size:14.5px;font-weight:700;white-space:nowrap;">' +
-                (masuk ? '+' : '−') + money(jumlah) +
-              '</span>' +
-              '<button type="button" class="icon-btn sm" data-vb-del="' + esc(e.id) + '" title="Hapus mutasi" style="color:var(--danger,#ef4444);padding:4px 6px;border:none;background:none;cursor:pointer;font-size:14px;">🗑️</button>' +
+        var byDay = {};
+        entries.forEach(function (e) {
+          var d = e.date || 'Lainnya';
+          (byDay[d] = byDay[d] || []).push(e);
+        });
+        var dates = Object.keys(byDay).sort().reverse();
+        // Buka otomatis hari terbaru jika openBankDays masih kosong
+        if (Object.keys(openBankDays).length === 0 && dates.length > 0) {
+          openBankDays[dates[0]] = true;
+        }
+
+        listEl.innerHTML = dates.map(function (d) {
+          var items = byDay[d];
+          var rin = 0, rout = 0;
+          items.forEach(function (e) {
+            if (e.moneyIn > 0) rin += e.moneyIn;
+            else rout += e.moneyOut;
+          });
+          var isOpen = !!openBankDays[d];
+
+          var dayRows = items.map(function (e) {
+            var masuk = e.moneyIn > 0, jumlah = masuk ? e.moneyIn : e.moneyOut;
+            var isSDH = (e.fund === 'sdh');
+            var fundBadge = isSDH
+              ? '<span class="tag done" style="font-size:10px;padding:2px 6px;margin-right:6px;">Kas Sedekah</span>'
+              : '<span class="tag" style="font-size:10px;padding:2px 6px;margin-right:6px;">Kas Darurat</span>';
+            return '<div class="item" style="padding:10px 12px;display:flex;align-items:center;background:var(--bg);border-radius:10px;margin-bottom:4px;">' +
+              '<div class="item-body" style="flex:1;min-width:0;">' +
+                '<div class="item-title" style="font-size:13px;font-weight:600;">' + fundBadge + esc(e.description || (masuk ? 'Dana masuk' : 'Dana keluar')) + '</div>' +
+                (e.note ? '<div class="item-sub"><span style="font-size:11px;color:var(--text-2);">' + esc(e.note) + '</span></div>' : '') +
+              '</div>' +
+              '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
+                '<span class="stat-val ' + (masuk ? 'pos' : 'neg') + '" style="font-size:14px;font-weight:700;white-space:nowrap;">' +
+                  (masuk ? '+' : '−') + money(jumlah) +
+                '</span>' +
+                '<button type="button" class="icon-btn sm" data-vb-del="' + esc(e.id) + '" title="Hapus mutasi" style="color:var(--danger,#ef4444);padding:4px 6px;border:none;background:none;cursor:pointer;font-size:14px;">🗑️</button>' +
+              '</div>' +
+            '</div>';
+          }).join('');
+
+          return '<div class="day-group' + (isOpen ? ' open' : '') + '" data-bank-day="' + esc(d) + '">' +
+            '<button type="button" class="day-head" data-day-bank-toggle="' + esc(d) + '">' +
+              '<div class="day-head-left">' +
+                '<span class="day-chevron">▶</span>' +
+                '<span class="day-title">' + (d === 'Lainnya' ? 'Lainnya' : esc(S.dayLabel(d))) + '</span>' +
+                '<span class="day-badge">' + items.length + '</span>' +
+              '</div>' +
+              '<div class="day-head-right">' +
+                (rin ? '<span class="amt-pos">+' + money(rin) + '</span> ' : '') +
+                (rout ? '<span class="amt-neg">−' + money(rout) + '</span>' : '') +
+              '</div>' +
+            '</button>' +
+            '<div class="day-items"' + (isOpen ? '' : ' style="display:none;"') + '>' +
+              dayRows +
             '</div>' +
           '</div>';
         }).join('');
@@ -1424,6 +1463,23 @@
       });
     }
     document.addEventListener('click', function (e) {
+      var bankToggle = e.target.closest('[data-day-bank-toggle]');
+      if (bankToggle) {
+        var bd = bankToggle.dataset.dayBankToggle;
+        var group = bankToggle.closest('.day-group');
+        if (group) {
+          var itemsEl = group.querySelector('.day-items');
+          var nowOpen = !group.classList.contains('open');
+          openBankDays[bd] = nowOpen;
+          group.classList.toggle('open', nowOpen);
+          if (itemsEl) {
+            itemsEl.style.display = nowOpen ? 'block' : 'none';
+          }
+          if (TG && typeof TG.haptic === 'function') TG.haptic('selection');
+        }
+        return;
+      }
+
       var delBtn = e.target.closest('[data-vb-del]');
       if (delBtn) {
         if (!w.NavaBank) return;

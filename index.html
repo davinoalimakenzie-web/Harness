@@ -8,7 +8,7 @@
      Mini App membacanya tiap dibuka untuk tahu ke mana menarik data. -->
 <title>Cashflow Alima</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="assets/css/style.css?v=20261117a">
+<link rel="stylesheet" href="assets/css/style.css?v=20261117b">
 </head>
 <body>
 
@@ -616,11 +616,15 @@
 
         <!-- ============ OWNER ============ -->
         <div id="ronceRekapOwner">
-          <!-- Filter Rekap di Paling Atas di Bawah Tab Utama (Hari Ini, Minggu Ini, Bulan Ini) -->
-          <div class="chips ronce-rekap-filter-bar" id="ronceFilters" style="margin-top:8px;display:flex;gap:4px;">
-            <button type="button" class="chip" data-rfilter="today">Hari Ini</button>
-            <button type="button" class="chip" data-rfilter="week">Minggu Ini</button>
-            <button type="button" class="chip on" data-rfilter="month">Bulan Ini</button>
+          <!-- Filter Rekap Terpadu: Periode (Hari Ini, Bulan Ini) + Dropdown Mitra -->
+          <div class="ronce-rekap-filter-bar">
+            <div class="chips" id="ronceFilters">
+              <button type="button" class="chip" data-rfilter="today">Hari Ini</button>
+              <button type="button" class="chip on" data-rfilter="month">Bulan Ini</button>
+            </div>
+            <div id="ronceMitraFilterWrap">
+              <select id="ronceMitraFilter"><option value="">Semua Mitra</option></select>
+            </div>
           </div>
 
           <!-- Garapan yang dikerjakan owner sendiri (tanpa mitra) -->
@@ -637,9 +641,6 @@
             <div class="list-head tight" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
               <strong>GARAPAN MITRA</strong>
               <b id="ronceTotalKomisi" style="font-size:14px;font-weight:750;color:var(--accent,#22d3ee)">Rp0</b>
-            </div>
-            <div id="ronceMitraFilterWrap" style="margin-bottom:10px;margin-top:8px;display:flex;align-items:center;gap:12px">
-              <select id="ronceMitraFilter" class="grow"><option value="">Semua Mitra</option></select>
             </div>
           </div>
 
@@ -704,12 +705,12 @@
           <div class="card">
             <div class="list-head tight"><strong>Tambah Mitra</strong></div>
             <div class="mitra-add">
-              <input type="text" id="rsNamaMitra" placeholder="Nama" autocomplete="off">
-              <input type="tel" id="rsWaMitra" placeholder="No. WA" inputmode="tel" autocomplete="off">
-              <button class="btn primary" id="rsTambahMitra" type="button">Kirim Link</button>
+              <input type="text" id="rsNamaMitra" placeholder="Nama mitra" autocomplete="off">
+              <input type="tel" id="rsWaMitra" placeholder="No. WA (opsional)" inputmode="tel" autocomplete="off">
+              <button class="btn primary" id="rsTambahMitra" type="button">Tambah Mitra</button>
             </div>
             <div id="rsUserList" class="list" style="margin-top:10px"></div>
-            <p class="hint" style="margin-top:8px">Isi nama + No. WA, lalu <b>Kirim Link</b>. Mitra masuk dengan <b>PIN 0000</b> — begitu PIN-nya diganti, akun jadi <b>Aktif</b> &amp; siap terima tugas.</p>
+            <p class="hint" style="margin-top:8px">Isi nama mitra (No. WA opsional). Mitra langsung berstatus <b>Aktif</b> dan siap dipilih saat input garapan tanpa harus kirim link WA.</p>
           </div>
         </div>
 
@@ -894,8 +895,8 @@
 <script src="assets/js/scan.js?v=20261014l"></script>
 <script src="assets/js/voice.js?v=20261014l"></script>
 <script src="assets/js/notes.js?v=20261014l"></script>
-<script src="assets/js/transactions.js?v=20261117a"></script>
-<script src="assets/js/ronce.js?v=20261029a"></script>
+<script src="assets/js/transactions.js?v=20261117b"></script>
+<script src="assets/js/ronce.js?v=20261117b"></script>
 <script src="assets/js/ronce-sync.js?v=20261019c"></script>
 <script src="assets/js/calc.js?v=20261022a"></script>
 <script src="assets/js/calc-sync.js?v=20261021d"></script>

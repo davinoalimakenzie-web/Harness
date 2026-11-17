@@ -163,9 +163,66 @@ input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0
 }
 body.mitra-mode .kalk-sticky-header{ top:0; }
 
-/* Tab Utama Kalkulator: Ronce | Servis HP | Riasan */
-#kalkMainTabs{ overflow-x:hidden; flex-wrap:nowrap; margin-bottom:8px; }
-#kalkMainTabs .seg-btn{ font-size:13px; font-weight:700; padding:10px 4px; flex:1 1 0; min-width:0; text-align:center; }
+/* Tab Utama Kalkulator: Ronce | Servis HP | Riasan (Pewarnaan Khusus) */
+#kalkMainTabs{
+  overflow-x:hidden;
+  flex-wrap:nowrap;
+  margin-bottom:8px;
+  background:var(--tap);
+  padding:4px;
+  border-radius:12px;
+  display:flex;
+  gap:6px;
+}
+#kalkMainTabs .seg-btn{
+  font-size:13px;
+  font-weight:700;
+  padding:10px 4px;
+  flex:1 1 0;
+  min-width:0;
+  text-align:center;
+  border:none;
+  border-radius:9px;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:all .18s ease;
+}
+
+/* Ronce = Kuning */
+#kalkMainTabs .seg-btn[data-ktab="ronce"]{
+  color:#d97706;
+  background:rgba(245,158,11,.1);
+}
+#kalkMainTabs .seg-btn[data-ktab="ronce"].active{
+  background:linear-gradient(135deg, #fbbf24, #f59e0b);
+  color:#1c1917;
+  font-weight:800;
+  box-shadow:0 2px 8px rgba(245,158,11,.35);
+}
+
+/* Servis HP = Hijau */
+#kalkMainTabs .seg-btn[data-ktab="servis"]{
+  color:#059669;
+  background:rgba(16,185,129,.1);
+}
+#kalkMainTabs .seg-btn[data-ktab="servis"].active{
+  background:linear-gradient(135deg, #34d399, #059669);
+  color:#ffffff;
+  font-weight:800;
+  box-shadow:0 2px 8px rgba(16,185,129,.35);
+}
+
+/* Riasan = Merah */
+#kalkMainTabs .seg-btn[data-ktab="riasan"]{
+  color:#dc2626;
+  background:rgba(239,68,68,.1);
+}
+#kalkMainTabs .seg-btn[data-ktab="riasan"].active{
+  background:linear-gradient(135deg, #f87171, #dc2626);
+  color:#ffffff;
+  font-weight:800;
+  box-shadow:0 2px 8px rgba(239,68,68,.35);
+}
 
 /* Sub-tabs Ronce (Input | Rekap | Setting / Dashboard) */
 #ronceTabs{ overflow-x:hidden; flex-wrap:nowrap; margin-top:2px; margin-bottom:8px; }
@@ -192,13 +249,23 @@ body.mitra-mode .kalk-sticky-header{ top:0; }
   margin-top:3px; font-size:11.5px; color:var(--text-2);
 }
 
-/* Tombol filter rekap (1 baris penuh di paling atas) */
+/* Tombol filter rekap (Periode Hari Ini, Bulan Ini, dan Dropdown Mitra) */
 .ronce-rekap-filter-bar{
-  display:flex; gap:6px; margin-bottom:12px; width:100%;
+  display:flex; gap:8px; align-items:center; margin-top:8px; margin-bottom:12px; width:100%;
+}
+.ronce-rekap-filter-bar #ronceFilters{
+  display:flex; gap:4px; flex-shrink:0;
 }
 .ronce-rekap-filter-bar .chip{
-  flex:1 1 0; min-width:0; justify-content:center; text-align:center;
-  padding:8px 6px; font-size:12px; white-space:nowrap;
+  padding:7px 12px; font-size:12px; font-weight:600; white-space:nowrap; border-radius:8px;
+}
+.ronce-rekap-filter-bar #ronceMitraFilterWrap{
+  flex:1; min-width:130px;
+}
+.ronce-rekap-filter-bar select#ronceMitraFilter{
+  width:100%; height:34px; padding:4px 8px; font-size:12.5px; font-weight:600;
+  border-radius:8px; background:var(--bg-elev); color:var(--text);
+  border:1px solid var(--line); outline:none; box-sizing:border-box;
 }
 
 /* Tampungan sementara garapan (draft) sebelum dikirim ke mitra */
