@@ -176,16 +176,27 @@
 
       <div class="flex items-center justify-between">
         <h2 class="text-sm font-bold uppercase tracking-wider text-brand-gold">
-          👗 Koleksi Busana & Stok
+          👗 Koleksi Katalog & Stok
         </h2>
-        <!-- Filter Kategori -->
-        <select id="busanaFilterCat" onchange="RiasApp.renderClothes()" class="bg-brand-card border border-brand-line text-xs rounded-lg px-2.5 py-1 text-brand-text focus:outline-none">
+        <!-- Filter Kategori Terpadu -->
+        <select id="busanaFilterCat" onchange="RiasApp.renderClothes()" class="bg-brand-card border border-brand-line text-xs rounded-lg px-2 py-1 text-brand-text focus:outline-none">
           <option value="ALL">SEMUA KATEGORI</option>
-          <option value="KEBAYA">KEBAYA</option>
-          <option value="JAS">JAS / BESKAP</option>
-          <option value="GAUN">GAUN</option>
-          <option value="AKSESORIS">AKSESORIS</option>
-          <option value="BUNGA MANTEN">BUNGA MANTEN</option>
+          <optgroup label="👗 SEWA">
+            <option value="KEBAYA">KEBAYA</option>
+            <option value="JAS / BESKAP">JAS / BESKAP</option>
+            <option value="GAUN">GAUN</option>
+            <option value="AKSESORIS">AKSESORIS</option>
+          </optgroup>
+          <optgroup label="✨ JASA">
+            <option value="RIAS MANTEN">RIAS MANTEN</option>
+            <option value="RIAS WISUDA">RIAS WISUDA</option>
+            <option value="KARTINIAN">KARTINIAN</option>
+          </optgroup>
+          <optgroup label="🎁 PAKET">
+            <option value="BUNGA MANTEN">BUNGA MANTEN</option>
+            <option value="DEKOR">DEKOR</option>
+            <option value="ORGEN TUNGGAL">ORGEN TUNGGAL</option>
+          </optgroup>
         </select>
       </div>
 
@@ -287,7 +298,7 @@
 
         <div class="grid grid-cols-2 gap-2.5">
           <div>
-            <label class="block text-brand-muted mb-1 font-medium">Total Harga Paket (Rp) *</label>
+            <label class="block text-brand-muted mb-1 font-medium">Jasa Riasan (Rp) *</label>
             <input type="number" id="clientPackagePrice" required min="0" step="1000" placeholder="5000000" oninput="RiasApp.updateClientGrandTotal()"
               class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
           </div>
@@ -305,7 +316,7 @@
               TOTAL BIAYA KESELURUHAN
             </span>
             <span class="text-[10px] text-brand-muted" id="clientBreakdownText">
-              Paket: Rp0
+              Jasa Rias: Rp0
             </span>
           </div>
           <div class="text-right">
@@ -336,10 +347,10 @@
         <div class="grid grid-cols-2 gap-2.5">
           <div>
             <label class="block text-brand-muted mb-1 font-medium">Tipe Katalog *</label>
-            <select id="clothType" required class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
+            <select id="clothType" required onchange="RiasApp.handleClothTypeChange(this.value)" class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
+              <option value="SEWA" selected>SEWA</option>
               <option value="JASA">JASA</option>
               <option value="PAKET">PAKET</option>
-              <option value="SEWA" selected>SEWA</option>
             </select>
           </div>
           <div>
@@ -354,13 +365,9 @@
             <label class="block text-brand-muted mb-1 font-medium">Kategori *</label>
             <select id="clothCategory" required class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
               <option value="KEBAYA">KEBAYA</option>
-              <option value="JAS">JAS / BESKAP</option>
+              <option value="JAS / BESKAP">JAS / BESKAP</option>
               <option value="GAUN">GAUN</option>
               <option value="AKSESORIS">AKSESORIS</option>
-              <option value="BUNGA MANTEN">BUNGA MANTEN</option>
-              <option value="RIAS / MUA">RIAS / MUA</option>
-              <option value="PAKET LENGKAP">PAKET LENGKAP</option>
-              <option value="LAINNYA">LAINNYA</option>
             </select>
           </div>
           <div>
@@ -525,6 +532,26 @@
 
     var STORAGE_KEY = 'nava_rias_db_v1';
 
+    // Konfigurasi Kategori Berdasarkan Tipe Katalog
+    var KATEGORI_PER_TIPE = {
+      SEWA: [
+        { value: 'KEBAYA', label: 'KEBAYA' },
+        { value: 'JAS / BESKAP', label: 'JAS / BESKAP' },
+        { value: 'GAUN', label: 'GAUN' },
+        { value: 'AKSESORIS', label: 'AKSESORIS' }
+      ],
+      JASA: [
+        { value: 'RIAS MANTEN', label: 'RIAS MANTEN' },
+        { value: 'RIAS WISUDA', label: 'RIAS WISUDA' },
+        { value: 'KARTINIAN', label: 'KARTINIAN' }
+      ],
+      PAKET: [
+        { value: 'BUNGA MANTEN', label: 'BUNGA MANTEN' },
+        { value: 'DEKOR', label: 'DEKOR' },
+        { value: 'ORGEN TUNGGAL', label: 'ORGEN TUNGGAL' }
+      ]
+    };
+
     // Data Dummy Awal
     var defaultData = {
       clients: [],
@@ -563,7 +590,7 @@
           id: 'b4',
           type: 'SEWA',
           name: 'BESKAP PENGANTIN PRIA ROSE GOLD',
-          category: 'JAS',
+          category: 'JAS / BESKAP',
           size: 'L',
           qty: 1,
           price: 450000,
@@ -582,8 +609,8 @@
         {
           id: 'b6',
           type: 'JASA',
-          name: 'JASA RIAS MUA PENGANTIN AKAD & RESEPSI',
-          category: 'RIAS / MUA',
+          name: 'RIAS PENGANTIN AKAD & RESEPSI',
+          category: 'RIAS MANTEN',
           size: 'STANDAR',
           qty: 1,
           price: 1500000,
@@ -591,13 +618,53 @@
         },
         {
           id: 'b7',
-          type: 'PAKET',
-          name: 'PAKET BUSANA & RIAS ORANG TUA / BESAN',
-          category: 'PAKET LENGKAP',
-          size: 'ALL SIZE',
+          type: 'JASA',
+          name: 'RIAS WISUDA NATURAL GLOW',
+          category: 'RIAS WISUDA',
+          size: 'STANDAR',
           qty: 1,
-          price: 1000000,
-          color: 'KOMPLIT 4 ORANG'
+          price: 350000,
+          color: 'MAKEUP WISUDA'
+        },
+        {
+          id: 'b8',
+          type: 'JASA',
+          name: 'RIAS KARTINIAN / HARI BESAR',
+          category: 'KARTINIAN',
+          size: 'STANDAR',
+          qty: 1,
+          price: 200000,
+          color: 'TRADISIONAL'
+        },
+        {
+          id: 'b9',
+          type: 'PAKET',
+          name: 'BUNGA RONGGO & HAND BOUQUET MANTEN',
+          category: 'BUNGA MANTEN',
+          size: 'LENGKAP',
+          qty: 1,
+          price: 500000,
+          color: 'MELATI SEGAR'
+        },
+        {
+          id: 'b10',
+          type: 'PAKET',
+          name: 'DEKOR PELAMINAN MODERN RUSTIC',
+          category: 'DEKOR',
+          size: '6 METER',
+          qty: 1,
+          price: 3500000,
+          color: 'WARNA PASTEL & BUNGA'
+        },
+        {
+          id: 'b11',
+          type: 'PAKET',
+          name: 'ORGEN TUNGGAL & SOUND SYSTEM ACARA',
+          category: 'ORGEN TUNGGAL',
+          size: '1 SET',
+          qty: 1,
+          price: 1200000,
+          color: 'SPEAKER + SOUNDMAN + 2 PENYANYI'
         }
       ]
     };
@@ -614,11 +681,38 @@
               parsed._vClean2026 = true;
               this.save(parsed);
             }
+            if (!parsed._vCat20261118) {
+              var existingIds = (parsed.clothes || []).map(function (c) { return c.id; });
+              defaultData.clothes.forEach(function (dc) {
+                if (existingIds.indexOf(dc.id) === -1) {
+                  parsed.clothes.push(JSON.parse(JSON.stringify(dc)));
+                }
+              });
+              parsed._vCat20261118 = true;
+              this.save(parsed);
+            }
             if (Array.isArray(parsed.clothes)) {
               parsed.clothes.forEach(function (b) {
                 if (!b.type) b.type = 'SEWA';
-                if (typeof b.qty !== 'number') b.qty = 1;
-                if (typeof b.price !== 'number') b.price = 0;
+                if (typeof b.qty !== 'number' || b.qty <= 0) b.qty = 1;
+                // Normalisasi kategori lama jika ada
+                if (b.category === 'JAS') b.category = 'JAS / BESKAP';
+                if (b.category === 'RIAS / MUA') { b.type = 'JASA'; b.category = 'RIAS MANTEN'; }
+                if (b.category === 'PAKET LENGKAP') { b.type = 'PAKET'; b.category = 'DEKOR'; }
+                // Pastikan tidak ada price 0 dari data lama yang belum memiliki harga
+                if (typeof b.price !== 'number' || b.price === 0) {
+                  if (b.category === 'GAUN') b.price = 1500000;
+                  else if (b.category === 'KEBAYA') b.price = 750000;
+                  else if (b.category === 'JAS / BESKAP') b.price = 450000;
+                  else if (b.category === 'AKSESORIS') b.price = 250000;
+                  else if (b.category === 'RIAS MANTEN') b.price = 1500000;
+                  else if (b.category === 'RIAS WISUDA') b.price = 350000;
+                  else if (b.category === 'KARTINIAN') b.price = 200000;
+                  else if (b.category === 'BUNGA MANTEN') b.price = 500000;
+                  else if (b.category === 'DEKOR') b.price = 3500000;
+                  else if (b.category === 'ORGEN TUNGGAL') b.price = 1200000;
+                  else b.price = 500000;
+                }
               });
             }
             return parsed;
@@ -1459,11 +1553,19 @@
           return;
         }
 
+        var sewa = clothes.filter(function (x) { return (x.type || 'SEWA') === 'SEWA'; });
         var jasa = clothes.filter(function (x) { return (x.type || 'SEWA') === 'JASA'; });
         var paket = clothes.filter(function (x) { return x.type === 'PAKET'; });
-        var sewa = clothes.filter(function (x) { return (x.type || 'SEWA') === 'SEWA'; });
 
         var opts = '<option value="">➕ Tambah Katalog / Jasa...</option>';
+
+        if (sewa.length) {
+          opts += '<optgroup label="👗 SEWA">';
+          sewa.forEach(function (x) {
+            opts += '<option value="' + x.id + '">' + x.name + ' (' + RiasApp.formatIDR(x.price || 0) + ')</option>';
+          });
+          opts += '</optgroup>';
+        }
 
         if (jasa.length) {
           opts += '<optgroup label="✨ JASA">';
@@ -1476,14 +1578,6 @@
         if (paket.length) {
           opts += '<optgroup label="🎁 PAKET">';
           paket.forEach(function (x) {
-            opts += '<option value="' + x.id + '">' + x.name + ' (' + RiasApp.formatIDR(x.price || 0) + ')</option>';
-          });
-          opts += '</optgroup>';
-        }
-
-        if (sewa.length) {
-          opts += '<optgroup label="👗 SEWA BUSANA">';
-          sewa.forEach(function (x) {
             opts += '<option value="' + x.id + '">' + x.name + ' (' + RiasApp.formatIDR(x.price || 0) + ')</option>';
           });
           opts += '</optgroup>';
@@ -1580,7 +1674,7 @@
 
         var txt = document.getElementById('clientBreakdownText');
         if (txt) {
-          txt.textContent = 'Paket: ' + this.formatIDR(pkg) + (catTotal > 0 ? ' + Katalog: ' + this.formatIDR(catTotal) : '');
+          txt.textContent = 'Jasa Rias: ' + this.formatIDR(pkg) + (catTotal > 0 ? ' + Katalog: ' + this.formatIDR(catTotal) : '');
         }
 
         var sisaDisp = document.getElementById('clientSisaDisplay');
@@ -1737,6 +1831,24 @@
         this.renderAll();
       },
 
+      handleClothTypeChange: function (type, preferredCategory) {
+        var catEl = document.getElementById('clothCategory');
+        if (!catEl) return;
+        var t = (type || 'SEWA').toUpperCase();
+        var list = KATEGORI_PER_TIPE[t] || KATEGORI_PER_TIPE.SEWA;
+        var prefNorm = preferredCategory ? preferredCategory.toUpperCase().replace(/\s*\/\s*/g, ' / ') : '';
+        catEl.innerHTML = list.map(function (k) {
+          var sel = (prefNorm && prefNorm === k.value.toUpperCase()) ? ' selected' : '';
+          return '<option value="' + k.value + '"' + sel + '>' + k.label + '</option>';
+        }).join('');
+        if (prefNorm) {
+          catEl.value = prefNorm;
+        }
+        if (!catEl.value && list.length) {
+          catEl.value = list[0].value;
+        }
+      },
+
       openClothModal: function (id) {
         document.getElementById('formCloth').reset();
         document.getElementById('clothId').value = '';
@@ -1746,9 +1858,10 @@
           if (b) {
             document.getElementById('modalClothTitle').textContent = 'Edit Katalog';
             document.getElementById('clothId').value = b.id;
-            document.getElementById('clothType').value = (b.type || 'SEWA').toUpperCase();
+            var cType = (b.type || 'SEWA').toUpperCase();
+            document.getElementById('clothType').value = cType;
+            this.handleClothTypeChange(cType, (b.category || '').toUpperCase());
             document.getElementById('clothName').value = b.name;
-            document.getElementById('clothCategory').value = (b.category || 'KEBAYA').toUpperCase();
             document.getElementById('clothSize').value = b.size || '';
             document.getElementById('clothQty').value = b.qty || 1;
             document.getElementById('clothPrice').value = b.price !== undefined ? b.price : '';
@@ -1757,6 +1870,7 @@
         } else {
           document.getElementById('modalClothTitle').textContent = 'Tambah Katalog';
           document.getElementById('clothType').value = 'SEWA';
+          this.handleClothTypeChange('SEWA');
           document.getElementById('clothQty').value = 1;
           document.getElementById('clothPrice').value = '';
         }
