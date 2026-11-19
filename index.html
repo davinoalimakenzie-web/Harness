@@ -28,17 +28,23 @@
   <!-- ============ TAB: BERANDA (Menggantikan Dashboard dengan Rekap) ============ -->
   <section id="view-home" class="view active">
 
-    <!-- Strip Bulan & Total Akumulasi Saldo -->
-    <div class="card" style="margin-bottom:12px;padding:12px 14px;">
-      <div style="display:flex;align-items:center;justify-content:center;gap:12px;text-align:center;">
-        <button id="rPrev" class="icon-btn sm" aria-label="Sebelumnya" style="width:32px;height:32px;font-size:18px;">‹</button>
-        <div>
-          <strong id="rLabel" style="font-size:15px;font-weight:750;display:block;line-height:1.2;">—</strong>
-          <span style="font-size:11.5px;color:var(--text-2);display:block;margin-top:2px;">
-            Total Saldo: <b id="rNet" style="font-size:13.5px;font-weight:750;color:var(--success);">0</b>
-          </span>
+    <!-- Strip Bulan, Saldo Periode (bawah bulan) & Total Saldo Akumulasi (kanan) -->
+    <div class="card" style="margin-bottom:12px;padding:10px 14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button id="rPrev" class="icon-btn sm" aria-label="Sebelumnya" style="width:30px;height:30px;font-size:18px;">‹</button>
+          <div>
+            <strong id="rLabel" style="font-size:14.5px;font-weight:750;display:block;line-height:1.2;">—</strong>
+            <span class="muted xs" style="font-size:11px;line-height:1;display:block;margin-top:2px;">
+              Saldo Periode: <b id="rNet" style="font-weight:700;color:var(--success);">0</b>
+            </span>
+          </div>
+          <button id="rNext" class="icon-btn sm" aria-label="Berikutnya" style="width:30px;height:30px;font-size:18px;">›</button>
         </div>
-        <button id="rNext" class="icon-btn sm" aria-label="Berikutnya" style="width:32px;height:32px;font-size:18px;">›</button>
+        <div style="text-align:right;">
+          <span style="font-size:10px;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;display:block;">Total Saldo Akumulasi</span>
+          <strong id="rTotalAccum" style="font-size:16.5px;font-weight:750;display:block;line-height:1.2;color:var(--success);">0</strong>
+        </div>
       </div>
     </div>
 
@@ -71,17 +77,23 @@
   <!-- ============ TAB: DANA BANK (Kas Darurat & Kas Sedekah) ============ -->
   <section id="view-bank" class="view">
 
-    <!-- Strip Bulan & Total Saldo Dana Bank -->
-    <div class="card" style="margin-bottom:12px;padding:12px 14px;">
-      <div style="display:flex;align-items:center;justify-content:center;gap:12px;text-align:center;">
-        <button id="vbPrev" class="icon-btn sm" aria-label="Sebelumnya" style="width:32px;height:32px;font-size:18px;">‹</button>
-        <div>
-          <strong id="vbLabel" style="font-size:15px;font-weight:750;display:block;line-height:1.2;">—</strong>
-          <span style="font-size:11.5px;color:var(--text-2);display:block;margin-top:2px;">
-            Total Saldo: <b id="vbAvail" style="font-size:13.5px;font-weight:750;color:var(--success);">0</b>
-          </span>
+    <!-- Strip Bulan, Saldo Periode (bawah bulan) & Total Saldo Akumulasi (kanan) -->
+    <div class="card" style="margin-bottom:12px;padding:10px 14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button id="vbPrev" class="icon-btn sm" aria-label="Sebelumnya" style="width:30px;height:30px;font-size:18px;">‹</button>
+          <div>
+            <strong id="vbLabel" style="font-size:14.5px;font-weight:750;display:block;line-height:1.2;">—</strong>
+            <span class="muted xs" style="font-size:11px;line-height:1;display:block;margin-top:2px;">
+              Saldo Periode: <b id="vbMonthNet" style="font-weight:700;color:var(--success);">0</b>
+            </span>
+          </div>
+          <button id="vbNext" class="icon-btn sm" aria-label="Berikutnya" style="width:30px;height:30px;font-size:18px;">›</button>
         </div>
-        <button id="vbNext" class="icon-btn sm" aria-label="Berikutnya" style="width:32px;height:32px;font-size:18px;">›</button>
+        <div style="text-align:right;">
+          <span style="font-size:10px;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;display:block;">Total Saldo Akumulasi</span>
+          <strong id="vbAvail" style="font-size:16.5px;font-weight:750;display:block;line-height:1.2;color:var(--success);">0</strong>
+        </div>
       </div>
     </div>
 
@@ -798,7 +810,7 @@
 
     <!-- Tab: Aplikasi Riasan Pengantin -->
     <div id="kalkPane-riasan" class="kalk-pane" hidden style="margin-left:-14px;margin-right:-14px;margin-top:-6px;padding-bottom:70px;">
-      <iframe src="riasan.html?v=20261119a" id="riasanIframe" style="width:100%;height:calc(100dvh - 165px);height:calc(100vh - 165px);min-height:520px;border:none;display:block;" title="Aplikasi Rias"></iframe>
+      <iframe src="riasan.html?v=20261119b" id="riasanIframe" style="width:100%;height:calc(100dvh - 165px);height:calc(100vh - 165px);min-height:520px;border:none;display:block;" title="Aplikasi Rias"></iframe>
     </div>
     </div>
   </section>

@@ -544,10 +544,19 @@
     var rLabel = $('#rLabel'); if (rLabel) rLabel.textContent = S.monthLabel(recapYM);
     var rIn = $('#rIn'); if (rIn) rIn.textContent = money(s.in);
     var rOut = $('#rOut'); if (rOut) rOut.textContent = money(s.out);
+
+    // Saldo Periode (di bawah bulan)
     var net = $('#rNet');
     if (net) {
-      net.textContent = money(allSum.net);
-      net.style.color = allSum.net >= 0 ? 'var(--success)' : 'var(--danger)';
+      net.textContent = money(s.net);
+      net.style.color = s.net >= 0 ? 'var(--success)' : 'var(--danger)';
+    }
+
+    // Total Saldo Akumulasi (sebelah kanan bulan)
+    var totAccum = $('#rTotalAccum');
+    if (totAccum) {
+      totAccum.textContent = money(allSum.net);
+      totAccum.style.color = allSum.net >= 0 ? 'var(--success)' : 'var(--danger)';
     }
 
     // Donut & rincian kategori pengeluaran bulan yang dipilih di tab Rekap
@@ -576,6 +585,20 @@
       return (e.date || '').slice(0, 7) === bankYM;
     });
 
+    // Saldo Periode Dana Bank (di bawah bulan)
+    var mIn = 0, mOut = 0;
+    monthEntries.forEach(function (e) {
+      mIn += (e.moneyIn || 0);
+      mOut += (e.moneyOut || 0);
+    });
+    var mNet = mIn - mOut;
+    var vbMonthNet = $('#vbMonthNet');
+    if (vbMonthNet) {
+      vbMonthNet.textContent = money(mNet);
+      vbMonthNet.style.color = mNet >= 0 ? 'var(--success)' : 'var(--danger)';
+    }
+
+    // Total Saldo Akumulasi Dana Bank (sebelah kanan bulan)
     var availEl = $('#vbAvail');
     if (availEl) {
       availEl.textContent = money(g.available);
