@@ -1130,22 +1130,32 @@ button.item .item-sub{ margin-top:3px; }
 .tx-note-row input{ font-size:14px; padding:9px 12px; }
 .tx-err{ margin:0 14px 8px; font-size:12.5px; }
 
-/* ---------- Keypad ---------- */
+/* ---------- Keypad Baru (Gaya Kalkulator Modern Sesuai Gambar) ---------- */
 .keypad{
-  display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
-  background:var(--line); border-top:1px solid var(--line);
+  display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+  background:#27272a; border-top:1px solid #27272a;
   flex:0 0 auto; user-select:none; -webkit-user-select:none;
 }
 .key{
-  border:0; background:var(--bg-elev); color:var(--text);
-  font-size:24px; font-weight:500; padding:0; cursor:pointer;
-  height:56px; display:grid; place-items:center;
+  border:0; background:#18181b; color:#22c55e;
+  font-size:26px; font-weight:500; padding:0; cursor:pointer;
+  height:62px; display:grid; place-items:center;
+  transition:background .1s ease, transform .05s ease;
 }
-.key:active{ background:var(--tap); }
-.key-alt{ background:var(--bg-elev); color:var(--text-2); font-size:20px; }
-.key-ok{ background:var(--accent); color:var(--accent-text); font-size:26px; font-weight:700; }
-.key-ok:active{ filter:brightness(.92); }
+.key:active{ background:#27272a; }
+.key-fn{ font-weight:700; font-size:26px; }
+.key-op{ font-size:28px; font-weight:500; }
+.key-del{ display:grid; place-items:center; }
+.key-del-svg{ width:26px; height:26px; stroke:#22c55e; }
+.key-ok{
+  grid-column:4; grid-row:4 / span 2;
+  height:100%; min-height:124px;
+  background:#0ea5e9; color:#ffffff;
+  border-radius:0; display:grid; place-items:center;
+}
+.key-ok:active{ background:#0284c7; }
 .key-ok:disabled{ opacity:.4; cursor:default; }
+.key-arrow-svg{ width:30px; height:30px; stroke:#ffffff; }
 
 /* ---------- Donut chart (Rekap) ---------- */
 .donut-wrap{ display:flex; align-items:center; gap:16px; margin:6px 0 12px; }
@@ -1182,7 +1192,8 @@ button.item .item-sub{ margin-top:3px; }
 
 @media (max-height:680px){
   .tx-amount{ font-size:34px; }
-  .key{ height:46px; font-size:21px; }
+  .key{ height:52px; font-size:23px; }
+  .key-ok{ min-height:104px; }
   .cat-tile{ padding:8px 3px; }
   .cat-tile-ico{ font-size:19px; }
 }
@@ -1224,6 +1235,24 @@ button.item .item-sub{ margin-top:3px; }
   padding:12px 13px; min-height:46px;
 }
 .tx-form input[type=text]:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+
+/* Baris Kategori + Tombol Kamera Sejajar */
+.tx-cat-cam-row{
+  display:flex; align-items:center; gap:8px; width:100%;
+}
+.tx-cat-cam-row .sel-wrap{
+  flex:1; min-width:0;
+}
+.btn-scan-cam{
+  width:46px; height:46px; flex:0 0 46px;
+  border-radius:12px; border:1px solid var(--line);
+  background:var(--bg-2, var(--tap)); color:var(--text);
+  display:grid; place-items:center; cursor:pointer;
+  transition:transform .1s ease, border-color .1s ease, background .1s ease;
+}
+.btn-scan-cam:active{ transform:scale(.94); background:var(--line); }
+.cam-svg{ width:22px; height:22px; stroke:var(--text-2); }
+.btn-scan-cam:hover .cam-svg{ stroke:var(--accent); }
 
 /* --- Tombol scan struk --- */
 .scan-btn{

@@ -171,9 +171,18 @@
     <div class="tx-form">
       <div class="fld">
         <label for="txGroup">Kategori</label>
-        <div class="sel-wrap">
-          <select id="txGroup" aria-label="Kelompok kategori"></select>
+        <div class="tx-cat-cam-row">
+          <div class="sel-wrap grow">
+            <select id="txGroup" aria-label="Kelompok kategori"></select>
+          </div>
+          <button type="button" class="btn-scan-cam" id="btnScan" aria-label="Scan Struk" title="Scan Struk">
+            <svg class="cam-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+          </button>
         </div>
+        <input type="file" id="scanFile" accept="image/*" capture="environment" class="hidden">
       </div>
 
       <div class="fld hidden" id="txSubField">
@@ -186,15 +195,6 @@
       <div class="fld">
         <label for="txNote">Keterangan</label>
         <input type="text" id="txNote" maxlength="200" placeholder="Contoh: belanja bulanan">
-      </div>
-
-      <div class="fld">
-        <label>&nbsp;</label>
-        <button class="scan-btn" id="btnScan">
-          <span class="scan-ico">📷</span>
-          <span class="scan-text"><b>Scan Struk</b><span class="muted xs" id="scanHint">Foto struk -&gt; nominal &amp; kategori otomatis</span></span>
-        </button>
-        <input type="file" id="scanFile" accept="image/*" capture="environment" class="hidden">
       </div>
     </div>
 
@@ -213,18 +213,44 @@
     <p class="err tx-err hidden" id="txErr"></p>
 
     <div class="keypad" id="txKeypad">
-      <button class="key" data-k="1">1</button>
-      <button class="key" data-k="2">2</button>
-      <button class="key" data-k="3">3</button>
-      <button class="key" data-k="4">4</button>
-      <button class="key" data-k="5">5</button>
-      <button class="key" data-k="6">6</button>
-      <button class="key" data-k="7">7</button>
-      <button class="key" data-k="8">8</button>
-      <button class="key" data-k="9">9</button>
-      <button class="key key-alt" data-k="del" aria-label="Hapus">⌫</button>
-      <button class="key" data-k="0">0</button>
-      <button class="key key-ok" data-k="ok" aria-label="Simpan">✓</button>
+      <!-- Baris 1: C, ÷, ×, Backspace -->
+      <button type="button" class="key key-fn" data-k="c">C</button>
+      <button type="button" class="key key-op" data-k="/">÷</button>
+      <button type="button" class="key key-op" data-k="*">×</button>
+      <button type="button" class="key key-del" data-k="del" aria-label="Hapus">
+        <svg class="key-del-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path>
+          <line x1="18" y1="9" x2="12" y2="15"></line>
+          <line x1="12" y1="9" x2="18" y2="15"></line>
+        </svg>
+      </button>
+
+      <!-- Baris 2: 7, 8, 9, - -->
+      <button type="button" class="key" data-k="7">7</button>
+      <button type="button" class="key" data-k="8">8</button>
+      <button type="button" class="key" data-k="9">9</button>
+      <button type="button" class="key key-op" data-k="-">−</button>
+
+      <!-- Baris 3: 4, 5, 6, + -->
+      <button type="button" class="key" data-k="4">4</button>
+      <button type="button" class="key" data-k="5">5</button>
+      <button type="button" class="key" data-k="6">6</button>
+      <button type="button" class="key key-op" data-k="+">+</button>
+
+      <!-- Baris 4 & 5: 1, 2, 3, dan tombol biru '>' merentang 2 baris -->
+      <button type="button" class="key" data-k="1">1</button>
+      <button type="button" class="key" data-k="2">2</button>
+      <button type="button" class="key" data-k="3">3</button>
+      <button type="button" class="key key-ok" data-k="ok" aria-label="Simpan">
+        <svg class="key-arrow-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+
+      <!-- Baris 5: 0, 000, . -->
+      <button type="button" class="key" data-k="0">0</button>
+      <button type="button" class="key" data-k="000">000</button>
+      <button type="button" class="key" data-k=".">.</button>
     </div>
   </div>
 

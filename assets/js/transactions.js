@@ -703,35 +703,137 @@
     el.err.textContent = '';
   }
 
+  function evalCalc(str) {
+    if (!str) return 0;
+    var clean = String(str).replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
+    clean = clean.replace(/[^0-9+\-*/.]/g, '');
+    if (!clean) return 0;
+    clean = clean.replace(/[+\-*/]+$/, '');
+    if (!clean) return 0;
+
+    try {
+      var tokens = clean.match(/(\d+(?:\.\d+)?|[+\-*/])/g);
+      if (!tokens || !tokens.length) return 0;
+
+      var nextTokens = [];
+      var i = 0;
+      while (i < tokens.length) {
+        var t = tokens[i];
+        if (t === '*' || t === '/') {
+          var prev = Number(nextTokens.pop() || 0);
+          var next = Number(tokens[i + 1] || 0);
+          var res = t === '*' ? (prev * next) : (next !== 0 ? prev / next : 0);
+          nextTokens.push(res);
+          i += 2;
+        } else {
+          nextTokens.push(t);
+          i++;
+        }
+      }
+
+      var total = Number(nextTokens[0] || 0);
+      var j = 1;
+      while (j < nextTokens.length) {
+        var op = nextTokens[j];
+        var val = Number(nextTokens[j + 1] || 0);
+        if (op === '+') total += val;
+        else if (op === '-') total -= val;
+        j += 2;
+      }
+      return Math.max(0, Math.round(total));
+    } catch (e) {
+      return 0;
+    }
+  }
+
   function amountValue() {
+    if (/[+\-*/×÷−]/.test(amountStr)) {
+      return evalCalc(amountStr);
+    }
     var n = Number(amountStr || 0);
     return isFinite(n) ? n : 0;
   }
 
+  function formatExpr(str) {
+    if (!str) return '0';
+    var parts = String(str).split(/([+\-*/×÷−])/);
+    return parts.map(function (p) {
+      if (p === '+' || p === '-' || p === '−') return ' ' + (p === '-' ? '−' : p) + ' ';
+      if (p === '*' || p === '×') return ' × ';
+      if (p === '/' || p === '÷') return ' ÷ ';
+      var num = Number(p);
+      if (p && isFinite(num) && p.indexOf('.') === -1) {
+        return money(num);
+      }
+      return p;
+    }).join('');
+  }
+
   function paintAmount() {
+    var hasOp = /[+\-*/×÷−]/.test(amountStr);
     var v = amountValue();
     el.disp.classList.remove('in', 'out');
     el.disp.classList.add(type);
-    el.disp.textContent = v > 0 ? money(v) : '0';
-    var hint = el.hint;
-    if (v > 0) {
-      hint.textContent = editingId ? 'Ubah nominal lalu tekan ✓' : 'Tekan ✓ untuk menyimpan';
+
+    if (hasOp) {
+      el.disp.textContent = formatExpr(amountStr);
+      var hint = el.hint;
+      hint.textContent = '= ' + money(v) + ' (tekan > untuk simpan)';
       hint.classList.remove('warn');
     } else {
-      hint.textContent = editingId ? 'Ubah nominal lalu tekan ✓' : 'Ketik nominal di bawah';
-      hint.classList.remove('warn');
+      el.disp.textContent = v > 0 ? money(v) : '0';
+      var hint = el.hint;
+      if (v > 0) {
+        hint.textContent = editingId ? 'Ubah nominal lalu tekan >' : 'Tekan > untuk menyimpan';
+        hint.classList.remove('warn');
+      } else {
+        hint.textContent = editingId ? 'Ubah nominal lalu tekan >' : 'Ketik nominal di bawah';
+        hint.classList.remove('warn');
+      }
     }
   }
 
   function press(k) {
-    if (k === 'del') {
-      amountStr = amountStr.slice(0, -1);
+    if (k === 'c') {
+      amountStr = '0';
+    } else if (k === 'del') {
+      if (amountStr.length > 1) {
+        amountStr = amountStr.slice(0, -1);
+      } else {
+        amountStr = '0';
+      }
     } else if (k === 'ok') {
+      if (/[+\-*/×÷−]/.test(amountStr)) {
+        var computed = evalCalc(amountStr);
+        amountStr = String(computed);
+        paintAmount();
+      }
       submit();
       return;
+    } else if (k === '+' || k === '-' || k === '*' || k === '/') {
+      if (amountStr === '0') {
+        if (k === '-') amountStr = '-';
+        return;
+      }
+      if (/[+\-*/×÷−]$/.test(amountStr)) {
+        amountStr = amountStr.slice(0, -1) + k;
+      } else {
+        amountStr += k;
+      }
+    } else if (k === '000') {
+      if (amountStr !== '0' && !/[+\-*/×÷−]$/.test(amountStr)) {
+        if (amountStr.length <= 15) {
+          amountStr += '000';
+        }
+      }
+    } else if (k === '.') {
+      var lastPart = amountStr.split(/[+\-*/×÷−]/).pop();
+      if (lastPart.indexOf('.') === -1) {
+        amountStr += '.';
+      }
     } else {
-      // Maksimal 15 digit, tanpa nol di depan
-      if (amountStr.length >= 15) return;
+      // Digit 0..9
+      if (amountStr.length >= 25) return;
       if (amountStr === '0') amountStr = k;
       else amountStr += k;
     }
@@ -741,10 +843,10 @@
   }
 
   function renderTxAccounts() {
-    el.txAccounts.innerHTML = Accounts.active().map(function (a) {
-      return '<button class="tx-acc' + (a.id === accountId ? ' on' : '') +
-        '" data-account="' + esc(a.id) + '">' + esc(a.icon) + ' ' + esc(a.name) + '</button>';
-    }).join('');
+    el.txAccounts.innerHTML =
+      '<button type="button" class="tx-acc" data-kalkmode="servis">📱 Servis HP</button>' +
+      '<button type="button" class="tx-acc" data-kalkmode="ronce">📿 Ronce</button>' +
+      '<button type="button" class="tx-acc" data-kalkmode="riasan">💄 Riasan</button>';
   }
 
   function isDirect() {
@@ -920,11 +1022,12 @@
       TG.haptic('warning');
       return;
     }
+    var finalAmt = amountValue();
     var form = {
       type: type, group: group, sub: sub,
-      amount: amountStr, date: el.txDate.value,
+      amount: finalAmt, date: el.txDate.value,
       note: (el.note.value || '').trim(),
-      account_id: accountId
+      account_id: accountId || (Accounts.first() || { id: 'acc-cash' }).id
     };
     var v = S.validateTx(form);
     if (!v.ok) { showErr(v.msg); TG.haptic('warning'); return; }
@@ -1326,12 +1429,18 @@
       });
     }
 
-    /* --- Akun di halaman input --- */
+    /* --- Tombol Shortcut Kalkulator (Servis HP, Ronce, Riasan) di halaman input --- */
     el.txAccounts.addEventListener('click', function (e) {
-      var b = e.target.closest('[data-account]');
+      var b = e.target.closest('[data-kalkmode]');
       if (!b) return;
-      accountId = b.dataset.account;
-      renderTxAccounts();
+      var mode = b.dataset.kalkmode;
+      closeTxPage();
+      if (w.App && w.App.go) {
+        w.App.go('ronce');
+        if (w.Ronce && w.Ronce.setMainTab) {
+          w.Ronce.setMainTab(mode);
+        }
+      }
       TG.haptic('select');
     });
 
