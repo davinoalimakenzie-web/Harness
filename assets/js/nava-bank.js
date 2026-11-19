@@ -88,6 +88,7 @@
           var ymSuffix = ymMatch ? ' ' + ymMatch[0] : '';
           newEntries.push({
             id: (e.id || uid()) + '_darurat',
+            txId: e.txId || null,
             description: KETERANGAN_WAJIB + ' 5% (Kas Darurat)' + ymSuffix,
             moneyIn: half1,
             moneyOut: 0,
@@ -98,6 +99,7 @@
           });
           newEntries.push({
             id: (e.id || uid()) + '_sdh',
+            txId: e.txId || null,
             description: KETERANGAN_WAJIB + ' 5% (Kas Sedekah)' + ymSuffix,
             moneyIn: half2,
             moneyOut: 0,
@@ -111,8 +113,12 @@
 
         var isReturn = (kind === 'sparepart' || kind === 'bon' || isReturnDesc(desc));
         var isSDH = !isReturn && (e.fund === 'sdh' || descUpper.indexOf('(KAS SDH)') !== -1 || descUpper.indexOf('SDH') !== -1 || descUpper.indexOf('SEDEKAH') !== -1);
+        var entryId = e.id || uid();
+        if (kind === 'wajib' && e.txId) {
+          entryId = 'wajib_' + (isSDH ? 'sdh' : 'darurat') + '_' + e.txId;
+        }
         newEntries.push({
-          id: e.id || uid(),
+          id: entryId,
           txId: e.txId || null,
           description: desc,
           moneyIn: mi,
@@ -123,6 +129,19 @@
           fund: isSDH ? 'sdh' : 'darurat'
         });
       });
+
+      // Deduplikasi entri kas wajib per-transaksi (cegah & bersihkan duplikasi yang terlanjur tersimpan)
+      var seenWajibKey = {};
+      var dedupEntries = [];
+      newEntries.forEach(function (e) {
+        if (e.kind === 'wajib' && e.txId) {
+          var pairKey = e.txId + '_' + (e.fund === 'sdh' ? 'sdh' : 'darurat');
+          if (seenWajibKey[pairKey]) return; // buang duplikat
+          seenWajibKey[pairKey] = true;
+        }
+        dedupEntries.push(e);
+      });
+      newEntries = dedupEntries;
 
       // Rebalance unequal 5% + 5% setoran wajib per bulan (mis. 225.000 & 224.000 -> 224.500 & 224.500)
       var wajibByYM = {};
@@ -523,14 +542,22 @@
 
     var changed = false;
 
-    // 1. Bersihkan entri setoran wajib per-transaksi yang transaksinya sudah dihapus
+    // 1. Bersihkan entri setoran wajib per-transaksi yang transaksinya sudah dihapus ATAU duplikat
     var remaining = [];
+    var seenWajibKey = {};
     d.entries.forEach(function (e) {
       if (e.kind === 'wajib' && e.txId) {
         if (!activeTxIds[e.txId]) {
           changed = true;
           return;
         }
+        var pairKey = e.txId + '_' + (e.fund === 'sdh' ? 'sdh' : 'darurat');
+        if (seenWajibKey[pairKey]) {
+          // DUPLIKAT DITEMUKAN: buang dari daftar entries!
+          changed = true;
+          return;
+        }
+        seenWajibKey[pairKey] = true;
       }
       remaining.push(e);
     });
@@ -546,7 +573,7 @@
       }
     });
 
-    // 3. Buat atau perbarui entri setoran wajib 10% (5% darurat + 5% sedekah)
+    // 3. Buat atau perbarui entri setoran wajib 10% (5% darurat + 5% sedekah) secara deterministik
     inTxs.forEach(function (t) {
       var amt = Math.round(Number(t.amount) || 0);
       var totalWajib = Math.round(amt * RASIO_WAJIB);
@@ -563,23 +590,24 @@
       var descDarurat = 'Setoran Kas Wajib 5% (Kas Darurat) · ' + srcLabel;
       var descSDH = 'Setoran Kas Wajib 5% (Kas Sedekah) · ' + srcLabel;
 
-      var pair = wajibEntriesByTx[t.id];
-      if (pair && pair.darurat && pair.sdh) {
+      var pair = wajibEntriesByTx[t.id] || {};
+
+      // Kas Darurat 5%
+      var expectedDaruratId = 'wajib_darurat_' + t.id;
+      if (pair.darurat) {
+        if (pair.darurat.id !== expectedDaruratId) {
+          pair.darurat.id = expectedDaruratId;
+          changed = true;
+        }
         if (pair.darurat.moneyIn !== half1 || pair.darurat.date !== tgl || pair.darurat.description !== descDarurat) {
           pair.darurat.moneyIn = half1;
           pair.darurat.date = tgl;
           pair.darurat.description = descDarurat;
           changed = true;
         }
-        if (pair.sdh.moneyIn !== half2 || pair.sdh.date !== tgl || pair.sdh.description !== descSDH) {
-          pair.sdh.moneyIn = half2;
-          pair.sdh.date = tgl;
-          pair.sdh.description = descSDH;
-          changed = true;
-        }
       } else {
         var eDarurat = {
-          id: (uid() + '_d').slice(0, 24),
+          id: expectedDaruratId,
           txId: t.id,
           description: descDarurat,
           moneyIn: half1,
@@ -589,8 +617,27 @@
           kind: 'wajib',
           fund: 'darurat'
         };
+        d.entries.push(eDarurat);
+        pair.darurat = eDarurat;
+        changed = true;
+      }
+
+      // Kas Sedekah 5%
+      var expectedSdhId = 'wajib_sdh_' + t.id;
+      if (pair.sdh) {
+        if (pair.sdh.id !== expectedSdhId) {
+          pair.sdh.id = expectedSdhId;
+          changed = true;
+        }
+        if (pair.sdh.moneyIn !== half2 || pair.sdh.date !== tgl || pair.sdh.description !== descSDH) {
+          pair.sdh.moneyIn = half2;
+          pair.sdh.date = tgl;
+          pair.sdh.description = descSDH;
+          changed = true;
+        }
+      } else {
         var eSDH = {
-          id: (uid() + '_s').slice(0, 24),
+          id: expectedSdhId,
           txId: t.id,
           description: descSDH,
           moneyIn: half2,
@@ -600,8 +647,8 @@
           kind: 'wajib',
           fund: 'sdh'
         };
-        d.entries.push(eDarurat);
         d.entries.push(eSDH);
+        pair.sdh = eSDH;
         changed = true;
       }
     });

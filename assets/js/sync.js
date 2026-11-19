@@ -282,31 +282,30 @@
     });
 
     var map = {};
+    var seenWajib = {};
     var resEntries = [];
 
-    (remoteB.entries || []).forEach(function (r) {
-      if (!r || !r.id || deletedMap[r.id]) return;
+    function processBankEntry(entry) {
+      if (!entry || !entry.id || deletedMap[entry.id]) return;
       if (resetTime > 0) {
-        var rTime = new Date(r.createdAt || r.date || 0).getTime();
-        if (rTime <= resetTime) return;
+        var eTime = new Date(entry.createdAt || entry.date || 0).getTime();
+        if (eTime <= resetTime) return;
       }
-      var copy = Object.assign({}, r);
-      map[r.id] = copy;
-      resEntries.push(copy);
-    });
+      // Cegah duplikasi kas wajib per-transaksi antar-perangkat
+      if (entry.kind === 'wajib' && entry.txId) {
+        var wKey = entry.txId + '_' + (entry.fund === 'sdh' ? 'sdh' : 'darurat');
+        if (seenWajib[wKey]) return;
+        seenWajib[wKey] = true;
+      }
+      if (!map[entry.id]) {
+        var copy = Object.assign({}, entry);
+        map[entry.id] = copy;
+        resEntries.push(copy);
+      }
+    }
 
-    (localB.entries || []).forEach(function (l) {
-      if (!l || !l.id || deletedMap[l.id]) return;
-      if (resetTime > 0) {
-        var lTime = new Date(l.createdAt || l.date || 0).getTime();
-        if (lTime <= resetTime) return;
-      }
-      if (!map[l.id]) {
-        var copyL = Object.assign({}, l);
-        resEntries.push(copyL);
-        map[l.id] = copyL;
-      }
-    });
+    (remoteB.entries || []).forEach(processBankEntry);
+    (localB.entries || []).forEach(processBankEntry);
 
     var initial = 0;
     if (resetTime > 0) {

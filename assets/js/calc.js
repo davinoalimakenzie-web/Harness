@@ -40,7 +40,8 @@
     { id: 'lcd-bagus', name: 'LCD Bagus', pct: 20, icon: '📱', note: 'LCD bagus' },
     { id: 'lcd-incell', name: 'LCD Incell', pct: 20, icon: '📱', note: 'LCD Incell' },
     { id: 'lcd-oled', name: 'LCD OLED', pct: 10, icon: '✨', note: 'LCD OLED' },
-    { id: 'baterai', name: 'Baterai', pct: 10, icon: '🔋', note: 'Baterai' }
+    { id: 'baterai', name: 'Baterai', pct: 10, icon: '🔋', note: 'Baterai' },
+    { id: 'harga-khusus', name: 'Harga Khusus', pct: 0, icon: '⭐', note: 'Harga khusus (part × 2)' }
   ];
 
   /* Brand HP yang dipakai (dropdown brand HP dibatasi 9 opsi: Lainnya + 8 brand ini). */
@@ -490,11 +491,12 @@
   /* ---------------- Render ---------------- */
   function renderRules() {
     el.kRules.innerHTML = RULES.map(function (r) {
+      var ct = r.pct === 0 ? 'part &times; 2' : ('part &times; 2 + ' + r.pct + '%');
       return '<button type="button" class="k-rule' + (r.id === ruleId ? ' on' : '') +
         '" data-rule="' + esc(r.id) + '">' +
         '<span class="k-rule-ic">' + r.icon + '</span>' +
         '<span class="k-rule-nm">' + esc(r.name) + '</span>' +
-        '<span class="k-rule-ct">part &times; 2 + ' + r.pct + '%</span>' +
+        '<span class="k-rule-ct">' + ct + '</span>' +
         '</button>';
     }).join('');
   }
@@ -514,7 +516,9 @@
 
     el.kEst.textContent = money(estVal);
     el.kFormulaOut.textContent = part > 0
-      ? '(' + money(part) + ' × 2) + ' + h.pct + '% = ' + money(estVal)
+      ? (h.pct === 0
+          ? '(' + money(part) + ' × 2) = ' + money(estVal)
+          : '(' + money(part) + ' × 2) + ' + h.pct + '% = ' + money(estVal))
       : (estVal > 0 ? 'Estimasi tersimpan: ' + money(estVal) + ' (isi harga part saat dibeli)' : 'Isi harga part, lalu pilih perhitungan estimasi biaya.');
   }
 
@@ -533,7 +537,7 @@
     lines.push('Perhitungan: ' + rule.name);
     lines.push('Harga part: ' + money(h.part));
     lines.push('Harga estimasi: ' + money(h.est));
-    lines.push('Rumus: (part × 2) + ' + h.pct + '%');
+    lines.push(h.pct === 0 ? 'Rumus: part × 2' : ('Rumus: (part × 2) + ' + h.pct + '%'));
     lines.push('');
     lines.push('_Kalkulator Service HP — Project Nava_');
     return lines.join('\n');

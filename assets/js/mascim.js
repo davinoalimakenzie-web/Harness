@@ -682,16 +682,6 @@
       totJasa += j;
     });
 
-    // Kumpulkan daftar teknisi unik
-    var tekList = ['SMD', 'UDN', 'AND', 'IRF'];
-    allOrders.forEach(function (o) {
-      var t = (o.technician || o.handling || '').trim().toUpperCase();
-      if (t) {
-        var f = t.split(' ')[0];
-        if (f.length <= 6 && tekList.indexOf(f) < 0) tekList.push(f);
-      }
-    });
-
     var html = '<div class="mc-bb-view">' +
       // HEADER ATAS TERPADU (KEMBALI, JUDUL, NOTA COUNT, ROTASI, SEGAR)
       '<div class="mc-bb-topbar">' +
@@ -713,7 +703,7 @@
         '</div>' +
       '</div>' +
 
-      // FILTER BAR ATAS (SESUAI GAMBAR)
+      // FILTER BAR ATAS (SESUAI GAMBAR, TANPA TOMBOL/FILTER TEKNISI)
       '<div class="mc-bb-filter-bar">' +
         // Dari Tanggal
         '<div class="mc-bb-fcol">' +
@@ -731,17 +721,6 @@
             '<input type="checkbox" id="bbChkTo" ' + (bf.toActive ? 'checked' : '') + ' title="Aktifkan filter Sampai Tanggal">' +
             '<input type="date" id="bbInpTo" class="mc-bb-inp" value="' + esc(bf.to) + '">' +
           '</div>' +
-        '</div>' +
-
-        // Teknisi
-        '<div class="mc-bb-fcol">' +
-          '<span class="mc-bb-flbl">Teknisi</span>' +
-          '<select id="bbSelTeknisi" class="mc-bb-sel">' +
-            '<option value="">Semua</option>' +
-            tekList.map(function (tk) {
-              return '<option value="' + esc(tk) + '" ' + (bf.technician === tk ? 'selected' : '') + '>' + esc(tk) + '</option>';
-            }).join('') +
-          '</select>' +
         '</div>' +
 
         // Status
@@ -782,14 +761,13 @@
         '</div>' +
       '</div>' +
 
-      // TABEL 14 KOLOM (SESUAI GAMBAR)
+      // TABEL BUKU BESAR (SESUAI GAMBAR)
       '<div class="mc-bb-table-wrap">' +
         '<table class="mc-bb-table">' +
           '<thead>' +
             '<tr>' +
               '<th style="width:65px;">NOTA</th>' +
               '<th style="width:115px;">STATUS</th>' +
-              '<th style="width:70px;">TEKNISI</th>' +
               '<th style="width:125px;">USER</th>' +
               '<th style="width:115px;">WAUSER</th>' +
               '<th style="width:130px;">DEVICE</th>' +
@@ -806,7 +784,7 @@
           '<tbody>';
 
     if (!filtered.length) {
-      html += '<tr><td colspan="14" style="text-align:center; padding:32px 16px; color:#64748b; background:#fff; font-size:12px;">' +
+      html += '<tr><td colspan="13" style="text-align:center; padding:32px 16px; color:#64748b; background:#fff; font-size:12px;">' +
         'Tidak ada data garapan yang cocok dengan filter.<br>Gunakan tombol <b>+ INPUT</b> di Beranda untuk menambah garapan baru.' +
       '</td></tr>';
     } else {
@@ -819,10 +797,6 @@
           : (st === 'Cancel' ? 'st-cancel'
           : (st === 'Cancel Diambil' ? 'st-cambil'
           : (st === 'Return' ? 'st-return' : 'st-ngg'))))));
-
-        var tek = (o.technician || o.handling || 'SMD').trim().toUpperCase();
-        if (tek.indexOf(' ') >= 0) tek = tek.split(' ')[0];
-        if (tek.length > 5) tek = tek.slice(0, 4);
 
         var uName = (o.customerName || '-').toUpperCase();
         var wa = o.whatsapp || '-';
@@ -840,7 +814,6 @@
         return '<tr data-open="' + esc(o.id) + '">' +
           '<td style="text-align:center; font-weight:700;">' + esc(notaNum) + '</td>' +
           '<td style="text-align:center;"><span class="mc-bb-st ' + stTone + '">' + esc(o.serviceStatus) + '</span></td>' +
-          '<td style="text-align:center; font-weight:600;">' + esc(tek) + '</td>' +
           '<td>' + esc(uName) + '</td>' +
           '<td>' + esc(wa) + '</td>' +
           '<td>' + esc(dev) + '</td>' +
@@ -859,7 +832,7 @@
     html += '</tbody>' +
       '<tfoot>' +
         '<tr>' +
-          '<td colspan="8" style="text-align:right;">TOTAL DITAMPILKAN (' + filtered.length + ' NOTA):</td>' +
+          '<td colspan="7" style="text-align:right;">TOTAL DITAMPILKAN (' + filtered.length + ' NOTA):</td>' +
           '<td style="text-align:right; color:#30d97a;">' + rupiah(totBiaya) + '</td>' +
           '<td style="text-align:right; color:#ff6369;">' + rupiah(totModal) + '</td>' +
           '<td style="text-align:right; color:#38bdf8;">' + rupiah(totJasa) + '</td>' +
@@ -3988,7 +3961,6 @@
       if (e.target.id === 'bbInpFrom') { M.bbFilter.from = e.target.value; render(); }
       if (e.target.id === 'bbChkTo') { M.bbFilter.toActive = e.target.checked; render(); }
       if (e.target.id === 'bbInpTo') { M.bbFilter.to = e.target.value; render(); }
-      if (e.target.id === 'bbSelTeknisi') { M.bbFilter.technician = e.target.value; render(); }
       if (e.target.id === 'bbSelStatus') { M.bbFilter.status = e.target.value; render(); }
       if (e.target.id === 'bbSelPayment') { M.bbFilter.payment = e.target.value; render(); }
     });
