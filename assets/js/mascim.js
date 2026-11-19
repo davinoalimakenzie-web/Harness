@@ -144,7 +144,7 @@
     });
   }
   function rupiah(n) {
-    return 'Rp' + Math.round(Number(n) || 0).toLocaleString('id-ID');
+    return Math.round(Number(n) || 0).toLocaleString('id-ID');
   }
   function ringkas(n) {
     n = Math.round(Number(n) || 0);
@@ -3160,8 +3160,8 @@
       '<div class="mc-sec">Daftar sparepart <span class="mc-sec-note" id="spCount"></span></div>' +
       '<div class="mc-parts" id="spList"></div>' +
       '<div class="mc-calc">' +
-        '<div><span>Total Modal Part</span><b id="spTotal">Rp0</b></div>' +
-        '<div><span>Estimasi Jasa</span><b id="spTotalEst">Rp0</b></div>' +
+        '<div><span>Total Modal Part</span><b id="spTotal">0</b></div>' +
+        '<div><span>Estimasi Jasa</span><b id="spTotalEst">0</b></div>' +
       '</div>' +
     '</div>';
 
@@ -3585,7 +3585,7 @@
     // yang membuat nota tertahan di status Done.
     var kurang = Math.max(0, Number(o.remaining) || 0);
     var banner = kurang > 0
-      ? '<p class="mc-hint">Sisa tagihan <b class="neg">Rp' + kurang.toLocaleString('id-ID') +
+      ? '<p class="mc-hint">Sisa tagihan <b class="neg">' + kurang.toLocaleString('id-ID') +
         '</b> akan dilunasi otomatis dengan metode yang kamu pilih di bawah. ' +
         'Belum perlu mencatat pembayaran terpisah.</p>'
       : '<p class="mc-hint">Pembayaran <b class="pos">lunas</b>. Pilih garansi &amp; metode pembayaran untuk menutup nota.</p>';
@@ -3604,7 +3604,7 @@
         b.className = 'mc-primary';
         b.style.marginTop = '12px';
         b.textContent = kurang > 0
-          ? 'Lunasi Rp' + kurang.toLocaleString('id-ID') + ' & Tandai Diambil'
+          ? 'Lunasi ' + kurang.toLocaleString('id-ID') + ' & Tandai Diambil'
           : 'Selesaikan & Tandai Diambil';
         b.addEventListener('click', function () {
           var war = $('#cfWarranty') ? $('#cfWarranty').value : '';

@@ -86,9 +86,7 @@
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
   function formatIDR(n) {
-    try {
-      return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num(n));
-    } catch (e) { return 'Rp' + num(n).toLocaleString('id-ID'); }
+    return num(n).toLocaleString('id-ID');
   }
   function formatTanggal(iso) {
     if (!iso) return '-';

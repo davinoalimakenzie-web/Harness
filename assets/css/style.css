@@ -657,9 +657,10 @@ body.mitra-mode #app{ padding-top:0; }
 
 /* ---------------- List ---------------- */
 .list{ display:flex; flex-direction:column; gap:10px; }
-.list-head{ display:flex; align-items:center; justify-content:space-between;
+.list-head{ display:flex; align-items:center; justify-content:center; text-align:center;
   margin:16px 2px 10px; font-size:14px; }
-.list-head.tight{ margin:0 0 10px; }
+.list-head.tight{ margin:0 0 10px; justify-content:center; text-align:center; }
+.list-head > strong, .list-head.tight > strong{ text-align:center; }
 .empty{ text-align:center; color:var(--hint); padding:34px 16px; font-size:14px; }
 .empty b{ display:block; color:var(--text-2); font-size:15px; margin-bottom:4px; }
 
@@ -3299,7 +3300,7 @@ button, .btn, .tool, .mini-btn, .tpl-brand-btn, .k-pick-btn, .nav-btn, .seg butt
 
 /* --- judul seksi: batang aksen --- */
 .mc-sec{
-  display:flex; align-items:center; gap:8px;
+  display:flex; align-items:center; justify-content:center; gap:8px; text-align:center;
   letter-spacing:1.1px;
 }
 .mc-sec::before{

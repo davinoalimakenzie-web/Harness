@@ -1287,7 +1287,7 @@
     // alur status.
     var masihAwal = cur.serviceStatus === 'Progress';
     if (costChanged && patch.service_status == null && !masihAwal) {
-      markNggandul(cur, 'Total biaya diubah menjadi Rp' + merged.total_cost.toLocaleString('id-ID') +
+      markNggandul(cur, 'Total biaya diubah menjadi ' + merged.total_cost.toLocaleString('id-ID') +
         ' — konfirmasi status');
     } else {
       cur.serviceStatus = nextStatus;
@@ -1733,7 +1733,7 @@
         order = getOrder(orderId);
       } catch (e) {
         // Jangan sampai pembayaran gagal menutup nota dengan status setengah.
-        throw bad('Gagal melunasi sisa tagihan Rp' + order.remaining.toLocaleString('id-ID') +
+        throw bad('Gagal melunasi sisa tagihan ' + order.remaining.toLocaleString('id-ID') +
           ': ' + (e && e.message || e));
       }
     }
@@ -1783,7 +1783,7 @@
     });
     var o = db.orders.filter(function (x) { return x.id === row.orderId; })[0];
     // Pembayaran dibatalkan -> sisa tagihan berubah -> status jadi tidak pasti.
-    markNggandul(o, 'Pembayaran Rp' + row.amount.toLocaleString('id-ID') +
+    markNggandul(o, 'Pembayaran ' + row.amount.toLocaleString('id-ID') +
       ' dibatalkan, sisa tagihan berubah — konfirmasi status');
     save();
     return computeOrder(o);

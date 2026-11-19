@@ -51,7 +51,7 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
   function rupiah(n) {
-    return 'Rp' + Number(n || 0).toLocaleString('id-ID');
+    return Number(n || 0).toLocaleString('id-ID');
   }
   function tgl(iso) {
     if (!iso) return '-';

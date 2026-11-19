@@ -39,7 +39,7 @@
 
   function money(n) {
     n = Math.round(Number(n) || 0);
-    return 'Rp' + n.toLocaleString('id-ID');
+    return n.toLocaleString('id-ID');
   }
   function signedMoney(t) { return (t.type === 'in' ? '+' : '−') + money(t.amount); }
 
@@ -216,7 +216,7 @@
 
   function sheetInitial(cur) {
     bankSheet('Atur Saldo Awal Dana Bank',
-      '<label class="field"><span class="lbl">Saldo awal (Rp)</span>' +
+      '<label class="field"><span class="lbl">Saldo awal</span>' +
       '<input type="number" id="nbInit" inputmode="numeric" value="' + (cur || 0) + '"></label>' +
       '<p class="muted xs" style="margin-top:6px">Saldo awal otomatis terbagi 50% Kas Darurat & 50% Kas Sedekah. ' +
       'Isi 0 bila belum ada.</p>',
@@ -260,7 +260,7 @@
         '<button class="chip" data-kind="Bon">Bon</button></div>' +
       '<label class="field"><span class="lbl">Keterangan *</span>' +
       '<input type="text" id="nbDesc" placeholder="Contoh: Bensin antar / Bon operasional"></label>' +
-      '<label class="field"><span class="lbl">Nominal (Rp) *</span>' +
+      '<label class="field"><span class="lbl">Nominal *</span>' +
       '<input type="number" id="nbAmt" inputmode="numeric" placeholder="0"></label>' +
       '<label class="field"><span class="lbl">Tanggal</span>' +
       '<input id="nbDate" type="date" value="' + S.todayStr() + '"></label>',
@@ -309,7 +309,7 @@
       '</div>' +
       '<label class="field"><span class="lbl">Keterangan Penyaluran / Keperluan *</span>' +
       '<input type="text" id="nbSDHDesc" placeholder="Contoh: Sedekah Jumat / Santunan"></label>' +
-      '<label class="field"><span class="lbl">Nominal (Rp) *</span>' +
+      '<label class="field"><span class="lbl">Nominal *</span>' +
       '<input type="number" id="nbSDHAmt" inputmode="numeric" placeholder="0"></label>' +
       '<label class="field"><span class="lbl">Tanggal</span>' +
       '<input id="nbSDHDate" type="date" value="' + S.todayStr() + '"></label>' +
@@ -445,7 +445,7 @@
         '<svg class="donut" viewBox="0 0 120 120">' + segs +
         '<text x="60" y="58" class="donut-center-txt" text-anchor="middle">Total</text>' +
         '<text x="60" y="74" text-anchor="middle" style="font-size:12px;font-weight:700;fill:var(--text)">' +
-        esc(money(totalOut).replace('Rp', '')) + '</text></svg>' +
+        esc(money(totalOut)) + '</text></svg>' +
         '<div class="donut-legend">' + outs.slice(0, 6).map(function (c, i) {
           var label = c.sub ? c.sub : c.group;
           return '<div class="dl-row"><span class="dl-dot" style="background:' +
@@ -540,14 +540,14 @@
      ========================================================= */
   function renderRecap() {
     var s = Tx.summary({ from: recapYM + '-01', to: recapYM + '-31' });
+    var allSum = Tx.summary();
     var rLabel = $('#rLabel'); if (rLabel) rLabel.textContent = S.monthLabel(recapYM);
-    var rCount = $('#rCount'); if (rCount) rCount.textContent = s.count + ' transaksi';
     var rIn = $('#rIn'); if (rIn) rIn.textContent = money(s.in);
     var rOut = $('#rOut'); if (rOut) rOut.textContent = money(s.out);
     var net = $('#rNet');
     if (net) {
-      net.textContent = money(s.net);
-      net.style.color = s.net >= 0 ? 'var(--success)' : 'var(--danger)';
+      net.textContent = money(allSum.net);
+      net.style.color = allSum.net >= 0 ? 'var(--success)' : 'var(--danger)';
     }
 
     // Donut & rincian kategori pengeluaran bulan yang dipilih di tab Rekap
@@ -575,8 +575,6 @@
     var monthEntries = allEntries.filter(function (e) {
       return (e.date || '').slice(0, 7) === bankYM;
     });
-
-    var vbCount = $('#vbCount'); if (vbCount) vbCount.textContent = monthEntries.length + ' transaksi';
 
     var availEl = $('#vbAvail');
     if (availEl) {
@@ -691,7 +689,7 @@
     var v = amountValue();
     el.disp.classList.remove('in', 'out');
     el.disp.classList.add(type);
-    el.disp.textContent = v > 0 ? money(v) : 'Rp0';
+    el.disp.textContent = v > 0 ? money(v) : '0';
     var hint = el.hint;
     if (v > 0) {
       hint.textContent = editingId ? 'Ubah nominal lalu tekan ✓' : 'Tekan ✓ untuk menyimpan';

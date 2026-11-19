@@ -327,7 +327,7 @@
   }
   function money(n) {
     n = Math.round(Number(n) || 0);
-    return 'Rp' + n.toLocaleString('id-ID');
+    return n.toLocaleString('id-ID');
   }
   function ruleById(id) {
     for (var i = 0; i < RULES.length; i++) if (RULES[i].id === id) return RULES[i];

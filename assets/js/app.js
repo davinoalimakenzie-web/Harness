@@ -234,7 +234,7 @@
       '<label class="field mt"><span class="lbl">Jenis akun</span>',
       '<select id="accType"><option value="cash">Tunai</option><option value="bank">Rekening</option>' +
       '<option value="card">Kartu debit/kredit</option><option value="ewallet">E-Wallet</option></select></label>',
-      '<label class="field"><span class="lbl">Saldo awal (Rp)</span>',
+      '<label class="field"><span class="lbl">Saldo awal</span>',
       '<input type="number" id="accOpening" inputmode="numeric" min="0" step="1000" value="0"></label>',
       '<button id="accSave" class="btn primary block">Simpan akun</button>'
     ].join(''));

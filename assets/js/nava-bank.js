@@ -651,7 +651,7 @@
       String(t.getDate()).padStart(2, '0');
   }
   function fmtIDR(n) {
-    return 'Rp' + String(Math.round(Number(n) || 0))
+    return String(Math.round(Number(n) || 0))
       .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   }
 
@@ -725,7 +725,7 @@
     var detail = d.entries.filter(function (e) {
       return e.kind !== 'wajib' && e.moneyOut > 0;
     }).map(function (e) {
-      return e.description || ('Rp ' + fmtIDR(e.moneyOut));
+      return e.description || fmtIDR(e.moneyOut);
     }).slice(0, 5).join('; ');
 
     var payload = {
@@ -735,7 +735,7 @@
       amount: due,
       date: today,
       note: 'Pelunasan DanaBank ' + ym +
-        ' — Settlement nominal Rp ' + fmtIDR(due) + (detail ? ' — ' + detail : '')
+        ' — Settlement nominal ' + fmtIDR(due) + (detail ? ' — ' + detail : '')
     };
     var r = S.Tx.create(payload, 'dana-bank-settle:' + ym);
     d.pelunasanBulanan[ym] = { amount: due, at: today };
