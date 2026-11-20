@@ -98,6 +98,10 @@
   var LOCK_TYPES = L.LOCK_TYPES || ['Tanpa Kunci', 'PIN', 'Password'];
   // Sparepart selalu memakai Dana Bank, jadi tidak ada pilihan sumber dana.
 
+  var isNggandulStatus = (L && L.isNggandulStatus) || function (s) {
+    return ['Progress', 'Done', 'Cancel', 'Return'].indexOf(s) >= 0;
+  };
+
   // Pilihan status yang VALID saat mengubah status (dropdown konteks).
   // Dibaca dari mesin data supaya aturan UI dan aturan penyimpanan tidak
   // pernah berbeda: hanya status yang masuk akal secara bisnis yang ditawarkan.
@@ -184,43 +188,57 @@
     if (forceRotate !== undefined) {
       M.bbRotated = !!forceRotate;
       M.bbRotatedAuto = false;
-    } else {
-      // PERBAIKAN BUG LANDSCAPE:
-      // Tampilan Buku Besar default selalu potret tegak normal mengikuti orientasi HP,
-      // jangan pernah otomatis memutar atau merotasi layar ke landscape.
-      M.bbRotated = false;
-      M.bbRotatedAuto = false;
+    } else if (M.bbRotatedAuto !== false) {
+      var isPortrait = window.innerHeight > window.innerWidth;
+      M.bbRotated = isPortrait;
     }
-    document.body.classList.remove('mc-bb-rotated-css');
+    if (M.bbRotated) {
+      document.body.classList.add('mc-bb-rotated-css');
+    } else {
+      document.body.classList.remove('mc-bb-rotated-css');
+    }
     var btnRot = document.getElementById('bbBtnRotate');
     if (btnRot) {
-      btnRot.style.display = 'none';
+      btnRot.style.display = 'inline-flex';
+      btnRot.innerHTML = '🔄 ' + (M.bbRotated ? 'POTRET' : 'LANSKAP');
     }
   }
 
   function enterLandscape() {
-    // Mode Buku Besar: aktifkan view Buku Besar dengan orientasi normal (tegak potret)
+    // Mode Buku Besar: aktifkan view Buku Besar Fullscreen Lanskap
     document.body.classList.add('mc-bb-active');
-    document.body.classList.remove('mc-bb-rotated-css');
     var mc = document.getElementById('mc');
-    if (mc) {
-      mc.classList.add('mc-landscape');
-      mc.classList.remove('mc-bb-rotated');
-    }
-    M.bbRotated = false;
-    M.bbRotatedAuto = false;
+    if (mc) mc.classList.add('mc-landscape');
 
-    // Pastikan orientasi tidak terkunci ke landscape
+    // Pastikan fullscreen tanpa ada elemen yang menghalangi
     try {
-      if (window.screen && window.screen.orientation && window.screen.orientation.unlock) {
-        window.screen.orientation.unlock();
+      if (window.Telegram && window.Telegram.WebApp) {
+        if (window.Telegram.WebApp.expand) window.Telegram.WebApp.expand();
+        if (window.Telegram.WebApp.requestFullscreen) window.Telegram.WebApp.requestFullscreen();
+        if (window.Telegram.WebApp.disableVerticalSwipes) window.Telegram.WebApp.disableVerticalSwipes();
+        if (window.Telegram.WebApp.lockOrientation) {
+          window.Telegram.WebApp.lockOrientation();
+        }
+      }
+    } catch (eTg) {}
+
+    try {
+      if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
+        window.screen.orientation.lock('landscape').catch(function () {});
       }
     } catch (e) {}
-    try {
-      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.unlockOrientation) {
-        window.Telegram.WebApp.unlockOrientation();
-      }
-    } catch (e2) {}
+
+    updateBBOrientation();
+
+    if (!_bbResizeHandler) {
+      _bbResizeHandler = function () {
+        if (M.view === 'list') {
+          updateBBOrientation();
+        }
+      };
+      window.addEventListener('resize', _bbResizeHandler);
+      window.addEventListener('orientationchange', _bbResizeHandler);
+    }
   }
 
   function exitLandscape() {
@@ -241,15 +259,18 @@
     }
 
     try {
+      if (window.Telegram && window.Telegram.WebApp) {
+        if (window.Telegram.WebApp.enableVerticalSwipes) window.Telegram.WebApp.enableVerticalSwipes();
+        if (window.Telegram.WebApp.exitFullscreen) window.Telegram.WebApp.exitFullscreen();
+        if (window.Telegram.WebApp.unlockOrientation) window.Telegram.WebApp.unlockOrientation();
+      }
+    } catch (eTg) {}
+
+    try {
       if (window.screen && window.screen.orientation && window.screen.orientation.unlock) {
         window.screen.orientation.unlock();
       }
     } catch (e) {}
-    try {
-      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.unlockOrientation) {
-        window.Telegram.WebApp.unlockOrientation();
-      }
-    } catch (e2) {}
   }
 
   function render() {
@@ -288,7 +309,7 @@
         '<div class="mc-nggwrap">' + nggantungCard(d) + '</div>' +
 
         '<div class="mc-nav">' +
-          '<button data-mv="list"><b>Buku Besar</b><span>Daftar &amp; pencarian</span></button>' +
+          '<button data-mv="list" data-status=""><b>Buku Besar</b><span>Daftar &amp; pencarian</span></button>' +
           '<button class="mc-nav-input" data-mv="form"><b>+&nbsp; Input</b><span>Tambah servis</span></button>' +
           '<button data-mv="money"><b>Cashflow</b><span>Arus kas</span></button>' +
         '</div>' +
@@ -491,16 +512,16 @@
   */
   function nggantungCard(d) {
     var total = d.nggantung || 0;
-    return '<button class="mc-nggcnt' + (total ? ' on' : '') + '" data-mv="list" data-status="Nggandul"' +
-      ' aria-label="Nggandul: ' + total + ' nota">' +
-      '<div class="mc-nggcnt-l"><b>' + total + '</b><span>Nggandul</span>' +
+    return '<div class="mc-nggcnt' + (total ? ' on' : '') + '" data-mv="list" data-status="Nggandul"' +
+      ' role="button" aria-label="Nggandul: ' + total + ' nota">' +
+      '<div class="mc-nggcnt-l" data-mv="list" data-status="Nggandul"><b>' + total + '</b><span>Nggandul</span>' +
         '<em>Total garapan yang masih Progress, Cancel, atau Done</em></div>' +
       '<div class="mc-nggcnt-r">' +
-        '<span>Progress ' + (d.proses || 0) + '</span>' +
-        '<span>Done ' + (d.selesai || 0) + '</span>' +
-        '<span>Cancel ' + (d.cancel || 0) + '</span>' +
+        '<span class="mc-ngg-sub" data-mv="list" data-status="Progress">Progress ' + (d.proses || 0) + '</span>' +
+        '<span class="mc-ngg-sub" data-mv="list" data-status="Done">Done ' + (d.selesai || 0) + '</span>' +
+        '<span class="mc-ngg-sub" data-mv="list" data-status="Cancel">Cancel ' + (d.cancel || 0) + '</span>' +
       '</div>' +
-    '</button>';
+    '</div>';
   }
 
   // Catatan: kartu Dana Bank TIDAK lagi ada di Beranda modul ini. Dana Bank
@@ -3962,7 +3983,21 @@
         // filter lama tidak pernah bisa dilepas dari layar.
         if ('status' in t.dataset) {
           M.status = t.dataset.status || '';
-          if (M.bbFilter) {
+          var tNow = new Date();
+          var todayStr = tNow.toISOString().slice(0, 10);
+          var firstDayStr = todayStr.slice(0, 8) + '01';
+          if (!M.bbFilter) {
+            M.bbFilter = {
+              fromActive: !M.status,
+              from: firstDayStr,
+              toActive: !M.status,
+              to: todayStr,
+              technician: '',
+              status: M.status,
+              payment: '',
+              noteNo: ''
+            };
+          } else {
             M.bbFilter.status = M.status;
             if (M.status) {
               M.bbFilter.fromActive = false;
@@ -4034,7 +4069,7 @@
       if (e.target.id === 'bbInpFrom') { M.bbFilter.from = e.target.value; render(); }
       if (e.target.id === 'bbChkTo') { M.bbFilter.toActive = e.target.checked; render(); }
       if (e.target.id === 'bbInpTo') { M.bbFilter.to = e.target.value; render(); }
-      if (e.target.id === 'bbSelStatus') { M.bbFilter.status = e.target.value; render(); }
+      if (e.target.id === 'bbSelStatus') { M.bbFilter.status = e.target.value; M.status = e.target.value; render(); }
       if (e.target.id === 'bbSelPayment') { M.bbFilter.payment = e.target.value; render(); }
     });
 

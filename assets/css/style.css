@@ -2081,8 +2081,15 @@ select.mc-inp{ appearance:none; }
 .mc-nggcnt.on .mc-nggcnt-l b { color: #a371f7; }  /* ungu */
 .mc-nggcnt-l span { font-size: 12px; font-weight: 600; }
 .mc-nggcnt-l em { font-size: 10px; font-style: normal; opacity: .6; max-width: 46vw; }
-.mc-nggcnt-r { display: flex; flex-direction: column; gap: 3px; text-align: right; }
-.mc-nggcnt-r span { font-size: 10.5px; opacity: .75; white-space: nowrap; }
+.mc-nggcnt-r { display: flex; flex-direction: column; gap: 4px; text-align: right; }
+.mc-nggcnt-r span, .mc-nggcnt-r .mc-ngg-sub {
+  font-size: 11px; opacity: .85; white-space: nowrap; cursor: pointer;
+  padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1); transition: all .15s ease;
+}
+.mc-nggcnt-r .mc-ngg-sub:hover, .mc-nggcnt-r .mc-ngg-sub:active {
+  background: rgba(163,113,247,.28); border-color: #a371f7; opacity: 1; transform: scale(.97);
+}
 
 /* ---------- Kartu Dana Bank ---------- */
 .mc-bank {
@@ -3891,13 +3898,23 @@ body.fx-kalk{ min-height:100vh; }
 body.mc-bb-active .tabbar,
 body.mc-bb-active #btnPlus,
 body.mc-bb-active .topbar,
-body.mc-bb-active #fabContainer {
+body.mc-bb-active #fabContainer,
+body.mc-bb-active #undoBar,
+body.mc-bb-active #recBar {
   display: none !important;
 }
 
 body.mc-bb-active {
   overflow: hidden !important;
   background: #080c1d !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  max-height: 100dvh !important;
 }
 
 body.mc-bb-active #mc {
@@ -3911,10 +3928,13 @@ body.mc-bb-active #mc {
   height: 100vh !important;
   height: 100dvh !important;
   max-width: 100vw !important;
+  max-height: 100vh !important;
+  max-height: 100dvh !important;
   margin: 0 !important;
   padding: 0 !important;
+  border: none !important;
   border-radius: 0 !important;
-  z-index: 999999 !important;
+  z-index: 9999999 !important;
   background: #080c1d !important;
   display: flex !important;
   flex-direction: column !important;
@@ -3930,6 +3950,8 @@ body.mc-bb-active #mcScreen {
   flex: 1 1 100% !important;
   height: 100% !important;
   max-height: 100% !important;
+  width: 100% !important;
+  max-width: 100% !important;
   overflow: hidden !important;
   display: flex !important;
   flex-direction: column !important;
@@ -3937,16 +3959,21 @@ body.mc-bb-active #mcScreen {
   margin: 0 !important;
 }
 
-/* Mode Buku Besar: tampilan normal responsif tegak / portrait */
+/* Rotasi Visual 90° ketika layar fisik HP posisi Potret (Lanskap Penuh Otomatis) */
 body.mc-bb-active.mc-bb-rotated-css #mc {
-  /* Hilangkan paksaan rotasi 90 derajat agar tidak berputar miring */
-  transform: none !important;
-  position: static !important;
-  width: 100% !important;
-  height: 100% !important;
-  max-width: 100% !important;
-  left: 0 !important;
-  overflow: visible !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 100vw !important;
+  width: 100vh !important;
+  width: 100dvh !important;
+  height: 100vw !important;
+  max-width: 100vh !important;
+  max-width: 100dvh !important;
+  max-height: 100vw !important;
+  transform: rotate(90deg) !important;
+  transform-origin: top left !important;
+  overflow: hidden !important;
+  z-index: 9999999 !important;
 }
 
 .mc.mc-landscape {
