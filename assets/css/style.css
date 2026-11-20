@@ -1130,7 +1130,7 @@ button.item .item-sub{ margin-top:3px; }
 .tx-note-row input{ font-size:14px; padding:9px 12px; }
 .tx-err{ margin:0 14px 8px; font-size:12.5px; }
 
-/* ---------- Keypad Baru (Gaya Kalkulator Modern Sesuai Gambar) ---------- */
+/* ---------- Keypad Baru (Gaya Kalkulator Modern: Merah untuk Pengeluaran, Hijau untuk Pemasukan) ---------- */
 .keypad{
   display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
   background:#27272a; border-top:1px solid #27272a;
@@ -1140,22 +1140,117 @@ button.item .item-sub{ margin-top:3px; }
   border:0; background:#18181b; color:#22c55e;
   font-size:26px; font-weight:500; padding:0; cursor:pointer;
   height:62px; display:grid; place-items:center;
-  transition:background .1s ease, transform .05s ease;
+  transition:background .1s ease, transform .05s ease, color .15s ease;
 }
 .key:active{ background:#27272a; }
 .key-fn{ font-weight:700; font-size:26px; }
 .key-op{ font-size:28px; font-weight:500; }
 .key-del{ display:grid; place-items:center; }
-.key-del-svg{ width:26px; height:26px; stroke:#22c55e; }
-.key-ok{
+.key-del-svg{ width:26px; height:26px; stroke:#22c55e; transition:stroke .15s ease; }
+
+/* Dinamis Pengeluaran (Merah) */
+.keypad.out .key{ color:#ef4444; }
+.keypad.out .key-del-svg{ stroke:#ef4444; }
+
+/* Dinamis Pemasukan (Hijau) */
+.keypad.in .key,
+.keypad:not(.out) .key{ color:#22c55e; }
+.keypad.in .key-del-svg,
+.keypad:not(.out) .key-del-svg{ stroke:#22c55e; }
+
+/* Tombol OK (biru panah) selalu biru terang solid */
+.keypad .key-ok{
   grid-column:4; grid-row:4 / span 2;
   height:100%; min-height:124px;
-  background:#0ea5e9; color:#ffffff;
+  background:#0ea5e9 !important; color:#ffffff !important;
   border-radius:0; display:grid; place-items:center;
 }
-.key-ok:active{ background:#0284c7; }
-.key-ok:disabled{ opacity:.4; cursor:default; }
-.key-arrow-svg{ width:30px; height:30px; stroke:#ffffff; }
+.keypad .key-ok:active{ background:#0284c7 !important; }
+.keypad .key-ok:disabled{ opacity:.4; cursor:default; }
+.key-arrow-svg{ width:30px; height:30px; stroke:#ffffff !important; }
+
+/* ---------- Pool Sementara Tambah Transaksi ---------- */
+.tx-pool-action-row{
+  display:flex; gap:8px; align-items:center; margin-top:2px; margin-bottom:4px;
+}
+.btn-tx-pool-add{
+  flex:1; height:42px; border-radius:12px; font-size:13px; font-weight:700;
+  background:rgba(14,165,233,.12); color:#0ea5e9; border:1px dashed #0ea5e9;
+  display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer;
+  transition:all .12s ease;
+}
+.btn-tx-pool-add:active{ transform:scale(.98); background:rgba(14,165,233,.22); }
+
+.tx-pool-card{
+  background:var(--bg-elev); border:1px solid var(--line); border-radius:14px;
+  padding:10px 12px; margin:4px 0 8px; display:flex; flex-direction:column; gap:8px;
+}
+.tx-pool-head{
+  display:flex; justify-content:space-between; align-items:center; font-size:12px;
+}
+.tx-pool-title{ font-weight:750; color:var(--text); display:flex; align-items:center; gap:6px; }
+.tx-pool-badge{
+  font-size:11px; font-weight:700; padding:2px 7px; border-radius:8px;
+  background:#0ea5e9; color:#fff;
+}
+.tx-pool-list{
+  display:flex; flex-direction:column; gap:6px; max-height:140px; overflow-y:auto;
+}
+.tx-pool-item{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:7px 9px; background:var(--tap); border-radius:10px; font-size:12px;
+}
+.tx-pool-item-info{ flex:1; min-width:0; }
+.tx-pool-item-top{ display:flex; align-items:center; gap:6px; margin-bottom:2px; }
+.tx-pool-tag{
+  font-size:10px; font-weight:800; text-transform:uppercase; padding:1.5px 5px; border-radius:5px;
+}
+.tx-pool-tag.out{ background:rgba(239,68,68,.18); color:#ef4444; }
+.tx-pool-tag.in{ background:rgba(34,197,94,.18); color:#22c55e; }
+.tx-pool-cat{ font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tx-pool-note{ color:var(--text-2); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tx-pool-item-right{ display:flex; align-items:center; gap:8px; flex:none; }
+.tx-pool-item-amt{ font-weight:800; font-size:13px; }
+.tx-pool-item-amt.out{ color:#ef4444; }
+.tx-pool-item-amt.in{ color:#22c55e; }
+.tx-pool-del{
+  background:none; border:none; color:var(--text-3); font-size:15px; cursor:pointer;
+  padding:4px 6px; border-radius:6px; line-height:1;
+}
+.tx-pool-del:hover{ color:#ef4444; background:rgba(239,68,68,.12); }
+.tx-pool-foot{
+  display:flex; justify-content:space-between; align-items:center;
+  padding-top:6px; border-top:1px dashed var(--line); font-size:12px; font-weight:600;
+}
+.btn-tx-pool-submit{
+  width:100%; height:42px; border-radius:11px; font-size:13.5px; font-weight:800;
+  background:#0ea5e9; color:#fff; border:none; cursor:pointer; margin-top:2px;
+}
+.btn-tx-pool-submit:active{ transform:scale(.98); filter:brightness(.92); }
+
+/* Container Box Draft Tampungan Garapan Ronce */
+.rj-draft-box{
+  background:var(--bg-elev); border:1px solid var(--line); border-radius:14px;
+  padding:12px; margin-top:12px;
+}
+.rj-draft-head{
+  display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;
+}
+.rj-draft-badge{
+  font-size:11px; font-weight:700; padding:2px 8px; border-radius:8px;
+  background:#0ea5e9; color:#fff;
+}
+.rj-draft-total{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 0; margin-top:6px; border-top:1px dashed var(--line);
+  font-size:13px; font-weight:700;
+}
+.btn-rj-submit-all{
+  width:100%; height:44px; border-radius:12px; font-size:14px; font-weight:800;
+  background:#0ea5e9; color:#fff; border:none; cursor:pointer; margin-top:6px;
+  box-shadow:0 3px 10px rgba(14,165,233,.3);
+}
+.btn-rj-submit-all:active{ transform:scale(.985); }
 
 /* ---------- Donut chart (Rekap) ---------- */
 .donut-wrap{ display:flex; align-items:center; gap:16px; margin:6px 0 12px; }

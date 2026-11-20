@@ -1211,8 +1211,8 @@
 
   function submitGarapan() {
     var serviceId = ($('#rjGarapan') || {}).value || '';
-    var qtyVal = ($('#rjQty') || {}).value;
-    var qty = num(qtyVal) || 1;
+    var rawQty = ($('#rjQty') || {}).value || '';
+    var qty = (w.smartCalc ? w.smartCalc(rawQty) : num(rawQty)) || 1;
     var mitraId = ($('#rjMitra') || {}).value || '';
     var tgl = ($('#rjTanggal') || {}).value || hariIni();
     var catatan = (($('#rjCatatan') || {}).value || '').trim();
@@ -1254,6 +1254,7 @@
     var cEl = $('#rjCatatan'); if (cEl) cEl.value = '';
     qtyTerakhir = qty;
 
+    renderDraft();
     renderInput();
     renderRekap();
   }
@@ -1270,6 +1271,7 @@
       inpTgl.value = hariIni();
     }
     updateTanggalLabel();
+    renderDraft();
   }
 
   function hapusTask(id) {
@@ -1852,94 +1854,144 @@
   var isSubmittingKirim = false;
   var isSubmittingPribadi = false;
 
-  /* Tambah garapan ke tampungan sementara (draft) sebelum dikirim ke mitra. */
+  /* Tambah garapan ke tampungan sementara (pool draft) sebelum disubmit.
+     Mendukung beda jenis garapan dan beda Mitra lebih dari satu. */
   function tambahDraftJob() {
     if (isSubmittingDraft) return;
     isSubmittingDraft = true;
     try {
       var serviceId = ($('#rjGarapan') || {}).value || '';
-      var quantity = ($('#rjQty') || {}).value || '';
+      var rawQty = ($('#rjQty') || {}).value || '';
+      var qtyNum = (w.smartCalc ? w.smartCalc(rawQty) : num(rawQty)) || 0;
+      var mitraId = ($('#rjMitra') || {}).value || '';
+      var tgl = ($('#rjTanggal') || {}).value || hariIni();
+      var catatan = (($('#rjCatatan') || {}).value || '').trim();
+
       if (!serviceId) { w.App.toast('Pilih jenis garapan!'); return; }
-      if (num(quantity) <= 0) { w.App.toast('Jumlah minimal 1!'); return; }
-      var qtyNum = num(quantity);
+      if (qtyNum <= 0) { w.App.toast('Jumlah minimal 1!'); return; }
+      if (!mitraId) { w.App.toast('Pilih pekerja (Mitra atau Owner) dulu!'); return; }
+
       var fee = feeOtomatis(serviceId, qtyNum);
       if (!fee) { w.App.toast('Jenis garapan belum aktif atau belum ada harganya'); return; }
+
+      var u = cariMitra(mitraId);
+      if (!u) { w.App.toast('Pekerja tidak valid!'); return; }
+
+      var isOwner = (u.role === 'owner');
 
       draftJobs.push({
         serviceId: serviceId,
         quantity: qtyNum,
-        deliveryFee: fee
+        deliveryFee: fee,
+        employeeId: u.id,
+        employeeName: u.name,
+        isOwner: isOwner,
+        date: tgl,
+        note: catatan
       });
       qtyTerakhir = qtyNum;
       var q = $('#rjQty'); if (q) q.value = '';
-      w.App.toast('Garapan ditambahkan ke tampungan');
+      w.App.toast('Garapan dimasukkan ke pool sementara (' + draftJobs.length + ')');
       renderDraft();
     } finally {
       setTimeout(function () { isSubmittingDraft = false; }, 300);
     }
   }
 
-  /* Hapus garapan dari tampungan sementara. */
+  /* Hapus garapan dari pool sementara. */
   function hapusDraftJob(idx) {
-    draftJobs.splice(idx, 1);
-    renderDraft();
+    if (idx >= 0 && idx < draftJobs.length) {
+      draftJobs.splice(idx, 1);
+      renderDraft();
+    }
   }
 
-  /* Render daftar tampungan sementara garapan. */
+  /* Render daftar pool sementara garapan. */
   function renderDraft() {
+    var box = $('#rjDraftBox');
     var list = $('#rjDraftList');
-    if (!list) return;
+    var badge = $('#rjDraftCount');
+    var totalJasaEl = $('#rjDraftTotalJasa');
+    if (!box || !list) return;
+
     if (!draftJobs.length) {
-      list.innerHTML = '<div class="empty">Belum ada garapan. Tambahkan garapan dulu, lalu kirim.</div>';
+      box.classList.add('hidden');
+      list.innerHTML = '';
+      if (badge) badge.textContent = '0 Garapan';
+      if (totalJasaEl) totalJasaEl.textContent = 'Rp0';
       return;
     }
+
+    box.classList.remove('hidden');
+    if (badge) badge.textContent = draftJobs.length + ' Garapan';
+
+    var totalJasa = 0;
     list.innerHTML = draftJobs.map(function (d, i) {
-      return '<div class="rj-draft">'
-        + '<div class="rj-draft-info">'
-        + '<div class="rj-draft-name">' + esc(namaGarapan(d.serviceId)) + ' x' + d.quantity + '</div>'
-        + '<div class="rj-draft-sub">Jasa: ' + formatIDR(d.deliveryFee) + '</div>'
+      totalJasa += (d.deliveryFee || 0);
+      var pekerjaBadge = d.isOwner
+        ? '<span class="tag" style="font-size:10px;padding:1px 5px;">Owner</span>'
+        : '<span class="tag ok" style="font-size:10px;padding:1px 5px;">' + esc(d.employeeName) + '</span>';
+      return '<div class="item" style="padding:8px 10px;margin-bottom:6px;border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;">'
+        + '<div class="item-body" style="flex:1;min-width:0;">'
+        +   '<div class="item-title" style="font-size:13px;font-weight:700;">' + esc(namaGarapan(d.serviceId)) + ' <span class="text-accent">×' + d.quantity + '</span></div>'
+        +   '<div class="item-sub" style="font-size:11px;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+        +     pekerjaBadge
+        +     '<span>' + esc(d.date) + '</span> &middot; '
+        +     '<b>' + formatIDR(d.deliveryFee) + '</b>'
+        +     (d.note ? ' &middot; <i>' + esc(d.note) + '</i>' : '')
+        +   '</div>'
         + '</div>'
-        + '<button type="button" class="rj-draft-del" data-draft-del="' + i + '" title="Hapus">&times;</button>'
+        + '<button type="button" class="mini-btn danger" data-draft-del="' + i + '" title="Hapus" style="padding:4px 8px;font-size:12px;cursor:pointer;">Hapus</button>'
         + '</div>';
     }).join('');
+
+    if (totalJasaEl) totalJasaEl.textContent = formatIDR(totalJasa);
   }
 
-  /* Kirim semua garapan di tampungan ke mitra atau owner. */
-  function kirimDraftJobs() {
+  /* Submit semua garapan di pool sementara ke Rekap. */
+  function submitPoolGarapan() {
     if (isSubmittingKirim) return;
-    if (!draftJobs.length) { w.App.toast('Tampungan kosong!'); return; }
-    var employeeId = ($('#rjMitra') || {}).value || '';
-    var catatan = (($('#rjCatatan') || {}).value || '').trim();
-    if (!employeeId) { w.App.toast('Pilih mitra dulu!'); return; }
-    var u = cariMitra(employeeId);
-    if (!u) { w.App.toast('Data mitra tidak ditemukan!'); return; }
+    if (!draftJobs.length) { w.App.toast('Tampungan pool kosong!'); return; }
 
     isSubmittingKirim = true;
     try {
-      var isPribadi = (u.role === 'owner');
       var count = 0;
       draftJobs.forEach(function (d) {
-        data.tasks.unshift({
-          id: uid(), employeeId: employeeId, employeeName: u.name,
-          serviceId: d.serviceId, quantity: d.quantity,
+        var isOwner = !!d.isOwner;
+        var taskBaru = {
+          id: uid(),
+          employeeId: d.employeeId,
+          employeeName: d.employeeName,
+          serviceId: d.serviceId,
+          quantity: d.quantity,
           deliveryFee: d.deliveryFee || feeOtomatis(d.serviceId, d.quantity),
-          date: hariIni(), note: catatan, status: 'terkirim',
-          pribadi: isPribadi,
+          date: d.date || hariIni(),
+          note: d.note || '',
+          status: 'pending',
+          isLunas: false,
+          pribadi: isOwner,
           createdAt: new Date().toISOString()
-        });
+        };
+        data.tasks.unshift(taskBaru);
         count++;
       });
-      catat(count + ' garapan ' + (isPribadi ? 'pribadi dicatat' : ('dikirim ke ' + u.name)));
+      catat(count + ' garapan dari pool disubmit ke Rekap');
       simpan();
-      w.App.toast(count + ' garapan ' + (isPribadi ? 'pribadi tercatat' : ('terkirim ke ' + u.name)));
       draftJobs = [];
+      w.App.toast(count + ' garapan dari pool berhasil disubmit & masuk tab Rekap!');
       var c = $('#rjCatatan'); if (c) c.value = '';
       var q = $('#rjQty'); if (q) q.value = '';
       renderDraft();
       renderInput();
+      renderRekap();
     } finally {
       setTimeout(function () { isSubmittingKirim = false; }, 350);
     }
+  }
+
+  /* Alias kirimDraftJobs untuk backward compatibility */
+  function kirimDraftJobs() {
+    submitPoolGarapan();
   }
 
   /* ---------------- Tugas PRIBADI (owner mengerjakan sendiri) ----------------
@@ -2525,6 +2577,16 @@
     /* Sinkronisasi data Ronce antar perangkat (owner <-> HP mitra). */
     try { if (w.RonceSync && w.RonceSync.mulai) w.RonceSync.mulai(); } catch (e) {}
 
+    var rjQtyEl = $('#rjQty');
+    if (rjQtyEl) {
+      rjQtyEl.addEventListener('blur', function () {
+        if (/[+\-*/×÷−]/.test(this.value)) {
+          var val = (w.smartCalc ? w.smartCalc(this.value) : num(this.value)) || 0;
+          if (val > 0) this.value = val;
+        }
+      });
+    }
+
     // Login: pilih user
     document.addEventListener('click', function (e) {
       var btn = e.target.closest('[data-ruser]');
@@ -2558,6 +2620,22 @@
 
     // Input tab & Modal Pelunasan & Modal Deposit — event delegation
     document.addEventListener('click', function (e) {
+      // Tombol Tambah ke Pool (Tab Input)
+      var btnAddPool = e.target.closest('#rjTambahPool');
+      if (btnAddPool) { tambahDraftJob(); return; }
+
+      // Tombol Submit Semua Garapan di Pool (Tab Input)
+      var btnSubPool = e.target.closest('#rjSubmitPool');
+      if (btnSubPool) { submitPoolGarapan(); return; }
+
+      // Hapus Item dari Pool Sementara (Tab Input)
+      var delDraft = e.target.closest('[data-draft-del]');
+      if (delDraft) {
+        var dIdx = parseInt(delDraft.dataset.draftDel, 10);
+        hapusDraftJob(dIdx);
+        return;
+      }
+
       // Tombol Submit Garapan (Tab Input)
       var sub = e.target.closest('#rjSubmit');
       if (sub) { submitGarapan(); return; }

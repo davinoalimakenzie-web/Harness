@@ -342,11 +342,19 @@
   }
 
   /* ---------------- Input ---------------- */
-  /* Terima "150000", "150.000", "150,000" jadi angka 150000. */
+  /* Terima "150000", "150.000", "150,000", serta ekspresi aritmatika kalkulator ("120000+15000", "50000*2"). */
   function parsePart(raw) {
-    var s = String(raw == null ? '' : raw).replace(/[^\d]/g, '');
+    if (raw == null) return 0;
+    if (typeof raw === 'number') return isFinite(raw) ? Math.max(0, Math.round(raw)) : 0;
+    var s = String(raw).trim();
     if (!s) return 0;
-    return parseInt(s, 10) || 0;
+    if (/[+\-*/×÷−]/.test(s)) {
+      if (w.smartCalc) return w.smartCalc(s);
+      if (w.Store && w.Store.smartCalc) return w.Store.smartCalc(s);
+    }
+    var digits = s.replace(/[^\d]/g, '');
+    if (!digits) return 0;
+    return parseInt(digits, 10) || 0;
   }
 
   /* ---------------- Perhitungan ----------------
@@ -972,6 +980,13 @@
     }
 
     el.kPart.addEventListener('input', renderOut);
+    el.kPart.addEventListener('blur', function () {
+      if (/[+\-*/×÷−]/.test(this.value)) {
+        var computed = parsePart(this.value);
+        if (computed > 0) this.value = computed;
+        renderOut();
+      }
+    });
     el.kName.addEventListener('input', function () { if (seriesId === CUSTOM_SERIES) renderOut(); });
 
     /* Pencarian lokal: kolom seri manual ("Lainnya…") dan kolom edit seri

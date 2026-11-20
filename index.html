@@ -196,6 +196,28 @@
         <label for="txNote">Keterangan</label>
         <input type="text" id="txNote" maxlength="200" placeholder="Contoh: belanja bulanan">
       </div>
+
+      <!-- Tombol & Card Pool Transaksi Sementara (Bisa beda jenis transaksi & disimpan bersamaan) -->
+      <div class="tx-pool-action-row">
+        <button type="button" class="btn-tx-pool-add" id="btnTxAddPool">
+          <span>＋</span> <span>Masukkan ke Daftar Sementara (Pool)</span>
+        </button>
+      </div>
+
+      <div class="tx-pool-card hidden" id="txPoolCard">
+        <div class="tx-pool-head">
+          <div class="tx-pool-title">
+            <span>📋 Daftar Transaksi Sementara</span>
+            <span class="tx-pool-badge" id="txPoolCount">0</span>
+          </div>
+          <button type="button" class="mini-btn text-danger" id="btnTxClearPool" style="font-size:11px;padding:2px 6px;">Kosongkan</button>
+        </div>
+        <div class="tx-pool-list" id="txPoolList"></div>
+        <div class="tx-pool-foot">
+          <span id="txPoolTotalOut" class="text-danger">Keluar: 0</span>
+          <span id="txPoolTotalIn" class="text-success">Masuk: 0</span>
+        </div>
+      </div>
     </div>
 
     <div class="scan-status hidden" id="scanStatus">
@@ -556,7 +578,7 @@
             </div>
             <div class="field">
               <label class="lbl" for="rjQty">Jumlah</label>
-              <input type="number" id="rjQty" inputmode="numeric" min="1" placeholder="1">
+              <input type="text" id="rjQty" inputmode="numeric" placeholder="1">
             </div>
           </div>
           <div class="field-row mt">
@@ -574,10 +596,25 @@
               </div>
             </div>
           </div>
-          <div class="field-row mt" style="margin-top:12px">
-            <button type="button" class="btn primary block grow" id="rjSubmit" style="width:100%;height:44px;font-weight:750;font-size:14px;margin:0">Submit Garapan</button>
+          <div class="field-row mt" style="margin-top:12px;display:flex;gap:8px;">
+            <button type="button" class="btn block" id="rjTambahPool" style="flex:1;height:44px;font-weight:700;font-size:13px;margin:0;border:1px dashed #0ea5e9;color:#0ea5e9;background:rgba(14,165,233,.10);">＋ Tambah ke Pool</button>
+            <button type="button" class="btn primary block grow" id="rjSubmit" style="flex:1;height:44px;font-weight:750;font-size:13.5px;margin:0">Submit Langsung</button>
           </div>
-          <p class="hint xs" style="margin-top:8px">Garapan yang disubmit langsung tersimpan dan otomatis masuk ke tab <b>Rekap</b>.</p>
+          <p class="hint xs" style="margin-top:8px">Gunakan <b>＋ Tambah ke Pool</b> untuk menampung beda jenis garapan &amp; beda mitra sebelum disubmit bersamaan.</p>
+        </div>
+
+        <!-- Wadah Tampungan Garapan Sementara (Pool) -->
+        <div id="rjDraftBox" class="rj-draft-box hidden" style="margin-top:12px;">
+          <div class="rj-draft-head">
+            <strong>📋 Tampungan Garapan Sementara</strong>
+            <span class="rj-draft-badge" id="rjDraftCount">0 Garapan</span>
+          </div>
+          <div id="rjDraftList" class="list" style="margin-top:6px;"></div>
+          <div class="rj-draft-total">
+            <span>Total Jasa Tampungan:</span>
+            <span id="rjDraftTotalJasa" class="text-accent">Rp0</span>
+          </div>
+          <button type="button" class="btn-rj-submit-all" id="rjSubmitPool">SUBMIT SEMUA GARAPAN</button>
         </div>
       </div>
 

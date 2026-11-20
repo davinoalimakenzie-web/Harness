@@ -436,15 +436,80 @@
     }
   };
 
+  /* ---------------- Kalkulator Cerdas Universal ---------------- */
+  function smartCalc(raw) {
+    if (raw == null) return 0;
+    if (typeof raw === 'number') return isFinite(raw) ? Math.max(0, Math.round(raw)) : 0;
+    var s = String(raw).trim();
+    if (!s) return 0;
+
+    // Normalisasi simbol unicode kalkulator
+    var clean = s.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
+    // Jika tidak mengandung operator matematika, parsing angka langsung
+    if (!/[+\-*/]/.test(clean)) {
+      var digits = clean.replace(/[^\d]/g, '');
+      return digits ? parseInt(digits, 10) : 0;
+    }
+
+    // Bersihkan titik ribuan jika formatnya angka.angka (misal 50.000 + 25.000)
+    clean = clean.replace(/(\d+)[.,](\d{3})(?=[^\d]|$)/g, '$1$2');
+    // Hapus karakter liar selain angka, +, -, *, /, .
+    clean = clean.replace(/[^0-9+\-*/.]/g, '');
+    clean = clean.replace(/[+\-*/]+$/, '');
+    if (!clean) return 0;
+
+    try {
+      var tokens = clean.match(/(\d+(?:\.\d+)?|[+\-*/])/g);
+      if (!tokens || !tokens.length) return 0;
+
+      // Fase 1: Perkalian & Pembagian (* /)
+      var next = [];
+      var i = 0;
+      while (i < tokens.length) {
+        var t = tokens[i];
+        if (t === '*' || t === '/') {
+          var prev = Number(next.pop() || 0);
+          var nxt = Number(tokens[i + 1] || 0);
+          var res = (t === '*') ? (prev * nxt) : (nxt !== 0 ? prev / nxt : 0);
+          next.push(res);
+          i += 2;
+        } else {
+          next.push(t);
+          i++;
+        }
+      }
+
+      // Fase 2: Penjumlahan & Pengurangan (+ -)
+      var total = Number(next[0] || 0);
+      var j = 1;
+      while (j < next.length) {
+        var op = next[j];
+        var val = Number(next[j + 1] || 0);
+        if (op === '+') total += val;
+        else if (op === '-') total -= val;
+        j += 2;
+      }
+      return Math.max(0, Math.round(total));
+    } catch (e) {
+      return 0;
+    }
+  }
+  w.smartCalc = smartCalc;
+
   /* ---------------- Transaksi (PRD 8 Model Data + 7 Aturan Bisnis) ---------------- */
   var NOTE_MAX_DEFAULT = 200;
 
   // Validasi nominal: bilangan bulat rupiah, min 1, tanpa desimal/negatif/huruf
-  // Pemisah ribuan Indonesia ("25.000", "1,000,000") diterima, tetapi desimal
-  // ("1.5", "12,75") DITOLAK sesuai FR-04.
+  // Pemisah ribuan Indonesia ("25.000", "1,000,000") diterima, dan kalkulator cerdas
+  // ("50000+25000", "15000*2") otomatis dihitung.
   function parseAmount(raw) {
     var s = String(raw == null ? '' : raw).trim();
     if (!s) return { ok: false, msg: 'Nominal belum diisi' };
+    if (/[+\-*/×÷−]/.test(s)) {
+      var evaled = smartCalc(s);
+      if (evaled > 0) return { ok: true, value: evaled };
+      return { ok: false, msg: 'Hasil perhitungan nominal minimal Rp1' };
+    }
     if (!/^\d[\d.,]*$/.test(s)) {
       return { ok: false, msg: 'Nominal harus angka bulat rupiah (tanpa huruf, minus, atau desimal)' };
     }
@@ -1264,6 +1329,7 @@
     todayStr: todayStr, nowLocalInput: nowLocalInput, ymOf: ymOf,
     monthLabel: monthLabel, dayLabel: dayLabel, shiftMonth: shiftMonth,
     parseAmount: parseAmount, validateTx: validateTx,
+    smartCalc: smartCalc,
     isLockedIncomeSub: isLockedIncomeSub,
     Notes: Notes, Tx: Tx, Pool: Pool, Groups: Groups, Accounts: Accounts,
     Settings: Settings, Data: Data, AudioDB: AudioDB

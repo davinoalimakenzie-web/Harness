@@ -703,8 +703,104 @@
     el.err.textContent = '';
   }
 
+  /* =========================================================
+     POOL TRANSAKSI SEMENTARA (BATCH INPUT CASHFLOW ALIMA)
+     ========================================================= */
+  var txPool = [];
+
+  function renderTxPool() {
+    var poolCard = $('#txPoolCard');
+    var poolCount = $('#txPoolCount');
+    var poolList = $('#txPoolList');
+    var totalOutEl = $('#txPoolTotalOut');
+    var totalInEl = $('#txPoolTotalIn');
+    if (!poolCard || !poolList) return;
+
+    if (!txPool.length) {
+      poolCard.classList.add('hidden');
+      poolList.innerHTML = '';
+      if (poolCount) poolCount.textContent = '0';
+      if (totalOutEl) totalOutEl.textContent = 'Keluar: 0';
+      if (totalInEl) totalInEl.textContent = 'Masuk: 0';
+      return;
+    }
+
+    poolCard.classList.remove('hidden');
+    if (poolCount) poolCount.textContent = txPool.length + ' item';
+
+    var totOut = 0, totIn = 0;
+    poolList.innerHTML = txPool.map(function (item, idx) {
+      var isOut = item.type === 'out';
+      if (isOut) totOut += item.amount; else totIn += item.amount;
+      var acc = accOf(item);
+      var label = item.sub ? (item.group + ' · ' + item.sub) : item.group;
+      return '<div class="tx-pool-item">' +
+        '<div class="tx-pool-item-info">' +
+          '<div class="tx-pool-item-top">' +
+            '<span class="tx-pool-tag ' + item.type + '">' + (isOut ? 'Keluar' : 'Masuk') + '</span>' +
+            '<span class="tx-pool-cat">' + esc(label) + '</span>' +
+          '</div>' +
+          '<div class="tx-pool-note">' +
+            '<span>' + esc(S.dayLabel(item.date)) + '</span>' +
+            (acc ? ' · <span>' + esc(acc.name) + '</span>' : '') +
+            (item.note ? ' · <i>' + esc(item.note) + '</i>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="tx-pool-item-right">' +
+          '<span class="tx-pool-item-amt ' + item.type + '">' + (isOut ? '−' : '+') + money(item.amount) + '</span>' +
+          '<button type="button" class="tx-pool-del" data-pool-del="' + idx + '" title="Hapus">×</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    if (totalOutEl) totalOutEl.textContent = 'Keluar: ' + money(totOut);
+    if (totalInEl) totalInEl.textContent = 'Masuk: ' + money(totIn);
+  }
+
+  function addTxToPool() {
+    clearErr();
+    if (type === 'in' && isLockedIncome(type, group, sub)) {
+      showErr('Pemasukan jalur "' + (sub || 'ini') + '" dikunci karena otomatis terisi dari sistem.');
+      TG.haptic('warning');
+      return;
+    }
+    var finalAmt = amountValue();
+    var form = {
+      type: type, group: group, sub: sub,
+      amount: finalAmt, date: el.txDate.value,
+      note: (el.note.value || '').trim(),
+      account_id: accountId || (Accounts.first() || { id: 'acc-cash' }).id
+    };
+    var v = S.validateTx(form);
+    if (!v.ok) { showErr(v.msg); TG.haptic('warning'); return; }
+
+    txPool.push(form);
+    amountStr = '0';
+    el.note.value = '';
+    paintAmount();
+    clearErr();
+    renderTxPool();
+    TG.haptic('success');
+    toast('Transaksi dimasukkan ke daftar sementara (' + txPool.length + ')');
+  }
+
+  function removeTxFromPool(idx) {
+    if (idx >= 0 && idx < txPool.length) {
+      txPool.splice(idx, 1);
+      renderTxPool();
+      TG.haptic('select');
+    }
+  }
+
+  function clearTxPool() {
+    txPool = [];
+    renderTxPool();
+    TG.haptic('select');
+  }
+
   function evalCalc(str) {
     if (!str) return 0;
+    if (w.smartCalc) return w.smartCalc(str);
     var clean = String(str).replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
     clean = clean.replace(/[^0-9+\-*/.]/g, '');
     if (!clean) return 0;
@@ -775,6 +871,12 @@
     el.disp.classList.remove('in', 'out');
     el.disp.classList.add(type);
 
+    var kp = $('#txKeypad');
+    if (kp) {
+      kp.classList.toggle('out', type === 'out');
+      kp.classList.toggle('in', type === 'in');
+    }
+
     if (hasOp) {
       el.disp.textContent = formatExpr(amountStr);
       var hint = el.hint;
@@ -784,10 +886,10 @@
       el.disp.textContent = v > 0 ? money(v) : '0';
       var hint = el.hint;
       if (v > 0) {
-        hint.textContent = editingId ? 'Ubah nominal lalu tekan >' : 'Tekan > untuk menyimpan';
+        hint.textContent = editingId ? 'Ubah nominal lalu tekan >' : (txPool.length ? 'Ada ' + txPool.length + ' di pool · tekan > untuk simpan semua' : 'Tekan > untuk menyimpan');
         hint.classList.remove('warn');
       } else {
-        hint.textContent = editingId ? 'Ubah nominal lalu tekan >' : 'Ketik nominal di bawah';
+        hint.textContent = editingId ? 'Ubah nominal lalu tekan >' : (txPool.length ? 'Ada ' + txPool.length + ' di pool · tekan > simpan semua' : 'Ketik nominal di bawah');
         hint.classList.remove('warn');
       }
     }
@@ -934,6 +1036,11 @@
     if (type === t) return;
     type = t; group = null; sub = null;
     $$('#txType .seg-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.t === t); });
+    var kp = $('#txKeypad');
+    if (kp) {
+      kp.classList.toggle('out', type === 'out');
+      kp.classList.toggle('in', type === 'in');
+    }
     renderGroupSelect();
     renderSubSelect();
     paintAmount();
@@ -956,6 +1063,11 @@
     el.pageTitle.textContent = 'Tambah Transaksi';
     el.okBtn.disabled = false;
     $$('#txType .seg-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.t === 'out'); });
+    var kp = $('#txKeypad');
+    if (kp) {
+      kp.classList.toggle('out', type === 'out');
+      kp.classList.toggle('in', type === 'in');
+    }
     renderTxAccounts();
     renderGroupSelect();
     renderSubSelect();
@@ -1011,12 +1123,67 @@
   function closeTxPage() {
     el.txPage.classList.add('hidden');
     document.body.style.overflow = '';
+    txPool = [];
+    renderTxPool();
     resetForm();
   }
 
   function submit() {
     if (saving) return;
     clearErr();
+
+    // JIKA ADA TRANSAKSI DI POOL:
+    if (txPool && txPool.length > 0) {
+      // Cek apakah form aktif saat ini juga memiliki nominal > 0 dan kategori valid
+      var curAmt = amountValue();
+      if (curAmt > 0 && group) {
+        if (!(type === 'in' && isLockedIncome(type, group, sub))) {
+          var curForm = {
+            type: type, group: group, sub: sub,
+            amount: curAmt, date: el.txDate.value,
+            note: (el.note.value || '').trim(),
+            account_id: accountId || (Accounts.first() || { id: 'acc-cash' }).id
+          };
+          var vCur = S.validateTx(curForm);
+          if (vCur.ok) {
+            txPool.push(curForm);
+          }
+        }
+      }
+
+      saving = true;
+      el.okBtn.disabled = true;
+
+      setTimeout(function () {
+        var count = 0;
+        var batchId = Date.now();
+        txPool.forEach(function (tItem, i) {
+          Tx.create({
+            type: tItem.type,
+            group: tItem.group,
+            sub: tItem.sub,
+            amount: Number(tItem.amount),
+            date: tItem.date,
+            note: tItem.note,
+            account_id: tItem.account_id
+          }, 'pool-' + batchId + '-' + i);
+          count++;
+        });
+
+        txPool = [];
+        renderTxPool();
+        saving = false;
+        el.okBtn.disabled = false;
+        toast(count + ' transaksi dari pool berhasil disimpan!');
+        TG.haptic('success');
+        closeTxPage();
+        render();
+        if (w.Sync) w.Sync.push().then(function () {});
+      }, 200);
+      return;
+    }
+
+    // TRANSAKSI TUNGGAL (SEPERTI BIASA):
     if (type === 'in' && isLockedIncome(type, group, sub)) {
       showErr('Pemasukan jalur "' + (sub || 'ini') + '" dikunci karena otomatis terisi dari sistem.');
       TG.haptic('warning');
@@ -1462,6 +1629,26 @@
       var b = e.target.closest('[data-k]');
       if (b) press(b.dataset.k);
     });
+
+    /* --- Pool Sementara Tambah Transaksi --- */
+    var btnAddPool = $('#btnTxAddPool');
+    if (btnAddPool) {
+      btnAddPool.addEventListener('click', addTxToPool);
+    }
+    var btnClearPool = $('#btnTxClearPool');
+    if (btnClearPool) {
+      btnClearPool.addEventListener('click', clearTxPool);
+    }
+    var poolListEl = $('#txPoolList');
+    if (poolListEl) {
+      poolListEl.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-pool-del]');
+        if (b) {
+          var idx = parseInt(b.dataset.poolDel, 10);
+          removeTxFromPool(idx);
+        }
+      });
+    }
 
     /* --- Tutup --- */
     $('#txClose').addEventListener('click', closeTxPage);
