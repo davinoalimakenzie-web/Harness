@@ -663,7 +663,7 @@
         <!-- ============ OWNER ============ -->
         <div id="ronceRekapOwner">
           <!-- Saldo Deposit Card (Owner) -->
-          <div class="rekap-deposit-card" id="rekapDepositCard">
+          <div class="rekap-deposit-card" id="rekapDepositCard" style="cursor:pointer;" title="Klik untuk Pelunasan Garapan">
             <div class="rekap-deposit-main">
               <div class="rekap-deposit-info">
                 <span class="rekap-deposit-lbl">SALDO DEPOSIT</span>
@@ -1005,6 +1005,20 @@
           <strong class="text-accent" id="mpTotalBayar" style="font-size:20px;font-weight:800;">Rp 0</strong>
         </div>
 
+        <!-- Alert Peringatan & Tahan jika Nilai Deposit Kurang -->
+        <div id="mpAlertDepositKurang" style="display:none;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);border-radius:10px;padding:10px 12px;margin:10px 0;">
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="font-size:20px;line-height:1;">⚠️</span>
+            <div style="flex:1;">
+              <strong style="color:#ef4444;font-size:13px;display:block;margin-bottom:3px;">Deposit Kurang · Pelunasan Ditahan</strong>
+              <div id="mpAlertDepositKurangMsg" style="font-size:11.5px;color:var(--text);line-height:1.45;"></div>
+              <button type="button" class="btn xs" id="mpBtnIsiDepositKurang" style="margin-top:8px;font-size:11px;font-weight:750;padding:5px 10px;border-radius:6px;background:#ef4444;color:#fff;border:none;cursor:pointer;">
+                ➕ Tambah Saldo Deposit
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Breakdown Teknis Pelunasan -->
         <div id="mpBreakdownWrap" style="margin-top:10px;">
           <!-- Bagian Owner (Potong Deposit) -->
@@ -1021,9 +1035,9 @@
               <span>Sisa Deposit Tersimpan</span>
               <b class="text-success" id="mpBrdSisaDep">0</b>
             </div>
-            <div class="mp-b-row" id="mpRowOwnerCash" style="display:none;">
-              <span>Kekurangan Bayar (Cash)</span>
-              <b class="text-warning" id="mpOwnerCashVal">0</b>
+            <div class="mp-b-row" id="mpRowOwnerCash" style="display:none;background:rgba(239,68,68,0.09);padding:4px 8px;border-radius:6px;margin:4px 0;">
+              <span style="color:#ef4444;font-weight:700;">Defisit Deposit (Kurang)</span>
+              <b class="text-danger" id="mpOwnerCashVal">0</b>
             </div>
           </div>
 

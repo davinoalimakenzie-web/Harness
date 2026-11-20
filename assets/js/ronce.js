@@ -946,14 +946,14 @@
 
     var saldoDeposit = (data.deposit && typeof data.deposit.saldo === 'number') ? data.deposit.saldo : 0;
 
-    // Teknis pelunasan:
-    // Nilai deposit dipotong total garapan Owner yang ada di pool
+    // KETENTUAN REVISI KHUSUS:
+    // Garapan owner wajib ter-cover saldo deposit.
+    // Jika nilai deposit kurang / lebih kecil dari total pelunasan garapan Owner,
+    // berikan peringatan dan TAHAN sampai deposit terpenuhi baru bisa lanjut pelunasan!
+    var depositKurang = (ownerTasks.length > 0 && saldoDeposit < totalOwner);
+    var kekuranganOwner = depositKurang ? (totalOwner - saldoDeposit) : 0;
     var potongDeposit = Math.min(saldoDeposit, totalOwner);
     var sisaDeposit = Math.max(0, saldoDeposit - totalOwner);
-    var kekuranganOwner = Math.max(0, totalOwner - saldoDeposit);
-
-    // Mitra: hanya full payment (tanpa memotong nilai deposit)
-    var totalCash = kekuranganOwner + totalMitra;
 
     // Update elemen DOM
     var cntEl = $('#mpPoolCount'); if (cntEl) cntEl.textContent = selectedTasks.length + ' Garapan';
@@ -967,7 +967,7 @@
     var ocEl = $('#mpOwnerCashVal');
     if (rowOc) {
       rowOc.style.display = kekuranganOwner > 0 ? 'flex' : 'none';
-      if (ocEl) ocEl.textContent = formatIDR(kekuranganOwner);
+      if (ocEl) ocEl.textContent = '- ' + formatIDR(kekuranganOwner);
     }
 
     var secMitra = $('#mpMitraSection');
@@ -978,20 +978,41 @@
     }
 
     var rowCash = $('#mpRowTotalCash');
-    var bcEl = $('#mpBrdCash');
-    if (rowCash) {
-      rowCash.style.display = totalCash > 0 ? 'flex' : 'none';
-      if (bcEl) bcEl.textContent = formatIDR(totalCash);
-    }
+    if (rowCash) rowCash.style.display = 'none';
 
+    // Banner Peringatan & Tahan Pelunasan
+    var alertEl = $('#mpAlertDepositKurang');
+    var alertMsg = $('#mpAlertDepositKurangMsg');
     var btnKonf = $('#mpBtnKonfirmasi');
-    if (btnKonf) {
-      if (selectedTasks.length > 0) {
-        btnKonf.disabled = false;
-        btnKonf.textContent = 'Konfirmasi Lunasi (' + selectedTasks.length + ' Garapan · ' + formatIDR(totalBayar) + ')';
-      } else {
+
+    if (depositKurang) {
+      if (alertEl) alertEl.style.display = 'block';
+      if (alertMsg) {
+        alertMsg.innerHTML = 'Nilai deposit saat ini: <b>' + formatIDR(saldoDeposit) + '</b><br>'
+          + 'Total pelunasan garapan Owner: <b>' + formatIDR(totalOwner) + '</b><br>'
+          + '<span style="color:#ef4444;font-weight:750;">Kekurangan: ' + formatIDR(kekuranganOwner) + '</span>.<br>'
+          + 'Pelunasan garapan ditahan sampai saldo deposit terpenuhi.';
+      }
+      if (btnKonf) {
         btnKonf.disabled = true;
-        btnKonf.textContent = 'Pilih Garapan Dulu';
+        btnKonf.style.opacity = '0.6';
+        btnKonf.style.cursor = 'not-allowed';
+        btnKonf.textContent = '⛔ Tahan: Deposit Kurang ' + formatIDR(kekuranganOwner);
+      }
+    } else {
+      if (alertEl) alertEl.style.display = 'none';
+      if (btnKonf) {
+        if (selectedTasks.length > 0) {
+          btnKonf.disabled = false;
+          btnKonf.style.opacity = '1';
+          btnKonf.style.cursor = 'pointer';
+          btnKonf.textContent = 'Konfirmasi Lunasi (' + selectedTasks.length + ' Garapan · ' + formatIDR(totalBayar) + ')';
+        } else {
+          btnKonf.disabled = true;
+          btnKonf.style.opacity = '0.6';
+          btnKonf.style.cursor = 'not-allowed';
+          btnKonf.textContent = 'Pilih Garapan Dulu';
+        }
       }
     }
   }
@@ -1020,11 +1041,23 @@
     var totalBayar = totalOwner + totalMitra;
 
     var saldoAwal = (data.deposit && typeof data.deposit.saldo === 'number') ? data.deposit.saldo : 0;
+
+    // VALIDASI TAHAN PELUNASAN JIKA DEPOSIT KURANG
+    if (ownerTasks.length > 0 && saldoAwal < totalOwner) {
+      var defisit = totalOwner - saldoAwal;
+      w.App.toast('⛔ Pelunasan Ditahan: Nilai deposit (' + formatIDR(saldoAwal) + ') kurang dari total garapan Owner (' + formatIDR(totalOwner) + '). Tambah deposit dulu!', 4500);
+      kalkulasiPoolPelunasan();
+      return;
+    }
+
     var potongDeposit = Math.min(saldoAwal, totalOwner);
     var sisaDeposit = Math.max(0, saldoAwal - totalOwner);
-    var kekuranganOwner = Math.max(0, totalOwner - saldoAwal);
 
     var now = new Date().toISOString();
+    var S = w.Store;
+    // PENTING: Tanggal pelunasan = tanggal hari ini saat pelunasan dieksekusi (BUKAN t.date saat garapan dibuat!)
+    var today = (S && S.todayStr) ? S.todayStr() : (now.slice(0, 10));
+    var tglPelunasan = today;
 
     // 1. Eksekusi Pelunasan Garapan OWNER (Potong Deposit)
     if (ownerTasks.length > 0) {
@@ -1054,17 +1087,15 @@
           total: komisi,
           komisi: komisi,
           bonus: 0,
-          potongDeposit: Math.min(saldoAwal, komisi),
-          bayarCash: Math.max(0, komisi - saldoAwal),
-          mode: 'pool_checklist'
+          potongDeposit: komisi,
+          bayarCash: 0,
+          mode: 'pool_checklist',
+          paidDate: tglPelunasan
         };
 
-        var S = w.Store;
         if (S && S.Tx && typeof S.Tx.create === 'function') {
           var idem = 'ronce-pelunasan:' + t.id;
-          var tgl = t.date || hariIni();
-          var today = S.todayStr ? S.todayStr() : hariIni();
-          if (tgl > today) tgl = today;
+          var tgl = tglPelunasan; // Tanggal pelunasan (bukan tanggal garapan dibuat!)
 
           var nama = namaGarapan(t.serviceId) + (t.quantity > 1 ? ' x' + t.quantity : '');
           var ket = 'Pelunasan Jasa Ronce (Owner) — ' + nama + (t.note ? ' [' + t.note + ']' : '');
@@ -1108,7 +1139,7 @@
             group: 'Income Hima',
             sub: 'Roncelia',
             amount: sisaDeposit,
-            date: (S2.todayStr ? S2.todayStr() : hariIni()),
+            date: tglPelunasan,
             note: 'Sisa Deposit Ronce (Owner) — Pelunasan Pool ' + ownerTasks.length + ' Garapan'
           };
           S2.Tx.create(payloadSisa, idemSisa);
@@ -1255,44 +1286,47 @@
     var tgl = t.date ? formatTanggal(t.date) : '-';
     var catatan = t.note ? ' &middot; ' + esc(t.note) : '';
 
-    var infoPelunasan = '';
-    if (isPaid && t.pelunasanInfo) {
-      var pi = t.pelunasanInfo;
-      infoPelunasan = '<div style="font-size:11px;color:var(--text-2);margin-top:3px;">'
-        + 'Dilunasi: ' + formatIDR(pi.total)
-        + (pi.potongDeposit > 0 ? ' · Dipotong Deposit: ' + formatIDR(pi.potongDeposit) : '')
-        + (pi.bayarCash > 0 ? ' · Cash: ' + formatIDR(pi.bayarCash) : '')
+    var btnHapus = adalahOwner()
+      ? '<button type="button" class="mini-btn danger rekap-del-btn" data-task-del="' + esc(t.id) + '" title="Hapus garapan">🗑️</button>'
+      : '';
+
+    // KETENTUAN REVISI KHUSUS:
+    // Pelunasan hanya lewat tombol saldo deposit.
+    // Hilangkan tombol/tulisan lunasi pada daftar garapan belum lunas.
+    // Jadikan daftar garapan belum lunas 2 baris saja per 1 garapan agar minimalis & hemat tempat!
+    if (!isPaid) {
+      return '<div class="card rekap-item-card compact-2row is-unpaid" data-tid="' + esc(t.id) + '">'
+        + '<div class="rekap-2row-r1">'
+        +   '<strong class="rekap-item-title">' + nama + '</strong>'
+        +   '<span class="rekap-item-jasa">' + formatIDR(t.deliveryFee) + '</span>'
+        + '</div>'
+        + '<div class="rekap-2row-r2">'
+        +   '<div class="rekap-2row-meta">'
+        +     '<span>📅 ' + tgl + catatan + '</span>'
+        +     badgePeran
+        +   '</div>'
+        +   btnHapus
+        + '</div>'
         + '</div>';
     }
 
-    var aksiKanan = '';
-    if (isPaid) {
-      if (isOwner) {
-        aksiKanan = '<span class="rekap-badge-lunas">✓ LUNAS · Cashflow &amp; Bank 10%</span>';
-      } else {
-        aksiKanan = '<span class="rekap-badge-lunas">✓ LUNAS · Rekap Mitra</span>';
-      }
-    } else {
-      aksiKanan = '<button type="button" class="btn-lunasi" data-lunasi-id="' + esc(t.id) + '" title="Lunasi garapan ini">⚡ Lunasi</button>';
-    }
+    // Untuk garapan yang sudah lunas: juga 2 baris rapi dan kompak
+    var badgeLunas = isOwner
+      ? '<span class="rekap-badge-lunas">✓ Lunas (Alima &amp; 10%)</span>'
+      : '<span class="rekap-badge-lunas">✓ Lunas (Mitra)</span>';
 
-    var btnHapus = adalahOwner()
-      ? '<button type="button" class="mini-btn danger" data-task-del="' + esc(t.id) + '" title="Hapus garapan" style="font-size:11px;padding:3px 7px;cursor:pointer;border-radius:6px;margin-left:6px;">🗑️</button>'
-      : '';
-
-    return '<div class="card rekap-item-card" data-tid="' + esc(t.id) + '">'
-      + '<div class="rekap-item-row1">'
+    return '<div class="card rekap-item-card compact-2row is-paid" data-tid="' + esc(t.id) + '">'
+      + '<div class="rekap-2row-r1">'
       +   '<strong class="rekap-item-title">' + nama + '</strong>'
-      +   badgePeran
+      +   '<span class="rekap-item-jasa text-success">' + formatIDR(t.deliveryFee) + '</span>'
       + '</div>'
-      + '<div class="rekap-item-row2">'
-      +   '<span>📅 ' + tgl + catatan + '</span>'
-      + '</div>'
-      + infoPelunasan
-      + '<div class="rekap-item-row3">'
-      +   '<span class="rekap-item-jasa">' + formatIDR(t.deliveryFee) + '</span>'
-      +   '<div style="display:flex;align-items:center;">'
-      +     aksiKanan
+      + '<div class="rekap-2row-r2">'
+      +   '<div class="rekap-2row-meta">'
+      +     '<span>📅 ' + tgl + catatan + '</span>'
+      +     badgePeran
+      +   '</div>'
+      +   '<div style="display:flex;align-items:center;gap:6px;">'
+      +     badgeLunas
       +     btnHapus
       +   '</div>'
       + '</div>'
@@ -2188,7 +2222,7 @@
   /*
      Sinkronisasi Pelunasan Jasa Ronce Owner Pribadi ke Cashflow Alima (Project Nava).
      Kategori: type 'in', group 'Income Hima', sub 'Roncelia'.
-     Aman diulang (idempoten via idem_key: 'ronce-pribadi:' + taskId).
+     Aman diulang (idempoten via idem_key: 'ronce-pelunasan:' + taskId atau 'ronce-pribadi:' + taskId).
   */
   function syncRoncePribadiToCashflow(taskId) {
     var S = w.Store;
@@ -2197,10 +2231,11 @@
     if (!t || !t.pribadi) return null;
 
     var idem = 'ronce-pribadi:' + t.id;
+    var idemPool = 'ronce-pelunasan:' + t.id;
     var list = S.Tx.all();
     var lama = null, tercabut = null;
     for (var i = 0; i < list.length; i++) {
-      if (list[i].idem_key === idem) {
+      if (list[i].idem_key === idem || list[i].idem_key === idemPool) {
         if (list[i].deleted_at) tercabut = list[i]; else lama = list[i];
         break;
       }
@@ -2214,11 +2249,23 @@
       return null;
     }
 
-    var tgl = t.date || hariIni();
-    var today = S.todayStr ? S.todayStr() : hariIni();
-    if (tgl > today) tgl = today;
+    // PENTING (Revisi Khusus):
+    // Tanggal pemasukan ke Cashflow Alima & Kas Wajib 10% HARUS sesuai TANGGAL PELUNASAN,
+    // BUKAN tanggal saat garapan dibuat (t.date)!
+    var today = (S && S.todayStr) ? S.todayStr() : (new Date().toISOString().slice(0, 10));
+    var tglPelunasan = '';
+    if (t.paidAt) {
+      tglPelunasan = String(t.paidAt).slice(0, 10);
+    } else if (t.completedAt) {
+      tglPelunasan = String(t.completedAt).slice(0, 10);
+    } else if (t.pelunasanInfo && t.pelunasanInfo.paidDate) {
+      tglPelunasan = String(t.pelunasanInfo.paidDate).slice(0, 10);
+    } else {
+      tglPelunasan = today;
+    }
+    if (tglPelunasan > today) tglPelunasan = today;
 
-    var ket = 'Pelunasan Jasa Ronce (Pribadi) — ' + namaGarapan(t.serviceId) +
+    var ket = 'Pelunasan Jasa Ronce (Owner) — ' + namaGarapan(t.serviceId) +
       (t.quantity > 1 ? ' x' + t.quantity : '') +
       (t.note ? ' (' + t.note + ')' : '');
 
@@ -2227,14 +2274,14 @@
       group: 'Income Hima',
       sub: 'Roncelia',
       amount: fee,
-      date: tgl,
+      date: tglPelunasan,
       note: ket
     };
 
     var res;
     if (lama) {
       if (lama.amount === fee && lama.group === payload.group && lama.sub === payload.sub &&
-          lama.note === ket && lama.transaction_date === tgl) {
+          lama.note === ket && (lama.transaction_date || lama.date) === tglPelunasan) {
         return { unchanged: true, amount: fee, id: lama.id };
       }
       S.Tx.update(lama.id, payload);
@@ -2244,7 +2291,8 @@
       S.Tx.update(tercabut.id, payload);
       res = { restored: true, amount: fee, id: tercabut.id };
     } else {
-      var r = S.Tx.create(payload, idem);
+      var targetIdem = isTaskLunas(t) ? idemPool : idem;
+      var r = S.Tx.create(payload, targetIdem);
       res = { created: !r.duplicate, duplicate: !!r.duplicate, amount: fee, id: r.tx && r.tx.id };
     }
 
@@ -2622,9 +2670,62 @@
     return berubah;
   }
 
+  /* Auto-koreksi transaksi Cashflow Alima yang sebelumnya salah tanggal
+     (misal garapan dibuat 18 November tapi baru dilunasi belakangan).
+     Memastikan tanggal transaksi Cashflow & Kas Wajib 10% tepat tanggal pelunasan! */
+  function perbaikiTanggalPelunasanLama() {
+    var S = w.Store;
+    if (!S || !S.Tx || typeof S.Tx.all !== 'function') return;
+    var allTx = S.Tx.all();
+    var changed = false;
+
+    (data.tasks || []).forEach(function (t) {
+      if (!t || !t.pribadi || !isTaskLunas(t)) return;
+      var paidDate = '';
+      if (t.paidAt) paidDate = String(t.paidAt).slice(0, 10);
+      else if (t.completedAt) paidDate = String(t.completedAt).slice(0, 10);
+      else if (t.pelunasanInfo && t.pelunasanInfo.paidDate) paidDate = String(t.pelunasanInfo.paidDate).slice(0, 10);
+
+      if (!paidDate) return;
+
+      var idem1 = 'ronce-pelunasan:' + t.id;
+      var idem2 = 'ronce-pribadi:' + t.id;
+
+      for (var i = 0; i < allTx.length; i++) {
+        var tx = allTx[i];
+        if (tx.idem_key === idem1 || tx.idem_key === idem2) {
+          var txDate = (tx.transaction_date || tx.date || '').slice(0, 10);
+          if (txDate && txDate !== paidDate && t.date && txDate === String(t.date).slice(0, 10)) {
+            console.log('[Ronce] Memperbaiki tanggal pelunasan Alima task ' + t.id + ' dari ' + txDate + ' ke ' + paidDate);
+            tx.transaction_date = paidDate;
+            tx.date = paidDate;
+            tx._u = new Date().toISOString();
+            changed = true;
+          }
+        }
+      }
+    });
+
+    if (changed) {
+      if (typeof S.Tx.save === 'function') S.Tx.save();
+      try {
+        if (w.NavaBank && typeof w.NavaBank.syncAutoWajib === 'function') {
+          var activeTxs = typeof S.Tx.active === 'function' ? S.Tx.active() : allTx.filter(function (x) { return !x.deleted_at; });
+          w.NavaBank.syncAutoWajib(activeTxs);
+        }
+      } catch (e) {
+        console.warn('[Ronce] syncAutoWajib error saat perbaiki tanggal:', e);
+      }
+      if (w.TxUI && typeof w.TxUI.render === 'function') {
+        try { w.TxUI.render(); } catch (e) {}
+      }
+    }
+  }
+
   /* Gambar ulang tampilan setelah data digabung dari server. */
   function refresh() {
     try {
+      perbaikiTanggalPelunasanLama();
       syncAllCompletedPribadi();
       if (sesi) renderTab();
       else renderLogin();
@@ -2639,6 +2740,7 @@
     _inited = true;
     muat();
     try {
+      perbaikiTanggalPelunasanLama();
       syncAllCompletedPribadi();
     } catch (e) {}
     /* Tandai mode mitra dari PARAMETER LINK — bukan dari apakah akunnya sudah
@@ -2763,9 +2865,10 @@
         return;
       }
 
-      // Buka Modal Pelunasan Pool (dari tombol utama rekap atau dari baris garapan)
+      // Buka Modal Pelunasan Pool (dari tombol saldo deposit atau klik kartu deposit)
       var lunPool = e.target.closest('#btnBukaPelunasanPool');
-      if (lunPool) {
+      var depCard = e.target.closest('#rekapDepositCard');
+      if (lunPool || (depCard && !e.target.closest('#btnBukaTambahDeposit'))) {
         bukaModalPelunasan();
         return;
       }
@@ -2854,8 +2957,8 @@
         return;
       }
 
-      // Buka Modal Tambah Deposit (dari Rekap atau dari Modal Pelunasan)
-      var bukaDep = e.target.closest('#btnBukaTambahDeposit') || e.target.closest('#mpBtnQuickTopup');
+      // Buka Modal Tambah Deposit (dari Rekap atau dari Modal Pelunasan atau tombol alert deposit kurang)
+      var bukaDep = e.target.closest('#btnBukaTambahDeposit') || e.target.closest('#mpBtnQuickTopup') || e.target.closest('#mpBtnIsiDepositKurang');
       if (bukaDep) {
         bukaModalDeposit();
         return;
@@ -3056,7 +3159,10 @@
     submitGarapan: submitGarapan,
     bukaModalPelunasan: bukaModalPelunasan,
     tutupModalPelunasan: tutupModalPelunasan,
+    kalkulasiPoolPelunasan: kalkulasiPoolPelunasan,
     konfirmasiPelunasan: konfirmasiPelunasan,
+    renderGarapanCard: renderGarapanCard,
+    perbaikiTanggalPelunasanLama: perbaikiTanggalPelunasanLama,
     bukaModalDeposit: bukaModalDeposit,
     tutupModalDeposit: tutupModalDeposit,
     simpanTambahDeposit: simpanTambahDeposit,
