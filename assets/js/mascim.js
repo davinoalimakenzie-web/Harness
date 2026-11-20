@@ -184,47 +184,43 @@
     if (forceRotate !== undefined) {
       M.bbRotated = !!forceRotate;
       M.bbRotatedAuto = false;
-    } else if (M.bbRotatedAuto !== false) {
-      var isPortrait = window.innerHeight > window.innerWidth;
-      M.bbRotated = isPortrait;
-    }
-    if (M.bbRotated) {
-      document.body.classList.add('mc-bb-rotated-css');
     } else {
-      document.body.classList.remove('mc-bb-rotated-css');
+      // PERBAIKAN BUG LANDSCAPE:
+      // Tampilan Buku Besar default selalu potret tegak normal mengikuti orientasi HP,
+      // jangan pernah otomatis memutar atau merotasi layar ke landscape.
+      M.bbRotated = false;
+      M.bbRotatedAuto = false;
     }
+    document.body.classList.remove('mc-bb-rotated-css');
     var btnRot = document.getElementById('bbBtnRotate');
     if (btnRot) {
-      btnRot.innerHTML = '🔄 ' + (M.bbRotated ? 'POTRET' : 'LANSKAP');
+      btnRot.style.display = 'none';
     }
   }
 
   function enterLandscape() {
+    // Mode Buku Besar: aktifkan view Buku Besar dengan orientasi normal (tegak potret)
     document.body.classList.add('mc-bb-active');
+    document.body.classList.remove('mc-bb-rotated-css');
     var mc = document.getElementById('mc');
-    if (mc) mc.classList.add('mc-landscape');
+    if (mc) {
+      mc.classList.add('mc-landscape');
+      mc.classList.remove('mc-bb-rotated');
+    }
+    M.bbRotated = false;
+    M.bbRotatedAuto = false;
+
+    // Pastikan orientasi tidak terkunci ke landscape
     try {
-      if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
-        window.screen.orientation.lock('landscape').catch(function () {});
+      if (window.screen && window.screen.orientation && window.screen.orientation.unlock) {
+        window.screen.orientation.unlock();
       }
     } catch (e) {}
     try {
-      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.lockOrientation) {
-        window.Telegram.WebApp.lockOrientation();
+      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.unlockOrientation) {
+        window.Telegram.WebApp.unlockOrientation();
       }
     } catch (e2) {}
-
-    updateBBOrientation();
-
-    if (!_bbResizeHandler) {
-      _bbResizeHandler = function () {
-        if (M.view === 'list') {
-          updateBBOrientation();
-        }
-      };
-      window.addEventListener('resize', _bbResizeHandler);
-      window.addEventListener('orientationchange', _bbResizeHandler);
-    }
   }
 
   function exitLandscape() {
@@ -620,9 +616,9 @@
       var todayStr = t.toISOString().slice(0, 10);
       var firstDayStr = todayStr.slice(0, 8) + '01';
       M.bbFilter = {
-        fromActive: true,
+        fromActive: !M.status,
         from: firstDayStr,
-        toActive: true,
+        toActive: !M.status,
         to: todayStr,
         technician: '',
         status: M.status || '',
@@ -630,8 +626,12 @@
         noteNo: ''
       };
     }
-    if (M.status && !M.bbFilter.status) {
+    if (M.status !== undefined && M.status !== null) {
       M.bbFilter.status = M.status;
+      if (M.status) {
+        M.bbFilter.fromActive = false;
+        M.bbFilter.toActive = false;
+      }
     }
 
     var allOrders = M.list || [];
@@ -958,7 +958,8 @@
           '" placeholder="Contoh: Pak Budi" autocomplete="name">' +
         '<div class="mc-wa">' +
           '<input class="mc-inp" id="fWa" inputmode="tel" value="' + esc(d.whatsapp) +
-            '" placeholder="WhatsApp (opsional)">' +
+            '" placeholder="WhatsApp * (Wajib)">' +
+          '<button type="button" class="mc-wa-contact-btn" id="fPickContact" title="Ambil nomor dari Kontak HP">📱 Kontak</button>' +
           '<a class="mc-wa-btn' + (validWa(d.whatsapp) ? '' : ' hidden') + '" id="fWaBtn" ' +
             (validWa(d.whatsapp) ? 'href="https://wa.me/' + waNum(d.whatsapp) + '"' : '') +
             ' target="_blank" rel="noopener">Chat</a>' +
@@ -1086,6 +1087,47 @@
 
   function validWa(v) { return /^(\+?62|0)\d{8,14}$/.test(String(v || '').replace(/[\s-]/g, '')); }
   function waNum(v) { return String(v).replace(/[\s-]/g, '').replace(/^0/, '62'); }
+
+  /* ------------------------------------------------------------
+     Ambil kontak dari HP pengguna (Contact Picker API).
+     Memungkinkan teknisi memilih kontak dari daftar kontak perangkat
+     untuk otomatis mengisi nomor WhatsApp dan nama pelanggan.
+  ------------------------------------------------------------ */
+  function pilihKontakHP() {
+    if (!('contacts' in navigator && 'ContactsManager' in window)) {
+      toast('Fitur kontak langsung tidak didukung browser ini. Silakan ketik nomor WhatsApp secara manual.');
+      return;
+    }
+    var props = ['tel', 'name'];
+    var opts = { multiple: false };
+    navigator.contacts.select(props, opts).then(function (contacts) {
+      if (!contacts || !contacts.length) return;
+      var c = contacts[0];
+      var tel = (c.tel && c.tel[0]) ? c.tel[0] : '';
+      var name = (c.name && c.name[0]) ? c.name[0] : '';
+      if (tel) {
+        var rawTel = tel.replace(/[\s\-\(\)]/g, '');
+        var waInput = document.getElementById('fWa');
+        if (waInput) {
+          waInput.value = rawTel;
+          waInput.dispatchEvent(new Event('input'));
+        }
+        if (M.draft) M.draft.whatsapp = rawTel;
+      }
+      if (name) {
+        var nameInput = document.getElementById('fName');
+        if (nameInput && !nameInput.value.trim()) {
+          nameInput.value = name;
+          if (M.draft) M.draft.customer_name = name;
+        }
+      }
+      toast('Kontak berhasil dimuat');
+    }).catch(function (err) {
+      if (err && err.name !== 'TypeError' && err.name !== 'AbortError') {
+        console.warn('Contact picker error:', err);
+      }
+    });
+  }
 
   // Pembayaran hanya boleh dicatat saat status "Done". Satu sumber kebenaran
   // dipakai bersama oleh renderDetail (tombol di layar) dan bindDetail (opsi
@@ -1452,6 +1494,14 @@
       });
     }
 
+    var pickContactBtn = $('#fPickContact');
+    if (pickContactBtn) {
+      pickContactBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        pilihKontakHP();
+      });
+    }
+
     // Kunci layar: daftar centang. Memilih chip langsung menyimpan ke draft
     // tanpa menggambar ulang seluruh form, supaya layar tidak berkedip.
     // Kolom isian muncul setelah ada yang dicentang dan disembunyikan lagi
@@ -1748,6 +1798,21 @@
   function submit(openAfter) {
     if (M.lock) return;               // kunci: klik berulang tidak jadi dobel
     var d = readDraft();
+
+    var waClean = String(d.whatsapp || '').trim().replace(/[\s-]/g, '');
+    if (!waClean) {
+      alertErr('Nomor WhatsApp wajib diisi');
+      var elWa = document.getElementById('fWa');
+      if (elWa) elWa.focus();
+      return;
+    }
+    if (!/^(\+?62|0)\d{8,14}$/.test(waClean)) {
+      alertErr('Nomor WhatsApp tidak valid (contoh: 081234567890)');
+      var elWa2 = document.getElementById('fWa');
+      if (elWa2) elWa2.focus();
+      return;
+    }
+
     M.lock = true;
     render();
 
@@ -3127,14 +3192,12 @@
           '<label class="mc-field"><span class="mc-lbl">Harga part (Rp)</span>' +
             '<input class="mc-inp" id="spCost" inputmode="numeric" placeholder="0"></label>' +
         '</div>' +
-        '<p class="mc-hint" id="spManualInfo">Estimasi jasa = harga part \u00d7 2.</p>' +
-        '<button type="button" class="mc-ghost-btn" id="spManAdd" disabled>+ Tambah ke daftar</button>' +
+        '<button type="button" class="mc-ghost-btn" id="spManAdd" disabled>+ Tambah ke Pool Sementara</button>' +
       '</div>' +
-      '<div class="mc-sec">Daftar sparepart <span class="mc-sec-note" id="spCount"></span></div>' +
+      '<div class="mc-sec">Pool Sementara Sparepart <span class="mc-sec-note" id="spCount"></span></div>' +
       '<div class="mc-parts" id="spList"></div>' +
       '<div class="mc-calc">' +
         '<div><span>Total Modal Part</span><b id="spTotal">0</b></div>' +
-        '<div><span>Estimasi Jasa</span><b id="spTotalEst">0</b></div>' +
       '</div>' +
     '</div>';
 
@@ -3299,8 +3362,8 @@
         ruleAdd.disabled = !(ruleCur && part > 0);
         if (!ruleCur) { ruleInfo.textContent = 'Pilih aturan, lalu isi harga part.'; return; }
         if (!part) { ruleInfo.textContent = 'Isi harga part.'; return; }
-        var h = w.CalcUI && w.CalcUI.hitung ? w.CalcUI.hitung(part, ruleCur) : { dasar: part * 2, est: part * 2 };
-        ruleInfo.textContent = rupiah(part) + ' \u00d7 2 = ' + rupiah(h.dasar) +
+        var h = w.CalcUI && w.CalcUI.hitung ? w.CalcUI.hitung(part, ruleCur) : { dasar: part, est: part };
+        ruleInfo.textContent = rupiah(part) +
           (ruleCur.pct ? ' +' + ruleCur.pct + '%' : '') + ' \u2192 estimasi jasa ' + rupiah(h.est);
       }
       ruleIn.addEventListener('input', hitungRule);
@@ -3321,32 +3384,31 @@
       function cekManual() {
         var harga = angka(costIn.value);
         manAdd.disabled = !((nameIn.value || '').trim() && harga > 0);
-        manInfo.textContent = harga > 0
-          ? 'Estimasi jasa: ' + rupiah(harga * 2) + ' (harga part \u00d7 2).'
-          : 'Estimasi jasa = harga part \u00d7 2.';
+        if (manInfo) manInfo.textContent = '';
       }
       nameIn.addEventListener('input', cekManual);
       costIn.addEventListener('input', cekManual);
       manAdd.addEventListener('click', function () {
         var nama = (nameIn.value || '').trim(), harga = angka(costIn.value);
         if (!nama || harga <= 0) return;
-        tambah.push({ name: nama, cost: harga, est: harga * 2, rule: null, simpanKalk: false });
+        tambah.push({ name: nama, cost: harga, est: 0, rule: null, simpanKalk: false });
         nameIn.value = ''; costIn.value = '';
         cekManual();
         gambarDaftar();
+        nameIn.focus();
         if (w.TG && w.TG.haptic) w.TG.haptic('success');
       });
 
       /* ---- daftar: edit langsung, total ikut berubah ---- */
       function hitungTotal() {
-        var tm = 0, te = 0;
-        tambah.forEach(function (p) { tm += p.cost; te += p.est; });
+        var tm = 0;
+        tambah.forEach(function (p) { tm += p.cost; });
         totalEl.textContent = rupiah(tm);
-        totalEstEl.textContent = rupiah(te);
+        if (totalEstEl) totalEstEl.textContent = '';
         countEl.textContent = tambah.length ? '(' + tambah.length + ')' : '';
         if (saveBtn) {
           saveBtn.disabled = !tambah.length;
-          saveBtn.textContent = tambah.length ? 'Simpan ' + tambah.length + ' Sparepart' : 'Simpan Sparepart';
+          saveBtn.textContent = tambah.length ? 'Simpan ' + tambah.length + ' Sparepart (' + rupiah(tm) + ')' : 'Simpan Sparepart';
         }
       }
       function gambarDaftar() {
@@ -3370,7 +3432,7 @@
           i = +t.dataset.spcost;
           if (tambah[i]) {
             tambah[i].cost = angka(t.value);
-            tambah[i].est = estDari(tambah[i].cost, tambah[i].rule);
+            tambah[i].est = tambah[i].rule ? estDari(tambah[i].cost, tambah[i].rule) : 0;
           }
         }
         hitungTotal();
@@ -3714,9 +3776,11 @@
      ========================================================= */
   function listFilter() {
     var f = {};
-    if (M.filter === 'today') { f.from = hariIni(); f.to = hariIni(); }
-    else if (M.filter === 'month') { f.from = bulanIni(); }
-    else if (M.filter === 'range' && M.from) { f.from = M.from; f.to = M.to; }
+    if (!M.status) {
+      if (M.filter === 'today') { f.from = hariIni(); f.to = hariIni(); }
+      else if (M.filter === 'month') { f.from = bulanIni(); }
+      else if (M.filter === 'range' && M.from) { f.from = M.from; f.to = M.to; }
+    }
     // Status yang dipilih lewat kartu status di Beranda.
     if (M.status) f.status = M.status;
     return f;
@@ -3896,7 +3960,16 @@
         // data-status="" supaya filter justru DILEPAS. Versi lama memakai
         // if (t.dataset.status) yang kosong berarti tidak dijalankan, jadi
         // filter lama tidak pernah bisa dilepas dari layar.
-        if ('status' in t.dataset) M.status = t.dataset.status || '';
+        if ('status' in t.dataset) {
+          M.status = t.dataset.status || '';
+          if (M.bbFilter) {
+            M.bbFilter.status = M.status;
+            if (M.status) {
+              M.bbFilter.fromActive = false;
+              M.bbFilter.toActive = false;
+            }
+          }
+        }
         if (v === 'form') { M.draft = blankDraft(); M.editing = null; render(); }
         else if (v === 'list') loadList();
         else if (v === 'money') loadMoney();

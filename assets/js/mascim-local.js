@@ -1253,7 +1253,8 @@
     if (name.length > 80) throw bad('Nama pelanggan terlalu panjang (maks 80)');
 
     var wa = String(inp.whatsapp == null ? '' : inp.whatsapp).trim().replace(/[\s-]/g, '');
-    if (wa && !/^(\+?62|0)\d{8,14}$/.test(wa)) throw bad('Nomor WhatsApp tidak valid (contoh: 081234567890)');
+    if (!wa) throw bad('Nomor WhatsApp wajib diisi');
+    if (!/^(\+?62|0)\d{8,14}$/.test(wa)) throw bad('Nomor WhatsApp tidak valid (contoh: 081234567890)');
 
     var device = String(inp.device == null ? '' : inp.device).trim();
     if (!device) throw bad('Device wajib diisi');
