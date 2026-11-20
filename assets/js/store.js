@@ -436,40 +436,44 @@
     }
   };
 
-  /* ---------------- Kalkulator Cerdas Universal ---------------- */
+  /* ---------------- Kalkulator Cerdas Universal (Mendukung +, -, *, /, dan %) ---------------- */
   function smartCalc(raw) {
     if (raw == null) return 0;
     if (typeof raw === 'number') return isFinite(raw) ? Math.max(0, Math.round(raw)) : 0;
     var s = String(raw).trim();
     if (!s) return 0;
 
-    // Normalisasi simbol unicode kalkulator
-    var clean = s.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
-    // Jika tidak mengandung operator matematika, parsing angka langsung
-    if (!/[+\-*/]/.test(clean)) {
+    // Normalisasi simbol unicode kalkulator dan tombol x
+    var clean = s.replace(/×|[xX]/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
+    // Jika tidak mengandung operator matematika / persen, parsing angka langsung
+    if (!/[+\-*/%]/.test(clean)) {
       var digits = clean.replace(/[^\d]/g, '');
       return digits ? parseInt(digits, 10) : 0;
     }
 
     // Bersihkan titik ribuan jika formatnya angka.angka (misal 50.000 + 25.000)
     clean = clean.replace(/(\d+)[.,](\d{3})(?=[^\d]|$)/g, '$1$2');
-    // Hapus karakter liar selain angka, +, -, *, /, .
-    clean = clean.replace(/[^0-9+\-*/.]/g, '');
+    // Hapus karakter liar selain angka, +, -, *, /, ., %
+    clean = clean.replace(/[^0-9+\-*/.%]/g, '');
     clean = clean.replace(/[+\-*/]+$/, '');
     if (!clean) return 0;
 
     try {
-      var tokens = clean.match(/(\d+(?:\.\d+)?|[+\-*/])/g);
+      var tokens = clean.match(/(\d+(?:\.\d+)?%?|[+\-*/])/g);
       if (!tokens || !tokens.length) return 0;
 
-      // Fase 1: Perkalian & Pembagian (* /)
+      // Fase 1: Perkalian & Pembagian (* /) dengan dukungan persen
       var next = [];
       var i = 0;
       while (i < tokens.length) {
         var t = tokens[i];
         if (t === '*' || t === '/') {
-          var prev = Number(next.pop() || 0);
-          var nxt = Number(tokens[i + 1] || 0);
+          var prevStr = String(next.pop() || 0);
+          var nxtStr = String(tokens[i + 1] || 0);
+
+          var prev = prevStr.endsWith('%') ? (parseFloat(prevStr) / 100) : Number(prevStr);
+          var nxt = nxtStr.endsWith('%') ? (parseFloat(nxtStr) / 100) : Number(nxtStr);
+
           var res = (t === '*') ? (prev * nxt) : (nxt !== 0 ? prev / nxt : 0);
           next.push(res);
           i += 2;
@@ -479,12 +483,21 @@
         }
       }
 
-      // Fase 2: Penjumlahan & Pengurangan (+ -)
-      var total = Number(next[0] || 0);
+      // Fase 2: Penjumlahan & Pengurangan (+ -) dengan dukungan persen rumus (misal: 100000 - 10%, 50000 + 5%)
+      var firstStr = String(next[0] || 0);
+      var total = firstStr.endsWith('%') ? (parseFloat(firstStr) / 100) : Number(firstStr);
       var j = 1;
       while (j < next.length) {
         var op = next[j];
-        var val = Number(next[j + 1] || 0);
+        var valStr = String(next[j + 1] || 0);
+        var val = 0;
+        if (valStr.endsWith('%')) {
+          var pct = parseFloat(valStr) / 100;
+          val = total * pct; // Persen relatif terhadap total berjalan
+        } else {
+          val = Number(valStr);
+        }
+
         if (op === '+') total += val;
         else if (op === '-') total -= val;
         j += 2;
@@ -501,11 +514,11 @@
 
   // Validasi nominal: bilangan bulat rupiah, min 1, tanpa desimal/negatif/huruf
   // Pemisah ribuan Indonesia ("25.000", "1,000,000") diterima, dan kalkulator cerdas
-  // ("50000+25000", "15000*2") otomatis dihitung.
+  // ("50000+25000", "15000*2", "100000-10%") otomatis dihitung.
   function parseAmount(raw) {
     var s = String(raw == null ? '' : raw).trim();
     if (!s) return { ok: false, msg: 'Nominal belum diisi' };
-    if (/[+\-*/×÷−]/.test(s)) {
+    if (/[+\-*/×÷−%]/.test(s)) {
       var evaled = smartCalc(s);
       if (evaled > 0) return { ok: true, value: evaled };
       return { ok: false, msg: 'Hasil perhitungan nominal minimal Rp1' };

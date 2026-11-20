@@ -843,7 +843,7 @@
   }
 
   function amountValue() {
-    if (/[+\-*/×÷−]/.test(amountStr)) {
+    if (/[+\-*/×÷−%]/.test(amountStr)) {
       return evalCalc(amountStr);
     }
     var n = Number(amountStr || 0);
@@ -852,11 +852,12 @@
 
   function formatExpr(str) {
     if (!str) return '0';
-    var parts = String(str).split(/([+\-*/×÷−])/);
+    var parts = String(str).split(/([+\-*/×÷−%])/);
     return parts.map(function (p) {
       if (p === '+' || p === '-' || p === '−') return ' ' + (p === '-' ? '−' : p) + ' ';
       if (p === '*' || p === '×') return ' × ';
       if (p === '/' || p === '÷') return ' ÷ ';
+      if (p === '%') return '%';
       var num = Number(p);
       if (p && isFinite(num) && p.indexOf('.') === -1) {
         return money(num);
@@ -866,7 +867,7 @@
   }
 
   function paintAmount() {
-    var hasOp = /[+\-*/×÷−]/.test(amountStr);
+    var hasOp = /[+\-*/×÷−%]/.test(amountStr);
     var v = amountValue();
     el.disp.classList.remove('in', 'out');
     el.disp.classList.add(type);
@@ -905,7 +906,7 @@
         amountStr = '0';
       }
     } else if (k === 'ok') {
-      if (/[+\-*/×÷−]/.test(amountStr)) {
+      if (/[+\-*/×÷−%]/.test(amountStr)) {
         var computed = evalCalc(amountStr);
         amountStr = String(computed);
         paintAmount();
@@ -922,14 +923,18 @@
       } else {
         amountStr += k;
       }
+    } else if (k === '%') {
+      if (amountStr !== '0' && !/[+\-*/×÷−%]$/.test(amountStr)) {
+        amountStr += '%';
+      }
     } else if (k === '000') {
-      if (amountStr !== '0' && !/[+\-*/×÷−]$/.test(amountStr)) {
+      if (amountStr !== '0' && !/[+\-*/×÷−%]$/.test(amountStr)) {
         if (amountStr.length <= 15) {
           amountStr += '000';
         }
       }
     } else if (k === '.') {
-      var lastPart = amountStr.split(/[+\-*/×÷−]/).pop();
+      var lastPart = amountStr.split(/[+\-*/×÷−%]/).pop();
       if (lastPart.indexOf('.') === -1) {
         amountStr += '.';
       }

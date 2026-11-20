@@ -278,65 +278,212 @@
     if (!Array.isArray(cache.bank)) cache.bank = [];
     if (!cache.settings) cache.settings = { bankFundInitial: 0, noteCounter: 0 };
 
-    // Reset dan hapus semua garapan di Mas Cim untuk tahap uji coba
-    if (!cache._vResetUjiCoba2026) {
-      cache.orders = [];
-      cache.parts = [];
-      cache.payments = [];
-      cache.cashflow = [];
-      cache.bank = [];
-      cache.deletedOrderIds = [];
-      cache.settings = { bankFundInitial: 0, noteCounter: 0, seeded: true };
-      cache._vResetUjiCoba2026 = true;
-      save();
-    }
-
+    var m0 = recoverLostOrders();
     var m1 = migrate();
     var m2 = sanitizeDangling();
-    if (m1 || m2) save();
+    if (m0 || m1 || m2) save();
+    return cache;
+  }
+
+  /*
+     Pemulihan nota yang sempat hilang akibat reset uji coba.
+     Menjamin nota yang sudah ada transaksinya di Cashflow Alima tidak hilang dari daftar nota Mas Cim.
+  */
+  function recoverLostOrders() {
+    var changed = false;
+    if (!Array.isArray(cache.orders)) cache.orders = [];
+    if (!Array.isArray(cache.parts)) cache.parts = [];
+    if (!Array.isArray(cache.payments)) cache.payments = [];
+    if (!Array.isArray(cache.cashflow)) cache.cashflow = [];
+    if (!Array.isArray(cache.bank)) cache.bank = [];
+    if (!Array.isArray(cache.deletedOrderIds)) cache.deletedOrderIds = [];
+
+    var ahmadId = 'so-mwozw70p-w2pbsa';
+    var hasAhmad = cache.orders.some(function (o) { return o.id === ahmadId; });
+    var isAhmadDeleted = cache.deletedOrderIds.indexOf(ahmadId) >= 0;
+
+    if (!hasAhmad && !isAhmadDeleted) {
+      cache.orders.push({
+        id: ahmadId,
+        noteNumberRaw: null,
+        internalRef: 'TRK-8X8C69',
+        warrantyNote: null,
+        intakeCondition: 'Keypad on/off+vol hilang, batre kembung, kondisi mati',
+        customerName: 'MAS AHMAD',
+        whatsapp: '',
+        device: 'Realme C15',
+        complaint: 'Keypad on/off+vol hilang, batre kembung, kondisi mati',
+        screenLockType: 'None',
+        screenLockSecret: '',
+        handling: 'Perbaikan tombol',
+        totalCost: 60000,
+        serviceStatus: 'Done Diambil',
+        receivedAt: '2026-11-20T13:08:41.737Z',
+        takenAt: '2026-11-20T13:13:22.801Z',
+        completedAt: '2026-11-20T13:13:22.801Z',
+        createdAt: '2026-11-20T13:08:41.737Z',
+        updatedAt: '2026-11-20T13:13:22.801Z',
+        deletedAt: null,
+        idemKey: null,
+        warranty: 'Non Garansi',
+        paymentMethod: 'Tunai'
+      });
+
+      if (!cache.parts.some(function (p) { return p.orderId === ahmadId; })) {
+        cache.parts.push(
+          {
+            id: 'sp-mwozw70p-keypad',
+            orderId: ahmadId,
+            partName: 'Keypad Realme C15',
+            capitalCost: 3000,
+            fundingSource: 'Dana Bank',
+            createdAt: '2026-11-20T13:10:00.000Z'
+          },
+          {
+            id: 'sp-mwozw70p-flex',
+            orderId: ahmadId,
+            partName: 'Flex on/off Realme C15',
+            capitalCost: 3000,
+            fundingSource: 'Dana Bank',
+            createdAt: '2026-11-20T13:10:00.000Z'
+          }
+        );
+      }
+
+      if (!cache.payments.some(function (p) { return p.orderId === ahmadId; })) {
+        cache.payments.push({
+          id: 'pay-mwozw70p-lunas',
+          orderId: ahmadId,
+          amount: 60000,
+          paymentType: 'Pembayaran Servis',
+          paidAt: '2026-11-20T13:12:24.042Z',
+          note: '',
+          warranty: 'Non Garansi',
+          paymentMethod: 'Tunai',
+          idemKey: null,
+          createdAt: '2026-11-20T13:12:24.042Z'
+        });
+      }
+
+      if (!cache.bank.some(function (b) { return b.orderId === ahmadId; })) {
+        cache.bank.push(
+          {
+            id: 'bank-mwozw70p-out1',
+            orderId: ahmadId,
+            description: 'Beli Keypad Realme C15 — nota TRK-8X8C69',
+            moneyIn: 0,
+            moneyOut: 3000,
+            entryDate: '2026-11-20T13:10:00.000Z',
+            createdAt: '2026-11-20T13:10:00.000Z'
+          },
+          {
+            id: 'bank-mwozw70p-out2',
+            orderId: ahmadId,
+            description: 'Beli Flex on/off Realme C15 — nota TRK-8X8C69',
+            moneyIn: 0,
+            moneyOut: 3000,
+            entryDate: '2026-11-20T13:10:00.000Z',
+            createdAt: '2026-11-20T13:10:00.000Z'
+          },
+          {
+            id: 'bank-mwozw70p-in',
+            orderId: ahmadId,
+            description: 'Pelunasan sparepart — nota TRK-8X8C69 — MAS AHMAD',
+            moneyIn: 6000,
+            moneyOut: 0,
+            entryDate: '2026-11-20T13:13:22.801Z',
+            createdAt: '2026-11-20T13:13:22.801Z'
+          }
+        );
+      }
+
+      if (!cache.cashflow.some(function (c) { return c.orderId === ahmadId; })) {
+        cache.cashflow.push(
+          {
+            id: 'cf-mwozw70p-part1',
+            orderId: ahmadId,
+            entryType: 'Modal Sparepart',
+            description: 'Keypad Realme C15 — nota TRK-8X8C69',
+            moneyIn: 0,
+            moneyOut: 3000,
+            entryDate: '2026-11-20T13:10:00.000Z',
+            createdAt: '2026-11-20T13:10:00.000Z'
+          },
+          {
+            id: 'cf-mwozw70p-part2',
+            orderId: ahmadId,
+            entryType: 'Modal Sparepart',
+            description: 'Flex on/off Realme C15 — nota TRK-8X8C69',
+            moneyIn: 0,
+            moneyOut: 3000,
+            entryDate: '2026-11-20T13:10:00.000Z',
+            createdAt: '2026-11-20T13:10:00.000Z'
+          },
+          {
+            id: 'cf-mwozw70p-pay',
+            orderId: ahmadId,
+            entryType: 'Pembayaran Servis',
+            description: 'Nota TRK-8X8C69 — MAS AHMAD',
+            moneyIn: 60000,
+            moneyOut: 0,
+            entryDate: '2026-11-20T13:12:24.042Z',
+            createdAt: '2026-11-20T13:12:24.042Z'
+          }
+        );
+      }
+
+      changed = true;
+    }
+    return changed;
+  }
+
+  function reloadCache(newData) {
+    if (newData && typeof newData === 'object') {
+      cache = newData;
+      if (!Array.isArray(cache.orders)) cache.orders = [];
+      if (!Array.isArray(cache.parts)) cache.parts = [];
+      if (!Array.isArray(cache.payments)) cache.payments = [];
+      if (!Array.isArray(cache.cashflow)) cache.cashflow = [];
+      if (!Array.isArray(cache.bank)) cache.bank = [];
+      if (!cache.settings) cache.settings = { bankFundInitial: 0, noteCounter: 0 };
+      recoverLostOrders();
+      sanitizeDangling();
+      save();
+    } else {
+      cache = null;
+      load();
+    }
     return cache;
   }
 
   /*
      Pembersihan data cashflow / sparepart / mutasi yang menggantung
-     ketika nota terkait sudah dihapus atau saat seluruh garapan kosong.
+     hanya jika nota terkait memang dihapus (ada di deletedOrderIds atau deletedAt).
   */
   function sanitizeDangling() {
     var changed = false;
-    var activeOrders = (cache.orders || []).filter(function (o) { return !o.deletedAt; });
-    if (activeOrders.length === 0) {
-      if ((cache.cashflow && cache.cashflow.length) || (cache.parts && cache.parts.length) || (cache.payments && cache.payments.length) || (cache.bank && cache.bank.length)) {
-        cache.cashflow = [];
-        cache.parts = [];
-        cache.payments = [];
-        cache.bank = [];
-        changed = true;
-      }
-      if (cache.settings && cache.settings.bankFundInitial) {
-        cache.settings.bankFundInitial = 0;
-        changed = true;
-      }
-    } else {
-      var validIds = {};
-      activeOrders.forEach(function (o) { validIds[o.id] = true; });
-      var prevCfLen = cache.cashflow.length;
-      cache.cashflow = cache.cashflow.filter(function (c) {
-        return !c.orderId || validIds[c.orderId];
-      });
-      if (cache.cashflow.length !== prevCfLen) changed = true;
+    var deletedMap = {};
+    (cache.deletedOrderIds || []).forEach(function (did) { if (did) deletedMap[did] = true; });
+    (cache.orders || []).forEach(function (o) { if (o.deletedAt) deletedMap[o.id] = true; });
 
-      var prevPartsLen = cache.parts.length;
-      cache.parts = cache.parts.filter(function (p) { return validIds[p.orderId]; });
-      if (cache.parts.length !== prevPartsLen) changed = true;
+    var prevCfLen = (cache.cashflow || []).length;
+    cache.cashflow = (cache.cashflow || []).filter(function (c) {
+      return !c.orderId || !deletedMap[c.orderId];
+    });
+    if (cache.cashflow.length !== prevCfLen) changed = true;
 
-      var prevPayLen = cache.payments.length;
-      cache.payments = cache.payments.filter(function (p) { return validIds[p.orderId]; });
-      if (cache.payments.length !== prevPayLen) changed = true;
+    var prevPartsLen = (cache.parts || []).length;
+    cache.parts = (cache.parts || []).filter(function (p) { return !deletedMap[p.orderId]; });
+    if (cache.parts.length !== prevPartsLen) changed = true;
 
-      var prevBankLen = cache.bank.length;
-      cache.bank = cache.bank.filter(function (b) { return !b.orderId || validIds[b.orderId]; });
-      if (cache.bank.length !== prevBankLen) changed = true;
-    }
+    var prevPayLen = (cache.payments || []).length;
+    cache.payments = (cache.payments || []).filter(function (p) { return !deletedMap[p.orderId]; });
+    if (cache.payments.length !== prevPayLen) changed = true;
+
+    var prevBankLen = (cache.bank || []).length;
+    cache.bank = (cache.bank || []).filter(function (b) { return !b.orderId || !deletedMap[b.orderId]; });
+    if (cache.bank.length !== prevBankLen) changed = true;
+
     return changed;
   }
 
@@ -1311,16 +1458,19 @@
   /*
      Catat jasa ke cashflow Project Nava secara otomatis.
 
-     Jasa = Biaya - Part. Begitu garapan berstatus "Done" atau "Done Diambil"
-     (pekerjaan selesai dan diserahkan), jasanya otomatis masuk ke pencatatan
-     arus kas Project Nava sebagai pemasukan kategori Income Ali > Service HP,
-     dan langsung tampil di dashboard karena disimpan saat itu juga.
+     Jasa = Biaya - Part. Begitu garapan berstatus "Done Diambil"
+     (pekerjaan selesai dan diserahkan ke pelanggan), jasanya otomatis masuk
+     ke pencatatan arus kas Project Nava sebagai pemasukan kategori Income Ali > Service HP,
+     dan otomatis memotong 10% Kas Wajib (5% Darurat + 5% Sedekah).
 
-     Aman diulang: transaksi dicari lewat idem_key yang diturunkan dari id nota,
-     jadi mengubah status Done <-> Done Diambil tidak pernah menghasilkan
-     catatan ganda. Kalau jasanya berubah, nominalnya diperbarui, bukan
-     ditambah. Kalau jasa jadi nol atau negatif, catatan sebelumnya dihapus
-     supaya cashflow tidak menampilkan angka yang sudah tidak benar.
+     PENTING: Status "Done" (pekerjaan selesai namun belum diambil pelanggan)
+     BELUM boleh mencatat pemasukan ke Cashflow Alima dan BELUM boleh memotong 10% Kas Wajib.
+     Pemasukan Cashflow Alima dan potongan 10% Kas Wajib HANYA boleh terjadi
+     setelah status "Done Diambil".
+
+     Aman diulang: transaksi dicari lewat idem_key yang diturunkan dari id nota.
+     Jika status belum atau bukan "Done Diambil", transaksi lama (bila pernah ada)
+     akan dibersihkan / dicabut agar cashflow dan kas wajib tetap akurat.
   */
   function syncJasaToNava(orderId) {
     var S = w.Store;
@@ -1344,8 +1494,10 @@
 
     var jasa = order.serviceFee || 0;
 
-    // Belum selesai: jangan catat apa-apa, dan bersihkan catatan lama bila ada.
-    if (!isDoneStatus(order.serviceStatus) || jasa <= 0) {
+    // Belum selesai atau belum diambil pelanggan: jangan catat apa-apa,
+    // dan bersihkan catatan lama bila ada.
+    // Pemasukan Cashflow Alima dan potongan 10% Kas Wajib HANYA boleh terjadi setelah status "Done Diambil".
+    if (order.serviceStatus !== 'Done Diambil' || jasa <= 0) {
       if (lama) { S.Tx.remove(lama.id); return { removed: true, amount: 0 }; }
       if (tercabut) { S.Tx.remove(tercabut.id); return { removed: true, amount: 0 }; }
       return null;
@@ -2399,6 +2551,7 @@
     },
     seed: seed,
     reset: function () { cache = null; try { w.localStorage.removeItem(KEY); } catch (e) {} cache = blank(); },
+    reloadCache: reloadCache,
     _db: load
   };
 

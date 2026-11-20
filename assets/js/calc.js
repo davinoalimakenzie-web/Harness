@@ -342,13 +342,13 @@
   }
 
   /* ---------------- Input ---------------- */
-  /* Terima "150000", "150.000", "150,000", serta ekspresi aritmatika kalkulator ("120000+15000", "50000*2"). */
+  /* Terima "150000", "150.000", "150,000", serta ekspresi aritmatika kalkulator ("120000+15000", "50000*2", "100000-10%"). */
   function parsePart(raw) {
     if (raw == null) return 0;
     if (typeof raw === 'number') return isFinite(raw) ? Math.max(0, Math.round(raw)) : 0;
     var s = String(raw).trim();
     if (!s) return 0;
-    if (/[+\-*/×÷−]/.test(s)) {
+    if (/[+\-*/×÷−%]/.test(s)) {
       if (w.smartCalc) return w.smartCalc(s);
       if (w.Store && w.Store.smartCalc) return w.Store.smartCalc(s);
     }
@@ -981,7 +981,7 @@
 
     el.kPart.addEventListener('input', renderOut);
     el.kPart.addEventListener('blur', function () {
-      if (/[+\-*/×÷−]/.test(this.value)) {
+      if (/[+\-*/×÷−%]/.test(this.value)) {
         var computed = parsePart(this.value);
         if (computed > 0) this.value = computed;
         renderOut();

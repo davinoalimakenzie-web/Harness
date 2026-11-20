@@ -403,7 +403,13 @@
             var mergedM = mergeMascim(localM, remote.mascim);
             if (JSON.stringify(localM) !== JSON.stringify(mergedM)) {
               w.localStorage.setItem('nava.mascim.local.v1', JSON.stringify(mergedM));
+              if (typeof w.MascimLocal.reloadCache === 'function') {
+                w.MascimLocal.reloadCache(mergedM);
+              }
               if (w.MascimUI && typeof w.MascimUI.render === 'function') w.MascimUI.render();
+            }
+            if (JSON.stringify(remote.mascim) !== JSON.stringify(mergedM)) {
+              hasRemoteChanges = true;
             }
           } catch (eM) {}
         }

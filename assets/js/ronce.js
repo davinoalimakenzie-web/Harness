@@ -2580,7 +2580,7 @@
     var rjQtyEl = $('#rjQty');
     if (rjQtyEl) {
       rjQtyEl.addEventListener('blur', function () {
-        if (/[+\-*/×÷−]/.test(this.value)) {
+        if (/[+\-*/×÷−%]/.test(this.value)) {
           var val = (w.smartCalc ? w.smartCalc(this.value) : num(this.value)) || 0;
           if (val > 0) this.value = val;
         }
