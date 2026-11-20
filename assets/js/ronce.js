@@ -828,70 +828,42 @@
     return false;
   }
 
-  /* ---------------- Modal Pelunasan & Deposit (Revisi Khusus) ---------------- */
-  var taskSedangDilunasi = null;
-  var modePelunasan = 'auto'; // 'auto' (Potong Deposit) | 'cash' (Full Cash) | 'custom' (Kombinasi)
+  /* ---------------- Modal Pelunasan & Checklist Pool (Revisi Khusus) ---------------- */
+  var selectedPoolTaskIds = {};
+  var poolFilter = 'all'; // 'all' | 'owner' | 'mitra'
 
-  function bukaModalPelunasan(id) {
+  function bukaModalPelunasan(initialTaskId) {
     if (!adalahOwner()) {
       w.App.toast('Hanya owner yang dapat melunasi garapan');
       return;
     }
-    var t = cariTugas(id);
-    if (!t) {
-      w.App.toast('Garapan tidak ditemukan');
-      return;
-    }
-    if (isTaskLunas(t)) {
-      w.App.toast('Garapan ini sudah lunas');
-      return;
-    }
-
-    taskSedangDilunasi = t;
-    modePelunasan = 'auto';
 
     var modal = $('#modalPelunasanRonce');
-    if (!modal) {
-      return;
+    if (!modal) return;
+
+    selectedPoolTaskIds = {};
+    poolFilter = 'all';
+
+    // Jika dipanggil dari tombol 'Lunasi' pada satu garapan tertentu, otomatis centang garapan tersebut
+    if (initialTaskId) {
+      var tInit = cariTugas(initialTaskId);
+      if (tInit && !isTaskLunas(tInit)) {
+        selectedPoolTaskIds[initialTaskId] = true;
+      }
     }
 
-    var nama = namaGarapan(t.serviceId) + (t.quantity > 1 ? ' x' + t.quantity : '');
-    var pekerja = t.pribadi ? 'Owner' : (t.employeeName || 'Mitra');
-    var tgl = t.date ? formatTanggal(t.date) : '-';
-
-    var jEl = $('#mpJudul'); if (jEl) jEl.textContent = 'Pelunasan Garapan';
-    var sjEl = $('#mpSubJudul'); if (sjEl) sjEl.textContent = nama + ' · ' + pekerja + ' · 📅 ' + tgl;
-
+    // Update Saldo Deposit
     var saldo = (data.deposit && typeof data.deposit.saldo === 'number') ? data.deposit.saldo : 0;
     var sdEl = $('#mpSaldoDeposit'); if (sdEl) sdEl.textContent = formatIDR(saldo);
 
-    var komisi = num(t.deliveryFee);
-    var kaEl = $('#mpKomisiAwal'); if (kaEl) kaEl.textContent = formatIDR(komisi);
-
-    var inpBonus = $('#mpInputBonus');
-    if (inpBonus) inpBonus.value = '0';
-
-    var lblBonus = $('#mpLblBonus');
-    var hintBonus = $('#mpHintBonus');
-    if (t.pribadi) {
-      if (lblBonus) lblBonus.textContent = 'Fee / Bonus Tambahan (Owner)';
-      if (hintBonus) hintBonus.textContent = 'Bonus diambil dari deposit dan ditambahkan ke pelunasan owner (masuk Cashflow Alima & 10% Kas Wajib Dana Bank).';
-    } else {
-      if (lblBonus) lblBonus.textContent = 'Pelunasan Tambahan / Kelebihan (opsional)';
-      if (hintBonus) hintBonus.textContent = 'Kelebihan pelunasan diambilkan dari deposit (rekapan penagihan mitra).';
-    }
-
-    // Reset chips mode
-    document.querySelectorAll('#mpModeChips .chip').forEach(function (c) {
-      c.classList.toggle('on', c.dataset.mpmode === 'auto');
+    // Reset filter chips
+    document.querySelectorAll('#mpFilterChips .chip').forEach(function (c) {
+      c.classList.toggle('on', c.dataset.mpfilter === 'all');
     });
 
-    var wCust = $('#mpWrapCustomDep');
-    if (wCust) wCust.style.display = 'none';
-    var inpCust = $('#mpInputCustomDep');
-    if (inpCust) inpCust.value = '';
+    renderMpChecklist();
+    kalkulasiPoolPelunasan();
 
-    kalkulasiPelunasan();
     modal.classList.remove('hidden');
     modal.removeAttribute('aria-hidden');
   }
@@ -902,151 +874,244 @@
       modal.classList.add('hidden');
       modal.setAttribute('aria-hidden', 'true');
     }
-    taskSedangDilunasi = null;
+    selectedPoolTaskIds = {};
   }
 
-  function kalkulasiPelunasan() {
-    if (!taskSedangDilunasi) return;
-    var t = taskSedangDilunasi;
-    var komisi = num(t.deliveryFee);
-    var bonus = num(($('#mpInputBonus') || {}).value) || 0;
-    var totalBayar = komisi + bonus;
+  function renderMpChecklist() {
+    var container = $('#mpChecklistContainer');
+    if (!container) return;
 
-    var saldo = (data.deposit && typeof data.deposit.saldo === 'number') ? data.deposit.saldo : 0;
-    var potongDeposit = 0;
+    // Ambil semua task yang belum lunas
+    var tasks = data.tasks.filter(function (t) {
+      return !isTaskLunas(t);
+    }).sort(function (a, b) {
+      return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+    });
 
-    if (modePelunasan === 'auto') {
-      potongDeposit = Math.min(saldo, totalBayar);
-    } else if (modePelunasan === 'cash') {
-      potongDeposit = 0;
-    } else if (modePelunasan === 'custom') {
-      var customDep = num(($('#mpInputCustomDep') || {}).value) || 0;
-      potongDeposit = Math.min(saldo, Math.min(customDep, totalBayar));
+    if (poolFilter === 'owner') {
+      tasks = tasks.filter(function (t) { return !!t.pribadi; });
+    } else if (poolFilter === 'mitra') {
+      tasks = tasks.filter(function (t) { return !t.pribadi; });
     }
 
-    var bayarCash = totalBayar - potongDeposit;
-    var sisaDeposit = saldo - potongDeposit;
+    if (!tasks.length) {
+      container.innerHTML = '<div style="text-align:center;padding:24px 10px;color:var(--text-2);font-size:12px;">'
+        + (poolFilter === 'all' ? '🎉 Semua garapan sudah lunas!' : 'Tidak ada garapan ' + poolFilter + ' yang belum lunas.')
+        + '</div>';
+      return;
+    }
 
+    var html = tasks.map(function (t) {
+      var s = cariGarapan(t.serviceId);
+      var set = s && s.isSetEnabled;
+      var nama = esc(namaGarapan(t.serviceId)) + ' &times;' + t.quantity + (set ? ' Set' : ' pcs');
+      var isOwner = !!t.pribadi;
+      var pekerja = isOwner ? 'Owner' : (t.employeeName || 'Mitra');
+      var badgePeran = isOwner
+        ? '<span class="rekap-badge-peran owner" style="font-size:10px;padding:1px 6px;">OWNER</span>'
+        : '<span class="rekap-badge-peran mitra" style="font-size:10px;padding:1px 6px;">' + esc(pekerja) + '</span>';
+      var tgl = t.date ? formatTanggal(t.date) : '-';
+      var isSelected = !!selectedPoolTaskIds[t.id];
+
+      return '<div class="mp-check-item' + (isSelected ? ' selected' : '') + '" data-mp-tid="' + esc(t.id) + '">'
+        + '<input type="checkbox" class="mp-check-input" ' + (isSelected ? 'checked' : '') + ' data-mp-tid="' + esc(t.id) + '">'
+        + '<div class="mp-check-info">'
+        +   '<span class="mp-check-title">' + nama + '</span>'
+        +   '<div class="mp-check-sub">' + badgePeran + '<span>📅 ' + tgl + '</span></div>'
+        + '</div>'
+        + '<strong class="mp-check-fee">' + formatIDR(t.deliveryFee) + '</strong>'
+        + '</div>';
+    }).join('');
+
+    container.innerHTML = html;
+  }
+
+  function kalkulasiPoolPelunasan() {
+    var selectedIds = Object.keys(selectedPoolTaskIds).filter(function (id) {
+      return !!selectedPoolTaskIds[id];
+    });
+
+    var selectedTasks = [];
+    selectedIds.forEach(function (id) {
+      var t = cariTugas(id);
+      if (t && !isTaskLunas(t)) selectedTasks.push(t);
+    });
+
+    var ownerTasks = selectedTasks.filter(function (t) { return !!t.pribadi; });
+    var mitraTasks = selectedTasks.filter(function (t) { return !t.pribadi; });
+
+    var totalOwner = ownerTasks.reduce(function (sum, t) { return sum + num(t.deliveryFee); }, 0);
+    var totalMitra = mitraTasks.reduce(function (sum, t) { return sum + num(t.deliveryFee); }, 0);
+    var totalBayar = totalOwner + totalMitra;
+
+    var saldoDeposit = (data.deposit && typeof data.deposit.saldo === 'number') ? data.deposit.saldo : 0;
+
+    // Teknis pelunasan:
+    // Nilai deposit dipotong total garapan Owner yang ada di pool
+    var potongDeposit = Math.min(saldoDeposit, totalOwner);
+    var sisaDeposit = Math.max(0, saldoDeposit - totalOwner);
+    var kekuranganOwner = Math.max(0, totalOwner - saldoDeposit);
+
+    // Mitra: hanya full payment (tanpa memotong nilai deposit)
+    var totalCash = kekuranganOwner + totalMitra;
+
+    // Update elemen DOM
+    var cntEl = $('#mpPoolCount'); if (cntEl) cntEl.textContent = selectedTasks.length + ' Garapan';
     var tbEl = $('#mpTotalBayar'); if (tbEl) tbEl.textContent = formatIDR(totalBayar);
+
+    var toEl = $('#mpTotalOwnerVal'); if (toEl) toEl.textContent = formatIDR(totalOwner);
     var pdEl = $('#mpBrdPotongDep'); if (pdEl) pdEl.textContent = '- ' + formatIDR(potongDeposit);
     var sdEl = $('#mpBrdSisaDep'); if (sdEl) sdEl.textContent = formatIDR(sisaDeposit);
-    var bcEl = $('#mpBrdCash'); if (bcEl) bcEl.textContent = formatIDR(bayarCash);
 
-    var info = $('#mpAlimaInfo');
-    if (info) {
-      if (t.pribadi) {
-        var wajib10 = Math.round(totalBayar * 0.1);
-        info.innerHTML = 'ℹ️ <b>Garapan Owner</b>: Otomatis masuk <b>Cashflow Alima</b> (Pemasukan ' + formatIDR(totalBayar) + ') dan 10% (' + formatIDR(wajib10) + ') disetor ke <b>Kas Wajib Dana Bank</b>.';
-        info.style.background = 'rgba(16,185,129,0.12)';
-        info.style.border = '1px solid rgba(16,185,129,0.25)';
+    var rowOc = $('#mpRowOwnerCash');
+    var ocEl = $('#mpOwnerCashVal');
+    if (rowOc) {
+      rowOc.style.display = kekuranganOwner > 0 ? 'flex' : 'none';
+      if (ocEl) ocEl.textContent = formatIDR(kekuranganOwner);
+    }
+
+    var secMitra = $('#mpMitraSection');
+    var tmEl = $('#mpTotalMitraVal');
+    if (secMitra) {
+      secMitra.style.display = mitraTasks.length > 0 ? 'block' : 'none';
+      if (tmEl) tmEl.textContent = formatIDR(totalMitra);
+    }
+
+    var rowCash = $('#mpRowTotalCash');
+    var bcEl = $('#mpBrdCash');
+    if (rowCash) {
+      rowCash.style.display = totalCash > 0 ? 'flex' : 'none';
+      if (bcEl) bcEl.textContent = formatIDR(totalCash);
+    }
+
+    var btnKonf = $('#mpBtnKonfirmasi');
+    if (btnKonf) {
+      if (selectedTasks.length > 0) {
+        btnKonf.disabled = false;
+        btnKonf.textContent = 'Konfirmasi Lunasi (' + selectedTasks.length + ' Garapan · ' + formatIDR(totalBayar) + ')';
       } else {
-        info.innerHTML = 'ℹ️ <b>Garapan Mitra (' + esc(t.employeeName || 'Mitra') + ')</b>: HANYA sebagai <b>rekapan penagihan biasa</b>. Tidak masuk Cashflow Alima &amp; Kas Wajib Dana Bank.';
-        info.style.background = 'rgba(59,130,246,0.12)';
-        info.style.border = '1px solid rgba(59,130,246,0.25)';
+        btnKonf.disabled = true;
+        btnKonf.textContent = 'Pilih Garapan Dulu';
       }
     }
   }
 
   function konfirmasiPelunasan() {
-    if (!taskSedangDilunasi) return;
-    var t = taskSedangDilunasi;
-    var komisi = num(t.deliveryFee);
-    var bonus = num(($('#mpInputBonus') || {}).value) || 0;
-    var totalBayar = komisi + bonus;
+    var selectedIds = Object.keys(selectedPoolTaskIds).filter(function (id) {
+      return !!selectedPoolTaskIds[id];
+    });
 
-    var saldo = (data.deposit && typeof data.deposit.saldo === 'number') ? data.deposit.saldo : 0;
-    var potongDeposit = 0;
+    var selectedTasks = [];
+    selectedIds.forEach(function (id) {
+      var t = cariTugas(id);
+      if (t && !isTaskLunas(t)) selectedTasks.push(t);
+    });
 
-    if (modePelunasan === 'auto') {
-      potongDeposit = Math.min(saldo, totalBayar);
-    } else if (modePelunasan === 'cash') {
-      potongDeposit = 0;
-    } else if (modePelunasan === 'custom') {
-      var customDep = num(($('#mpInputCustomDep') || {}).value) || 0;
-      potongDeposit = Math.min(saldo, Math.min(customDep, totalBayar));
+    if (!selectedTasks.length) {
+      w.App.toast('Pilih minimal 1 garapan untuk dilunasi');
+      return;
     }
 
-    var bayarCash = totalBayar - potongDeposit;
-    var sisaDeposit = saldo - potongDeposit;
+    var ownerTasks = selectedTasks.filter(function (t) { return !!t.pribadi; });
+    var mitraTasks = selectedTasks.filter(function (t) { return !t.pribadi; });
 
-    // Potong deposit jika digunakan
-    if (potongDeposit > 0) {
-      data.deposit.saldo = Math.max(0, sisaDeposit);
-      if (!data.deposit.riwayat) data.deposit.riwayat = [];
-      data.deposit.riwayat.unshift({
-        id: uid(),
-        waktu: new Date().toISOString(),
-        tipe: 'potong',
-        nominal: potongDeposit,
-        taskId: t.id,
-        catatan: 'Pelunasan: ' + namaGarapan(t.serviceId) + ' (' + (t.pribadi ? 'Owner' : (t.employeeName || 'Mitra')) + ')',
-        sisa: data.deposit.saldo
-      });
-    }
+    var totalOwner = ownerTasks.reduce(function (sum, t) { return sum + num(t.deliveryFee); }, 0);
+    var totalMitra = mitraTasks.reduce(function (sum, t) { return sum + num(t.deliveryFee); }, 0);
+    var totalBayar = totalOwner + totalMitra;
 
-    t.isLunas = true;
-    t.status = 'completed';
-    t.paidAt = new Date().toISOString();
-    t.completedAt = t.completedAt || new Date().toISOString();
-    t._u = new Date().toISOString();
-    t.pelunasanInfo = {
-      total: totalBayar,
-      komisi: komisi,
-      bonus: bonus,
-      potongDeposit: potongDeposit,
-      bayarCash: bayarCash,
-      mode: modePelunasan
-    };
+    var saldoAwal = (data.deposit && typeof data.deposit.saldo === 'number') ? data.deposit.saldo : 0;
+    var potongDeposit = Math.min(saldoAwal, totalOwner);
+    var sisaDeposit = Math.max(0, saldoAwal - totalOwner);
+    var kekuranganOwner = Math.max(0, totalOwner - saldoAwal);
 
-    // Jika ada payment request terkait mitra ini, tandai dibayar
-    if (data.paymentRequests && data.paymentRequests.length) {
-      for (var p = 0; p < data.paymentRequests.length; p++) {
-        var pr = data.paymentRequests[p];
-        if (pr.taskIds && pr.taskIds.indexOf(t.id) >= 0 && pr.status !== 'dibayar') {
-          pr.status = 'dibayar';
-          pr.paidAt = new Date().toISOString();
-          pr._u = new Date().toISOString();
-        }
+    var now = new Date().toISOString();
+
+    // 1. Eksekusi Pelunasan Garapan OWNER (Potong Deposit)
+    if (ownerTasks.length > 0) {
+      if (potongDeposit > 0) {
+        data.deposit.saldo = sisaDeposit;
+        if (!data.deposit.riwayat) data.deposit.riwayat = [];
+        data.deposit.riwayat.unshift({
+          id: uid(),
+          waktu: now,
+          tipe: 'potong',
+          nominal: potongDeposit,
+          taskIds: ownerTasks.map(function (t) { return t.id; }),
+          catatan: 'Pelunasan pool ' + ownerTasks.length + ' garapan Owner',
+          sisa: data.deposit.saldo
+        });
       }
-    }
 
-    var nama = namaGarapan(t.serviceId) + (t.quantity > 1 ? ' x' + t.quantity : '');
-    var pekerja = t.pribadi ? 'Owner' : (t.employeeName || 'Mitra');
-
-    // HANYA jika OWNER: Catat transaksi pemasukan ke Cashflow Alima dan Kas Wajib Dana Bank 10%
-    if (t.pribadi) {
-      var S = w.Store;
-      if (S && S.Tx && typeof S.Tx.create === 'function') {
-        var idem = 'ronce-pelunasan:' + t.id;
-        var tgl = t.date || hariIni();
-        var today = S.todayStr ? S.todayStr() : hariIni();
-        if (tgl > today) tgl = today;
-
-        var ket = 'Pelunasan Jasa Ronce (Owner) — ' + nama + (bonus > 0 ? ' [Komisi ' + formatIDR(komisi) + ' + Bonus ' + formatIDR(bonus) + ']' : '') + (t.note ? ' [' + t.note + ']' : '');
-
-        var payload = {
-          type: 'in',
-          group: 'Income Hima',
-          sub: 'Roncelia',
-          amount: totalBayar,
-          date: tgl,
-          note: ket
+      // Tandai masing-masing task owner lunas & sinkronkan ke Cashflow Alima (Project Nava)
+      ownerTasks.forEach(function (t) {
+        var komisi = num(t.deliveryFee);
+        t.isLunas = true;
+        t.status = 'completed';
+        t.paidAt = now;
+        t.completedAt = t.completedAt || now;
+        t._u = now;
+        t.pelunasanInfo = {
+          total: komisi,
+          komisi: komisi,
+          bonus: 0,
+          potongDeposit: Math.min(saldoAwal, komisi),
+          bayarCash: Math.max(0, komisi - saldoAwal),
+          mode: 'pool_checklist'
         };
 
-        var allTx = S.Tx.all ? S.Tx.all() : [];
-        var existingTx = null;
-        for (var x = 0; x < allTx.length; x++) {
-          if (allTx[x].idem_key === idem || allTx[x].idem_key === ('ronce-pribadi:' + t.id)) {
-            existingTx = allTx[x];
-            break;
+        var S = w.Store;
+        if (S && S.Tx && typeof S.Tx.create === 'function') {
+          var idem = 'ronce-pelunasan:' + t.id;
+          var tgl = t.date || hariIni();
+          var today = S.todayStr ? S.todayStr() : hariIni();
+          if (tgl > today) tgl = today;
+
+          var nama = namaGarapan(t.serviceId) + (t.quantity > 1 ? ' x' + t.quantity : '');
+          var ket = 'Pelunasan Jasa Ronce (Owner) — ' + nama + (t.note ? ' [' + t.note + ']' : '');
+
+          var payload = {
+            type: 'in',
+            group: 'Income Hima',
+            sub: 'Roncelia',
+            amount: komisi,
+            date: tgl,
+            note: ket
+          };
+
+          var allTx = S.Tx.all ? S.Tx.all() : [];
+          var existingTx = null;
+          for (var x = 0; x < allTx.length; x++) {
+            if (allTx[x].idem_key === idem || allTx[x].idem_key === ('ronce-pribadi:' + t.id)) {
+              existingTx = allTx[x];
+              break;
+            }
+          }
+
+          if (existingTx) {
+            if (existingTx.deleted_at && typeof S.Tx.restore === 'function') S.Tx.restore(existingTx.id);
+            if (typeof S.Tx.update === 'function') S.Tx.update(existingTx.id, payload);
+          } else {
+            S.Tx.create(payload, idem);
           }
         }
+      });
 
-        if (existingTx) {
-          if (existingTx.deleted_at && typeof S.Tx.restore === 'function') S.Tx.restore(existingTx.id);
-          if (typeof S.Tx.update === 'function') S.Tx.update(existingTx.id, payload);
-        } else {
-          S.Tx.create(payload, idem);
+      // KETENTUAN REVISI KHUSUS:
+      // "saat pelunasan terjadi sisa deposit juga masuk menjadi pemasukan cashflow alima dan kas wajib 10%"
+      if (sisaDeposit > 0) {
+        var S2 = w.Store;
+        if (S2 && S2.Tx && typeof S2.Tx.create === 'function') {
+          var sisaBatchId = uid();
+          var idemSisa = 'ronce-sisa-dep:' + sisaBatchId;
+          var payloadSisa = {
+            type: 'in',
+            group: 'Income Hima',
+            sub: 'Roncelia',
+            amount: sisaDeposit,
+            date: (S2.todayStr ? S2.todayStr() : hariIni()),
+            note: 'Sisa Deposit Ronce (Owner) — Pelunasan Pool ' + ownerTasks.length + ' Garapan'
+          };
+          S2.Tx.create(payloadSisa, idemSisa);
         }
       }
 
@@ -1058,16 +1123,53 @@
       } catch (eBank) {
         console.warn('Sync NavaBank error:', eBank);
       }
-
-      var kasWajib10 = Math.round(totalBayar * 0.1);
-      w.App.toast('Berhasil dilunasi ' + formatIDR(totalBayar) + '!\n✓ Masuk Cashflow Alima\n✓ ' + formatIDR(kasWajib10) + ' disetor ke Kas Wajib Dana Bank (10%)\n(Deposit: ' + formatIDR(potongDeposit) + ', Cash: ' + formatIDR(bayarCash) + ')', 4000);
-    } else {
-      // MITRA: HANYA rekapan penagihan biasa
-      w.App.toast('Garapan mitra dilunasi ' + formatIDR(totalBayar) + ' (Rekap Penagihan)\n(Deposit: ' + formatIDR(potongDeposit) + ', Cash: ' + formatIDR(bayarCash) + ')', 3500);
     }
 
-    catat('Garapan dilunasi: ' + nama + ' (' + pekerja + ') ' + formatIDR(totalBayar));
+    // 2. Eksekusi Pelunasan Garapan MITRA (Full Payment tanpa memotong deposit)
+    if (mitraTasks.length > 0) {
+      mitraTasks.forEach(function (t) {
+        var komisi = num(t.deliveryFee);
+        t.isLunas = true;
+        t.status = 'completed';
+        t.paidAt = now;
+        t.completedAt = t.completedAt || now;
+        t._u = now;
+        t.pelunasanInfo = {
+          total: komisi,
+          komisi: komisi,
+          bonus: 0,
+          potongDeposit: 0,
+          bayarCash: komisi,
+          mode: 'full_payment_mitra'
+        };
+
+        // Jika ada payment request terkait mitra ini, tandai dibayar
+        if (data.paymentRequests && data.paymentRequests.length) {
+          for (var p = 0; p < data.paymentRequests.length; p++) {
+            var pr = data.paymentRequests[p];
+            if (pr.taskIds && pr.taskIds.indexOf(t.id) >= 0 && pr.status !== 'dibayar') {
+              pr.status = 'dibayar';
+              pr.paidAt = now;
+              pr._u = now;
+            }
+          }
+        }
+      });
+    }
+
+    catat('Pelunasan pool ' + selectedTasks.length + ' garapan: ' + formatIDR(totalBayar));
     simpan();
+
+    var msg = 'Berhasil melunasi ' + selectedTasks.length + ' garapan (' + formatIDR(totalBayar) + ')!';
+    if (ownerTasks.length > 0) {
+      msg += '\n✓ ' + ownerTasks.length + ' Garapan Owner masuk Cashflow Alima & Kas Wajib 10%';
+      if (potongDeposit > 0) msg += '\n✓ Dipotong Deposit: ' + formatIDR(potongDeposit);
+      if (sisaDeposit > 0) msg += '\n✓ Sisa deposit ' + formatIDR(sisaDeposit) + ' tersimpan & masuk Cashflow Alima + Kas Wajib 10%';
+    }
+    if (mitraTasks.length > 0) {
+      msg += '\n✓ ' + mitraTasks.length + ' Garapan Mitra dilunasi Full Payment (Rekap Mitra)';
+    }
+    w.App.toast(msg, 4500);
 
     if (w.TxUI && typeof w.TxUI.render === 'function') {
       try { w.TxUI.render(); } catch (e) {}
@@ -1129,10 +1231,11 @@
     tutupModalDeposit();
 
     // Jika modal pelunasan sedang terbuka, update kalkulasinya
-    if (taskSedangDilunasi) {
+    var mpModal = $('#modalPelunasanRonce');
+    if (mpModal && !mpModal.classList.contains('hidden')) {
       var sdEl = $('#mpSaldoDeposit');
       if (sdEl) sdEl.textContent = formatIDR(data.deposit.saldo);
-      kalkulasiPelunasan();
+      kalkulasiPoolPelunasan();
     }
 
     renderRekap();
@@ -2660,7 +2763,13 @@
         return;
       }
 
-      // Buka Modal Pelunasan
+      // Buka Modal Pelunasan Pool (dari tombol utama rekap atau dari baris garapan)
+      var lunPool = e.target.closest('#btnBukaPelunasanPool');
+      if (lunPool) {
+        bukaModalPelunasan();
+        return;
+      }
+
       var lun = e.target.closest('[data-lunasi-id]');
       if (lun) {
         bukaModalPelunasan(lun.dataset.lunasiId);
@@ -2674,20 +2783,71 @@
         return;
       }
 
-      // Ganti Mode Pelunasan (Auto Deposit | Full Cash | Custom Kombinasi)
-      var modeBtn = e.target.closest('[data-mpmode]');
-      if (modeBtn) {
-        modePelunasan = modeBtn.dataset.mpmode;
-        document.querySelectorAll('#mpModeChips .chip').forEach(function (c) {
-          c.classList.toggle('on', c === modeBtn);
+      // Filter Checklist Pelunasan (Semua | Owner | Mitra)
+      var mpf = e.target.closest('[data-mpfilter]');
+      if (mpf) {
+        poolFilter = mpf.dataset.mpfilter;
+        document.querySelectorAll('#mpFilterChips .chip').forEach(function (c) {
+          c.classList.toggle('on', c === mpf);
         });
-        var wCust = $('#mpWrapCustomDep');
-        if (wCust) wCust.style.display = (modePelunasan === 'custom') ? 'block' : 'none';
-        kalkulasiPelunasan();
+        renderMpChecklist();
+        kalkulasiPoolPelunasan();
         return;
       }
 
-      // Konfirmasi Pelunasan
+      // Pilih Semua Garapan di Checklist
+      var btnSelAll = e.target.closest('#mpBtnSelectAll');
+      if (btnSelAll) {
+        var cbs = document.querySelectorAll('#mpChecklistContainer .mp-check-input');
+        cbs.forEach(function (cb) {
+          var tid = cb.dataset.mpTid;
+          if (tid) {
+            selectedPoolTaskIds[tid] = true;
+            cb.checked = true;
+            var item = cb.closest('.mp-check-item');
+            if (item) item.classList.add('selected');
+          }
+        });
+        kalkulasiPoolPelunasan();
+        return;
+      }
+
+      // Batal Semua Pilihan di Checklist
+      var btnDeselAll = e.target.closest('#mpBtnDeselectAll');
+      if (btnDeselAll) {
+        var cbs2 = document.querySelectorAll('#mpChecklistContainer .mp-check-input');
+        cbs2.forEach(function (cb) {
+          var tid = cb.dataset.mpTid;
+          if (tid) {
+            delete selectedPoolTaskIds[tid];
+            cb.checked = false;
+            var item = cb.closest('.mp-check-item');
+            if (item) item.classList.remove('selected');
+          }
+        });
+        kalkulasiPoolPelunasan();
+        return;
+      }
+
+      // Klik Item Checklist Garapan
+      var checkItem = e.target.closest('.mp-check-item');
+      if (checkItem) {
+        var tidItem = checkItem.dataset.mpTid;
+        if (tidItem) {
+          var isNowSelected = !selectedPoolTaskIds[tidItem];
+          if (isNowSelected) selectedPoolTaskIds[tidItem] = true;
+          else delete selectedPoolTaskIds[tidItem];
+
+          checkItem.classList.toggle('selected', isNowSelected);
+          var cbItem = checkItem.querySelector('.mp-check-input');
+          if (cbItem) cbItem.checked = isNowSelected;
+
+          kalkulasiPoolPelunasan();
+        }
+        return;
+      }
+
+      // Konfirmasi Pelunasan Pool
       var konfMp = e.target.closest('#mpBtnKonfirmasi');
       if (konfMp) {
         konfirmasiPelunasan();
@@ -2845,12 +3005,6 @@
       if (mf) { selectedMitraFilter = mf.value; renderRekap(); }
     });
 
-    // Kalkulasi dinamis modal pelunasan saat mengetik bonus / custom deposit
-    document.addEventListener('input', function (e) {
-      if (e.target.closest('#mpInputBonus') || e.target.closest('#mpInputCustomDep')) {
-        kalkulasiPelunasan();
-      }
-    });
 
     // Setting actions
     var ta = $('#rsTambah');

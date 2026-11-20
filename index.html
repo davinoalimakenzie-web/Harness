@@ -670,7 +670,10 @@
                 <span class="rekap-deposit-val" id="rekapDepositSaldo">0</span>
                 <span class="rekap-deposit-sub">Otomatis memotong setiap pelunasan garapan</span>
               </div>
-              <button type="button" class="btn sm primary" id="btnBukaTambahDeposit" style="white-space:nowrap;font-size:12px;padding:7px 12px;border-radius:8px;">+ Tambah Deposit</button>
+              <div style="display:flex;gap:6px;flex-direction:column;align-items:flex-end;">
+                <button type="button" class="btn sm" id="btnBukaPelunasanPool" style="white-space:nowrap;font-size:12px;padding:7px 12px;border-radius:8px;background:var(--accent);color:#fff;font-weight:750;">⚡ Lunasi Garapan</button>
+                <button type="button" class="btn sm" id="btnBukaTambahDeposit" style="white-space:nowrap;font-size:11px;padding:4px 10px;border-radius:8px;background:rgba(255,255,255,0.08);border:1px solid var(--line);">+ Tambah Deposit</button>
+              </div>
             </div>
           </div>
 
@@ -951,19 +954,19 @@
   <div id="ntScreen" class="nt-screen"></div>
 </div>
 
-<!-- ============ MODAL PELUNASAN RONCE ============ -->
+<!-- ============ MODAL PELUNASAN RONCE (CHECKLIST & POOL) ============ -->
 <div id="modalPelunasanRonce" class="modal-wrap hidden" aria-hidden="true">
   <div class="modal-backdrop" data-close-mp="1"></div>
-  <div class="modal-card modal-pelunasan-box">
+  <div class="modal-card modal-pelunasan-box" style="max-height:92vh;display:flex;flex-direction:column;">
     <div class="modal-head">
       <div>
         <strong id="mpJudul">Pelunasan Garapan</strong>
-        <div class="modal-sub" id="mpSubJudul">-</div>
+        <div class="modal-sub" id="mpSubJudul">Checklist garapan yang akan dilunasi</div>
       </div>
       <button type="button" class="icon-btn" data-close-mp="1" aria-label="Tutup">✕</button>
     </div>
 
-    <div class="modal-body">
+    <div class="modal-body" style="overflow-y:auto;flex:1;padding-right:4px;">
       <!-- Deposit Status Bar -->
       <div class="mp-deposit-bar">
         <div class="mp-dep-info">
@@ -973,67 +976,83 @@
         <button type="button" class="btn xs" id="mpBtnQuickTopup" style="font-size:11px;padding:4px 8px;">+ Tambah</button>
       </div>
 
-      <!-- Rincian Biaya & Tambahan -->
-      <div class="mp-section">
-        <div class="mp-row">
-          <span>Komisi Garapan</span>
-          <strong id="mpKomisiAwal">0</strong>
+      <!-- Filter Garapan & Tombol Checklist Cepat -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:6px;flex-wrap:wrap;">
+        <div class="chips" id="mpFilterChips" style="gap:4px;">
+          <button type="button" class="chip on" data-mpfilter="all">Semua</button>
+          <button type="button" class="chip" data-mpfilter="owner">Owner</button>
+          <button type="button" class="chip" data-mpfilter="mitra">Mitra</button>
         </div>
-
-        <!-- Input Tambahan Fee/Bonus (Khusus Owner atau Kelebihan Mitra) -->
-        <div class="field mt" id="mpWrapBonus" style="margin-top:10px;">
-          <label class="lbl" id="mpLblBonus" for="mpInputBonus">Fee / Bonus Tambahan</label>
-          <input type="text" id="mpInputBonus" inputmode="numeric" placeholder="0" value="0">
-          <p class="hint xs" id="mpHintBonus" style="margin-top:4px;">Bonus diambil dari deposit dan ditambahkan ke total pelunasan.</p>
-        </div>
-
-        <div class="mp-row mp-total-row" style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);">
-          <strong>Total Yang Dilunasi</strong>
-          <strong class="text-accent" id="mpTotalBayar" style="font-size:16px;">0</strong>
+        <div style="display:flex;gap:4px;">
+          <button type="button" class="btn xs" id="mpBtnSelectAll" style="font-size:11px;padding:4px 7px;">☑️ Pilih Semua</button>
+          <button type="button" class="btn xs" id="mpBtnDeselectAll" style="font-size:11px;padding:4px 7px;">⬜ Batal</button>
         </div>
       </div>
 
-      <!-- Mode Pelunasan -->
-      <div class="mp-section" style="margin-top:12px;">
-        <label class="lbl" style="margin-bottom:6px;">Metode Pembayaran</label>
-        <div class="chips mp-mode-chips" id="mpModeChips" style="gap:6px;">
-          <button type="button" class="chip on" data-mpmode="auto">Potong Deposit</button>
-          <button type="button" class="chip" data-mpmode="cash">Full Cash</button>
-          <button type="button" class="chip" data-mpmode="custom">Kombinasi</button>
+      <!-- Daftar Checklist Garapan Belum Lunas -->
+      <div id="mpChecklistContainer" class="mp-checklist-list" style="max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:6px;background:rgba(0,0,0,0.15);margin-bottom:12px;">
+        <!-- Item-item garapan dengan checkbox di-render di sini oleh JS -->
+      </div>
+
+      <!-- POOL & RINGKASAN PELUNASAN -->
+      <div class="mp-pool-card" style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:11.5px;font-weight:700;text-transform:uppercase;color:var(--text-2);letter-spacing:0.5px;">POOL PELUNASAN</span>
+          <span class="tag" id="mpPoolCount" style="font-size:11px;font-weight:700;padding:2px 8px;">0 Garapan</span>
+        </div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;padding-bottom:10px;border-bottom:1px dashed var(--line);">
+          <strong style="font-size:14px;">Total Yang Dilunasi</strong>
+          <strong class="text-accent" id="mpTotalBayar" style="font-size:20px;font-weight:800;">Rp 0</strong>
         </div>
 
-        <!-- Input Nominal Potong Deposit jika mode custom -->
-        <div class="field mt" id="mpWrapCustomDep" style="margin-top:10px;display:none;">
-          <label class="lbl" for="mpInputCustomDep">Nominal Dari Deposit</label>
-          <input type="text" id="mpInputCustomDep" inputmode="numeric" placeholder="Nominal yang dipotong">
+        <!-- Breakdown Teknis Pelunasan -->
+        <div id="mpBreakdownWrap" style="margin-top:10px;">
+          <!-- Bagian Owner (Potong Deposit) -->
+          <div id="mpOwnerSection">
+            <div class="mp-b-row">
+              <span>Garapan Owner (di Pool)</span>
+              <b id="mpTotalOwnerVal">0</b>
+            </div>
+            <div class="mp-b-row">
+              <span>Potong Nilai Deposit</span>
+              <b class="text-danger" id="mpBrdPotongDep">- 0</b>
+            </div>
+            <div class="mp-b-row" style="background:rgba(34,197,94,0.08);padding:4px 8px;border-radius:6px;margin:4px 0;">
+              <span>Sisa Deposit Tersimpan</span>
+              <b class="text-success" id="mpBrdSisaDep">0</b>
+            </div>
+            <div class="mp-b-row" id="mpRowOwnerCash" style="display:none;">
+              <span>Kekurangan Bayar (Cash)</span>
+              <b class="text-warning" id="mpOwnerCashVal">0</b>
+            </div>
+          </div>
+
+          <!-- Bagian Mitra (Full Payment tanpa potong deposit) -->
+          <div id="mpMitraSection" style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);display:none;">
+            <div class="mp-b-row">
+              <span>Garapan Mitra (Full Payment)</span>
+              <b class="text-info" id="mpTotalMitraVal">0</b>
+            </div>
+            <p class="hint xs" style="margin-top:2px;font-size:10.5px;">Garapan mitra hanya rekapan biasa, tanpa memotong saldo deposit.</p>
+          </div>
+
+          <!-- Total Bayar via Cash (jika ada) -->
+          <div id="mpRowTotalCash" class="mp-b-row mp-b-cash" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line);display:none;">
+            <span>Total Bayar via Cash</span>
+            <b class="text-success" id="mpBrdCash" style="font-size:14px;">0</b>
+          </div>
         </div>
       </div>
 
-      <!-- Breakdown Hasil Perhitungan -->
-      <div class="mp-breakdown-card" style="margin-top:12px;">
-        <div class="mp-b-row">
-          <span>Potong Deposit</span>
-          <b class="text-danger" id="mpBrdPotongDep">- 0</b>
-        </div>
-        <div class="mp-b-row">
-          <span>Sisa Saldo Deposit</span>
-          <b id="mpBrdSisaDep">0</b>
-        </div>
-        <div class="mp-b-row mp-b-cash" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);">
-          <span>Bayar via Cash</span>
-          <b class="text-success" id="mpBrdCash">0</b>
-        </div>
-      </div>
-
-      <!-- Hint Cashflow & Kas Wajib (Owner vs Mitra) -->
-      <div id="mpAlimaInfo" class="hint xs" style="margin-top:12px;padding:8px 10px;background:var(--bg-elev);border-radius:8px;line-height:1.4;">
-        ℹ️ Garapan Owner otomatis masuk <b>Cashflow Alima</b> dan 10% ke <b>Kas Wajib Dana Bank</b>.
+      <!-- Hint Cashflow & Kas Wajib 10% -->
+      <div id="mpAlimaInfo" class="hint xs" style="padding:8px 10px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);border-radius:8px;line-height:1.45;">
+        ℹ️ Garapan Owner &amp; sisa deposit otomatis masuk <b>Cashflow Alima</b> dan dipotong 10% ke <b>Kas Wajib Dana Bank</b>.
       </div>
     </div>
 
-    <div class="modal-foot" style="display:flex;gap:8px;margin-top:14px;">
+    <div class="modal-foot" style="display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);">
       <button type="button" class="btn block" data-close-mp="1" style="flex:1;">Batal</button>
-      <button type="button" class="btn primary block" id="mpBtnKonfirmasi" style="flex:2;font-weight:750;">Konfirmasi Lunasi</button>
+      <button type="button" class="btn primary block" id="mpBtnKonfirmasi" style="flex:2;font-weight:750;" disabled>Pilih Garapan Dulu</button>
     </div>
   </div>
 </div>
