@@ -152,21 +152,39 @@
   }
 
   /* ---------------- Pool Sementara Catatan & Pengingat ---------------- */
+  var DISK_ICON_HTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>' +
+    '<polyline points="17 21 17 13 7 13 7 21"></polyline>' +
+    '<polyline points="7 3 7 8 15 8"></polyline>' +
+  '</svg>';
+
+  function renderSaveBtn() {
+    if (!el.btnSave) return;
+    el.btnSave.innerHTML = DISK_ICON_HTML;
+    if (editing) {
+      el.btnSave.title = 'Ubah Catatan';
+      el.btnSave.setAttribute('aria-label', 'Ubah Catatan');
+    } else if (notesPool.length > 0) {
+      el.btnSave.title = 'Simpan Semua (' + notesPool.length + ')';
+      el.btnSave.setAttribute('aria-label', 'Simpan Semua Catatan di Pool');
+    } else {
+      el.btnSave.title = 'Simpan Catatan';
+      el.btnSave.setAttribute('aria-label', 'Simpan Catatan');
+    }
+  }
+
   function renderNotesPool() {
     if (!el.poolCard || !el.poolList) return;
     if (!notesPool.length) {
       el.poolCard.classList.add('hidden');
       el.poolList.innerHTML = '';
       if (el.poolCount) el.poolCount.textContent = '0';
-      if (!editing && el.btnSave) el.btnSave.textContent = 'Simpan';
+      renderSaveBtn();
       return;
     }
     el.poolCard.classList.remove('hidden');
     if (el.poolCount) el.poolCount.textContent = notesPool.length + ' item';
-    if (!editing && el.btnSave) {
-      var extra = (el.text && el.text.value.trim()) || pendingAudio ? 1 : 0;
-      el.btnSave.textContent = 'Simpan Semua (' + (notesPool.length + extra) + ')';
-    }
+    renderSaveBtn();
 
     el.poolList.innerHTML = notesPool.map(function (item, idx) {
       var tags = [];

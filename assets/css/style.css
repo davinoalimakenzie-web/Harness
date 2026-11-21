@@ -689,7 +689,14 @@ body.mitra-mode #app{ padding-top:0; }
 
 /* ---------------- Catatan ---------------- */
 .compose textarea{ min-height:52px; }
-.compose-row{ display:flex; gap:8px; margin-top:10px; align-items:center; }
+.compose-row{ display:flex; gap:6px; margin-top:10px; align-items:center; flex-wrap:nowrap; }
+.btn-save-disk{
+  width:42px; height:36px; padding:0; flex:0 0 auto;
+  display:inline-flex; align-items:center; justify-content:center;
+  border-radius:10px; cursor:pointer; transition:all .15s ease;
+}
+.btn-save-disk:active{ transform:scale(.94); }
+.btn-save-disk svg{ width:18px; height:18px; display:block; stroke:currentColor; }
 .remind-box{ margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); }
 .hint{ font-size:11.5px; color:var(--hint); margin:10px 0 0; line-height:1.45; }
 
@@ -1335,13 +1342,12 @@ button.item .item-sub{ margin-top:3px; }
   position:relative; display:inline-flex; align-items:center; flex:0 0 auto;
 }
 .tx-date{
-  position:relative; display:inline-flex; align-items:center; gap:7px;
-  flex:0 0 auto; padding:7px 12px; background:var(--bg-elev);
-  border:1px solid var(--line); border-radius:11px; font-size:12.5px;
-  font-weight:600; color:var(--text); cursor:pointer;
+  position:relative; display:inline-flex; align-items:center; justify-content:center;
+  flex:0 0 auto; width:38px; height:38px; padding:0; background:var(--bg-elev);
+  border:1px solid var(--line); border-radius:11px; cursor:pointer;
   transition:all .15s ease;
 }
-.tx-date:active{ transform:scale(.97); }
+.tx-date:active{ transform:scale(.94); }
 .tx-date-icon{ color:var(--accent); flex-shrink:0; }
 .tx-date-native-input{
   position:absolute; inset:0; width:100%; height:100%;
