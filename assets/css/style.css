@@ -982,7 +982,129 @@ button.item .item-sub{ margin-top:3px; }
   padding:10px 12px; font-size:12.5px; font-weight:550; margin:0 0 10px; }
 
 /* Bar komposisi kategori di Rekap */
-.cat-bars{ display:flex; flex-direction:column; gap:12px; }
+.cat-bars{ display:flex; flex-direction:column; gap:4px; }
+
+/* 2 Tombol Accordion Pemasukan & Pengeluaran Sejajar di Cashflow Alima */
+.flow-acc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+  margin-bottom: 6px;
+}
+.flow-acc-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  transition: all .15s ease;
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  color: inherit;
+}
+.flow-acc-btn:active {
+  transform: scale(0.98);
+}
+.flow-acc-btn.in {
+  background: rgba(46, 160, 67, 0.08);
+  border-color: rgba(46, 160, 67, 0.25);
+}
+.flow-acc-btn.in:hover {
+  background: rgba(46, 160, 67, 0.12);
+}
+.flow-acc-btn.in.open {
+  background: rgba(46, 160, 67, 0.16);
+  border-color: rgba(46, 160, 67, 0.55);
+  box-shadow: 0 0 0 1px rgba(46, 160, 67, 0.3);
+}
+.flow-acc-btn.out {
+  background: rgba(229, 83, 75, 0.08);
+  border-color: rgba(229, 83, 75, 0.25);
+}
+.flow-acc-btn.out:hover {
+  background: rgba(229, 83, 75, 0.12);
+}
+.flow-acc-btn.out.open {
+  background: rgba(229, 83, 75, 0.16);
+  border-color: rgba(229, 83, 75, 0.55);
+  box-shadow: 0 0 0 1px rgba(229, 83, 75, 0.3);
+}
+.flow-acc-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.flow-acc-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.flow-acc-badge.in { color: var(--success); }
+.flow-acc-badge.out { color: var(--danger); }
+
+.flow-acc-chevron {
+  display: inline-block;
+  font-size: 9px;
+  color: var(--text-2);
+  transition: transform .2s ease;
+  line-height: 1;
+}
+.flow-acc-btn.open .flow-acc-chevron {
+  transform: rotate(180deg);
+  color: var(--text);
+}
+.flow-acc-val {
+  font-size: 15.5px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  margin-top: 2px;
+}
+.flow-acc-val.in { color: var(--success); }
+.flow-acc-val.out { color: var(--danger); }
+
+.flow-acc-sub {
+  font-size: 10px;
+  color: var(--text-2);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.flow-acc-panel {
+  margin-top: 8px;
+  margin-bottom: 8px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.14);
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  animation: catSlideDown .2s ease;
+}
+.flow-acc-panel.hidden {
+  display: none !important;
+}
+.flow-acc-head {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 8px;
+  padding: 2px 4px 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
 .cat-row{ border-radius:10px; padding:4px 6px; transition:background .15s ease; }
 .cat-row:hover{ background:rgba(255,255,255,0.02); }
 .cat-row:active{ background:rgba(255,255,255,0.05); }

@@ -419,6 +419,76 @@
      KOMPOSISI PENGELUARAN (Dipindah ke Tab Dashboard)
      ========================================================= */
   var openCats = {};
+  var openFlowAcc = { in: false, out: false };
+
+  function renderCatRow(c, max) {
+    var catKey = (c.group || '') + '|' + (c.sub || '') + '|' + c.type;
+    var label = c.sub ? c.group + ' · ' + c.sub : c.group;
+    var isOpen = !!openCats[catKey];
+    var items = c.items || [];
+
+    var itemsHtml = '';
+    if (isOpen) {
+      if (!items.length) {
+        itemsHtml = '<div class="cat-items"><div class="empty" style="padding:10px;font-size:12px;">Tidak ada transaksi detail.</div></div>';
+      } else {
+        var byDay = {};
+        items.forEach(function (t) {
+          var d = t.transaction_date || t.date || '';
+          (byDay[d] = byDay[d] || []).push(t);
+        });
+        var dates = Object.keys(byDay).sort().reverse();
+        var daysContent = dates.map(function (d) {
+          var dayTxs = byDay[d];
+          var daySum = dayTxs.reduce(function (a, t) { return a + (Number(t.amount) || 0); }, 0);
+          var rows = dayTxs.map(function (t) {
+            var ini = t.type === 'in';
+            var acc = accOf(t);
+            var ket = t.note ? t.note : (t.sub || t.group || '-');
+            var tagLabel = t.sub ? t.sub : t.group;
+            return '<button type="button" class="item tx-row" data-open="' + esc(t.id) + '" style="margin-bottom:4px;border-radius:10px;text-align:left;width:100%;">' +
+              '<span class="tx-icon ' + (ini ? 'in' : 'out') + '">' + esc(iconOfTx(t)) + '</span>' +
+              '<span class="item-body">' +
+                '<span class="item-title" style="font-size:13px;font-weight:600;">' + esc(ket) + '</span>' +
+                '<span class="item-sub">' +
+                  (t.note && t.sub ? '<span class="tag" style="font-size:10px;padding:1px 5px;">' + esc(tagLabel) + '</span>' : '') +
+                  '<span>' + esc(S.dayLabel(t.transaction_date)) + '</span>' +
+                  (acc ? '<span>' + esc(acc.icon + ' ' + acc.name) + '</span>' : '') +
+                '</span>' +
+              '</span>' +
+              '<span class="item-amt ' + (ini ? 'amt-in' : 'amt-out') + '">' + signedMoney(t) + '</span>' +
+            '</button>';
+          }).join('');
+
+          return '<div class="cat-day-section" style="margin-bottom:8px;">' +
+            '<div class="cat-day-head" style="font-size:11.5px;font-weight:700;color:var(--text-2);padding:4px 8px;display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;">' +
+              '<span>📅 ' + esc(S.dayLabel(d)) + '</span>' +
+              '<span style="color:' + (c.type === 'in' ? 'var(--success)' : 'var(--danger)') + ';">' + (c.type === 'in' ? '+' : '−') + money(daySum) + '</span>' +
+            '</div>' +
+            '<div class="cat-day-rows">' + rows + '</div>' +
+          '</div>';
+        }).join('');
+
+        itemsHtml = '<div class="cat-items" style="margin-top:8px;padding:8px;background:rgba(0,0,0,0.18);border:1px solid var(--line);border-radius:12px;">' +
+          daysContent +
+        '</div>';
+      }
+    }
+
+    return '<div class="cat-row' + (isOpen ? ' open' : '') + '" style="cursor:pointer;" data-cat-toggle="' + esc(catKey) + '">' +
+      '<div class="cr-top">' +
+        '<b style="display:flex;align-items:center;gap:6px;">' +
+          '<span class="cat-chevron" style="display:inline-block;font-size:9px;color:var(--text-2);transition:transform .2s ease;' + (isOpen ? 'transform:rotate(90deg);color:var(--accent);' : '') + '">▶</span>' +
+          esc(label) +
+          '<span class="tag" style="font-size:10px;padding:1px 5px;font-weight:500;">' + items.length + ' input</span>' +
+        '</b>' +
+        '<span class="cr-amt ' + c.type + '">' + (c.type === 'in' ? '+' : '−') + money(c.total) + '</span>' +
+      '</div>' +
+      '<div class="cr-track"><i class="' + c.type + '" style="width:' +
+      (c.total / max * 100).toFixed(1) + '%"></i></div>' +
+      itemsHtml +
+    '</div>';
+  }
 
   function renderKomposisi(s) {
     var dEl = $('#rDonut'), cEl = $('#rCats');
@@ -455,84 +525,58 @@
         }).join('') + '</div>';
     }
 
-    // Bar kategori: urutkan pemasukan dulu (atas) dari nominal terbanyak ke terkecil,
-    // lalu pengeluaran (bawah) dari nominal terbanyak ke terkecil
-    var sortedCats = s.categories.slice().sort(function (a, b) {
-      if (a.type !== b.type) return a.type === 'in' ? -1 : 1;
-      return b.total - a.total;
-    });
+    // Pisahkan kategori Pemasukan dan Pengeluaran
+    var ins = s.categories.filter(function (c) { return c.type === 'in'; });
+    ins.sort(function (a, b) { return b.total - a.total; });
+    outs.sort(function (a, b) { return b.total - a.total; });
 
-    var max = sortedCats.reduce(function (m, c) { return Math.max(m, c.total); }, 0) || 1;
-    cEl.innerHTML = sortedCats.length
-      ? sortedCats.map(function (c) {
-          var catKey = (c.group || '') + '|' + (c.sub || '') + '|' + c.type;
-          var label = c.sub ? c.group + ' · ' + c.sub : c.group;
-          var isOpen = !!openCats[catKey];
-          var items = c.items || [];
+    var totalIn = ins.reduce(function (a, c) { return a + c.total; }, 0);
+    var countInTxs = ins.reduce(function (a, c) { return a + (c.items ? c.items.length : 0); }, 0);
+    var countOutTxs = outs.reduce(function (a, c) { return a + (c.items ? c.items.length : 0); }, 0);
 
-          var itemsHtml = '';
-          if (isOpen) {
-            if (!items.length) {
-              itemsHtml = '<div class="cat-items"><div class="empty" style="padding:10px;font-size:12px;">Tidak ada transaksi detail.</div></div>';
-            } else {
-              var byDay = {};
-              items.forEach(function (t) {
-                var d = t.transaction_date || t.date || '';
-                (byDay[d] = byDay[d] || []).push(t);
-              });
-              var dates = Object.keys(byDay).sort().reverse();
-              var daysContent = dates.map(function (d) {
-                var dayTxs = byDay[d];
-                var daySum = dayTxs.reduce(function (a, t) { return a + (Number(t.amount) || 0); }, 0);
-                var rows = dayTxs.map(function (t) {
-                  var ini = t.type === 'in';
-                  var acc = accOf(t);
-                  var ket = t.note ? t.note : (t.sub || t.group || '-');
-                  var tagLabel = t.sub ? t.sub : t.group;
-                  return '<button type="button" class="item tx-row" data-open="' + esc(t.id) + '" style="margin-bottom:4px;border-radius:10px;text-align:left;width:100%;">' +
-                    '<span class="tx-icon ' + (ini ? 'in' : 'out') + '">' + esc(iconOfTx(t)) + '</span>' +
-                    '<span class="item-body">' +
-                      '<span class="item-title" style="font-size:13px;font-weight:600;">' + esc(ket) + '</span>' +
-                      '<span class="item-sub">' +
-                        (t.note && t.sub ? '<span class="tag" style="font-size:10px;padding:1px 5px;">' + esc(tagLabel) + '</span>' : '') +
-                        '<span>' + esc(S.dayLabel(t.transaction_date)) + '</span>' +
-                        (acc ? '<span>' + esc(acc.icon + ' ' + acc.name) + '</span>' : '') +
-                      '</span>' +
-                    '</span>' +
-                    '<span class="item-amt ' + (ini ? 'amt-in' : 'amt-out') + '">' + signedMoney(t) + '</span>' +
-                  '</button>';
-                }).join('');
+    var maxIn = ins.reduce(function (m, c) { return Math.max(m, c.total); }, 0) || 1;
+    var maxOut = outs.reduce(function (m, c) { return Math.max(m, c.total); }, 0) || 1;
 
-                return '<div class="cat-day-section" style="margin-bottom:8px;">' +
-                  '<div class="cat-day-head" style="font-size:11.5px;font-weight:700;color:var(--text-2);padding:4px 8px;display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;">' +
-                    '<span>📅 ' + esc(S.dayLabel(d)) + '</span>' +
-                    '<span style="color:' + (c.type === 'in' ? 'var(--success)' : 'var(--danger)') + ';">' + (c.type === 'in' ? '+' : '−') + money(daySum) + '</span>' +
-                  '</div>' +
-                  '<div class="cat-day-rows">' + rows + '</div>' +
-                '</div>';
-              }).join('');
+    // Render 2 Tombol Sejajar (Pemasukan & Pengeluaran) + Accordion Dropdown (Default Hidden)
+    var html =
+      '<div class="flow-acc-grid">' +
+        '<button type="button" class="flow-acc-btn in ' + (openFlowAcc.in ? 'open' : '') + '" data-flow-toggle="in" aria-expanded="' + (openFlowAcc.in ? 'true' : 'false') + '">' +
+          '<div class="flow-acc-top">' +
+            '<span class="flow-acc-badge in">Pemasukan</span>' +
+            '<span class="flow-acc-chevron">▼</span>' +
+          '</div>' +
+          '<div class="flow-acc-val in">+' + money(totalIn) + '</div>' +
+          '<div class="flow-acc-sub">' + ins.length + ' kategori · ' + countInTxs + ' input</div>' +
+        '</button>' +
+        '<button type="button" class="flow-acc-btn out ' + (openFlowAcc.out ? 'open' : '') + '" data-flow-toggle="out" aria-expanded="' + (openFlowAcc.out ? 'true' : 'false') + '">' +
+          '<div class="flow-acc-top">' +
+            '<span class="flow-acc-badge out">Pengeluaran</span>' +
+            '<span class="flow-acc-chevron">▼</span>' +
+          '</div>' +
+          '<div class="flow-acc-val out">−' + money(totalOut) + '</div>' +
+          '<div class="flow-acc-sub">' + outs.length + ' kategori · ' + countOutTxs + ' input</div>' +
+        '</button>' +
+      '</div>' +
 
-              itemsHtml = '<div class="cat-items" style="margin-top:8px;padding:8px;background:rgba(0,0,0,0.18);border:1px solid var(--line);border-radius:12px;">' +
-                daysContent +
-              '</div>';
-            }
-          }
+      // Panel Rincian Pemasukan (Accordion Dropdown - Default Hidden)
+      '<div class="flow-acc-panel in ' + (openFlowAcc.in ? '' : 'hidden') + '" id="flowPanelIn">' +
+        '<div class="flow-acc-head">' +
+          '<span>Rincian Pemasukan (' + ins.length + ' Kategori)</span>' +
+          '<span style="color:var(--success); font-weight:700;">+' + money(totalIn) + '</span>' +
+        '</div>' +
+        (ins.length ? ins.map(function (c) { return renderCatRow(c, maxIn); }).join('') : '<div class="empty" style="padding:12px 6px; font-size:12px;">Tidak ada pemasukan pada periode ini.</div>') +
+      '</div>' +
 
-          return '<div class="cat-row' + (isOpen ? ' open' : '') + '" style="cursor:pointer;" data-cat-toggle="' + esc(catKey) + '">' +
-            '<div class="cr-top">' +
-              '<b style="display:flex;align-items:center;gap:6px;">' +
-                '<span class="cat-chevron" style="display:inline-block;font-size:9px;color:var(--text-2);transition:transform .2s ease;' + (isOpen ? 'transform:rotate(90deg);color:var(--accent);' : '') + '">▶</span>' +
-                esc(label) +
-                '<span class="tag" style="font-size:10px;padding:1px 5px;font-weight:500;">' + items.length + ' input</span>' +
-              '</b>' +
-              '<span class="cr-amt ' + c.type + '">' + (c.type === 'in' ? '+' : '−') + money(c.total) + '</span>' +
-            '</div>' +
-            '<div class="cr-track"><i class="' + c.type + '" style="width:' +
-            (c.total / max * 100).toFixed(1) + '%"></i></div>' +
-            itemsHtml +
-          '</div>';
-        }).join('')
-      : '<div class="empty">Belum ada transaksi pada bulan ini.</div>';
+      // Panel Rincian Pengeluaran (Accordion Dropdown - Default Hidden)
+      '<div class="flow-acc-panel out ' + (openFlowAcc.out ? '' : 'hidden') + '" id="flowPanelOut">' +
+        '<div class="flow-acc-head">' +
+          '<span>Rincian Pengeluaran (' + outs.length + ' Kategori)</span>' +
+          '<span style="color:var(--danger); font-weight:700;">−' + money(totalOut) + '</span>' +
+        '</div>' +
+        (outs.length ? outs.map(function (c) { return renderCatRow(c, maxOut); }).join('') : '<div class="empty" style="padding:12px 6px; font-size:12px;">Tidak ada pengeluaran pada periode ini.</div>') +
+      '</div>';
+
+    cEl.innerHTML = html;
   }
 
   /* =========================================================
@@ -1699,6 +1743,15 @@
         var b = e.target.closest('[data-open]');
         if (b) {
           openDetail(b.dataset.open);
+          return;
+        }
+        var flowToggle = e.target.closest('[data-flow-toggle]');
+        if (flowToggle) {
+          var type = flowToggle.dataset.flowToggle;
+          openFlowAcc[type] = !openFlowAcc[type];
+          var s = Tx.summary({ from: recapYM + '-01', to: recapYM + '-31' });
+          renderKomposisi(s);
+          if (TG && typeof TG.haptic === 'function') TG.haptic('selection');
           return;
         }
         var catToggle = e.target.closest('[data-cat-toggle]');
