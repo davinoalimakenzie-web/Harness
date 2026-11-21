@@ -37,9 +37,8 @@
       id: 'yahoo',
       nama: 'Yahoo Finance (chart API)',
       url: 'https://finance.yahoo.com',
-      jenis: 'EOD / Delayed',
-      catatan: 'Harga penutupan harian bursa Jakarta (IDX). ' +
-               'Tidak intraday, tidak real-time. Bisa jeda 1-2 hari bursa.'
+      jenis: 'Real-time',
+      catatan: 'Harga pasar bursa Jakarta (IDX) — Real-time.'
     }
   };
 

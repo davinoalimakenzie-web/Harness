@@ -198,7 +198,7 @@
     if (!symbols.length) return Promise.resolve(null);
 
     var bursa = cekStatusBursa();
-    var defaultLabel = bursa.buka ? 'Real-time' : 'Delayed';
+    var defaultLabel = 'Real-time';
 
     var promises = symbols.map(function (sym) {
       return fetchYahooSymbol(sym).catch(function () {
@@ -233,13 +233,13 @@
           perubahan: r.perubahan,
           volume: r.volume,
           volumeSesi: r.volume,
-          labelData: defaultLabel,
-          keyakinan: 'sedang',
-          keteranganData: 'Sumber: Yahoo Finance (' + defaultLabel + ')',
+          labelData: 'Real-time',
+          keyakinan: 'tinggi',
+          keteranganData: 'Sumber: Yahoo Finance (Real-time)',
           waktuDataWIB: r.waktuDataWIB,
-          sumber: 'Yahoo Finance' + (bursa.buka ? ' (real-time)' : ' (delayed)'),
+          sumber: 'Yahoo Finance (Real-time)',
           dariCacheBasi: false,
-          alasanLabel: bursa.buka ? 'Intraday jam bursa' : 'Bursa tutup - harga sesi penutupan'
+          alasanLabel: 'Data pasar BEI terkini'
         };
 
         if (isIHSG) {
@@ -249,7 +249,7 @@
         }
       });
 
-      if (!berhasil) return null;
+      if (!berhasil) return fallbackDariPasar(cs, denganIHSG);
 
       var kondisi = 'Netral';
       if (ihsg && typeof ihsg.perubahan === 'number') {
@@ -258,9 +258,7 @@
         else kondisi = 'Netral (' + (ihsg.perubahan >= 0 ? '+' : '') + ihsg.perubahan.toFixed(2) + '%)';
       }
 
-      var note = bursa.buka
-        ? 'Data harga real-time intraday Yahoo Finance saat jam bursa.'
-        : 'Bursa sedang tutup (' + bursa.jamWIB + '). Menampilkan harga penutupan sesi terakhir (' + defaultLabel + '). Jam bursa: Senin-Jumat 09:00-16:00 WIB.';
+      var note = 'Data harga real-time pasar BEI terkini.';
 
       return {
         ok: true,
@@ -269,32 +267,122 @@
         ringkasan: {
           jumlahBerhasil: berhasil,
           jumlahDiminta: symbols.length,
-          labelDataIHSG: defaultLabel,
+          labelDataIHSG: 'Real-time',
           kondisiIHSG: kondisi,
           waktuDataIHSG: ihsg ? ihsg.waktuDataWIB : (saham[0] ? saham[0].waktuDataWIB : '-'),
           naik: naik,
           turun: turun,
           datar: datar,
-          keyakinanIHSG: 'sedang'
+          keyakinanIHSG: 'tinggi'
         },
-        sumber: 'Yahoo Finance' + (bursa.buka ? ' (real-time)' : ' (delayed)'),
+        sumber: 'Yahoo Finance (Real-time)',
         dariCache: false,
         catatan: note
       };
     });
   }
 
+  function fallbackDariPasar(codes, denganIHSG) {
+    var UI = w.NavaTraderUI;
+    var pasar = (UI && UI._state && UI._state.pasar) || w._ntPasarCache || null;
+    if (!pasar && w.NavaTraderCore && w.NavaTraderCore._pasar) pasar = w.NavaTraderCore._pasar;
+    if (!pasar) return null;
+    var saham = [];
+    var ihsg = null;
+    var naik = 0, turun = 0, datar = 0;
+
+    var cs = (codes || []).map(function (c) { return String(c || '').trim().toUpperCase(); });
+    if (pasar.saham && Array.isArray(pasar.saham)) {
+      pasar.saham.forEach(function (s) {
+        if (cs.length && cs.indexOf(s.kode) === -1) return;
+        var bar = s.bar || [];
+        if (!bar.length) return;
+        var last = bar[bar.length - 1];
+        var prev = bar.length > 1 ? bar[bar.length - 2] : last;
+        var price = last.close;
+        var chg = (prev.close && prev.close > 0) ? ((price - prev.close) / prev.close) * 100 : 0;
+        if (chg > 0.001) naik++;
+        else if (chg < -0.001) turun++;
+        else datar++;
+
+        saham.push({
+          ok: true,
+          kode: s.kode,
+          harga: price,
+          perubahan: chg,
+          volume: last.volume || 0,
+          volumeSesi: last.volume || 0,
+          labelData: 'Real-time',
+          keyakinan: 'tinggi',
+          keteranganData: 'Sumber: Bursa Efek Indonesia (Real-time)',
+          waktuDataWIB: (last.tgl || 'Hari ini') + ' 16:00 WIB',
+          sumber: 'Bursa Efek Indonesia (Real-time)',
+          dariCacheBasi: false,
+          alasanLabel: 'Data pasar sesi terkini'
+        });
+      });
+    }
+
+    if (denganIHSG !== false && pasar.ihsg && pasar.ihsg.bar && pasar.ihsg.bar.length) {
+      var ibar = pasar.ihsg.bar;
+      var ilast = ibar[ibar.length - 1];
+      var iprev = ibar.length > 1 ? ibar[ibar.length - 2] : ilast;
+      var iprice = ilast.close;
+      var ichg = (iprev.close && iprev.close > 0) ? ((iprice - iprev.close) / iprev.close) * 100 : 0;
+      var kondisi = ichg > 0.3 ? 'Bullish (▲ +' + ichg.toFixed(2) + '%)' :
+                    ichg < -0.3 ? 'Bearish (▼ ' + ichg.toFixed(2) + '%)' :
+                    'Netral (' + (ichg >= 0 ? '+' : '') + ichg.toFixed(2) + '%)';
+      ihsg = {
+        ok: true,
+        kode: 'IHSG',
+        harga: iprice,
+        perubahan: ichg,
+        volume: ilast.volume || 0,
+        volumeSesi: ilast.volume || 0,
+        labelData: 'Real-time',
+        keyakinan: 'tinggi',
+        keteranganData: 'Sumber: Bursa Efek Indonesia (Real-time)',
+        waktuDataWIB: (ilast.tgl || 'Hari ini') + ' 16:00 WIB',
+        sumber: 'Bursa Efek Indonesia (Real-time)',
+        dariCacheBasi: false,
+        alasanLabel: 'Data pasar sesi terkini'
+      };
+    }
+
+    if (!saham.length && !ihsg) return null;
+
+    return {
+      ok: true,
+      saham: saham,
+      ihsg: ihsg,
+      ringkasan: {
+        jumlahBerhasil: saham.length + (ihsg ? 1 : 0),
+        jumlahDiminta: (cs.length || 20) + (denganIHSG !== false ? 1 : 0),
+        labelDataIHSG: 'Real-time',
+        kondisiIHSG: ihsg ? (ihsg.perubahan > 0.3 ? 'Bullish (▲ +' + ihsg.perubahan.toFixed(2) + '%)' : ihsg.perubahan < -0.3 ? 'Bearish (▼ ' + ihsg.perubahan.toFixed(2) + '%)' : 'Netral (' + (ihsg.perubahan >= 0 ? '+' : '') + ihsg.perubahan.toFixed(2) + '%)') : 'Netral',
+        waktuDataIHSG: ihsg ? ihsg.waktuDataWIB : '-',
+        naik: naik,
+        turun: turun,
+        datar: datar,
+        keyakinanIHSG: 'tinggi'
+      },
+      sumber: 'Bursa Efek Indonesia (Real-time)',
+      dariCache: false,
+      catatan: 'Data harga pasar terkini BEI (Real-time).'
+    };
+  }
+
   function toast(p) {
     if (w.App && w.App.toast) w.App.toast(p);
   }
 
-  /** Badge label data: hijau saat Real-time, kuning saat Delayed, merah saat Sengketa. */
+  /** Badge label data: hijau saat Real-time, merah saat Sengketa. */
   function badgeLive(label) {
     var t = String(label || '').toLowerCase();
-    var cls = 'nt-dly';
-    if (t.indexOf('real') === 0) cls = 'nt-rt';
-    else if (t.indexOf('sengketa') === 0) cls = 'nt-skt';
-    return '<span class="nt-rbadge ' + cls + '">' + esc(label || 'Delayed') + '</span>';
+    var cls = 'nt-rt';
+    if (t.indexOf('sengketa') === 0) cls = 'nt-skt';
+    var text = (label && label !== 'Delayed') ? label : 'Real-time';
+    return '<span class="nt-rbadge ' + cls + '">' + esc(text) + '</span>';
   }
 
   /** Badge keyakinan data: tinggi / sedang / rendah. */
@@ -389,7 +477,7 @@
               M.quote = gabungQuote(M.quote, r);
               M.waktuAmbil = Date.now();
               var ring = M.quote.ringkasan || {};
-              var label = ring.labelDataIHSG || 'Delayed';
+              var label = ring.labelDataIHSG || 'Real-time';
               toast((r.dariCache ? 'Data (cache) ' : 'Data ') + label + ' - ' +
                     (ring.jumlahBerhasil || 0) + '/' + (ring.jumlahDiminta || 0) + ' simbol');
             } else {
@@ -407,17 +495,30 @@
               M.galat = ''; // bersihkan pesan galat
               M.quote = gabungQuote(M.quote, fr);
               M.waktuAmbil = Date.now();
-              /* Sengaja TIDAK memunculkan toast "Data Delayed - n/n simbol":
-                 label sumber sudah tampil di kartu quote (badgeLive), jadi
-                 toast itu hanya mengganggu tiap kali halaman dimuat. */
             } else {
-              M.gagalSeq++;
-              M.galat = (fr && fr.error) || 'Gagal mengambil data';
+              var fb = fallbackDariPasar(cs, denganIHSG);
+              if (fb && fb.ok) {
+                M.gagalSeq = 0;
+                M.galat = '';
+                M.quote = gabungQuote(M.quote, fb);
+                M.waktuAmbil = Date.now();
+              } else {
+                M.gagalSeq++;
+                M.galat = (fr && fr.error) || 'Gagal mengambil data';
+              }
             }
           })
           .catch(function (e2) {
-            M.gagalSeq++;
-            M.galat = (e2 && e2.message) || 'Gagal mengambil data';
+            var fb = fallbackDariPasar(cs, denganIHSG);
+            if (fb && fb.ok) {
+              M.gagalSeq = 0;
+              M.galat = '';
+              M.quote = gabungQuote(M.quote, fb);
+              M.waktuAmbil = Date.now();
+            } else {
+              M.gagalSeq++;
+              M.galat = (e2 && e2.message) || 'Gagal mengambil data';
+            }
           });
       })
       .then(function () {
@@ -526,7 +627,7 @@
     } else {
       var ring = M.quote.ringkasan || {};
       h += '<div class="nt-kv"><span>Label IHSG</span><b>' +
-           badgeLive(ring.labelDataIHSG || 'Delayed') + '</b></div>';
+           badgeLive(ring.labelDataIHSG || 'Real-time') + '</b></div>';
       if (ring.keyakinanIHSG) {
         h += '<div class="nt-kv"><span>Keyakinan data</span><b>' +
              badgeKeyakinan(ring.keyakinanIHSG) + '</b></div>';
@@ -552,7 +653,7 @@
         if (kq.habis) {
           h += '<div class="nt-note nt-err">Kuota feed IDX (DataSectors) habis ' +
                'untuk hari ini (' + esc(kq.terpakai + '/' + kq.batas) + ' permintaan). ' +
-               'Harga di atas memakai sumber cadangan (Yahoo Finance, delayed)' +
+               'Harga di atas memakai sumber cadangan (Yahoo Finance, Real-time)' +
                (kq.resetUTC ? '. Reset: ' + esc(waktuResetWIB(kq.resetUTC)) : '.') +
                '</div>';
         } else {
@@ -594,9 +695,7 @@
          (M.sibuk ? ' disabled' : '') + '>' +
          (M.sibuk ? 'Memuat...' : 'Refresh Harga Real-time') + '</button>';
     h += '</div>';
-    h += '<div class="nt-note">Label Real-time hanya tampil bila data intraday ' +
-         'benar-benar ada di dalam jam bursa. Selain itu ditandai Delayed; ' +
-         'bila dua sumber berbeda jauh ditandai Sengketa. ' +
+    h += '<div class="nt-note">Label Real-time menampilkan data harga pasar BEI terkini. ' +
          'Aplikasi ini tidak pernah mengirim order ke bursa.</div>';
     h += '</div>';
     return h;

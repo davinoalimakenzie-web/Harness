@@ -100,7 +100,11 @@
         M.meta = M.pasar.meta;
         M.hasil = C().analisaSemua(M.pasar);
         M.muat = false;
+        w._ntPasarCache = M.pasar;
         render();
+        try {
+          if (Q() && Q().muatQuote) Q().muatQuote(codesWatchlist());
+        } catch (x) {}
       })
       .catch(function (e) {
         M.muat = false;
@@ -1121,6 +1125,14 @@
   function go(v, kode) {
     M.view = v;
     if (kode) M.detail = kode;
+    if (v === 'home' && w.NavaTraderAlert && w.NavaTraderAlert._state) {
+      w.NavaTraderAlert._state.view = 'alert';
+    }
+    if (v === 'alert' && w.NavaTraderAlert && w.NavaTraderAlert.open) {
+      w.NavaTraderAlert.setPasar(M.pasar);
+      w.NavaTraderAlert.open();
+      return;
+    }
     render();
   }
 
@@ -1130,7 +1142,7 @@
     var tp = Number(($('#btTP') || {}).value);
     var modal = Number(($('#btModal') || {}).value);
     M.btKode = kode; M.btSL = sl; M.btTP = tp; M.btModal = modal;
-    found = null;
+    var found = null;
     if (M.pasar) {
       M.pasar.saham.forEach(function (s) { if (s.kode === kode) found = s; });
     }
@@ -1250,7 +1262,12 @@
     ov.setAttribute('aria-hidden', 'false');
     if (w.TG && w.TG.back) w.TG.back.show(function () { close(); });
     M.view = 'home'; M.cari = ''; M.filter = 'Semua';
-    if (!M.hasil) muatPasar(); else render();
+    if (!M.hasil) muatPasar(); else {
+      render();
+      try {
+        if (Q() && Q().muatQuote) Q().muatQuote(codesWatchlist());
+      } catch (x) {}
+    }
   }
 
   function close() {

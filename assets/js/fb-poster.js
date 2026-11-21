@@ -40,16 +40,17 @@
   function def() {
     return {
       rev: 1, updatedAt: '',
-      enabled: false, runNow: false,
-      dryRun: true, humanLike: true,
+      enabled: true, runNow: false,
+      dryRun: false, humanLike: true,
       jedaMin: 60, jedaMax: 180, maxGrupHari: 3,
       groups: [],
+      autoSemuaGrup: true,
       posterIdx: 0,
       postedToday: { date: '', count: 0 },
       // Pengaturan skala posting aman (anti-banned)
       skalaHari: 3,        // mulai 3 post per hari
-      skalaMaksimal: 10,   // maksimal aman
-      skalaNaik: 2,        // tambahan tiap hari
+      skalaMaksimal: 15,   // batas maksimal aman
+      skalaNaik: 2,        // tambahan acak 1-2 per hari
       // Jadwal otomatis random (anti-pattern detection)
       randomJadwal: true,
       jam: '09:00',
@@ -72,12 +73,13 @@
       if (doc.captions) delete doc.captions;
       if (doc.captionRotate !== undefined) delete doc.captionRotate;
       if (doc.captionIdx !== undefined) delete doc.captionIdx;
-      // Ensure new fields exist
+      // Ensure required safety settings are always enforced
+      doc.telegramReport = true;
+      doc.randomJadwal = true;
+      doc.autoSemuaGrup = true;
       if (doc.skalaHari === undefined) doc.skalaHari = 3;
-      if (doc.skalaMaksimal === undefined) doc.skalaMaksimal = 10;
+      if (doc.skalaMaksimal === undefined) doc.skalaMaksimal = 15;
       if (doc.skalaNaik === undefined) doc.skalaNaik = 2;
-      if (doc.randomJadwal === undefined) doc.randomJadwal = true;
-      if (doc.telegramReport === undefined) doc.telegramReport = true;
       return doc;
     } catch (e) { doc = def(); return doc; }
   }
@@ -88,6 +90,7 @@
 
   function tandai(mut) {
     if (typeof mut === 'function') { try { mut(); } catch (e) {} }
+    doc.telegramReport = true; // Selalu enforce laporan Telegram
     doc.rev = (doc.rev || 0) + 1;
     doc.updatedAt = new Date().toISOString();
     simpanLokal();
@@ -189,41 +192,48 @@
     if (!el) return;
     var skalaHari = Number(doc.skalaHari) || 3;
     var skalaMaks = Number(doc.skalaMaksimal) || 15;
-    var skalaNaik = Number(doc.skalaNaik) || 1;
-    // Hitung target posting hari ini (sudah termasuk kenaikan bertahap).
+    var skalaNaik = Number(doc.skalaNaik) || 2;
     var targetHariIni = Math.min(skalaMaks, skalaHari);
+    var jmlGrup = doc.groups ? doc.groups.length : 0;
+
     el.innerHTML =
       '<div class="field-row" style="align-items:center">' +
         '<label class="field grow"><span class="lbl">Jadwal posting otomatis</span>' +
-          '<span class="hint" style="margin:0">Kalau aktif, server posting otomatis di jam acak (anti-banned).</span></label>' +
+          '<span class="hint" style="margin:0">Server posting otomatis di jam acak (anti-banned & anti-pattern).</span></label>' +
         '<button type="button" class="fb-toggle ' + (on() ? 'on' : '') + '" data-act="toggle-on" aria-label="Aktif nonaktif">' +
           '<span class="fb-knob"></span></button>' +
       '</div>' +
       '<div class="card" style="margin:10px 0 0;padding:10px 12px;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.25)">' +
         '<div class="row-b" style="align-items:center">' +
-          '<span class="grow" style="font-size:12.5px;font-weight:600">🎲 Jadwal acak aman (anti-banned)</span>' +
-          '<span class="tag-on" style="font-size:10.5px">AUTO</span>' +
+          '<span class="grow" style="font-size:12.5px;font-weight:600">🎲 Jadwal Acak Aman (Anti-Pattern Detection)</span>' +
+          '<span class="tag-on" style="font-size:10.5px">AKTIF</span>' +
         '</div>' +
-        '<p class="hint" style="margin:6px 0 0;line-height:1.45">Server memilih jam posting acak di dalam rentang aman, jeda antar-grup dibuat tidak beraturan. Tujuannya supaya pola posting tidak terdeteksi sebagai bot.</p>' +
+        '<p class="hint" style="margin:6px 0 0;line-height:1.45">Sistem secara otomatis mengacak jam posting dan jeda waktu antar-grup secara dinamis. Pola posting tidak berpola kaku sehingga tidak terdeteksi oleh sistem pengawas Facebook.</p>' +
+      '</div>' +
+      '<div class="card" style="margin:10px 0 0;padding:10px 12px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.25)">' +
+        '<div class="row-b" style="align-items:center">' +
+          '<span class="grow" style="font-size:12.5px;font-weight:600">🔄 Pengiriman ke Semua Grup Bertahap</span>' +
+          '<span class="tag-on" style="font-size:10.5px">' + jmlGrup + ' GRUP</span>' +
+        '</div>' +
+        '<p class="hint" style="margin:6px 0 0;line-height:1.45">Otomatis mengirim ke seluruh grup akun secara bergiliran. Dimulai dari <b>3 post/hari</b>, lalu meningkat secara acak <b>(+1-2/hari)</b> hingga batas maksimal aman agar akun terlindungi dari banned.</p>' +
       '</div>' +
       '<div class="field-row" style="margin-top:10px;align-items:flex-start">' +
-        '<label class="field grow"><span class="lbl">Skala posting hari ini</span>' +
+        '<label class="field grow"><span class="lbl">Target hari ini</span>' +
           '<input type="number" id="fbSkalaHari" min="1" max="50" value="' + targetHariIni + '"></label>' +
-        '<label class="field grow"><span class="lbl">Naik / hari</span>' +
-          '<input type="number" id="fbSkalaNaik" min="0" max="10" value="' + skalaNaik + '"></label>' +
-        '<label class="field grow"><span class="lbl">Maks / hari</span>' +
+        '<label class="field grow"><span class="lbl">Naik acak / hari</span>' +
+          '<input type="number" id="fbSkalaNaik" min="1" max="10" value="' + skalaNaik + '"></label>' +
+        '<label class="field grow"><span class="lbl">Batas maks aman</span>' +
           '<input type="number" id="fbSkalaMaks" min="1" max="50" value="' + skalaMaks + '"></label>' +
       '</div>' +
-      '<p class="hint" style="margin:4px 0 0">Mulai dari 3 post/hari, lalu bertambah acak tiap hari sampai batas maksimal. Itu batas aman supaya akun tidak kena banned.</p>' +
       '<div class="field-row" style="margin-top:10px">' +
-        '<label class="field grow"><span class="lbl">Jam dasar (opsional)</span>' +
+        '<label class="field grow"><span class="lbl">Jam patokan (opsional)</span>' +
           '<input type="time" id="fbJam" value="' + esc(doc.jam || '09:00') + '"></label>' +
         '<label class="field"><span class="lbl">Mulai</span>' +
           '<button type="button" class="btn" data-act="run-now" style="width:100%">Posting Sekarang</button></label>' +
       '</div>' +
       (doc.dryRun
-        ? '<p class="hint">MODE UJI aktif — posting hanya disusun, tidak benar-benar terkirim. Matikan di “Pengaturan Aman” kalau sudah yakin.</p>'
-        : '<p class="hint">Mode uji mati — posting akan benar-benar terkirim ke grup.</p>');
+        ? '<p class="hint">MODE UJI aktif — posting hanya disusun, tidak terkirim. Matikan di “Pengaturan Aman” untuk posting beneran.</p>'
+        : '<p class="hint">Mode uji mati — posting akan benar-benar terkirim bertahap ke grup.</p>');
   }
 
   function cogBaris(label, hint, aktif, act, kunci) {
@@ -239,16 +249,20 @@
     var el = $('#fbSafety');
     if (!el) return;
     el.innerHTML =
-      '<p class="hint" style="margin-top:0">Pengaturan ini sengaja aman dulu. Batas keras juga dijaga server (jeda min 30 detik, maks 10 grup sekali jalan) — nilai di sini tidak bisa melampaui itu.</p>' +
-      cogBaris('Mode uji (dry-run)', 'ON = hanya susun draf, tidak terkirim. Wajib OFF sebelum posting beneran.', doc.dryRun, 'toggle-dry', 'dryRun') +
-      cogBaris('Ketik seperti manusia', 'Karakter diketik satu-satu dengan jeda acak.', doc.humanLike, 'toggle-set', 'humanLike') +
-      cogBaris('Laporan ke Telegram', 'Kirim laporan ke chat Telegram tiap kali posting berhasil.', doc.telegramReport, 'toggle-set', 'telegramReport') +
+      '<p class="hint" style="margin-top:0">Pengaturan ini sengaja aman dulu. Batas keras dijaga server (jeda min 30 detik, rotasi semua grup) untuk menjaga keamanan akun Facebook.</p>' +
+      cogBaris('Mode uji (dry-run)', 'ON = hanya susun draf, tidak terkirim. OFF = posting beneran.', doc.dryRun, 'toggle-dry', 'dryRun') +
+      cogBaris('Ketik seperti manusia', 'Interaksi dan jeda acak meniru pengetikan manusia.', doc.humanLike, 'toggle-set', 'humanLike') +
+      '<div class="field-row" style="align-items:center;margin-top:8px">' +
+        '<label class="field grow"><span class="lbl">Laporan ke Telegram</span>' +
+        '<span class="hint" style="margin:0">Laporan otomatis dikirim ke Telegram setiap kali ada posting (Wajib ON).</span></label>' +
+        '<button type="button" class="fb-toggle on" data-act="enforced-tg" aria-label="Laporan Telegram"><span class="fb-knob"></span></button>' +
+      '</div>' +
       '<div class="field-row" style="margin-top:10px">' +
         '<label class="field grow"><span class="lbl">Jeda min (detik)</span>' +
           '<input type="number" id="fbJedaMin" min="30" max="3600" step="10" value="' + doc.jedaMin + '"></label>' +
         '<label class="field grow"><span class="lbl">Jeda max (detik)</span>' +
           '<input type="number" id="fbJedaMax" min="30" max="7200" step="10" value="' + doc.jedaMax + '"></label>' +
-        '<label class="field"><span class="lbl">Maks grup/hari</span>' +
+        '<label class="field"><span class="lbl">Maks grup/run</span>' +
           '<input type="number" id="fbMaxGrup" min="1" max="10" value="' + doc.maxGrupHari + '"></label>' +
       '</div>';
   }
@@ -262,7 +276,7 @@
         '<div class="item-sub">' + esc(g.url || '') + '</div></div>' +
         '<button type="button" class="mini-btn danger" data-act="del-group" data-id="' + g.id + '">Hapus</button></div>';
     }).join('');
-    if (!list) list = '<p class="hint">Belum ada grup. Tambahkan link grup Facebook dulu.</p>';
+    if (!list) list = '<p class="hint">Belum ada grup. Tambahkan link grup Facebook yang ingin diposting.</p>';
     el.innerHTML = list +
       '<div class="field-row" style="margin-top:10px">' +
         '<label class="field grow"><span class="lbl">Nama grup</span>' +
@@ -275,24 +289,18 @@
       '</div>';
   }
 
-  /* Caption sudah dihapus — posting pakai poster saja (tanpa teks caption). */
-  function renderCaptions() {
-    var el = $('#fbCaptions');
-    if (!el) return;
-    el.innerHTML = '<p class="hint" style="margin-top:0">Caption sudah dihapus. Posting Facebook memakai poster gambar saja tanpa teks caption, supaya lebih aman dari deteksi spam.</p>';
-  }
-
   function renderPosters() {
     var el = $('#fbPosters');
     if (!el) return;
     el.innerHTML =
-      '<p class="hint" style="margin-top:0">Poster tinggal di server (folder <b>posters/</b>) dan dipilih berurutan tiap posting. Kirim gambar ke chat Nava buat menambah — Nava yang menaruhnya ke server, jadi di sini tidak perlu upload.</p>' +
+      '<p class="hint" style="margin-top:0">Posting otomatis menggunakan <b>gambar poster saja (tanpa teks caption)</b> demi meminimalkan resiko filter spam Facebook.</p>' +
+      '<p class="hint">Poster tinggal di server (folder <b>posters/</b>) dan dipilih berurutan tiap posting. Kirim gambar ke chat Telegram Nava untuk menambah — Nava yang menaruhnya ke server.</p>' +
       '<p class="hint">Posisi poster sekarang: <b>nomor ' + (doc.posterIdx + 1) + '</b> dalam urutan file.</p>';
   }
 
   function renderAll() {
     renderStatus(); renderSchedule(); renderSafety();
-    renderGroups(); renderCaptions(); renderPosters();
+    renderGroups(); renderPosters();
   }
 
   /* ---------------- Aksi ---------------- */
@@ -323,8 +331,17 @@
       }
       if (act === 'toggle-set') {
         var k = b.dataset.k;
+        if (k === 'telegramReport') {
+          doc.telegramReport = true;
+          toast('Laporan Telegram selalu aktif untuk keamanan & pemantauan.');
+          return;
+        }
         tandai(function () { doc[k] = !doc[k]; });
         haptic(true);
+        return;
+      }
+      if (act === 'enforced-tg') {
+        toast('Laporan Telegram selalu aktif untuk memastikan pemantauan dan keamanan akun.');
         return;
       }
       if (act === 'toggle-dry') {
@@ -374,24 +391,6 @@
           if (!ok) return;
           tandai(function () { doc.groups = doc.groups.filter(function (x) { return x.id !== id; }); });
           toast('Grup dihapus');
-        });
-        return;
-      }
-      if (act === 'add-caption') {
-        var t = ($('#fbCaptionText') || {}).value || '';
-        t = t.trim();
-        if (!t) { toast('Tulis caption dulu'); return; }
-        tandai(function () { doc.captions.push(t); });
-        toast('Caption ditambahkan');
-        return;
-      }
-      if (act === 'del-caption') {
-        var i = Number(b.dataset.i);
-        if (isNaN(i) || !doc.captions[i]) return;
-        confirmDialog('Hapus caption ini?', function (ok) {
-          if (!ok) return;
-          tandai(function () { doc.captions.splice(i, 1); });
-          toast('Caption dihapus');
         });
         return;
       }

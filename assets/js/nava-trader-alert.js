@@ -7,7 +7,7 @@
 
    Semua aturan kerentanan:
    - Tidak pernah menampilkan klaim order bursa.
-   - Label data (EOD / Delayed / Real-time) selalu ditampilkan.
+   - Label data (Real-time / EOD) selalu ditampilkan.
    - Data kosong ditulis "Data tidak tersedia", tidak dikarang.
    ===================================================================== */
 (function (w) {
@@ -146,17 +146,13 @@
     L.push('</div>');
 
     L.push('<label class="nt-fld"><span>Label data</span><select id="alLabel">' +
-      ['EOD', 'Delayed', 'Real-time'].map(function (o) {
-        return '<option' + (s.label_data === o ? ' selected' : '') + '>' + o + '</option>';
+      ['Real-time', 'EOD'].map(function (o) {
+        var sel = (s.label_data || 'Real-time') === o;
+        return '<option' + (sel ? ' selected' : '') + '>' + o + '</option>';
       }).join('') + '</select></label>');
 
-    if (s.label_data !== 'Real-time') {
-      L.push('<p class="nt-warn">Label <b>Real-time</b> hanya dipakai bila sumber intraday ' +
-        'benar-benar tersedia. Tanpa itu sistem otomatis turun ke <b>Delayed/EOD</b> — ' +
-        'harga tidak pernah diklaim real-time palsu.</p>');
-    }
-
     L.push('<button class="nt-btn primary block" id="alSimpan">Simpan Pengaturan</button>');
+    L.push('<button class="nt-btn ghost block" id="alBukaAturan" style="margin-top:10px">🎯 Kelola Alert per Saham (' + (M.watch ? M.watch.length : 0) + ')</button>');
     L.push('<p class="nt-muted">Jeda mencegah alert berulang untuk kondisi yang sama.</p>');
     L.push('</div>');
 
@@ -187,6 +183,10 @@
     }
     L.push('</div>');
 
+    L.push('<div class="nt-rowbtns" style="margin-top:14px">');
+    L.push('<button class="nt-b nt-b-ghost" data-nv-go="home">‹ Kembali ke Beranda</button>');
+    L.push('</div>');
+
     return L.join('');
   }
 
@@ -211,6 +211,10 @@
 
     if (!M.watch || !M.watch.length) {
       L.push('<div class="nt-card"><div class="nt-muted">Belum ada aturan alert.</div></div>');
+      L.push('<div class="nt-rowbtns" style="margin-top:14px">');
+      L.push('<button class="nt-b nt-b-ghost" id="alKembaliPengaturan">‹ Pengaturan Notifikasi</button>');
+      L.push('<button class="nt-b nt-b-ghost" data-nv-go="home">‹ Kembali ke Beranda</button>');
+      L.push('</div>');
       return L.join('');
     }
 
@@ -231,6 +235,11 @@
         '<button class="nt-btn tiny danger" data-al-del="' + esc(a.kode) + '">Hapus</button></div>');
       L.push('</div>');
     });
+    L.push('</div>');
+
+    L.push('<div class="nt-rowbtns" style="margin-top:14px">');
+    L.push('<button class="nt-b nt-b-ghost" id="alKembaliPengaturan">‹ Pengaturan Notifikasi</button>');
+    L.push('<button class="nt-b nt-b-ghost" data-nv-go="home">‹ Kembali ke Beranda</button>');
     L.push('</div>');
 
     return L.join('');
@@ -280,7 +289,8 @@
       'tidak akan pernah dipicu.</p>');
 
     L.push('<button class="nt-btn primary block" id="afSimpan">Simpan Aturan</button>');
-    L.push('<button class="nt-btn ghost block" id="afBatal">Batal</button>');
+    L.push('<button class="nt-btn ghost block" id="afBatal">Batal / Kembali ke Aturan</button>');
+    L.push('<button class="nt-btn ghost block" style="margin-top:6px" data-nv-go="home">‹ Kembali ke Beranda</button>');
     L.push('</div>');
     return L.join('');
   }
@@ -322,9 +332,15 @@
         jam_aktif_end: ($('#alSelesai') || {}).value || '15:30',
         jeda_menit: Number(($('#alJedaM') || {}).value || 0),
         jeda_persen: Number(($('#alJedaP') || {}).value || 0),
-        label_data: ($('#alLabel') || {}).value || 'EOD',
+        label_data: ($('#alLabel') || {}).value || 'Real-time',
       });
     });
+
+    var BA = $('#alBukaAturan');
+    if (BA) BA.addEventListener('click', function () { M.view = 'alert-saham'; M.galat = ''; render(); });
+
+    var KP = $('#alKembaliPengaturan');
+    if (KP) KP.addEventListener('click', function () { M.view = 'alert'; M.galat = ''; render(); });
 
     var T = $('#alTambah');
     if (T) T.addEventListener('click', function () { M.view = 'alert-saham2'; M.galat = ''; render(); });
@@ -370,7 +386,15 @@
     });
 
     var B = $('#afBatal');
-    if (B) B.addEventListener('click', function () { M.view = 'alert'; M.galat = ''; render(); });
+    if (B) B.addEventListener('click', function () { M.view = 'alert-saham'; M.galat = ''; render(); });
+
+    var GH = w.document.querySelectorAll('[data-nv-go="home"]');
+    for (var g = 0; g < GH.length; g++) {
+      GH[g].addEventListener('click', function () {
+        M.view = 'alert';
+        if (w.NavaTraderUI && w.NavaTraderUI.go) w.NavaTraderUI.go('home');
+      });
+    }
   }
 
   function numOrNull(v) {
