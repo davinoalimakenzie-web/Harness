@@ -711,6 +711,55 @@ body.mitra-mode #app{ padding-top:0; }
 .play-btn{ width:34px; height:34px; flex:0 0 auto; border:0; border-radius:50%;
   background:var(--accent); color:var(--accent-text); display:grid; place-items:center; cursor:pointer; }
 
+/* ---------------- Pool Sementara Catatan & Pengingat ---------------- */
+.btn-note-pool-add{
+  display:inline-flex; align-items:center; justify-content:center; gap:4px;
+  height:36px; padding:0 11px; border:1px dashed var(--accent);
+  background:rgba(47,111,237,.09); color:var(--accent);
+  font-size:12.5px; font-weight:700; border-radius:10px; cursor:pointer;
+  transition:all .15s ease; white-space:nowrap; flex:0 0 auto;
+}
+.btn-note-pool-add:active{ transform:scale(.96); background:rgba(47,111,237,.18); }
+.note-pool-card{
+  background:var(--bg-elev); border:1px solid rgba(47,111,237,.35);
+  box-shadow:0 4px 14px rgba(47,111,237,.10); border-radius:var(--radius);
+  padding:12px 14px; margin-bottom:12px;
+}
+.note-pool-head{
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:9px;
+}
+.note-pool-title{
+  display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px; color:var(--text);
+}
+.note-pool-badge{
+  background:var(--accent); color:#ffffff; font-size:11px; font-weight:700;
+  padding:2px 7px; border-radius:99px;
+}
+.note-pool-list{
+  display:flex; flex-direction:column; gap:8px; max-height:260px;
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+}
+.note-pool-item{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  background:var(--bg); border:1px solid var(--line); border-radius:10px;
+  padding:9px 11px;
+}
+.note-pool-item-content{ flex:1; min-width:0; }
+.note-pool-item-text{
+  font-size:13px; font-weight:600; color:var(--text);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.note-pool-item-sub{
+  display:flex; align-items:center; flex-wrap:wrap; gap:6px;
+  font-size:11px; color:var(--text-2); margin-top:2px;
+}
+.note-pool-del-btn{
+  background:transparent; border:none; color:var(--danger); font-size:15px;
+  cursor:pointer; padding:4px 6px; border-radius:6px; display:inline-flex;
+  align-items:center; justify-content:center;
+}
+.note-pool-del-btn:active{ transform:scale(.9); background:rgba(229,72,77,.15); }
+
 /* ---------------- List ---------------- */
 .list{ display:flex; flex-direction:column; gap:10px; }
 .list-head{ display:flex; align-items:center; justify-content:center; text-align:center;
@@ -740,16 +789,26 @@ button.item{ width:100%; text-align:left; font:inherit; color:inherit; cursor:po
 button.item:active{ transform:scale(.99); }
 button.item .item-body{ display:flex; flex-direction:column; }
 button.item .item-sub{ margin-top:3px; }
-.item.done .item-title{ text-decoration:line-through; color:var(--hint); }
+.item.done{ opacity:0.65; }
+.item.done .item-title{
+  text-decoration: line-through 2px var(--danger);
+  color: var(--hint);
+}
+.item.done .item-audio{ text-decoration: line-through; opacity: 0.6; }
 .item.due{ border-color:var(--danger); box-shadow:0 0 0 1px var(--danger) inset; }
 .tag{ padding:2px 7px; border-radius:7px; background:var(--tap); font-size:11px; font-weight:600; }
 .tag.danger{ background:rgba(229,72,77,.14); color:var(--danger); }
 .tag.warn{ background:rgba(245,165,36,.16); color:var(--warn); }
 .tag.ok{ background:rgba(18,161,80,.14); color:var(--success); }
-.chk{ width:24px; height:24px; flex:0 0 auto; border-radius:8px; border:2px solid var(--line);
-  background:transparent; display:grid; place-items:center; cursor:pointer; padding:0; }
-.chk svg{ width:13px; height:13px; opacity:0; }
-.chk.on{ background:var(--success); border-color:var(--success); }
+.chk{
+  width:26px; height:26px; flex:0 0 auto; border-radius:8px;
+  border:2px solid var(--text-2); background:var(--tap);
+  display:grid; place-items:center; cursor:pointer; padding:0;
+  transition:all .15s ease;
+}
+.chk:active{ transform:scale(.9); }
+.chk svg{ width:14px; height:14px; opacity:0; fill:#ffffff; transition:opacity .15s ease; }
+.chk.on{ background:var(--success); border-color:var(--success); box-shadow:0 2px 6px rgba(18,161,80,.35); }
 .chk.on svg{ opacity:1; }
 .item-actions{ display:flex; gap:4px; align-items:center; }
 .item-audio{ display:flex; align-items:center; gap:8px; margin-top:8px;
@@ -1272,10 +1331,22 @@ button.item .item-sub{ margin-top:3px; }
   font-size:12.5px; font-weight:600; color:var(--text-2); cursor:pointer;
 }
 .tx-acc.on{ background:var(--accent); border-color:var(--accent); color:var(--accent-text); }
+.tx-date-wrap{
+  position:relative; display:inline-flex; align-items:center; flex:0 0 auto;
+}
 .tx-date{
-  flex:0 0 auto; padding:8px 12px; background:var(--bg-elev);
+  position:relative; display:inline-flex; align-items:center; gap:7px;
+  flex:0 0 auto; padding:7px 12px; background:var(--bg-elev);
   border:1px solid var(--line); border-radius:11px; font-size:12.5px;
-  font-weight:600; color:var(--text-2); cursor:pointer;
+  font-weight:600; color:var(--text); cursor:pointer;
+  transition:all .15s ease;
+}
+.tx-date:active{ transform:scale(.97); }
+.tx-date-icon{ color:var(--accent); flex-shrink:0; }
+.tx-date-native-input{
+  position:absolute; inset:0; width:100%; height:100%;
+  opacity:0; cursor:pointer; z-index:5; border:0; padding:0; margin:0;
+  background:transparent;
 }
 
 /* Grid kategori (pilih dengan 1 ketukan) */

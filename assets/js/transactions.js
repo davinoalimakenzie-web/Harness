@@ -1097,6 +1097,18 @@
     TG.haptic('select');
   }
 
+  function formatTxDate(dateStr) {
+    if (!dateStr) return 'Pilih Tanggal';
+    var parts = dateStr.split('-');
+    if (parts.length === 3) {
+      var d = new Date(Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
+      if (!isNaN(d)) {
+        return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+      }
+    }
+    return dateStr;
+  }
+
   function resetForm() {
     type = 'out';
     group = null; sub = null;
@@ -1106,8 +1118,8 @@
     var f = Accounts.first();
     accountId = f ? f.id : null;
     el.txDate.value = S.todayStr();
-    el.txDate.max = S.todayStr();
-    el.dateLabel.textContent = 'Hari ini';
+    delete el.txDate.max;
+    el.dateLabel.textContent = formatTxDate(el.txDate.value);
     el.note.value = '';
     el.pageTitle.textContent = 'Tambah Transaksi';
     el.okBtn.disabled = false;
@@ -1156,7 +1168,8 @@
     amountStr = String(t.amount);
     accountId = Accounts.get(t.account_id) ? t.account_id : accountId;
     el.txDate.value = t.transaction_date;
-    el.dateLabel.textContent = S.dayLabel(t.transaction_date);
+    delete el.txDate.max;
+    el.dateLabel.textContent = formatTxDate(t.transaction_date);
     el.note.value = t.note || '';
     el.pageTitle.textContent = 'Edit Transaksi';
     $$('#txType .seg-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.t === type); });
@@ -1329,7 +1342,7 @@
         // Tanggal (hanya bila valid & tidak masa depan)
         if (r.date && r.date <= S.todayStr() && /^\d{4}-\d{2}-\d{2}$/.test(r.date)) {
           el.txDate.value = r.date;
-          el.dateLabel.textContent = S.dayLabel(r.date);
+          el.dateLabel.textContent = formatTxDate(r.date);
           bits.push('tanggal ' + r.date);
         }
         // Kategori saran
@@ -1662,14 +1675,21 @@
 
     /* --- Tanggal --- */
     var dateBtn = $('#txDateBtn');
-    dateBtn.addEventListener('click', function () {
-      if (typeof el.txDate.showPicker === 'function') {
-        try { el.txDate.showPicker(); return; } catch (e) {}
-      }
-      el.txDate.click();
-    });
+    if (dateBtn) {
+      dateBtn.addEventListener('click', function () {
+        if (typeof el.txDate.showPicker === 'function') {
+          try { el.txDate.showPicker(); return; } catch (e) {}
+        }
+        el.txDate.focus();
+        el.txDate.click();
+      });
+    }
     el.txDate.addEventListener('change', function () {
-      if (this.value) el.dateLabel.textContent = S.dayLabel(this.value);
+      if (this.value) el.dateLabel.textContent = formatTxDate(this.value);
+      clearErr();
+    });
+    el.txDate.addEventListener('input', function () {
+      if (this.value) el.dateLabel.textContent = formatTxDate(this.value);
       clearErr();
     });
 

@@ -12,6 +12,7 @@
   var pendingAudio = null;   // {blob, dur, url}
   var fired = {};            // id => sudah dikasih notif
   var inSheet = null;
+  var notesPool = [];        // pool sementara tambah catatan & pengingat
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -106,16 +107,20 @@
       var soon = d && !n.done && d.fireAt > new Date() && d.fireAt - new Date() < 3600000;
       var cls = 'item' + (n.done ? ' done' : '') + (overdue ? ' due' : '');
       var sub = [];
-      if (d) {
+      var remAt = n.remindAt || n.remindAtSaved;
+      if (remAt) {
         var rep = { none: '', daily: ' · harian', weekly: ' · mingguan', biweekly: ' · 2 mingguan',
           monthly: ' · bulanan', yearly: ' · tahunan' }[n.repeat] || '';
-        sub.push('<span class="tag' + (overdue ? ' danger' : soon ? ' warn' : '') + '">⏰ ' +
-          esc(fmtDate(n.remindAt)) + esc(rep) + '</span>');
+        sub.push('<span class="tag' + (n.done ? ' ok' : overdue ? ' danger' : soon ? ' warn' : '') + '">⏰ ' +
+          esc(fmtDate(remAt)) + esc(rep) + '</span>');
       } else {
         sub.push('<span class="tag">📝 ' + esc(fmtDate(n.createdAt) || 'catatan') + '</span>');
       }
+      if (n.done) {
+        sub.push('<span class="tag ok">✓ Selesai</span>');
+      }
       return '<div class="' + cls + '" data-id="' + esc(n.id) + '">' +
-        '<button class="chk' + (n.done ? ' on' : '') + '" data-toggle="' + esc(n.id) + '" aria-label="Selesai">' +
+        '<button class="chk' + (n.done ? ' on' : '') + '" data-toggle="' + esc(n.id) + '" aria-label="' + (n.done ? 'Tandai belum selesai' : 'Tandai selesai') + '" title="' + (n.done ? 'Selesai' : 'Belum selesai') + '">' +
         '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>' +
         '</button>' +
         '<div class="item-body">' +
@@ -146,6 +151,100 @@
     el.badge.classList.toggle('hidden', n <= 0);
   }
 
+  /* ---------------- Pool Sementara Catatan & Pengingat ---------------- */
+  function renderNotesPool() {
+    if (!el.poolCard || !el.poolList) return;
+    if (!notesPool.length) {
+      el.poolCard.classList.add('hidden');
+      el.poolList.innerHTML = '';
+      if (el.poolCount) el.poolCount.textContent = '0';
+      if (!editing && el.btnSave) el.btnSave.textContent = 'Simpan';
+      return;
+    }
+    el.poolCard.classList.remove('hidden');
+    if (el.poolCount) el.poolCount.textContent = notesPool.length + ' item';
+    if (!editing && el.btnSave) {
+      var extra = (el.text && el.text.value.trim()) || pendingAudio ? 1 : 0;
+      el.btnSave.textContent = 'Simpan Semua (' + (notesPool.length + extra) + ')';
+    }
+
+    el.poolList.innerHTML = notesPool.map(function (item, idx) {
+      var tags = [];
+      if (item.audio) {
+        tags.push('🎙 Voice Note');
+      }
+      var rem = item.remindAt;
+      if (rem) {
+        tags.push('⏰ ' + fmtDate(rem));
+      }
+      return '<div class="note-pool-item" data-idx="' + idx + '">' +
+        '<div class="note-pool-item-content">' +
+          '<div class="note-pool-item-text">' + esc(item.text || (item.audio ? 'Voice Note' : 'Catatan')) + '</div>' +
+          (tags.length ? '<div class="note-pool-item-sub">' + tags.map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') + '</div>' : '') +
+        '</div>' +
+        '<button type="button" class="note-pool-del-btn" data-pool-del="' + idx + '" aria-label="Hapus dari pool" title="Hapus">✕</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  function addNoteToPool() {
+    if (editing) {
+      App.toast('Selesaikan ubah catatan terlebih dahulu');
+      return;
+    }
+    var text = el.text.value.trim();
+    if (!text && !pendingAudio) {
+      TG.haptic('warning');
+      App.toast('Tulis catatan atau rekam suara dulu ya');
+      return;
+    }
+    var item = {
+      text: text,
+      remindAt: collectReminder(),
+      repeat: el.rmRepeat.value,
+      leadMin: Number(el.rmLead.value) || 0,
+      audio: pendingAudio ? { blob: pendingAudio.blob, dur: pendingAudio.dur, url: pendingAudio.url } : null
+    };
+    notesPool.push(item);
+
+    // Reset input komposer tanpa mematikan URL audio yang disimpan di pool
+    pendingAudio = null;
+    el.preview.classList.add('hidden');
+    el.icoPlay.classList.remove('hidden');
+    el.icoPause.classList.add('hidden');
+    el.text.value = '';
+    el.remindBox.classList.add('hidden');
+    el.remindLabel.textContent = 'Ingatkan';
+    renderNotesPool();
+    TG.haptic('select');
+    App.toast('Catatan ditambahkan ke pool');
+  }
+
+  function removeNoteFromPool(idx) {
+    idx = Number(idx);
+    if (idx >= 0 && idx < notesPool.length) {
+      var item = notesPool[idx];
+      if (item && item.audio && item.audio.url) {
+        try { URL.revokeObjectURL(item.audio.url); } catch (e) {}
+      }
+      notesPool.splice(idx, 1);
+      renderNotesPool();
+      TG.haptic('select');
+    }
+  }
+
+  function clearNotesPool() {
+    notesPool.forEach(function (item) {
+      if (item.audio && item.audio.url) {
+        try { URL.revokeObjectURL(item.audio.url); } catch (e) {}
+      }
+    });
+    notesPool = [];
+    renderNotesPool();
+    TG.haptic('select');
+    App.toast('Pool catatan dikosongkan');
+  }
+
   /* ---------------- Save / edit ---------------- */
   function collectReminder() {
     if (el.remindBox.classList.contains('hidden') || !el.rmDate.value) return null;
@@ -153,6 +252,58 @@
   }
 
   function save() {
+    // JIKA ADA ITEM DI POOL:
+    if (notesPool && notesPool.length > 0) {
+      var curText = el.text.value.trim();
+      if (curText || pendingAudio) {
+        notesPool.push({
+          text: curText,
+          remindAt: collectReminder(),
+          repeat: el.rmRepeat.value,
+          leadMin: Number(el.rmLead.value) || 0,
+          audio: pendingAudio ? { blob: pendingAudio.blob, dur: pendingAudio.dur, url: pendingAudio.url } : null
+        });
+        pendingAudio = null;
+      }
+
+      var count = notesPool.length;
+      notesPool.forEach(function (item) {
+        var payload = {
+          text: item.text,
+          remindAt: item.remindAt,
+          repeat: item.repeat,
+          leadMin: item.leadMin
+        };
+        var note = S.Notes.add(payload);
+        if (item.audio) {
+          var aid = S.uid();
+          AudioDB.put(aid, item.audio.blob).catch(function (e) {
+            console.warn('gagal simpan audio pool', e);
+          });
+          S.Notes.update(note.id, {
+            audioId: aid,
+            audioMeta: { dur: item.audio.dur, size: item.audio.blob.size }
+          });
+          if (TG.isTelegram) TG.sendData('catatan:' + note.id);
+          if (item.audio.url) {
+            try { URL.revokeObjectURL(item.audio.url); } catch (e) {}
+          }
+        }
+      });
+
+      notesPool = [];
+      resetForm();
+      renderNotesPool();
+      render();
+      TG.haptic('success');
+      App.toast(count + ' catatan berhasil disimpan!');
+      if (w.Sync && typeof w.Sync.push === 'function') {
+        try { w.Sync.push(); } catch (e) {}
+      }
+      return;
+    }
+
+    // SIMPAN SATUAN:
     var text = el.text.value.trim();
     if (!text && !pendingAudio) {
       TG.haptic('warning');
@@ -193,7 +344,10 @@
     resetForm();
     render();
     TG.haptic('success');
-    App.toast('Catatan tersimpan');
+    App.toast(editing ? 'Catatan diubah' : 'Catatan tersimpan');
+    if (w.Sync && typeof w.Sync.push === 'function') {
+      try { w.Sync.push(); } catch (e) {}
+    }
   }
 
   function resetForm() {
@@ -201,7 +355,12 @@
     el.text.value = '';
     el.remindBox.classList.add('hidden');
     el.remindLabel.textContent = 'Ingatkan';
-    el.btnSave.textContent = 'Simpan';
+    if (el.btnAddPool) el.btnAddPool.classList.remove('hidden');
+    if (notesPool.length > 0) {
+      el.btnSave.textContent = 'Simpan Semua (' + notesPool.length + ')';
+    } else {
+      el.btnSave.textContent = 'Simpan';
+    }
     clearPending();
   }
 
@@ -211,6 +370,7 @@
     var n = S.Notes.all().filter(function (x) { return x.id === id; })[0];
     if (!n) return;
     editing = id;
+    if (el.btnAddPool) el.btnAddPool.classList.add('hidden');
     el.text.value = n.text || '';
     if (n.remindAt) {
       el.remindBox.classList.remove('hidden');
@@ -305,7 +465,37 @@
     el.filter = $('#noteFilter');
     el.badge = $('#badgeNotes');
 
+    // Pool Sementara Catatan
+    el.btnAddPool = $('#btnAddNotePool');
+    el.poolCard = $('#notePoolCard');
+    el.poolCount = $('#notePoolCount');
+    el.poolList = $('#notePoolList');
+    el.btnClearPool = $('#btnNoteClearPool');
+    el.btnSaveAllPool = $('#btnNoteSaveAllPool');
+
     el.btnSave.addEventListener('click', function () { save(); });
+    if (el.btnAddPool) {
+      el.btnAddPool.addEventListener('click', function () { addNoteToPool(); });
+    }
+    if (el.btnClearPool) {
+      el.btnClearPool.addEventListener('click', function () { clearNotesPool(); });
+    }
+    if (el.btnSaveAllPool) {
+      el.btnSaveAllPool.addEventListener('click', function () { save(); });
+    }
+    if (el.poolList) {
+      el.poolList.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-pool-del]');
+        if (btn) removeNoteFromPool(btn.dataset.poolDel);
+      });
+    }
+
+    el.text.addEventListener('input', function () {
+      if (!editing && notesPool.length > 0) {
+        var extra = this.value.trim() || pendingAudio ? 1 : 0;
+        el.btnSave.textContent = 'Simpan Semua (' + (notesPool.length + extra) + ')';
+      }
+    });
 
     // Mikrofon
     if (!Voice.supported) {

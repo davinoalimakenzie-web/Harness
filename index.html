@@ -46,18 +46,6 @@
       </div>
     </div>
 
-    <!-- Pemasukan & Pengeluaran Berdampingan (2 Kolom) -->
-    <div class="stat-grid" style="margin-bottom:12px;">
-      <div class="stat in">
-        <span class="stat-lbl">Pemasukan</span>
-        <strong id="rIn" class="stat-val">0</strong>
-      </div>
-      <div class="stat out" style="text-align:right;">
-        <span class="stat-lbl">Pengeluaran</span>
-        <strong id="rOut" class="stat-val">0</strong>
-      </div>
-    </div>
-
     <!-- Komposisi pengeluaran -->
     <div class="card" style="margin-bottom:12px;">
       <div class="list-head tight"><strong>Komposisi pengeluaran</strong></div>
@@ -161,10 +149,18 @@
       </div>
       <div class="tx-meta">
         <div class="tx-accounts" id="txAccounts"></div>
-        <button class="tx-date" id="txDateBtn">
-          <span id="txDateLabel">Hari ini</span>
-          <input type="date" id="txDate" class="hidden">
-        </button>
+        <div class="tx-date-wrap">
+          <button type="button" class="tx-date" id="txDateBtn" aria-label="Pilih tanggal transaksi">
+            <svg class="tx-date-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="txDateLabel">Pilih Tanggal</span>
+          </button>
+          <input type="date" id="txDate" class="tx-date-native-input" aria-label="Input tanggal transaksi">
+        </div>
       </div>
     </div>
 
@@ -444,6 +440,10 @@
           <span id="remindLabel">Ingatkan</span>
         </button>
 
+        <button type="button" id="btnAddNotePool" class="btn-note-pool-add" title="Tambah ke Pool Catatan">
+          <span>＋ Pool</span>
+        </button>
+
         <button id="btnSave" class="btn primary grow">Simpan</button>
       </div>
 
@@ -484,6 +484,21 @@
         </div>
         <p class="hint">Isi tanggal &amp; jam untuk mengaktifkan pengingat. Bot juga akan mengirim pengingat ke chat kamu.</p>
       </div>
+    </div>
+
+    <!-- Card Pool Catatan Sementara -->
+    <div class="note-pool-card hidden" id="notePoolCard">
+      <div class="note-pool-head">
+        <div class="note-pool-title">
+          <span>📋 Pool Catatan Sementara</span>
+          <span class="note-pool-badge" id="notePoolCount">0</span>
+        </div>
+        <button type="button" class="mini-btn text-danger" id="btnNoteClearPool" style="font-size:11.5px;padding:3px 8px;">Kosongkan</button>
+      </div>
+      <div class="note-pool-list" id="notePoolList"></div>
+      <button type="button" class="btn primary block" id="btnNoteSaveAllPool" style="margin-top:10px;font-weight:700;height:40px;">
+        💾 Simpan Semua Catatan di Pool
+      </button>
     </div>
 
     <div class="seg" id="noteFilter">

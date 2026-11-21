@@ -407,7 +407,12 @@
       if (n) {
         n.done = !n.done;
         n.doneAt = n.done ? new Date().toISOString() : null;
-        if (n.done) n.remindAt = null;
+        if (n.done) {
+          if (n.remindAt) n.remindAtSaved = n.remindAt;
+          n.remindAt = null;
+        } else {
+          if (n.remindAtSaved) n.remindAt = n.remindAtSaved;
+        }
         save();
       }
       return n;
