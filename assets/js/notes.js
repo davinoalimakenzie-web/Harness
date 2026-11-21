@@ -374,11 +374,7 @@
     el.remindBox.classList.add('hidden');
     el.remindLabel.textContent = 'Ingatkan';
     if (el.btnAddPool) el.btnAddPool.classList.remove('hidden');
-    if (notesPool.length > 0) {
-      el.btnSave.textContent = 'Simpan Semua (' + notesPool.length + ')';
-    } else {
-      el.btnSave.textContent = 'Simpan';
-    }
+    renderSaveBtn();
     clearPending();
   }
 
@@ -399,7 +395,7 @@
       el.rmRepeat.value = n.repeat || 'none';
       el.rmLead.value = String(n.leadMin == null ? 5 : n.leadMin);
     }
-    el.btnSave.textContent = 'Ubah';
+    renderSaveBtn();
     w.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -459,6 +455,7 @@
     _inited = true;
     el.text = $('#noteText');
     el.btnSave = $('#btnSave');
+    renderSaveBtn();
     el.btnMic = $('#btnMic');
     el.micLabel = $('#micLabel');
     el.recBar = $('#recBar');
@@ -510,8 +507,7 @@
 
     el.text.addEventListener('input', function () {
       if (!editing && notesPool.length > 0) {
-        var extra = this.value.trim() || pendingAudio ? 1 : 0;
-        el.btnSave.textContent = 'Simpan Semua (' + (notesPool.length + extra) + ')';
+        renderSaveBtn();
       }
     });
 

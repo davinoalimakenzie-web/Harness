@@ -15,7 +15,7 @@
    TIDAK ADA transaksi otomatis. Tidak ada koneksi ke bursa
    untuk tujuan eksekusi. Semua hanya laporan dan simulasi.
 
-   Data: EOD (End of Day) / Delayed dari Yahoo Finance.
+   Data: EOD (End of Day) dari Yahoo Finance.
    Diberi label jelas di mana-mana. Tidak pernah diklaim real-time.
 
    Struktur modul mengikuti modul Mas Cim (overlay layar penuh)
@@ -217,9 +217,9 @@
     h += '<div class="nt-src">';
     h += '<div class="nt-src-row"><b>Sumber</b> ' +
          esc(M.meta && M.meta.sumber ? M.meta.sumber.nama : 'Tidak diketahui') + '</div>';
-    h += '<div class="nt-src-row"><b>Jenis</b> <span class="nt-badge nt-delayed">' +
-         esc(M.meta && M.meta.sumber ? M.meta.sumber.jenis : 'EOD / Delayed') +
-         '</span> <span class="nt-warnmini">bukan real-time</span></div>';
+    h += '<div class="nt-src-row"><b>Jenis</b> <span class="nt-badge nt-kes-ok">' +
+         esc(M.meta && M.meta.sumber ? M.meta.sumber.jenis : 'EOD') +
+         '</span></div>';
     h += '<div class="nt-src-row"><b>Data terakhir</b> ' +
          esc(M.meta && M.meta.terakhirOleh ? M.meta.terakhirOleh : '-') + '</div>';
     // Status kesegaran selalu tampil (bukan hanya saat bermasalah),
@@ -332,7 +332,7 @@
     h += '<p>Alat bantu riset, <b>bukan nasihat keuangan</b>. Aplikasi ini ' +
          'tidak pernah mengirim order ke bursa. Semua keputusan dan ' +
          'eksekusi transaksi adalah tanggung jawab Anda sepenuhnya.</p>';
-    h += '<p>Data bersifat EOD/Delayed. Harga,fundamental, dan kondisi pasar ' +
+    h += '<p>Data bersifat EOD. Harga,fundamental, dan kondisi pasar ' +
          'bisa berubah setiap hari. Verifikasi ke sumber resmi IDX sebelum bertindak.</p>';
     h += '</div>';
 
@@ -803,7 +803,7 @@
     h += '<div class="nt-card">';
     h += '<div class="nt-card-title">Sumber &amp; Waktu Data</div>';
     h += '<div class="nt-kv"><span>Sumber</span><b>' + esc(a.sumber.nama) + '</b></div>';
-    h += '<div class="nt-kv"><span>Jenis</span><b class="nt-delayed">' + esc(a.sumber.jenis) + '</b></div>';
+    h += '<div class="nt-kv"><span>Jenis</span><b class="nt-kes-ok">' + esc(a.sumber.jenis) + '</b></div>';
     h += '<div class="nt-kv"><span>Data terakhir</span><b>' + esc(a.waktuData) + '</b></div>';
     h += '<div class="nt-note">' + esc(a.sumber.catatan) + '</div>';
     h += '<div class="nt-note">Verifikasi ke IDX (idx.co.id) atau aplikasi broker resmi sebelum bertindak.</div>';

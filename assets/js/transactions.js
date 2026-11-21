@@ -1109,6 +1109,13 @@
     return dateStr;
   }
 
+  function updateTxDateVisual(dateStr) {
+    var formatted = formatTxDate(dateStr);
+    if (el.dateLabel) el.dateLabel.textContent = formatted;
+    var dateBtn = $('#txDateBtn');
+    if (dateBtn) dateBtn.title = 'Tanggal: ' + formatted;
+  }
+
   function resetForm() {
     type = 'out';
     group = null; sub = null;
@@ -1119,7 +1126,7 @@
     accountId = f ? f.id : null;
     el.txDate.value = S.todayStr();
     delete el.txDate.max;
-    el.dateLabel.textContent = formatTxDate(el.txDate.value);
+    updateTxDateVisual(el.txDate.value);
     el.note.value = '';
     el.pageTitle.textContent = 'Tambah Transaksi';
     el.okBtn.disabled = false;
@@ -1169,7 +1176,7 @@
     accountId = Accounts.get(t.account_id) ? t.account_id : accountId;
     el.txDate.value = t.transaction_date;
     delete el.txDate.max;
-    el.dateLabel.textContent = formatTxDate(t.transaction_date);
+    updateTxDateVisual(t.transaction_date);
     el.note.value = t.note || '';
     el.pageTitle.textContent = 'Edit Transaksi';
     $$('#txType .seg-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.t === type); });
@@ -1342,7 +1349,7 @@
         // Tanggal (hanya bila valid & tidak masa depan)
         if (r.date && r.date <= S.todayStr() && /^\d{4}-\d{2}-\d{2}$/.test(r.date)) {
           el.txDate.value = r.date;
-          el.dateLabel.textContent = formatTxDate(r.date);
+          updateTxDateVisual(r.date);
           bits.push('tanggal ' + r.date);
         }
         // Kategori saran
@@ -1685,11 +1692,11 @@
       });
     }
     el.txDate.addEventListener('change', function () {
-      if (this.value) el.dateLabel.textContent = formatTxDate(this.value);
+      if (this.value) updateTxDateVisual(this.value);
       clearErr();
     });
     el.txDate.addEventListener('input', function () {
-      if (this.value) el.dateLabel.textContent = formatTxDate(this.value);
+      if (this.value) updateTxDateVisual(this.value);
       clearErr();
     });
 
