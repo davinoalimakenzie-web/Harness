@@ -114,8 +114,8 @@
     'Done Diambil': ['Done', 'Return'],
     'Cancel Diambil': [],
     'Return': ['Done', 'Done Diambil', 'Return Diambil'],
-    'Return Diambil': ['Return'],
-    'Nggandul': ['Progress', 'Done', 'Done Diambil', 'Cancel Diambil', 'Return', 'Return Diambil']
+    'Return Diambil': [],
+    'Nggandul': ['Progress', 'Done', 'Done Diambil', 'Cancel Diambil']
   };
   // Garansi & metode pembayaran juga ikut dari mesin data.
   var WARRANTY_OPTIONS = L.WARRANTY_OPTIONS || ['30 Hari', '60 Hari', 'Non Garansi'];
@@ -2163,9 +2163,7 @@
         b.classList.add('on');
         var scrEl = document.getElementById('mcScreen');
         var headEl = scrEl && scrEl.querySelector('.mc-sticky');
-        var headH = (headEl && headEl.classList.contains('mc-slim'))
-          ? (headEl.offsetHeight + 8)
-          : 110;
+        var headH = headEl ? (headEl.offsetHeight + 8) : 130;
         if (scrEl) {
           var y = target.getBoundingClientRect().top -
                   scrEl.getBoundingClientRect().top + scrEl.scrollTop - headH;
@@ -2592,18 +2590,24 @@
     if (kondisiTeks && kondisiTeks !== kendalaTeks) {
       kendalaTeks = kendalaTeks ? (kendalaTeks + ' · ' + kondisiTeks) : kondisiTeks;
     }
-    html += '<div class="mc-sec" id="qnKendala">Kendala &amp; Penanganan</div>' +
+    var canShowHandling = (o.serviceStatus === 'Done' || o.serviceStatus === 'Done Diambil');
+    html += '<div class="mc-sec" id="qnKendala">' + (canShowHandling ? 'Kendala &amp; Penanganan' : 'Kendala &amp; Kondisi Unit') + '</div>' +
       '<label class="mc-field"><span class="mc-lbl">Kendala/kondisi unit</span>' +
         '<textarea class="mc-inp" id="dComplaint" rows="2" placeholder="Contoh: Layar pecah, mati total, keypad hilang">' +
           esc(kendalaTeks || '') + '</textarea>' +
-      '</label>' +
-      '<label class="mc-field" style="margin-top:8px"><span class="mc-lbl">Penanganan</span>' +
+      '</label>';
+    if (canShowHandling) {
+      html += '<label class="mc-field" style="margin-top:8px"><span class="mc-lbl">Penanganan</span>' +
         '<textarea class="mc-inp" id="dHandling" rows="2" placeholder="Contoh: ganti LCD, ganti baterai, perbaikan tombol luar dalam">' +
           esc(o.handling || '') + '</textarea>' +
-      '</label>' +
-      '<p class="mc-hint sm" id="dSavedHint"></p>';
+      '</label>';
+    }
+    html += '<p class="mc-hint sm" id="dSavedHint"></p>';
 
-    var statusOpts = STATUS_TRANS[o.serviceStatus] || [];
+    var statusOpts = (STATUS_TRANS[o.serviceStatus] || []).filter(function (st) {
+      if (st === 'Return' && o.serviceStatus !== 'Done Diambil') return false;
+      return true;
+    });
 
     if (isDoneDiambil) {
       // ========================================================
@@ -2670,22 +2674,22 @@
       }
 
       // 5. Ubah Status
+      var isDel = !!(o.isDeleted || o.deletedAt || o.serviceStatus === 'Terhapus');
+      var canDelete = (o.serviceStatus === 'Done Diambil' && !isDel);
+      var canRestore = isDel;
+
       html += '<div class="mc-sec" id="qnStatus">Ubah Status</div>' +
         '<div class="mc-acts mc-side">' +
           '<button class="mc-ghost-btn mc-save-side" id="dSaveSide">Simpan</button>' +
           '<div class="mc-drop mc-grow" id="dStatusDrop">' +
             '<button class="mc-ghost-btn" id="dStatusBtn">Ubah Status \u25be</button>' +
-            (statusOpts.length
-              ? '<div class="mc-dropmenu" id="dStatusMenu">' +
-                statusOpts.map(function (st) {
-                  return '<button class="mc-pick" data-st="' + esc(st) + '">' + esc(st) + '</button>';
-                }).join('') +
-                '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button>' +
-                '<button class="mc-pick mc-pick-aktifkan" id="dAktifkanNota">🔄 Aktifkan garapan</button>' +
-                '</div>'
-              : '<div class="mc-dropmenu" id="dStatusMenu">' +
-                '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button>' +
-                '<button class="mc-pick mc-pick-aktifkan" id="dAktifkanNota">🔄 Aktifkan garapan</button></div>') +
+            '<div class="mc-dropmenu" id="dStatusMenu">' +
+              (canRestore ? '' : (statusOpts || []).map(function (st) {
+                return '<button class="mc-pick" data-st="' + esc(st) + '">' + esc(st) + '</button>';
+              }).join('')) +
+              (canDelete ? '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button>' : '') +
+              (canRestore ? '<button class="mc-pick mc-pick-aktifkan" id="dAktifkanNota">🔄 Aktifkan garapan</button>' : '') +
+            '</div>' +
           '</div>' +
         '</div>';
 
@@ -2800,6 +2804,10 @@
       }
 
       // Ubah Status
+      var isDel = !!(o.isDeleted || o.deletedAt || o.serviceStatus === 'Terhapus');
+      var canDelete = (o.serviceStatus === 'Done Diambil' && !isDel);
+      var canRestore = isDel;
+
       html += '<div class="mc-sec" id="qnStatus">Ubah Status</div>';
       var NEXT_ST = {
         'Progress': 'Done',
@@ -2813,7 +2821,7 @@
         'Cancel Diambil': '\u2713 Unit Cancel Sudah Diambil',
         'Return Diambil': '\u2713 Unit Return Sudah Diambil'
       };
-      var nextWant = (o.serviceStatus !== 'Cancel Diambil') ? NEXT_ST[o.serviceStatus] : null;
+      var nextWant = (!canRestore && o.serviceStatus !== 'Cancel Diambil') ? NEXT_ST[o.serviceStatus] : null;
       if (nextWant && statusOpts.indexOf(nextWant) >= 0) {
         html += '<button type="button" class="mc-primary sm mc-next" id="dNextSt" data-st="' + esc(nextWant) + '">' +
           esc(NEXT_LBL[nextWant] || nextWant) + '</button>';
@@ -2822,17 +2830,13 @@
         '<button class="mc-ghost-btn mc-save-side" id="dSaveSide">Simpan</button>' +
         '<div class="mc-drop mc-grow" id="dStatusDrop">' +
           '<button class="mc-ghost-btn" id="dStatusBtn">' + (nextWant && statusOpts.indexOf(nextWant) >= 0 ? 'Status lain' : 'Ubah Status') + ' \u25be</button>' +
-          (statusOpts.length
-            ? '<div class="mc-dropmenu" id="dStatusMenu">' +
-              statusOpts.map(function (st) {
-                return '<button class="mc-pick" data-st="' + esc(st) + '">' + esc(st) + '</button>';
-              }).join('') +
-              '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button>' +
-              '<button class="mc-pick mc-pick-aktifkan" id="dAktifkanNota">🔄 Aktifkan garapan</button>' +
-              '</div>'
-            : '<div class="mc-dropmenu" id="dStatusMenu">' +
-              '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button>' +
-              '<button class="mc-pick mc-pick-aktifkan" id="dAktifkanNota">🔄 Aktifkan garapan</button></div>') +
+          '<div class="mc-dropmenu" id="dStatusMenu">' +
+            (canRestore ? '' : (statusOpts || []).map(function (st) {
+              return '<button class="mc-pick" data-st="' + esc(st) + '">' + esc(st) + '</button>';
+            }).join('')) +
+            (canDelete ? '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button>' : '') +
+            (canRestore ? '<button class="mc-pick mc-pick-aktifkan" id="dAktifkanNota">🔄 Aktifkan garapan</button>' : '') +
+          '</div>' +
         '</div>' +
       '</div>';
     }
@@ -2878,19 +2882,9 @@
       .catch(function (er) { alertErr(er.message); });
   }
 
-  /* Kepala detail mengecil saat digulir: tiga chip langkah disembunyikan,
-     tinggal "Langkah x dari 3 + Sisa" dan navigasi cepat. Dipasang sekali
-     di layar (bukan per render) supaya tidak menumpuk listener. */
-  function bindStickySlim() {
-    var scr = document.getElementById('mcScreen');
-    if (!scr || scr.dataset.slimBound) return;
-    scr.dataset.slimBound = '1';
-    scr.addEventListener('scroll', function () {
-      var st = scr.querySelector('.mc-sticky');
-      if (!st) return;
-      st.classList.toggle('mc-slim', scr.scrollTop > 28);
-    }, { passive: true });
-  }
+  /* Kepala sticky tetap utuh dan stabil, tidak lagi berganti kelas saat digulir
+     sehingga tombol navigasi dan panel langkah tidak pernah hilang-timbul atau berkedip cepat. */
+  function bindStickySlim() {}
 
   function bindDetail() {
     bindStickySlim();
@@ -2913,9 +2907,7 @@
            tertutup. */
         var scrEl = document.getElementById('mcScreen');
         var headEl = scrEl && scrEl.querySelector('.mc-sticky');
-        var headH = (headEl && headEl.classList.contains('mc-slim'))
-          ? (headEl.offsetHeight + 8)
-          : 110;
+        var headH = headEl ? (headEl.offsetHeight + 8) : 130;
         if (scrEl) {
           var y = target.getBoundingClientRect().top -
                   scrEl.getBoundingClientRect().top + scrEl.scrollTop - headH;
@@ -3009,7 +3001,7 @@
         sideSave.disabled = true;
         var isi = {};
         if (biaya !== null && (!M.current || biaya !== M.current.totalCost)) isi.total_cost = biaya;
-        if (handling !== (M.current ? (M.current.handling || '') : '')) isi.handling = handling;
+        if (hEl && handling !== (M.current ? (M.current.handling || '') : '')) isi.handling = handling;
         if (cEl && complaint && complaint !== (M.current ? (M.current.complaint || '') : '')) {
           isi.complaint = complaint;
           isi.intake_condition = complaint;

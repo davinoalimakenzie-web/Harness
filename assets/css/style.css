@@ -4130,16 +4130,11 @@ body.fx-kalk{ min-height:100vh; }
   opacity:1;
 }
 
-/* Mode ringkas kepala detail saat digulir (lihat bindStickySlim). */
-.mc-sticky{ transition:padding .18s ease; }
-.mc-sticky.mc-slim .mc-steps{ display:none; }
-.mc-sticky.mc-slim .mc-flow{ padding:8px 12px; margin-bottom:6px; }
-.mc-sticky.mc-slim .mc-quicknav{ padding-bottom:4px; }
+/* Kepala detail/input saat digulir: stabil utuh, tidak ada kedip atau hide */
+.mc-sticky{ transition:none; }
 
-/* Lompatan navigasi cepat harus berhenti di bawah kepala statis, bukan
-   tersembunyi di baliknya (tinggi kepala ringkas ~97px, penuh ~172px). */
-.mc-sec, .mc-dhead, .mc-nggbox{ scroll-margin-top:184px; }
-.mc-sticky.mc-slim ~ .mc-dhead, .mc-sticky.mc-slim ~ .mc-sec{ scroll-margin-top:112px; }
+/* Lompatan navigasi cepat harus berhenti di bawah kepala statis */
+.mc-sec, .mc-dhead, .mc-nggbox{ scroll-margin-top:160px; }
 
 /* Dashboard Mitra & Owner Job Request Styles */
 .mt-hero-btn {

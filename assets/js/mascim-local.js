@@ -87,11 +87,9 @@
     // Unit yang sedang dikerjakan ulang (Return) boleh diselesaikan atau
     // diambil kembali tanpa lewat Done.
     'Return': ['Done', 'Done Diambil', 'Return Diambil'],
-    'Return Diambil': ['Return'],
-    // Nggandul: nota belum lunas & butuh ditinjau. Semua status kecuali
-    // Cancel (Cancel hanya untuk Done & Progress) tersedia sebagai
-    // penyelesaian peninjauan teknisi.
-    'Nggandul': ['Progress', 'Done', 'Done Diambil', 'Cancel Diambil', 'Return', 'Return Diambil']
+    'Return Diambil': [],
+    // Nggandul: nota belum lunas & butuh ditinjau.
+    'Nggandul': ['Progress', 'Done', 'Done Diambil', 'Cancel Diambil']
   };
 
   var PAYMENT_STATUSES = ['Belum Bayar', 'DP', 'Lunas'];
@@ -1641,6 +1639,9 @@
     // Memilih status yang sama bukan lompatan: itu diulang (idempoten),
     // jadi diperbolehkan tanpa efek samping.
     if (status !== o.serviceStatus) {
+      if (status === 'Return' && o.serviceStatus !== 'Done Diambil') {
+        throw bad('Status Return hanya dapat dipilih jika servis berstatus Done Diambil.');
+      }
       var allowed = nextStatuses(o.serviceStatus);
       if (allowed.indexOf(status) < 0) {
         throw bad(allowed.length
@@ -1714,7 +1715,16 @@
   function canDelete(id, opts) {
     opts = opts || {};
     var db = load();
-    getOrder(id); // pastikan ada
+    var o = getOrder(id); // pastikan ada
+    if (o.serviceStatus !== 'Done Diambil') {
+      return {
+        allowed: false,
+        reason: 'Hapus garapan hanya dapat dilakukan pada status Done Diambil.',
+        payments: 0,
+        bankEntries: 0,
+        isFinalStatus: false
+      };
+    }
     var pays = db.payments.filter(function (p) { return p.orderId === id; }).length;
     var bank = db.bank.filter(function (b) { return b.orderId === id && !b.reversedAt; }).length;
     return {
@@ -1735,6 +1745,9 @@
     var db = load();
     var o = db.orders.filter(function (x) { return x.id === id; })[0];
     if (!o) throw notFound('Nota tidak ditemukan');
+    if (o.serviceStatus !== 'Done Diambil') {
+      throw bad('Hapus garapan hanya diizinkan pada status Done Diambil.');
+    }
 
     // Cabut nota garansi dulu supaya tautan pelanggan tidak hidup lagi saat terhapus
     if (o.warrantyNote && !o.warrantyNote.revokedAt) {
