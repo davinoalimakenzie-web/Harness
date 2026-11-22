@@ -91,7 +91,7 @@
   // "Return": unit sudah diambil pelanggan lalu kembali karena trouble
   // dalam masa garansi. Status ini aktif, bukan final.
   var SERVICE_STATUSES = L.SERVICE_STATUSES ||
-    ['Progress', 'Done', 'Done Diambil', 'Cancel', 'Cancel Diambil', 'Nggandul', 'Return'];
+    ['Progress', 'Done', 'Done Diambil', 'Cancel', 'Cancel Diambil', 'Nggandul', 'Return', 'Return Diambil'];
   var PAYMENT_STATUSES = ['Belum Bayar', 'DP', 'Lunas'];
   // "Pola" sengaja tidak ada: underpin garis/coratnya tidak berfungsi,
   // jadi jenis kunci itu dihapus supaya tidak dipilih.
@@ -112,8 +112,9 @@
     // Dari "Done Diambil" tersedia Return dan Done (antisipasi kesalahan data/biaya).
     'Done Diambil': ['Done', 'Return'],
     'Cancel Diambil': [],
-    'Return': ['Done', 'Done Diambil'],
-    'Nggandul': ['Progress', 'Done', 'Done Diambil', 'Cancel Diambil', 'Return']
+    'Return': ['Done', 'Done Diambil', 'Return Diambil'],
+    'Return Diambil': ['Return'],
+    'Nggandul': ['Progress', 'Done', 'Done Diambil', 'Cancel Diambil', 'Return', 'Return Diambil']
   };
   // Garansi & metode pembayaran juga ikut dari mesin data.
   var WARRANTY_OPTIONS = L.WARRANTY_OPTIONS || ['30 Hari', '60 Hari', 'Non Garansi'];
@@ -700,7 +701,8 @@
   function pendekStatus(s) {
     return s === 'Done Diambil' ? 'Diambil'
       : (s === 'Cancel Diambil' ? 'C. Diambil'
-        : (s === 'Return' ? 'Retur' : s));
+        : (s === 'Return Diambil' ? 'R. Diambil'
+        : (s === 'Return' ? 'Retur' : s)));
   }
 
   /*
@@ -766,9 +768,7 @@
     var TONE = {
       'Progress': 'st-prog', 'Done': 'st-done', 'Done Diambil': 'st-ambil',
       'Cancel': 'st-cancel', 'Cancel Diambil': 'st-cambil', 'Nggandul': 'st-ngg',
-      // Return: unit kembali karena trouble dalam masa garansi. Warnanya
-      // jingga supaya terlihat berbeda dari Cancel yang merah.
-      'Return': 'st-return'
+      'Return': 'st-return', 'Return Diambil': 'st-rambil'
     };
     return '<span class="mc-badge ' + (TONE[s] || 'info') + '">' + esc(s) + '</span>';
   }
@@ -2267,18 +2267,35 @@
   function flowOf(o) {
     var st = o.serviceStatus;
     var sisa = o.remaining;
-    if (st === 'Done Diambil') return { step: 3, kode: 'selesai', label: 'Selesai & Lunas', tone: 'gray' };
-    if (st === 'Cancel Diambil') return { step: 3, kode: 'batal', label: 'Dibatalkan & Taken', tone: 'gray' };
-    if (st === 'Done') {
-      // Sudah lunas: langkah terakhir bukan langsung "Diambil". Pengguna
-      // wajib mengonfirmasi garansi & metode pembayaran lebih dulu, baru
-      // statusnya ditutup jadi "Done Diambil".
-      if (sisa <= 0) return { step: 3, kode: 'konfirmasi', label: 'Konfirmasi Garansi & Metode', tone: '' };
-      return { step: 2, kode: 'bayar', label: 'Catat Pembayaran', tone: '' };
+
+    // Alur Cancel: 2 langkah (Cancel -> Cancel Diambil)
+    if (st === 'Cancel') {
+      return { step: 1, total: 2, flowType: 'cancel', kode: 'taken-cancel', label: 'Tandai Sudah Diambil', tone: 'ghost' };
     }
-    if (st === 'Cancel') return { step: 2, kode: 'taken-cancel', label: 'Tandai Sudah Diambil', tone: 'ghost' };
-    if (st === 'Nggandul') return { step: 1, kode: 'status', label: 'Tentukan Status', tone: 'ghost' };
-    return { step: 1, kode: 'done', label: 'Selesaikan Garapan (Done)', tone: '' };
+    if (st === 'Cancel Diambil') {
+      return { step: 2, total: 2, flowType: 'cancel', kode: 'batal', label: 'Dibatalkan & Taken', tone: 'gray' };
+    }
+
+    // Alur Return: 2 langkah (Return -> Return Diambil)
+    if (st === 'Return') {
+      return { step: 1, total: 2, flowType: 'return', kode: 'done', label: 'Selesaikan Garapan (Done)', tone: '' };
+    }
+    if (st === 'Return Diambil') {
+      return { step: 2, total: 2, flowType: 'return', kode: 'selesai', label: 'Selesai & Diambil', tone: 'gray' };
+    }
+
+    // Alur Normal: 4 langkah (Input -> Progress -> Done -> Done Diambil)
+    if (st === 'Done Diambil') {
+      return { step: 4, total: 4, flowType: 'normal', kode: 'selesai', label: 'Selesai & Lunas', tone: 'gray' };
+    }
+    if (st === 'Done') {
+      if (sisa <= 0) return { step: 3, total: 4, flowType: 'normal', kode: 'konfirmasi', label: 'Konfirmasi Garansi & Metode', tone: '' };
+      return { step: 3, total: 4, flowType: 'normal', kode: 'bayar', label: 'Catat Pembayaran', tone: '' };
+    }
+    if (st === 'Nggandul') {
+      return { step: 2, total: 4, flowType: 'normal', kode: 'status', label: 'Tentukan Status', tone: 'ghost' };
+    }
+    return { step: 2, total: 4, flowType: 'normal', kode: 'done', label: 'Selesaikan Garapan (Done)', tone: '' };
   }
 
   function renderDetail(s) {
@@ -2297,26 +2314,50 @@
        kelihatan tanpa menggulir balik ke atas. */
     html += '<div class="mc-sticky">';
 
-    // Panel alur: dua baris info (langkah sekarang + sisa tagihan) dan tiga
-    // chip langkah. Ini yang membuat alur tidak membingungkan — user selalu
-    // tahu "saya di mana, dan selanjutnya apa".
+    // Panel alur dinamis: langkah spesifik per alur & warna identitas tiap tombol
+    var stepItems = [];
+    if (flow.flowType === 'cancel') {
+      stepItems = [
+        { num: 1, label: 'Cancel', cls: 'mc-step-cancel' },
+        { num: 2, label: 'Cancel Diambil', cls: 'mc-step-cancel-diambil' }
+      ];
+    } else if (flow.flowType === 'return') {
+      stepItems = [
+        { num: 1, label: 'Return', cls: 'mc-step-return' },
+        { num: 2, label: 'Return Diambil', cls: 'mc-step-return-diambil' }
+      ];
+    } else {
+      stepItems = [
+        { num: 1, label: 'Input', cls: 'mc-step-input' },
+        { num: 2, label: 'Progress', cls: 'mc-step-progress' },
+        { num: 3, label: 'Done', cls: 'mc-step-done' },
+        { num: 4, label: 'Done Diambil', cls: 'mc-step-done-diambil' }
+      ];
+    }
+
     var stepCls = function (n) {
       if (n < flow.step) return 'ok';
       if (n === flow.step) return 'on';
       return '';
     };
-    var batal = o.serviceStatus === 'Cancel' || o.serviceStatus === 'Cancel Diambil';
+
     html += '<div class="mc-flow">' +
       '<div class="mc-flow-top">' +
-        '<span class="mc-flow-step">Langkah ' + flow.step + ' dari 3</span>' +
+        '<span class="mc-flow-step">Langkah ' + flow.step + ' dari ' + flow.total + '</span>' +
         '<span class="mc-flow-sisa">' +
           (o.remaining > 0 ? 'Sisa <b>' + rupiah(o.remaining) + '</b>' : '<b>Lunas</b>') +
         '</span>' +
       '</div>' +
-      '<div class="mc-steps">' +
-        '<div class="mc-step ' + stepCls(1) + '"><i>' + (flow.step > 1 ? '\u2713' : '1') + '</i><span>Selesaikan</span></div>' +
-        '<div class="mc-step ' + stepCls(2) + ' ' + (batal ? 'cancel' : '') + '"><i>' + (flow.step > 2 ? '\u2713' : '2') + '</i><span>Bayar</span></div>' +
-        '<div class="mc-step ' + stepCls(3) + ' ' + (batal ? 'cancel' : '') + '"><i>' + (flow.step > 3 ? '\u2713' : '3') + '</i><span>Konfirmasi</span></div>' +
+      '<div class="mc-steps mc-steps-' + stepItems.length + '">' +
+        stepItems.map(function (it, idx) {
+          var n = idx + 1;
+          var stCls = stepCls(n);
+          var iconHtml = stCls === 'ok' ? '\u2713' : String(n);
+          return '<div class="mc-step ' + it.cls + (stCls ? ' ' + stCls : '') + '">' +
+            '<i>' + iconHtml + '</i>' +
+            '<span>' + esc(it.label) + '</span>' +
+          '</div>';
+        }).join('') +
       '</div>' +
     '</div>';
 
@@ -2638,9 +2679,18 @@
 
       // Ubah Status
       html += '<div class="mc-sec" id="qnStatus">Ubah Status</div>';
-      var NEXT_ST = { 'Progress': 'Done', 'Done': 'Done Diambil', 'Cancel': 'Cancel Diambil', 'Return': 'Done' };
-      var NEXT_LBL = { 'Done': '\u2713 Selesai (Done)', 'Done Diambil': '\u2713 Sudah Diambil & Lunas',
-        'Cancel Diambil': '\u2713 Unit Cancel Sudah Diambil' };
+      var NEXT_ST = {
+        'Progress': 'Done',
+        'Done': 'Done Diambil',
+        'Cancel': 'Cancel Diambil',
+        'Return': 'Return Diambil'
+      };
+      var NEXT_LBL = {
+        'Done': '\u2713 Selesai (Done)',
+        'Done Diambil': '\u2713 Sudah Diambil & Lunas',
+        'Cancel Diambil': '\u2713 Unit Cancel Sudah Diambil',
+        'Return Diambil': '\u2713 Unit Return Sudah Diambil'
+      };
       var nextWant = (o.serviceStatus !== 'Cancel Diambil') ? NEXT_ST[o.serviceStatus] : null;
       if (nextWant && statusOpts.indexOf(nextWant) >= 0) {
         html += '<button type="button" class="mc-primary sm mc-next" id="dNextSt" data-st="' + esc(nextWant) + '">' +

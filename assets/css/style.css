@@ -2447,24 +2447,145 @@ select.mc-inp{ appearance:none; }
 .mc-flow-sisa{ font-size:13px; color:var(--mc-txt2); }
 .mc-flow-sisa b{ color:var(--mc-txt); font-size:14px; }
 
-.mc-steps{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.mc-steps{ display:grid; grid-template-columns:repeat(auto-fit, minmax(0, 1fr)); gap:6px; }
+.mc-steps-4{ grid-template-columns:repeat(4, 1fr); }
+.mc-steps-3{ grid-template-columns:repeat(3, 1fr); }
+.mc-steps-2{ grid-template-columns:repeat(2, 1fr); }
 .mc-step{
-  display:flex; flex-direction:column; align-items:center; gap:3px;
-  padding:8px 4px; border-radius:12px; text-align:center;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+  padding:8px 3px; border-radius:12px; text-align:center;
   background:var(--mc-card); border:1px solid var(--mc-line);
+  transition:all .16s ease;
 }
 .mc-step i{
   width:20px; height:20px; border-radius:50%; display:grid; place-items:center;
   font-size:11px; font-style:normal; font-weight:700;
   background:var(--mc-line); color:var(--mc-txt2);
+  transition:all .16s ease;
 }
-.mc-step span{ font-size:10.5px; line-height:1.25; color:var(--mc-txt2); font-weight:600; }
+.mc-step span{
+  font-size:10px; line-height:1.2; color:var(--mc-txt2); font-weight:600;
+  word-break:break-word; text-align:center;
+}
 .mc-step.on{ border-color:var(--mc-grn); background:rgba(34,197,94,.10); }
 .mc-step.on i{ background:var(--mc-grn); color:#04210d; }
 .mc-step.on span{ color:var(--mc-txt); }
 .mc-step.ok i{ background:var(--mc-grn); color:#04210d; }
 .mc-step.ok span{ color:var(--mc-txt2); }
 .mc-step.cancel{ opacity:.55; }
+
+/* ===== Warna Identitas Tombol Alur Langkah Mas Cim ===== */
+/* 1. Input: putih dengan font hitam */
+.mc-step-input{
+  border-color:rgba(255,255,255,.3); background:rgba(255,255,255,.06);
+}
+.mc-step-input i{ background:rgba(255,255,255,.2); color:#ffffff; }
+.mc-step-input span{ color:#e5e7eb; }
+.mc-step-input.ok i{ background:#ffffff; color:#000000; box-shadow:0 0 8px rgba(255,255,255,.5); }
+.mc-step-input.on{
+  background:#ffffff !important; border-color:#ffffff !important;
+  box-shadow:0 0 14px rgba(255,255,255,.5) !important;
+}
+.mc-step-input.on i{ background:#000000 !important; color:#ffffff !important; }
+.mc-step-input.on span{ color:#000000 !important; font-weight:700; }
+
+/* 2. Progress: kuning */
+.mc-step-progress{
+  border-color:rgba(250,204,21,.3); background:rgba(250,204,21,.06);
+}
+.mc-step-progress i{ background:rgba(250,204,21,.2); color:#facc15; }
+.mc-step-progress span{ color:#fef08a; }
+.mc-step-progress.ok i{ background:#facc15; color:#000000; box-shadow:0 0 8px rgba(250,204,21,.5); }
+.mc-step-progress.on{
+  background:#facc15 !important; border-color:#eab308 !important;
+  box-shadow:0 0 14px rgba(250,204,21,.5) !important;
+}
+.mc-step-progress.on i{ background:#000000 !important; color:#facc15 !important; }
+.mc-step-progress.on span{ color:#000000 !important; font-weight:700; }
+
+/* 3. Done: hijau */
+.mc-step-done{
+  border-color:rgba(34,197,94,.3); background:rgba(34,197,94,.06);
+}
+.mc-step-done i{ background:rgba(34,197,94,.2); color:#22c55e; }
+.mc-step-done span{ color:#86efac; }
+.mc-step-done.ok i{ background:#22c55e; color:#ffffff; box-shadow:0 0 8px rgba(34,197,94,.5); }
+.mc-step-done.on{
+  background:#22c55e !important; border-color:#16a34a !important;
+  box-shadow:0 0 14px rgba(34,197,94,.5) !important;
+}
+.mc-step-done.on i{ background:#ffffff !important; color:#15803d !important; }
+.mc-step-done.on span{ color:#ffffff !important; font-weight:700; }
+
+/* 4. Done Diambil: biru */
+.mc-step-done-diambil{
+  border-color:rgba(59,130,246,.3); background:rgba(59,130,246,.06);
+}
+.mc-step-done-diambil i{ background:rgba(59,130,246,.2); color:#3b82f6; }
+.mc-step-done-diambil span{ color:#93c5fd; }
+.mc-step-done-diambil.ok i{ background:#3b82f6; color:#ffffff; box-shadow:0 0 8px rgba(59,130,246,.5); }
+.mc-step-done-diambil.on{
+  background:#3b82f6 !important; border-color:#2563eb !important;
+  box-shadow:0 0 14px rgba(59,130,246,.5) !important;
+}
+.mc-step-done-diambil.on i{ background:#ffffff !important; color:#1d4ed8 !important; }
+.mc-step-done-diambil.on span{ color:#ffffff !important; font-weight:700; }
+
+/* 5. Cancel: orange */
+.mc-step-cancel{
+  border-color:rgba(249,115,22,.3); background:rgba(249,115,22,.06);
+}
+.mc-step-cancel i{ background:rgba(249,115,22,.2); color:#f97316; }
+.mc-step-cancel span{ color:#fdba74; }
+.mc-step-cancel.ok i{ background:#f97316; color:#ffffff; box-shadow:0 0 8px rgba(249,115,22,.5); }
+.mc-step-cancel.on{
+  background:#f97316 !important; border-color:#ea580c !important;
+  box-shadow:0 0 14px rgba(249,115,22,.5) !important;
+}
+.mc-step-cancel.on i{ background:#ffffff !important; color:#c2410c !important; }
+.mc-step-cancel.on span{ color:#ffffff !important; font-weight:700; }
+
+/* 6. Cancel Diambil: merah */
+.mc-step-cancel-diambil{
+  border-color:rgba(239,68,68,.3); background:rgba(239,68,68,.06);
+}
+.mc-step-cancel-diambil i{ background:rgba(239,68,68,.2); color:#ef4444; }
+.mc-step-cancel-diambil span{ color:#fca5a5; }
+.mc-step-cancel-diambil.ok i{ background:#ef4444; color:#ffffff; box-shadow:0 0 8px rgba(239,68,68,.5); }
+.mc-step-cancel-diambil.on{
+  background:#ef4444 !important; border-color:#dc2626 !important;
+  box-shadow:0 0 14px rgba(239,68,68,.5) !important;
+}
+.mc-step-cancel-diambil.on i{ background:#ffffff !important; color:#b91c1c !important; }
+.mc-step-cancel-diambil.on span{ color:#ffffff !important; font-weight:700; }
+
+/* 7. Return: ungu */
+.mc-step-return{
+  border-color:rgba(168,85,247,.3); background:rgba(168,85,247,.06);
+}
+.mc-step-return i{ background:rgba(168,85,247,.2); color:#a855f7; }
+.mc-step-return span{ color:#d8b4fe; }
+.mc-step-return.ok i{ background:#a855f7; color:#ffffff; box-shadow:0 0 8px rgba(168,85,247,.5); }
+.mc-step-return.on{
+  background:#a855f7 !important; border-color:#9333ea !important;
+  box-shadow:0 0 14px rgba(168,85,247,.5) !important;
+}
+.mc-step-return.on i{ background:#ffffff !important; color:#7e22ce !important; }
+.mc-step-return.on span{ color:#ffffff !important; font-weight:700; }
+
+/* 8. Return Diambil: gold */
+.mc-step-return-diambil{
+  border-color:rgba(245,158,11,.3); background:rgba(245,158,11,.06);
+}
+.mc-step-return-diambil i{ background:rgba(245,158,11,.2); color:#f59e0b; }
+.mc-step-return-diambil span{ color:#fde68a; }
+.mc-step-return-diambil.ok i{ background:#f59e0b; color:#000000; box-shadow:0 0 8px rgba(245,158,11,.5); }
+.mc-step-return-diambil.on{
+  background:linear-gradient(135deg, #d97706, #fbbf24) !important; border-color:#f59e0b !important;
+  box-shadow:0 0 14px rgba(245,158,11,.5) !important;
+}
+.mc-step-return-diambil.on i{ background:#000000 !important; color:#fbbf24 !important; }
+.mc-step-return-diambil.on span{ color:#000000 !important; font-weight:700; }
 
 /* Aksi utama: satu tombol besar yang selalu explains apa yang terjadi. */
 .mc-next{
@@ -3189,7 +3310,8 @@ select.mc-inp{ appearance:none; }
 /* Status Return: unit kembali ke meja karena trouble dalam masa garansi.
    Jingga supaya berbeda dari Cancel yang merah dan dari Nggandul yang
    ungu, dan jelas berbeda dari hijau "sudah lunas". */
-.st-return{ color:#f0a028; border-color:#7a5320; background:#2a1e0b; }
+.st-return{ color:#d8b4fe; border-color:#9333ea; background:#3b0764; }
+.st-rambil{ color:#fbbf24; border-color:#d97706; background:#451a03; }
 
 /* Tombol hapus di dropdown status. Merah dan berjauh dari pilihan status
    supaya tidak tertukar dengan Cancel. */
@@ -4536,7 +4658,8 @@ body.mc-bb-active.mc-bb-rotated-css #mc {
 .mc-bb-st.st-del   { background: #334155 !important; color: #fca5a5 !important; border: 1px dashed #ef4444 !important; }
 .mc-pick-aktifkan  { color: var(--mc-cy, #22d3ee) !important; font-weight: 700; }
 .mc-pick-aktifkan:hover { background: rgba(34, 211, 238, 0.12) !important; }
-.mc-bb-st.st-return{ background: #c2410c !important; color: #ffffff !important; }
+.mc-bb-st.st-return{ background: #9333ea !important; color: #ffffff !important; }
+.mc-bb-st.st-rambil{ background: #d97706 !important; color: #000000 !important; font-weight: 700 !important; }
 
 /* ===================================================================
    MODAL PELUNASAN RONCE & SALDO DEPOSIT (REVISI KHUSUS)

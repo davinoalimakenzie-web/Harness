@@ -37,7 +37,7 @@
   // "Return" dipakai ketika unit sudah diambil pelanggan lalu kembali ke
   // meja karena trouble dalam masa garansi. Status ini masih aktif: unit
   // sedang dikerjakan ulang, jadi bukan status final.
-  var SERVICE_STATUSES = ['Progress', 'Done', 'Done Diambil', 'Cancel', 'Cancel Diambil', 'Nggandul', 'Return'];
+  var SERVICE_STATUSES = ['Progress', 'Done', 'Done Diambil', 'Cancel', 'Cancel Diambil', 'Nggandul', 'Return', 'Return Diambil'];
 
   // Status saat nota pertama kali masuk — selalu Progress, tidak ada pilihan lain.
   var INITIAL_STATUS = 'Progress';
@@ -47,10 +47,10 @@
   // Status final (sudah keluar dari meja kerja).
   var DONE_STATUSES = ['Done', 'Done Diambil'];
   var CANCEL_STATUSES = ['Cancel', 'Cancel Diambil'];
-  var CLOSED_STATUSES = DONE_STATUSES.concat(CANCEL_STATUSES);
+  var CLOSED_STATUSES = DONE_STATUSES.concat(CANCEL_STATUSES).concat(['Return Diambil']);
   // Return TIDAK ikut CLOSED: unitnya masih di meja kerja.
   var RETURN_STATUS = 'Return';
-  function isReturnStatus(s) { return s === RETURN_STATUS; }
+  function isReturnStatus(s) { return s === RETURN_STATUS || s === 'Return Diambil'; }
   var NGGANDUL = 'Nggandul';
   // Status yang dihitung sebagai "nggantung": masih ada di meja, belum
   // keluar sebagai unit final. Hanya SATU predikat ini yang dipakai, baik
@@ -85,13 +85,13 @@
     'Done Diambil': ['Done', 'Return'],
     'Cancel Diambil': [],
     // Unit yang sedang dikerjakan ulang (Return) boleh diselesaikan atau
-    // diambil kembali tanpa lewat Done. Cancel juga dihapus dari sini
-    // (Cancel hanya untuk Done & Progress).
-    'Return': ['Done', 'Done Diambil'],
+    // diambil kembali tanpa lewat Done.
+    'Return': ['Done', 'Done Diambil', 'Return Diambil'],
+    'Return Diambil': ['Return'],
     // Nggandul: nota belum lunas & butuh ditinjau. Semua status kecuali
     // Cancel (Cancel hanya untuk Done & Progress) tersedia sebagai
     // penyelesaian peninjauan teknisi.
-    'Nggandul': ['Progress', 'Done', 'Done Diambil', 'Cancel Diambil', 'Return']
+    'Nggandul': ['Progress', 'Done', 'Done Diambil', 'Cancel Diambil', 'Return', 'Return Diambil']
   };
 
   var PAYMENT_STATUSES = ['Belum Bayar', 'DP', 'Lunas'];
