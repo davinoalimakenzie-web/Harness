@@ -2328,14 +2328,13 @@
     var isDoneDiambil = (o.serviceStatus === 'Done Diambil');
     var tampilNota = !!(o.noteIssued && o.warrantyNote) || !!o.canIssueNote;
     html += '<div class="mc-quicknav">' +
-      (isDoneDiambil && tampilNota ? '<button type="button" data-qn="qnNota">Nota Garansi</button>' : '') +
+      (isDoneDiambil && tampilNota ? '<button type="button" data-qn="qnNota">Nota</button>' : '') +
       '<button type="button" data-qn="qnPelanggan">Pelanggan</button>' +
-      '<button type="button" data-qn="qnKendala">Kendala &amp; Penanganan</button>' +
+      '<button type="button" data-qn="qnKendala">Unit</button>' +
       (isDoneDiambil
         ? '<button type="button" data-qn="qnBiaya">Biaya &amp; Pelunasan</button>'
         : '<button type="button" data-qn="qnBiaya">Biaya+Part</button>') +
       (!isDoneDiambil && tampilNota ? '<button type="button" data-qn="qnNota">Nota</button>' : '') +
-      '<button type="button" data-qn="qnStatus">Status</button>' +
     '</div>';
 
     html += '</div>'; // tutup .mc-sticky
@@ -2431,7 +2430,10 @@
       kendalaTeks = kendalaTeks ? (kendalaTeks + ' · ' + kondisiTeks) : kondisiTeks;
     }
     html += '<div class="mc-sec" id="qnKendala">Kendala &amp; Penanganan</div>' +
-      kv('Kendala &amp; kondisi unit', esc(kendalaTeks) || '-') +
+      '<label class="mc-field"><span class="mc-lbl">Kendala/kondisi unit</span>' +
+        '<textarea class="mc-inp" id="dComplaint" rows="2" placeholder="Contoh: Layar pecah, mati total, keypad hilang">' +
+          esc(kendalaTeks || '') + '</textarea>' +
+      '</label>' +
       '<label class="mc-field" style="margin-top:8px"><span class="mc-lbl">Penanganan</span>' +
         '<textarea class="mc-inp" id="dHandling" rows="2" placeholder="Contoh: ganti LCD, ganti baterai, perbaikan tombol luar dalam">' +
           esc(o.handling || '') + '</textarea>' +
@@ -2827,14 +2829,19 @@
         if (sedangSimpan || M.lock) return;
         var id = idNota();
         if (!id) { alertErr('Nota ini belum punya identitas. Muat ulang halamannya.'); return; }
-        var tEl = $('#dTotal'), hEl = $('#dHandling');
+        var tEl = $('#dTotal'), hEl = $('#dHandling'), cEl = $('#dComplaint');
         var biaya = tEl ? smartVal(tEl.value) : null;
         var handling = hEl ? hEl.value.trim() : '';
+        var complaint = cEl ? cEl.value.trim() : '';
         sedangSimpan = true;
         sideSave.disabled = true;
         var isi = {};
         if (biaya !== null && (!M.current || biaya !== M.current.totalCost)) isi.total_cost = biaya;
         if (handling !== (M.current ? (M.current.handling || '') : '')) isi.handling = handling;
+        if (cEl && complaint && complaint !== (M.current ? (M.current.complaint || '') : '')) {
+          isi.complaint = complaint;
+          isi.intake_condition = complaint;
+        }
         if (!Object.keys(isi).length) {
           sedangSimpan = false;
           sideSave.disabled = false;
@@ -2873,6 +2880,18 @@
         var v = dHandling.value.trim();
         if (M.current && v === (M.current.handling || '')) return;
         simpanOtomatis({ handling: v }, v, 'Penanganan');
+      });
+    }
+    var dComplaint = $('#dComplaint');
+    if (dComplaint) {
+      dComplaint.addEventListener('blur', function () {
+        var v = dComplaint.value.trim();
+        if (!v) {
+          if (M.current && M.current.complaint) dComplaint.value = M.current.complaint;
+          return;
+        }
+        if (M.current && v === (M.current.complaint || '')) return;
+        simpanOtomatis({ complaint: v, intake_condition: v }, v, 'Kendala/kondisi');
       });
     }
     var s = screen();
