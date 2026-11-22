@@ -866,7 +866,9 @@
         if (tek.indexOf(bf.technician.toUpperCase()) < 0) return false;
       }
       if (bf.status) {
-        if (bf.status === 'Nggandul') {
+        if (bf.status === 'Nota Terhapus') {
+          if (o.serviceStatus !== 'Terhapus' && !o.deletedAt && !o.isDeleted) return false;
+        } else if (bf.status === 'Nggandul') {
           if (!isNggandulStatus(o.serviceStatus)) return false;
         } else if (o.serviceStatus !== bf.status) {
           return false;
@@ -947,7 +949,7 @@
           '<span class="mc-bb-flbl">Status</span>' +
           '<select id="bbSelStatus" class="mc-bb-sel">' +
             '<option value="">Semua</option>' +
-            ['Done Diambil', 'Done', 'Progress', 'Cancel', 'Cancel Diambil', 'Nggandul', 'Return'].map(function (st) {
+            ['Done Diambil', 'Done', 'Progress', 'Cancel', 'Cancel Diambil', 'Nggandul', 'Return', 'Nota Terhapus'].map(function (st) {
               return '<option value="' + esc(st) + '" ' + (bf.status === st ? 'selected' : '') + '>' + esc(st) + '</option>';
             }).join('') +
           '</select>' +
@@ -1009,13 +1011,14 @@
     } else {
       html += filtered.map(function (o) {
         var notaNum = o.noteNumber || (o.noteNumberRaw ? String(o.noteNumberRaw) : (o.internalRef || o.id.slice(-4)));
-        var st = o.serviceStatus || 'Progress';
+        var st = (o.isDeleted || o.serviceStatus === 'Terhapus') ? 'Terhapus' : (o.serviceStatus || 'Progress');
         var stTone = (st === 'Done Diambil' ? 'st-ambil'
           : (st === 'Done' ? 'st-done'
           : (st === 'Progress' ? 'st-prog'
           : (st === 'Cancel' ? 'st-cancel'
           : (st === 'Cancel Diambil' ? 'st-cambil'
-          : (st === 'Return' ? 'st-return' : 'st-ngg'))))));
+          : (st === 'Return' ? 'st-return'
+          : (st === 'Terhapus' ? 'st-del' : 'st-ngg')))))));
 
         var uName = (o.customerName || '-').toUpperCase();
         var wa = o.whatsapp || '-';
@@ -2350,6 +2353,13 @@
         esc(o.paymentStatus) + '</span></div>' +
     '</div>';
 
+    if (o.isDeleted || o.serviceStatus === 'Terhapus') {
+      html += '<div class="mc-warn" style="margin:0 0 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">' +
+        '<span>⚠️ <b>Nota Terhapus (Pool Sementara)</b> — Garapan ini tersimpan di arsip sementara.</span>' +
+        '<button type="button" class="mc-primary sm" id="dBtnAktifkanCepat" style="padding:4px 10px; font-size:12px; font-weight:700; white-space:nowrap;">🔄 Aktifkan Garapan</button>' +
+      '</div>';
+    }
+
     // Nggandul: data nota berubah sehingga status sebelumnya tidak lagi
     // pasti. Kasih tahu alasannya supaya pemilik tahu kenapa harus memilih
     // ulang statusnya (bukan status sembarang).
@@ -2508,9 +2518,11 @@
                   return '<button class="mc-pick" data-st="' + esc(st) + '">' + esc(st) + '</button>';
                 }).join('') +
                 '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button>' +
+                '<button class="mc-pick mc-pick-aktifkan" id="dAktifkanNota">🔄 Aktifkan garapan</button>' +
                 '</div>'
               : '<div class="mc-dropmenu" id="dStatusMenu">' +
-                '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button></div>') +
+                '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button>' +
+                '<button class="mc-pick mc-pick-aktifkan" id="dAktifkanNota">🔄 Aktifkan garapan</button></div>') +
           '</div>' +
         '</div>';
 
@@ -2653,9 +2665,11 @@
                 return '<button class="mc-pick" data-st="' + esc(st) + '">' + esc(st) + '</button>';
               }).join('') +
               '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button>' +
+              '<button class="mc-pick mc-pick-aktifkan" id="dAktifkanNota">🔄 Aktifkan garapan</button>' +
               '</div>'
             : '<div class="mc-dropmenu" id="dStatusMenu">' +
-              '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button></div>') +
+              '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button>' +
+              '<button class="mc-pick mc-pick-aktifkan" id="dAktifkanNota">🔄 Aktifkan garapan</button></div>') +
         '</div>' +
       '</div>';
     }
@@ -2897,26 +2911,23 @@
         menu.style.display = '';
       });
     }
-    // Tombol Hapus. Berdampingan dengan pilihan Cancel dan Return di
-    // dropdown yang sama, hanya hidup saat nota sudah Done Diambil.
-    // Nota dihapus dengan soft-delete sehingga riwayat pembayaran tetap
-    // utuh, dan nota garansinya dicabut supaya tautan pelanggan mati.
+    // Tombol Hapus: memindahkan nota ke pool sementara Nota Terhapus
     var hapusNotaBtn = $('#dHapusNota');
     if (hapusNotaBtn) hapusNotaBtn.addEventListener('click', function () {
       var menuH = $('#dStatusMenu');
       if (menuH) menuH.style.display = '';
       var idH = idNota();
       if (!idH) { alertErr('Nota ini belum punya identitas. Muat ulang halamannya.'); return; }
-      var tanya = 'Hapus garapan ini dari riwayat Mas Cim?\n\n'
-        + 'Nota dan data garapan ini akan dihapus permanen.\n\n'
+      var tanya = 'Pindahkan garapan ini ke pool sementara Nota Terhapus?\n\n'
+        + 'Nota ini dapat dikembalikan sewaktu-waktu lewat Buku Besar > Status: Nota Terhapus > Aktifkan garapan.\n\n'
         + 'Lanjut hapus?';
       if (!window.confirm(tanya)) return;
-      api('DELETE', '/api/mascim/services/' + encodeURIComponent(idH), { fromFinal: true, hard: true, force: true })
+      api('DELETE', '/api/mascim/services/' + encodeURIComponent(idH), { fromFinal: true, hard: false })
         .then(function () {
           M.current = null;
           M.id = '';
           renderList();
-          markTersimpan('\u2713 Nota berhasil dihapus');
+          toast('Nota dipindahkan ke pool Nota Terhapus');
           if (w.Sync && typeof w.Sync.push === 'function') w.Sync.push();
         })
         .catch(function (err) {
@@ -2924,6 +2935,29 @@
             + (err && err.message ? err.message : 'tidak diketahui'));
         });
     });
+
+    // Tombol "Aktifkan garapan" di bawah Hapus garapan ini (memulihkan nota terhapus)
+    function jalankanAktifkanNota() {
+      var menuH = $('#dStatusMenu');
+      if (menuH) menuH.style.display = '';
+      var idH = idNota();
+      if (!idH) { alertErr('Nota ini belum punya identitas. Muat ulang halamannya.'); return; }
+      if (!window.confirm('Aktifkan kembali garapan ini ke daftar nota aktif Mas Cim?')) return;
+      api('POST', '/api/mascim/services/' + encodeURIComponent(idH) + '/restore')
+        .then(function () {
+          toast('Garapan berhasil diaktifkan kembali');
+          loadDetail(idH);
+          reload();
+          if (w.Sync && typeof w.Sync.push === 'function') w.Sync.push();
+        })
+        .catch(function (err) {
+          alertErr('Gagal mengaktifkan garapan: ' + (err && err.message ? err.message : err));
+        });
+    }
+    var aktifkanNotaBtn = $('#dAktifkanNota');
+    if (aktifkanNotaBtn) aktifkanNotaBtn.addEventListener('click', jalankanAktifkanNota);
+    var aktifkanCepatBtn = $('#dBtnAktifkanCepat');
+    if (aktifkanCepatBtn) aktifkanCepatBtn.addEventListener('click', jalankanAktifkanNota);
 
     var statusMenu = $('#dStatusMenu');
     // Status final tidak punya pilihan berikutnya, jadi menu-nya memang tidak
@@ -4519,7 +4553,11 @@
       if (e.target.id === 'bbInpFrom') { M.bbFilter.from = e.target.value; render(); }
       if (e.target.id === 'bbChkTo') { M.bbFilter.toActive = e.target.checked; render(); }
       if (e.target.id === 'bbInpTo') { M.bbFilter.to = e.target.value; render(); }
-      if (e.target.id === 'bbSelStatus') { M.bbFilter.status = e.target.value; M.status = e.target.value; render(); }
+      if (e.target.id === 'bbSelStatus') {
+        M.bbFilter.status = e.target.value;
+        M.status = e.target.value;
+        loadList();
+      }
       if (e.target.id === 'bbSelPayment') { M.bbFilter.payment = e.target.value; render(); }
     });
 

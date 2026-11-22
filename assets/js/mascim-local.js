@@ -251,6 +251,7 @@
       version: 1,
       settings: { bankFundInitial: 0, noteCounter: 0 },
       orders: [],        // nota servis (soft delete lewat deletedAt)
+      deletedOrders: [], // pool sementara nota terhapus
       parts: [],         // { id, orderId, partName, capitalCost, fundingSource, createdAt }
       payments: [],      // { id, orderId, amount, paymentType, paidAt, note, warranty, paymentMethod, createdAt, idemKey }
       cashflow: [],      // { id, orderId, entryType, description, moneyIn, moneyOut, entryDate, createdAt, reversedAt }
@@ -270,6 +271,7 @@
     }
     if (!cache || typeof cache !== 'object') cache = blank();
     if (!Array.isArray(cache.orders)) cache.orders = [];
+    if (!Array.isArray(cache.deletedOrders)) cache.deletedOrders = [];
     if (!Array.isArray(cache.parts)) cache.parts = [];
     if (!Array.isArray(cache.payments)) cache.payments = [];
     if (!Array.isArray(cache.cashflow)) cache.cashflow = [];
@@ -290,6 +292,7 @@
   function recoverLostOrders() {
     var changed = false;
     if (!Array.isArray(cache.orders)) cache.orders = [];
+    if (!Array.isArray(cache.deletedOrders)) cache.deletedOrders = [];
     if (!Array.isArray(cache.parts)) cache.parts = [];
     if (!Array.isArray(cache.payments)) cache.payments = [];
     if (!Array.isArray(cache.cashflow)) cache.cashflow = [];
@@ -297,15 +300,37 @@
     if (!Array.isArray(cache.deletedOrderIds)) cache.deletedOrderIds = [];
 
     var ahmadId = 'so-mwozw70p-w2pbsa';
-    var hasAhmad = cache.orders.some(function (o) { return o.id === ahmadId; });
-    var isAhmadDeleted = cache.deletedOrderIds.indexOf(ahmadId) >= 0;
+    // Hapus ahmadId dari deletedOrderIds dan deletedOrders agar dipulihkan kembali sesuai permintaan user
+    if (cache.deletedOrderIds.indexOf(ahmadId) >= 0) {
+      cache.deletedOrderIds = cache.deletedOrderIds.filter(function (x) { return x !== ahmadId; });
+      changed = true;
+    }
+    if (cache.deletedOrders && cache.deletedOrders.some(function (x) { return x.id === ahmadId; })) {
+      cache.deletedOrders = cache.deletedOrders.filter(function (x) { return x.id !== ahmadId; });
+      changed = true;
+    }
 
-    if (!hasAhmad && !isAhmadDeleted) {
+    var hasAhmad = cache.orders.some(function (o) { return o.id === ahmadId; });
+
+    if (!hasAhmad) {
       cache.orders.push({
         id: ahmadId,
-        noteNumberRaw: null,
+        noteNumberRaw: 1,
+        noteNumber: '0001',
         internalRef: 'TRK-8X8C69',
-        warrantyNote: null,
+        noteIssued: true,
+        warrantyNote: {
+          number: 1,
+          numberLabel: '0001',
+          issuedAt: '2026-11-20T13:13:22.801Z',
+          warrantyDays: 30,
+          warrantyUntil: '2026-12-20T13:13:22.801Z',
+          warranty: 'Non Garansi',
+          customerName: 'MAS AHMAD',
+          device: 'Realme C15',
+          totalCost: 60000,
+          token: 'nt-0001-ahmad'
+        },
         intakeCondition: 'Keypad on/off+vol hilang, batre kembung, kondisi mati',
         customerName: 'MAS AHMAD',
         whatsapp: '',
@@ -431,6 +456,31 @@
       }
 
       changed = true;
+    } else {
+      var existAhmad = cache.orders.filter(function (o) { return o.id === ahmadId; })[0];
+      if (existAhmad) {
+        if (!existAhmad.noteNumber || existAhmad.noteNumber !== '0001' || !existAhmad.warrantyNote || existAhmad.deletedAt) {
+          existAhmad.noteNumber = '0001';
+          existAhmad.noteNumberRaw = 1;
+          existAhmad.noteIssued = true;
+          existAhmad.deletedAt = null;
+          if (!existAhmad.warrantyNote) {
+            existAhmad.warrantyNote = {
+              number: 1,
+              numberLabel: '0001',
+              issuedAt: existAhmad.takenAt || '2026-11-20T13:13:22.801Z',
+              warrantyDays: 30,
+              warrantyUntil: '2026-12-20T13:13:22.801Z',
+              warranty: 'Non Garansi',
+              customerName: 'MAS AHMAD',
+              device: 'Realme C15',
+              totalCost: 60000,
+              token: 'nt-0001-ahmad'
+            };
+          }
+          changed = true;
+        }
+      }
     }
     return changed;
   }
@@ -1364,10 +1414,27 @@
   }
 
   function getOrder(id) {
-    var o = load().orders.filter(function (x) { return x.id === id; })[0];
+    var db = load();
+    var o = db.orders.filter(function (x) { return x.id === id; })[0];
+    var isDel = false;
+    if (!o && db.deletedOrders) {
+      o = db.deletedOrders.filter(function (x) { return x.id === id; })[0];
+      if (o) isDel = true;
+    }
     if (!o) throw notFound('Nota tidak ditemukan');
-    if (o.deletedAt) throw notFound('Nota sudah dihapus');
-    return computeOrder(o);
+    if (o.deletedAt) isDel = true;
+    var co = computeOrder(o);
+    if (isDel) {
+      co.isDeleted = true;
+      co.serviceStatus = 'Terhapus';
+      if (Array.isArray(o._parts) && (!co.parts || !co.parts.length)) {
+        co.parts = o._parts.slice();
+      }
+      if (Array.isArray(o._payments) && (!co.payments || !co.payments.length)) {
+        co.payments = o._payments.slice();
+      }
+    }
+    return co;
   }
 
   function updateOrder(id, patch) {
@@ -1631,7 +1698,7 @@
 
   /*
      Hapus nota dari tombol "Hapus" di dropdown status.
-     Dapat dijalankan dari status mana pun jika pengguna memilih untuk menghapus nota.
+     Disimpan ke pool sementara "deletedOrders" agar bisa dipulihkan sewaktu-waktu.
   */
   function deleteOrder(id, opts) {
     opts = opts || {};
@@ -1639,12 +1706,34 @@
     var o = db.orders.filter(function (x) { return x.id === id; })[0];
     if (!o) throw notFound('Nota tidak ditemukan');
 
-    // Cabut nota garansi dulu supaya tautan pelanggan tidak hidup lagi
+    // Cabut nota garansi dulu supaya tautan pelanggan tidak hidup lagi saat terhapus
     if (o.warrantyNote && !o.warrantyNote.revokedAt) {
       o.warrantyNote.revokedAt = nowIso();
     }
 
-    // Hapus dari orders
+    if (!Array.isArray(db.deletedOrders)) db.deletedOrders = [];
+
+    // Kumpulkan relasi part, payment, bank, cashflow agar bisa dipulihkan kembali jika tidak sengaja terhapus
+    var partsRel = db.parts.filter(function (p) { return p.orderId === id; });
+    var paysRel = db.payments.filter(function (p) { return p.orderId === id; });
+    var bankRel = db.bank.filter(function (b) { return b.orderId === id; });
+    var cfRel = db.cashflow.filter(function (c) { return c.orderId === id; });
+
+    var deletedSnapshot = Object.assign({}, o, {
+      deletedAt: nowIso(),
+      previousStatus: o.serviceStatus || 'Done Diambil',
+      serviceStatus: 'Terhapus',
+      _parts: partsRel,
+      _payments: paysRel,
+      _bank: bankRel,
+      _cashflow: cfRel
+    });
+
+    // Masukkan ke pool sementara deletedOrders (hindari duplikat)
+    db.deletedOrders = db.deletedOrders.filter(function (x) { return x.id !== id; });
+    db.deletedOrders.push(deletedSnapshot);
+
+    // Hapus dari orders aktif
     db.orders = db.orders.filter(function (x) { return x.id !== id; });
     db.payments = db.payments.filter(function (p) { return p.orderId !== id; });
 
@@ -1659,14 +1748,6 @@
     db.parts = db.parts.filter(function (p) { return p.orderId !== id; });
     db.cashflow = db.cashflow.filter(function (c) { return c.orderId !== id; });
 
-    if (db.orders.length === 0) {
-      db.cashflow = [];
-      db.parts = [];
-      db.payments = [];
-      db.bank = [];
-      if (db.settings) db.settings.bankFundInitial = 0;
-    }
-
     // Hapus transaksi jasa di Cashflow Alima jika ada
     try {
       if (w.Store && w.Store.Tx && typeof w.Store.Tx.all === 'function') {
@@ -1678,7 +1759,7 @@
       }
     } catch (eTx) {}
 
-    // Catat ID nota yang dihapus agar tidak muncul lagi saat sinkronisasi cloud
+    // Catat ID nota yang dihapus agar tidak bentrok saat sinkronisasi cloud
     db.deletedOrderIds = db.deletedOrderIds || [];
     if (db.deletedOrderIds.indexOf(id) === -1) {
       db.deletedOrderIds.push(id);
@@ -1690,7 +1771,85 @@
     if (w.Sync && typeof w.Sync.schedulePush === 'function') {
       w.Sync.schedulePush();
     }
-    return { ok: true, hard: true };
+    return { ok: true, hard: false, pooled: true };
+  }
+
+  /*
+     Memulihkan nota dari pool sementara "Nota Terhapus".
+     Mengembalikan nota ke daftar orders aktif beserta relasi part, payment, bank, dan cashflow.
+  */
+  function restoreOrder(id) {
+    var db = load();
+    if (!Array.isArray(db.deletedOrders)) db.deletedOrders = [];
+    var o = db.deletedOrders.filter(function (x) { return x.id === id; })[0];
+    if (!o) {
+      o = db.orders.filter(function (x) { return x.id === id; })[0];
+    }
+    if (!o) throw notFound('Nota tidak ditemukan di pool terhapus');
+
+    // Hapus status terhapus
+    o.deletedAt = null;
+    o.serviceStatus = o.previousStatus || 'Done Diambil';
+
+    // Kembalikan parts jika ada
+    if (Array.isArray(o._parts) && o._parts.length) {
+      o._parts.forEach(function (p) {
+        if (!db.parts.some(function (ep) { return ep.id === p.id; })) {
+          db.parts.push(p);
+        }
+      });
+    }
+    // Kembalikan payments jika ada
+    if (Array.isArray(o._payments) && o._payments.length) {
+      o._payments.forEach(function (pay) {
+        if (!db.payments.some(function (epay) { return epay.id === pay.id; })) {
+          db.payments.push(pay);
+        }
+      });
+    }
+    // Kembalikan bank jika ada
+    if (Array.isArray(o._bank) && o._bank.length) {
+      o._bank.forEach(function (b) {
+        if (!db.bank.some(function (eb) { return eb.id === b.id; })) {
+          db.bank.push(b);
+        }
+      });
+    }
+    // Kembalikan cashflow jika ada
+    if (Array.isArray(o._cashflow) && o._cashflow.length) {
+      o._cashflow.forEach(function (cf) {
+        if (!db.cashflow.some(function (ecf) { return ecf.id === cf.id; })) {
+          db.cashflow.push(cf);
+        }
+      });
+    }
+
+    // Cabut pencabutan nota garansi jika ada
+    if (o.warrantyNote && o.warrantyNote.revokedAt) {
+      o.warrantyNote.revokedAt = null;
+    }
+
+    // Masukkan kembali ke db.orders
+    db.orders = db.orders.filter(function (x) { return x.id !== id; });
+    var cleanOrder = Object.assign({}, o);
+    delete cleanOrder._parts;
+    delete cleanOrder._payments;
+    delete cleanOrder._bank;
+    delete cleanOrder._cashflow;
+    delete cleanOrder.previousStatus;
+    db.orders.push(cleanOrder);
+
+    // Hapus dari deletedOrders
+    db.deletedOrders = db.deletedOrders.filter(function (x) { return x.id !== id; });
+
+    // Hapus dari deletedOrderIds
+    db.deletedOrderIds = (db.deletedOrderIds || []).filter(function (x) { return x !== id; });
+
+    save();
+    if (w.Sync && typeof w.Sync.schedulePush === 'function') {
+      w.Sync.schedulePush();
+    }
+    return computeOrder(cleanOrder);
   }
 
   /* ------------------------------------------------------------
@@ -2273,29 +2432,39 @@
   function listOrders(f) {
     f = f || {};
     var db = load();
-    var rows = db.orders.filter(function (o) { return !o.deletedAt; });
-    if (f.from || f.to) {
-      rows = rows.filter(function (o) { return inRange(o.receivedAt, f.from, f.to); });
-    }
-    if (f.status) {
-      // "Nggandul" bukan status nota, melainkan kelompok status. Saring di
-      // sini harus memakai predikat yang sama dengan angka di Beranda.
-      if (f.status === NGGANDUL) {
-        rows = rows.filter(function (o) { return isNggandulStatus(o.serviceStatus); });
-      } else {
-        rows = rows.filter(function (o) { return o.serviceStatus === f.status; });
+    var rows;
+    if (f.status === 'Nota Terhapus' || f.status === 'Terhapus') {
+      rows = (db.deletedOrders || []).map(function (o) {
+        var copy = Object.assign({}, o);
+        copy.serviceStatus = 'Terhapus';
+        copy.isDeleted = true;
+        return copy;
+      });
+    } else {
+      rows = db.orders.filter(function (o) { return !o.deletedAt; });
+      if (f.from || f.to) {
+        rows = rows.filter(function (o) { return inRange(o.receivedAt, f.from, f.to); });
       }
-    }
-    if (f.payment_status) {
-      rows = rows.filter(function (o) { return computeOrder(o).paymentStatus === f.payment_status; });
+      if (f.status) {
+        // "Nggandul" bukan status nota, melainkan kelompok status. Saring di
+        // sini harus memakai predikat yang sama dengan angka di Beranda.
+        if (f.status === NGGANDUL) {
+          rows = rows.filter(function (o) { return isNggandulStatus(o.serviceStatus); });
+        } else {
+          rows = rows.filter(function (o) { return o.serviceStatus === f.status; });
+        }
+      }
+      if (f.payment_status) {
+        rows = rows.filter(function (o) { return computeOrder(o).paymentStatus === f.payment_status; });
+      }
     }
     if (f.q) {
       var q = String(f.q).trim().toLowerCase();
       var num = String(f.q).replace(/^0+/, '') || '0';
       rows = rows.filter(function (o) {
-        return o.customerName.toLowerCase().indexOf(q) >= 0
-          || o.device.toLowerCase().indexOf(q) >= 0
-          || String(o.whatsapp).indexOf(q) >= 0
+        return (o.customerName || '').toLowerCase().indexOf(q) >= 0
+          || (o.device || '').toLowerCase().indexOf(q) >= 0
+          || String(o.whatsapp || '').indexOf(q) >= 0
           || String(o.noteNumberRaw) === num
           || String(o.internalRef || '').toLowerCase().indexOf(q) >= 0;
       });
@@ -2444,6 +2613,9 @@
       if (method === 'GET') return out({ service: getOrder(id) });
       if (method === 'PATCH' || method === 'PUT') return out({ service: updateOrder(id, body) });
       if (method === 'DELETE') return out({ deleted: deleteOrder(id, body) });
+    }
+    if (len === 3 && r[0] === 'services' && sub === 'restore' && method === 'POST') {
+      return out({ service: restoreOrder(id) });
     }
     if (len === 3 && r[0] === 'services' && sub === 'issue-note' && method === 'POST') {
       var iss = issueWarrantyNote(id, body && body.warranty);
