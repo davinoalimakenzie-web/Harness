@@ -3995,6 +3995,38 @@ body.fx-kalk{ min-height:100vh; }
 .mc-locktoggle:active{ transform:scale(.995); }
 .mc-detail-lock{ margin:-4px 0 12px; }
 
+/* Accordion Sparepart pada Modal Sparepart di Detail Servis */
+.mc-row-accordion{
+  cursor:pointer;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .15s ease;
+}
+.mc-row-accordion:active{
+  background:rgba(34,211,238,.06);
+}
+.mc-part-acc-arrow{
+  display:inline-block;
+  font-style:normal;
+  font-size:11px;
+  color:var(--mc-cy,#22d3ee);
+  transition:transform .22s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-left:4px;
+}
+.mc-row-accordion[aria-expanded="true"] .mc-part-acc-arrow{
+  transform:rotate(90deg);
+}
+.mc-part-acc{
+  max-height:0;
+  opacity:0;
+  overflow:hidden;
+  transition:max-height .3s cubic-bezier(0.4, 0, 0.2, 1), opacity .22s ease;
+}
+.mc-part-acc.mc-open{
+  max-height:800px;
+  opacity:1;
+}
+
 /* Mode ringkas kepala detail saat digulir (lihat bindStickySlim). */
 .mc-sticky{ transition:padding .18s ease; }
 .mc-sticky.mc-slim .mc-steps{ display:none; }

@@ -2329,8 +2329,7 @@
       (isDoneDiambil
         ? '<button type="button" data-qn="qnBiaya">Biaya</button>' +
           '<button type="button" data-qn="qnPelunasan">Pelunasan</button>'
-        : '<button type="button" data-qn="qnSparepart">Sparepart</button>' +
-          '<button type="button" data-qn="qnBiaya">Biaya</button>') +
+        : '<button type="button" data-qn="qnBiaya">Biaya+Part</button>') +
       (tampilNota ? '<button type="button" data-qn="qnNota">Nota</button>' : '') +
       (!isDoneDiambil ? '<button type="button" data-qn="qnStatus">Status</button>' : '') +
     '</div>';
@@ -2401,20 +2400,27 @@
       // ========================================================
 
       // 1. Rincian Biaya & Penanganan (Seksi Gabungan)
+      var hasParts = !!(o.parts && o.parts.length);
       html += '<div class="mc-sec" id="qnBiaya">Rincian Biaya &amp; Penanganan</div>' +
         '<div class="mc-money">' +
           '<div><span>Total Biaya</span><b>' + rupiah(o.totalCost) + '</b></div>' +
-          '<div><span>Modal Sparepart</span><b class="neg">' + rupiah(o.totalPart) + '</b></div>' +
+          '<div' + (hasParts ? ' class="mc-row-accordion" id="dTogglePartAcc" role="button" tabindex="0" aria-expanded="false"' : '') + '>' +
+            '<span>Modal Sparepart' +
+              (hasParts ? ' <i class="mc-part-acc-arrow">▸</i> <small style="font-size:11px;color:var(--mc-txt2);font-weight:normal">(' + o.parts.length + ' part)</small>' : '') +
+            '</span>' +
+            '<b class="neg">' + rupiah(o.totalPart) + '</b>' +
+          '</div>' +
         '</div>';
 
-      // Sparepart dimasukkan tepat di bawah Modal Sparepart
-      if (o.parts && o.parts.length) {
-        html += '<div class="mc-ptable" style="margin-top:-4px;margin-bottom:8px">';
+      // Sparepart dimasukkan ke dalam accordion di bawah Modal Sparepart (default tersembunyi, meluncur ke bawah saat diklik)
+      if (hasParts) {
+        html += '<div class="mc-part-acc" id="dPartAccBox">' +
+          '<div class="mc-ptable" style="margin-top:-4px;margin-bottom:8px">';
         o.parts.forEach(function (p) {
           html += '<div class="mc-prow"><span>' + esc(p.partName) +
             '<em>' + esc(p.fundingSource) + '</em></span><b>' + rupiah(p.capitalCost) + '</b></div>';
         });
-        html += '</div>';
+        html += '</div></div>';
       }
 
       html += '<div class="mc-money">' +
@@ -2512,10 +2518,23 @@
       // ========================================================
       // TAMPILAN UNTUK STATUS LAIN (PROGRESS, DONE, CANCEL, DSB)
       // ========================================================
-      // Sparepart
-      html += '<div class="mc-sec" id="qnSparepart">Sparepart</div>';
-      if (o.parts.length) {
-        html += '<div class="mc-ptable">';
+      // Rincian Biaya
+      var tampilBayar = (o.serviceStatus === 'Done');
+      html += '<div class="mc-sec" id="qnBiaya">Rincian Biaya</div>' +
+        '<label class="mc-field"><span class="mc-lbl">Total Biaya (Rp)</span>' +
+          '<div class="mc-calc-field">' +
+            '<input class="mc-inp" id="dTotal" inputmode="text" placeholder="0" value="' +
+            esc(o.totalCost != null && o.totalCost !== '' ? String(o.totalCost) : '') + '">' +
+            '<button type="button" class="mc-btn-calc" data-target="dTotal" title="Buka Kalkulator Cerdas">🧮</button>' +
+          '</div>' +
+        '</label>' +
+        '<div class="mc-money">' +
+          '<div><span>Modal Sparepart</span><b class="neg">' + rupiah(o.totalPart) + '</b></div>' +
+        '</div>';
+
+      // Sparepart dimasukkan di bawah Modal Sparepart beserta tombol Tambah Sparepart
+      if (o.parts && o.parts.length) {
+        html += '<div class="mc-ptable" style="margin-top:-4px;margin-bottom:8px">';
         o.parts.forEach(function (p) {
           var bisaHapus = !(o.payments && o.payments.length);
           html += '<div class="mc-prow"><span>' + esc(p.partName) +
@@ -2524,20 +2543,17 @@
             '</div>';
         });
         html += '</div>';
-      } else {
-        html += '<p class="mc-empty sm">Belum ada sparepart.</p>';
       }
-      html += '<button class="mc-ghost-btn" id="dAddPart">+ Tambah Sparepart</button>';
+      html += '<button class="mc-ghost-btn" id="dAddPart" style="margin-top:-4px;margin-bottom:8px">+ Tambah Sparepart</button>';
 
-      // Rincian Biaya
-      var tampilBayar = (o.serviceStatus === 'Done');
-      html += '<div class="mc-sec" id="qnBiaya">Rincian Biaya</div>' +
-        '<div class="mc-money"><div><span>Total Biaya</span><b>' + rupiah(o.totalCost) + '</b></div>' +
-        '<div><span>Modal Sparepart</span><b class="neg">' + rupiah(o.totalPart) + '</b></div></div>' +
-        '<div class="mc-money"><div><span>Jasa</span><b class="pos">' + rupiah(o.serviceFee) + '</b></div>' +
+      // Jasa
+      html += '<div class="mc-money">' +
+        '<div><span>Jasa</span><b class="pos">' + rupiah(o.serviceFee) + '</b></div>' +
         (tampilBayar
           ? '<div><span>Sudah Dibayar</span><b class="pos">' + rupiah(o.paid) + '</b></div>'
-          : '') + '</div>';
+          : '') +
+      '</div>';
+
       if (tampilBayar) {
         html += '<div class="mc-money big"><div><span>Sisa Pelunasan</span><b class="' +
           (o.remaining > 0 ? 'neg' : 'pos') + '">' + rupiah(o.remaining) + '</b></div></div>';
@@ -2579,15 +2595,8 @@
           '<div><span>Sudah dikembalikan</span><b class="pos">' + rupiah(o.bankReturned) + '</b></div></div>';
       }
 
-      // Biaya & Penanganan
-      html += '<div class="mc-sec">Biaya &amp; Penanganan</div>' +
-        '<label class="mc-field"><span class="mc-lbl">Total Biaya (Rp)</span>' +
-          '<div class="mc-calc-field">' +
-            '<input class="mc-inp" id="dTotal" inputmode="text" placeholder="0" value="' +
-            esc(o.totalCost != null && o.totalCost !== '' ? String(o.totalCost) : '') + '">' +
-            '<button type="button" class="mc-btn-calc" data-target="dTotal" title="Buka Kalkulator Cerdas">🧮</button>' +
-          '</div>' +
-        '</label>' +
+      // Penanganan
+      html += '<div class="mc-sec">Penanganan</div>' +
         '<label class="mc-field"><span class="mc-lbl">Penanganan</span>' +
           '<textarea class="mc-inp" id="dHandling" rows="2" placeholder="Contoh: ganti LCD, ganti baterai, bersihkan bagian dalam">' +
             esc(o.handling || '') + '</textarea>' +
@@ -2752,6 +2761,23 @@
         var ic = lockTgl.querySelector('i');
         if (ic) ic.textContent = tutup ? '\u25b8' : '\u25be';
         TG.haptic('select');
+      });
+    }
+
+    /* Accordion buka-tutup rincian sparepart pada modal sparepart */
+    var togglePartBtn = $('#dTogglePartAcc');
+    var partAccBox = $('#dPartAccBox');
+    if (togglePartBtn && partAccBox) {
+      togglePartBtn.addEventListener('click', function () {
+        var isOpen = partAccBox.classList.toggle('mc-open');
+        togglePartBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        if (window.TG && TG.haptic) TG.haptic('select');
+      });
+      togglePartBtn.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          togglePartBtn.click();
+        }
       });
     }
 
@@ -2937,7 +2963,7 @@
         if (!ketik && !tersimpan) {
           alertErr('Penanganan wajib diisi sebelum status diubah ke Done Diambil.\n\n' +
             'Tulis dulu apa yang dikerjakan pada nota ini — kolomnya ada di ' +
-            'bagian "Biaya & Penanganan" pada layar ini.');
+            'bagian "Penanganan" pada layar ini.');
           statusMenu.style.display = 'none';
           if (el) { el.focus(); el.scrollIntoView({ block: 'center' }); }
           return;
@@ -3026,8 +3052,8 @@
 
     var partBtn = $('#dAddPart');
     if (partBtn) partBtn.addEventListener('click', function () { openPartSheet(); });
-    var ptable = document.querySelector('#mc .mc-ptable');
-    if (ptable) ptable.addEventListener('click', function (e) {
+    var sScr = screen();
+    if (sScr) sScr.addEventListener('click', function (e) {
       var d = e.target.closest('[data-delpart]');
       if (!d) return;
       var nm = (d.getAttribute('aria-label') || '').replace(/^Hapus /, '');
