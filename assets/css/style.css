@@ -2151,6 +2151,7 @@ select.mc-inp{ appearance:none; }
 .mc-chip.on{ background:var(--mc-grn-d); border-color:var(--mc-grn); color:#eafff3; }
 .mc-chip.range{ margin-bottom:8px; }
 .mc-row2{ display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:6px; }
+.mc-row2 > .mc-ghost-btn{ margin:0; }
 .mc-count{ font-size:12px; color:var(--mc-txt2); margin:10px 0 8px; }
 
 /* ---- detail ---- */

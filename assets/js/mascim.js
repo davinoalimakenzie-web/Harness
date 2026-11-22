@@ -1218,24 +1218,6 @@
             '<button type="button" class="mc-btn-calc" data-target="fEstManual" title="Buka Kalkulator Cerdas">🧮</button>' +
           '</div>' +
         '</div>' +
-        '<div class="mc-row2" style="margin-top:6px">' +
-          '<div class="mc-field">' +
-            '<span class="mc-lbl sm">Modal Sparepart</span>' +
-            '<div class="mc-calc-field sm">' +
-              '<input class="mc-inp sm" id="fModalManual" inputmode="text" value="' +
-              esc(d.modal_manual || '') + '" placeholder="Modal part (Rp)">' +
-              '<button type="button" class="mc-btn-calc sm" data-target="fModalManual" title="Buka Kalkulator Cerdas">🧮</button>' +
-            '</div>' +
-          '</div>' +
-          '<div class="mc-field">' +
-            '<span class="mc-lbl sm">Jasa Manual</span>' +
-            '<div class="mc-calc-field sm">' +
-              '<input class="mc-inp sm" id="fJasaManual" inputmode="text" value="' +
-              esc(d.jasa_manual || '') + '" placeholder="Jasa (Rp)">' +
-              '<button type="button" class="mc-btn-calc sm" data-target="fJasaManual" title="Buka Kalkulator Cerdas">🧮</button>' +
-            '</div>' +
-          '</div>' +
-        '</div>' +
       '</div>');
     // Kendala dan kondisi unit digabung jadi satu isian. Memisahkannya hanya
     // menambah tinggi form tanpa menambah informasi: yang dicari teknisi tetap
@@ -1518,8 +1500,8 @@
     d.est_sel = (eSel && eSel.value) || '';
     d.seri_lain = (($('#fSeriLain') || {}).value || '').trim();
     d.est_manual = (($('#fEstManual') || {}).value || '').trim();
-    d.modal_manual = (($('#fModalManual') || {}).value || '').trim();
-    d.jasa_manual = (($('#fJasaManual') || {}).value || '').trim();
+    d.modal_manual = '';
+    d.jasa_manual = '';
     var seri = '', est = '';
     if (d.est_sel && d.est_sel !== 'Lainnya') {
       /* Nilai dropdown = "SERI|ruleId". Estimasi diambil ULANG dari data
@@ -1537,15 +1519,7 @@
       // Model + estimasi diketik manual: harga ini yang jadi Total Biaya nota.
       seri = d.seri_lain;
       var evalEst = smartVal(d.est_manual);
-      var evalModal = smartVal(d.modal_manual);
-      var evalJasa = smartVal(d.jasa_manual);
-      if (!evalEst && (evalModal || evalJasa)) {
-        evalEst = evalModal + evalJasa;
-      }
       if (evalEst) est = String(evalEst);
-      if (evalModal > 0) {
-        d.parts = [{ part_name: 'Sparepart (' + (seri || 'Unit') + ')', capital_cost: String(evalModal) }];
-      }
     }
     /* Nota lama yang tidak menyimpan pilihan estimasi (est_sel kosong) tetap
        harus menyimpan nama modelnya: ambil dari device yang tersimpan. Kunci
@@ -1805,37 +1779,11 @@
       estManualAwal = (($('#fEstManual') || {}).value || '').trim();
 
       var estManIn = $('#fEstManual');
-      var modalManIn = $('#fModalManual');
-      var jasaManIn = $('#fJasaManual');
-
-      function syncManualKalk() {
-        var m = smartVal(modalManIn ? modalManIn.value : 0);
-        var j = smartVal(jasaManIn ? jasaManIn.value : 0);
-        if (estManIn && (m > 0 || j > 0)) {
-          estManIn.value = String(m + j);
-        }
-        readDraft();
-      }
-
       if (estManIn) {
-        setupSmartCalcInput(estManIn, 'Total Biaya (Estimasi)', function (v) {
-          if (modalManIn && jasaManIn) {
-            var m = smartVal(modalManIn.value);
-            if (m > 0) {
-              jasaManIn.value = String(Math.max(0, v - m));
-            }
-          }
+        setupSmartCalcInput(estManIn, 'Total Biaya (Estimasi)', function () {
           readDraft();
         });
         estManIn.addEventListener('input', function () { readDraft(); });
-      }
-      if (modalManIn) {
-        setupSmartCalcInput(modalManIn, 'Modal Sparepart', syncManualKalk);
-        modalManIn.addEventListener('input', syncManualKalk);
-      }
-      if (jasaManIn) {
-        setupSmartCalcInput(jasaManIn, 'Jasa Manual', syncManualKalk);
-        jasaManIn.addEventListener('input', syncManualKalk);
       }
 
       brandSel.addEventListener('change', function () {
@@ -2458,7 +2406,9 @@
     } else {
       html += '<p class="mc-empty sm">Belum ada sparepart.</p>';
     }
-    html += '<button class="mc-ghost-btn" id="dAddPart">+ Tambah Sparepart</button>';
+    if (o.serviceStatus !== 'Done Diambil') {
+      html += '<button class="mc-ghost-btn" id="dAddPart">+ Tambah Sparepart</button>';
+    }
 
     /* Rincian Biaya.
        "Sudah Dibayar" dan "Sisa Pelunasan" HANYA ditampilkan saat nota sudah
@@ -2541,46 +2491,6 @@
       }
     }
 
-    // Nota garansi pelanggan.
-    //
-    // Dua tahap, sesuai permintaan: selama pekerjaan belum selesai atau
-    // pembayaran belum lunas, nota ini BELUM punya nomor dan belum punya
-    // link. Tombol terbit baru muncul setelah syaratnya benar-benar terpenuhi,
-    // dan mesin data menegakkannya juga.
-    if (tampilNota) html += '<div class="mc-sec" id="qnNota">Nota Garansi</div>';
-    if (o.noteIssued && o.warrantyNote) {
-      var wn = o.warrantyNote;
-      html += '<div class="mc-noteok">' +
-        '<div class="mc-noteok-head"><b>Nota #' + esc(wn.numberLabel) + '</b>' +
-        (wn.revoked
-          ? '<span class="mc-badge neg">Link dicabut</span>'
-          : '<span class="mc-badge ok">Aktif</span>') +
-        '</div>' +
-        '<div class="mc-kv"><span>Terbit</span><b>' + tglJam(wn.issuedAt) + '</b></div>' +
-        '<div class="mc-kv"><span>Garansi</span><b>' + wn.warrantyDays + ' hari &middot; sampai ' +
-          tglJam(wn.warrantyUntil) + '</b></div>' +
-        (wn.revoked
-          ? '<p class="mc-hint sm">Link nota ini sudah dicabut, jadi tidak bisa dibuka lagi. ' +
-            'Nomor nota tetap ada dan tidak berubah.</p>'
-          : '<p class="mc-hint sm">"Bagikan WhatsApp" dan "Salin Link" memakai <b>link mandiri</b>, ' +
-            'yang bisa dibuka pelanggan dari HP-nya sendiri. Buka "Lihat Nota" untuk melihat ' +
-            'link lokal (bisa dicabut).</p>') +
-        '<div class="mc-acts" style="margin-top:8px">' +
-          '<button class="mc-primary" id="nOpen">Lihat Nota</button>' +
-          '<button class="mc-ghost-btn" id="nCopy">Salin Link</button>' +
-          '<button class="mc-ghost-btn" id="nWa"' + (wn.whatsapp || '' ? '' : ' hidden') + '>Bagikan WhatsApp</button>' +
-          '<button class="mc-ghost-btn" id="nPrint">Cetak / PDF</button>' +
-        '</div>' +
-        (wn.revoked
-          ? '<button class="mc-ghost-btn danger" id="nRevoke" style="margin-top:6px">Batalkan Pencabutan</button>'
-          : '<button class="mc-ghost-btn danger" id="nRevoke" style="margin-top:6px">Cabut Link Nota</button>') +
-      '</div>';
-    } else if (o.canIssueNote) {
-      /* Tanpa keterangan panjang: tombolnya sudah menjelaskan dirinya. */
-      html += '<button class="mc-next" id="nIssue">Terbitkan Nota Garansi ' +
-        '<em>\u00b7 buat nomor, garansi 60 hari, dan link</em></button>';
-    }
-
     // Aksi. Hanya dropdown "Ubah Status"
     // sesuai status nota (lihat flowOf). Jadi tidak ada lagi tebakan "tombol
     // mana yang harus saya tekan". Di bawahnya dropdown status lengkap dan
@@ -2614,6 +2524,44 @@
           'Atau tekan <b>Simpan</b> di sebelah tombol Ubah Status — ' +
           'lalu ubah status ke Done Diambil.</p>'
         : '<p class="mc-hint sm">Tersimpan otomatis saat kursor berpindah atau tekan <b>Simpan</b>.</p>');
+
+    // Nota garansi pelanggan.
+    // Pindah posisi ke paling bawah (di bawah biaya & penanganan dan di atas ubah status)
+    if (tampilNota) html += '<div class="mc-sec" id="qnNota">Nota Garansi</div>';
+    if (o.noteIssued && o.warrantyNote) {
+      var wn = o.warrantyNote;
+      html += '<div class="mc-noteok">' +
+        '<div class="mc-noteok-head"><b>Nota #' + esc(wn.numberLabel) + '</b>' +
+        (wn.revoked
+          ? '<span class="mc-badge neg">Link dicabut</span>'
+          : '<span class="mc-badge ok">Aktif</span>') +
+        '</div>' +
+        '<div class="mc-kv"><span>Terbit</span><b>' + tglJam(wn.issuedAt) + '</b></div>' +
+        '<div class="mc-kv"><span>Garansi</span><b>' + wn.warrantyDays + ' hari &middot; sampai ' +
+          tglJam(wn.warrantyUntil) + '</b></div>' +
+        (wn.revoked
+          ? '<p class="mc-hint sm">Link nota ini sudah dicabut, jadi tidak bisa dibuka lagi. ' +
+            'Nomor nota tetap ada dan tidak berubah.</p>'
+          : '<p class="mc-hint sm">"Bagikan WhatsApp" dan "Salin Link" memakai <b>link mandiri</b>, ' +
+            'yang bisa dibuka pelanggan dari HP-nya sendiri. Buka "Lihat Nota" untuk melihat ' +
+            'link lokal (bisa dicabut).</p>') +
+        '<div class="mc-acts" style="margin-top:8px">' +
+          '<button class="mc-primary" id="nOpen">Lihat Nota</button>' +
+          '<button class="mc-ghost-btn" id="nCopy">Salin Link</button>' +
+          '<button class="mc-ghost-btn" id="nWa"' + (wn.whatsapp || '' ? '' : ' hidden') + '>Bagikan WhatsApp</button>' +
+        '</div>' +
+        '<div class="mc-row2" style="margin-top:6px">' +
+          '<button class="mc-ghost-btn" id="nPrint">Cetak / PDF</button>' +
+          (wn.revoked
+            ? '<button class="mc-ghost-btn danger" id="nRevoke">Batalkan Pencabutan</button>'
+            : '<button class="mc-ghost-btn danger" id="nRevoke">Cabut Link Nota</button>') +
+        '</div>' +
+      '</div>';
+    } else if (o.canIssueNote) {
+      /* Tanpa keterangan panjang: tombolnya sudah menjelaskan dirinya. */
+      html += '<button class="mc-next" id="nIssue">Terbitkan Nota Garansi ' +
+        '<em>\u00b7 buat nomor, garansi 60 hari, dan link</em></button>';
+    }
 
     // Tombol aksi besar ("Selesaikan Garapan", "Catat Pembayaran") dan tombol
     // Hapus sudah dihapus di SEMUA status. Status hanya berubah lewat dropdown
