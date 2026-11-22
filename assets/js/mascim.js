@@ -109,11 +109,8 @@
     'Progress': ['Done', 'Cancel'],
     'Done': ['Done Diambil', 'Cancel'],
     'Cancel': ['Cancel Diambil'],
-    // Dari "Done Diambil" masih ada satu jalan keluar nyata: Return bila
-    // trouble dalam masa garansi. Cancel DIHAPUS dari sini.
-    // Aturan umum: tombol "Cancel" HANYA muncul untuk status Done & Progress
-    // (cancel juga tidak muncul di Return / Nggandul / Done Diambil).
-    'Done Diambil': ['Return'],
+    // Dari "Done Diambil" tersedia Return dan Done (antisipasi kesalahan data/biaya).
+    'Done Diambil': ['Done', 'Return'],
     'Cancel Diambil': [],
     'Return': ['Done', 'Done Diambil'],
     'Nggandul': ['Progress', 'Done', 'Done Diambil', 'Cancel Diambil', 'Return']
@@ -173,6 +170,207 @@
   function hariIni() { return new Date().toISOString().slice(0, 10); }
   function bulanIni() { return new Date().toISOString().slice(0, 8) + '01'; }
   function toast(msg) { if (w.App && w.App.toast) w.App.toast(msg); }
+
+  /* ------------------------------------------------------------
+     Keypad Kalkulator Cerdas Modal Bawaan (Universal untuk Mas Cim)
+     Sesuai keypad #txKeypad & w.smartCalc bawaan
+  ------------------------------------------------------------ */
+  var _calcKeypadTarget = null;
+  var _calcKeypadOnApply = null;
+  var _calcKeypadStr = '0';
+
+  function formatCalcExpr(str) {
+    if (!str) return '0';
+    var parts = String(str).split(/([+\-*/×÷−%])/);
+    return parts.map(function (p) {
+      if (p === '+' || p === '-' || p === '−') return ' ' + (p === '-' ? '−' : p) + ' ';
+      if (p === '*' || p === '×') return ' × ';
+      if (p === '/' || p === '÷') return ' ÷ ';
+      if (p === '%') return '%';
+      var num = Number(p);
+      if (p && isFinite(num) && p.indexOf('.') === -1) {
+        return rupiah(num).replace('Rp\u00a0', '');
+      }
+      return p;
+    }).join('');
+  }
+
+  function getSmartCalcOverlay() {
+    var ov = document.getElementById('mcCalcOverlay');
+    if (ov) return ov;
+    ov = document.createElement('div');
+    ov.id = 'mcCalcOverlay';
+    ov.className = 'mc-calc-overlay hidden';
+    ov.innerHTML = '<div class="mc-calc-modal-box">' +
+      '<div class="mc-calc-header">' +
+        '<span class="mc-calc-title" id="mcCalcTitle">Kalkulator Cerdas</span>' +
+        '<button type="button" class="mc-calc-close" id="mcCalcClose" aria-label="Tutup">\u2715</button>' +
+      '</div>' +
+      '<div class="mc-calc-screen">' +
+        '<div class="mc-calc-expr" id="mcCalcExpr">0</div>' +
+        '<div class="mc-calc-preview" id="mcCalcPreview">= Rp 0</div>' +
+      '</div>' +
+      '<div class="keypad mc-calc-keypad" id="mcSmartKeypad">' +
+        '<button type="button" class="key key-fn" data-k="c">C</button>' +
+        '<button type="button" class="key key-op" data-k="/">÷</button>' +
+        '<button type="button" class="key key-op" data-k="*">×</button>' +
+        '<button type="button" class="key key-del" data-k="del" aria-label="Hapus">' +
+          '<svg class="key-del-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path>' +
+            '<line x1="18" y1="9" x2="12" y2="15"></line>' +
+            '<line x1="12" y1="9" x2="18" y2="15"></line>' +
+          '</svg>' +
+        '</button>' +
+        '<button type="button" class="key" data-k="7">7</button>' +
+        '<button type="button" class="key" data-k="8">8</button>' +
+        '<button type="button" class="key" data-k="9">9</button>' +
+        '<button type="button" class="key key-op" data-k="-">−</button>' +
+        '<button type="button" class="key" data-k="4">4</button>' +
+        '<button type="button" class="key" data-k="5">5</button>' +
+        '<button type="button" class="key" data-k="6">6</button>' +
+        '<button type="button" class="key key-op" data-k="+">+</button>' +
+        '<button type="button" class="key" data-k="1">1</button>' +
+        '<button type="button" class="key" data-k="2">2</button>' +
+        '<button type="button" class="key" data-k="3">3</button>' +
+        '<button type="button" class="key key-ok" data-k="ok" aria-label="Simpan">' +
+          '<svg class="key-arrow-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">' +
+            '<polyline points="9 18 15 12 9 6"></polyline>' +
+          '</svg>' +
+        '</button>' +
+        '<button type="button" class="key" data-k="0">0</button>' +
+        '<button type="button" class="key" data-k="000">000</button>' +
+        '<button type="button" class="key key-op" data-k="%">%</button>' +
+      '</div>' +
+    '</div>';
+    document.body.appendChild(ov);
+
+    ov.addEventListener('click', function (e) {
+      if (e.target === ov) closeSmartCalcKeypad();
+    });
+    var closeBtn = ov.querySelector('#mcCalcClose');
+    if (closeBtn) closeBtn.addEventListener('click', closeSmartCalcKeypad);
+
+    var kp = ov.querySelector('#mcSmartKeypad');
+    if (kp) {
+      kp.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-k]');
+        if (b) pressCalcKey(b.dataset.k);
+      });
+    }
+    return ov;
+  }
+
+  function renderCalcScreen() {
+    var exprEl = document.getElementById('mcCalcExpr');
+    var prevEl = document.getElementById('mcCalcPreview');
+    if (!exprEl || !prevEl) return;
+    exprEl.textContent = formatCalcExpr(_calcKeypadStr);
+    var val = (w.smartCalc ? w.smartCalc(_calcKeypadStr) : parseInt(String(_calcKeypadStr).replace(/\D/g, ''), 10)) || 0;
+    prevEl.textContent = '= Rp ' + rupiah(val);
+  }
+
+  function pressCalcKey(k) {
+    if (k === 'c') {
+      _calcKeypadStr = '0';
+    } else if (k === 'del') {
+      if (_calcKeypadStr.length > 1) {
+        _calcKeypadStr = _calcKeypadStr.slice(0, -1);
+      } else {
+        _calcKeypadStr = '0';
+      }
+    } else if (k === 'ok') {
+      var finalVal = (w.smartCalc ? w.smartCalc(_calcKeypadStr) : parseInt(String(_calcKeypadStr).replace(/\D/g, ''), 10)) || 0;
+      if (_calcKeypadTarget) {
+        _calcKeypadTarget.value = String(finalVal);
+        _calcKeypadTarget.dispatchEvent(new Event('input', { bubbles: true }));
+        _calcKeypadTarget.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      if (typeof _calcKeypadOnApply === 'function') {
+        _calcKeypadOnApply(finalVal);
+      }
+      if (w.TG && w.TG.haptic) w.TG.haptic('success');
+      closeSmartCalcKeypad();
+      return;
+    } else if (k === '000') {
+      if (_calcKeypadStr !== '0' && _calcKeypadStr !== '') {
+        _calcKeypadStr += '000';
+      }
+    } else if (k === '+' || k === '-' || k === '*' || k === '/' || k === '%') {
+      var lastChar = _calcKeypadStr.slice(-1);
+      if (['+', '-', '*', '/'].indexOf(lastChar) >= 0) {
+        _calcKeypadStr = _calcKeypadStr.slice(0, -1) + k;
+      } else {
+        _calcKeypadStr += k;
+      }
+    } else {
+      // Digit 0-9
+      if (_calcKeypadStr === '0') {
+        _calcKeypadStr = k;
+      } else {
+        _calcKeypadStr += k;
+      }
+    }
+    renderCalcScreen();
+    if (w.TG && w.TG.haptic) w.TG.haptic('select');
+  }
+
+  function openSmartCalcKeypad(options) {
+    options = options || {};
+    var ov = getSmartCalcOverlay();
+    var titleEl = ov.querySelector('#mcCalcTitle');
+    if (titleEl) titleEl.textContent = options.title || 'Kalkulator Cerdas';
+
+    _calcKeypadTarget = options.target || null;
+    _calcKeypadOnApply = options.onApply || null;
+
+    var init = options.initialValue;
+    if (init == null && _calcKeypadTarget) init = _calcKeypadTarget.value;
+    var rawStr = String(init || '').trim();
+    _calcKeypadStr = rawStr ? rawStr : '0';
+
+    renderCalcScreen();
+    ov.classList.remove('hidden');
+    if (w.TG && w.TG.haptic) w.TG.haptic('impact');
+  }
+
+  function closeSmartCalcKeypad() {
+    var ov = document.getElementById('mcCalcOverlay');
+    if (ov) ov.classList.add('hidden');
+    _calcKeypadTarget = null;
+    _calcKeypadOnApply = null;
+  }
+
+  function smartVal(raw) {
+    if (raw == null) return 0;
+    if (w.smartCalc) return w.smartCalc(raw);
+    return parseInt(String(raw).replace(/\D/g, ''), 10) || 0;
+  }
+
+  function setupSmartCalcInput(inputEl, title, onApply) {
+    if (!inputEl) return;
+    inputEl.addEventListener('blur', function () {
+      var val = smartVal(inputEl.value);
+      inputEl.value = val ? String(val) : '';
+      if (typeof onApply === 'function') onApply(val);
+    });
+    var parent = inputEl.closest('.mc-calc-field');
+    if (parent) {
+      var btn = parent.querySelector('.mc-btn-calc');
+      if (btn && !btn.dataset.calcBound) {
+        btn.dataset.calcBound = '1';
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          openSmartCalcKeypad({
+            title: title || 'Kalkulator Cerdas',
+            target: inputEl,
+            initialValue: inputEl.value,
+            onApply: onApply
+          });
+        });
+      }
+    }
+  }
 
   /** Ambil screen modul, atau buat bila belum ada. */
   function screen() { return $('#mcScreen'); }
@@ -917,7 +1115,7 @@
       // tanpa itu brand kembali ke "Pilih brand" dan kolom nama brand yang
       // sedang diisi ikut tertutup.
       brand_id: '', brand_lain: '', brand_manual: false,
-      est_sel: '', seri_lain: '', est_manual: '',
+      est_sel: '', seri_lain: '', est_manual: '', modal_manual: '', jasa_manual: '',
       parts: [],
     };
   }
@@ -943,7 +1141,7 @@
       brand_id: brandManual ? 'Lainnya' : db[0],
       brand_lain: brandManual ? db[1] : '',
       brand_manual: brandManual,
-      est_sel: '', seri_lain: '', est_manual: '',
+      est_sel: '', seri_lain: '', est_manual: '', modal_manual: '', jasa_manual: '',
       parts: o.parts.map(function (p) {
         return { part_name: p.partName, capital_cost: String(p.capitalCost) };
       }),
@@ -1015,8 +1213,34 @@
       // Dua kolom ini hanya terbuka kalau harganya belum ada di Kalkulator.
       '<input class="mc-inp sm mc-none" id="fSeriLain" value="' + esc(d.seri_lain || '') +
       '" placeholder="Model HP">' +
-      '<input class="mc-inp sm mc-none" id="fEstManual" inputmode="numeric" value="' +
-      esc(d.est_manual || '') + '" placeholder="Estimasi biaya (Rp)">');
+      '<div class="mc-calc-group mc-none" id="fEstGroup">' +
+        '<div class="mc-field" style="margin-top:6px">' +
+          '<span class="mc-lbl sm">Total Biaya (Estimasi)</span>' +
+          '<div class="mc-calc-field">' +
+            '<input class="mc-inp sm" id="fEstManual" inputmode="text" value="' +
+            esc(d.est_manual || '') + '" placeholder="Estimasi total biaya (Rp)">' +
+            '<button type="button" class="mc-btn-calc" data-target="fEstManual" title="Buka Kalkulator Cerdas">🧮</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="mc-row2" style="margin-top:6px">' +
+          '<div class="mc-field">' +
+            '<span class="mc-lbl sm">Modal Sparepart</span>' +
+            '<div class="mc-calc-field sm">' +
+              '<input class="mc-inp sm" id="fModalManual" inputmode="text" value="' +
+              esc(d.modal_manual || '') + '" placeholder="Modal part (Rp)">' +
+              '<button type="button" class="mc-btn-calc sm" data-target="fModalManual" title="Buka Kalkulator Cerdas">🧮</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="mc-field">' +
+            '<span class="mc-lbl sm">Jasa Manual</span>' +
+            '<div class="mc-calc-field sm">' +
+              '<input class="mc-inp sm" id="fJasaManual" inputmode="text" value="' +
+              esc(d.jasa_manual || '') + '" placeholder="Jasa (Rp)">' +
+              '<button type="button" class="mc-btn-calc sm" data-target="fJasaManual" title="Buka Kalkulator Cerdas">🧮</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>');
     // Kendala dan kondisi unit digabung jadi satu isian. Memisahkannya hanya
     // menambah tinggi form tanpa menambah informasi: yang dicari teknisi tetap
     // "apa yang rusak dan kondisi barang saat masuk". Satu teks ini disimpan di
@@ -1201,6 +1425,8 @@
     d.est_sel = (eSel && eSel.value) || '';
     d.seri_lain = (($('#fSeriLain') || {}).value || '').trim();
     d.est_manual = (($('#fEstManual') || {}).value || '').trim();
+    d.modal_manual = (($('#fModalManual') || {}).value || '').trim();
+    d.jasa_manual = (($('#fJasaManual') || {}).value || '').trim();
     var seri = '', est = '';
     if (d.est_sel && d.est_sel !== 'Lainnya') {
       /* Nilai dropdown = "SERI|ruleId". Estimasi diambil ULANG dari data
@@ -1217,7 +1443,16 @@
     } else if (d.est_sel === 'Lainnya') {
       // Model + estimasi diketik manual: harga ini yang jadi Total Biaya nota.
       seri = d.seri_lain;
-      if (d.est_manual) est = String(parseInt(String(d.est_manual).replace(/\D/g, ''), 10) || 0);
+      var evalEst = smartVal(d.est_manual);
+      var evalModal = smartVal(d.modal_manual);
+      var evalJasa = smartVal(d.jasa_manual);
+      if (!evalEst && (evalModal || evalJasa)) {
+        evalEst = evalModal + evalJasa;
+      }
+      if (evalEst) est = String(evalEst);
+      if (evalModal > 0) {
+        d.parts = [{ part_name: 'Sparepart (' + (seri || 'Unit') + ')', capital_cost: String(evalModal) }];
+      }
     }
     /* Nota lama yang tidak menyimpan pilihan estimasi (est_sel kosong) tetap
        harus menyimpan nama modelnya: ambil dari device yang tersimpan. Kunci
@@ -1455,15 +1690,16 @@
       }
       isiEstimasi(brandSel, estSel, brandSel.value, estAktif);
 
-      /* Kolom manual (nama brand, model, estimasi) hanya dibuka saat memang
-         dipakai, supaya form tetap 6 isian seperti yang diminta. */
+      /* Kolom manual (nama brand, model, estimasi, modal, jasa) hanya dibuka saat memang
+         dipakai, supaya form tetap ringkas seperti yang diminta. */
       function syncUnitUI() {
         var brandLainIn = $('#fBrandLain');
         if (brandLainIn) brandLainIn.classList.toggle('mc-none', brandSel.value !== 'Lainnya');
         var manual = estSel.value === 'Lainnya';
-        var seriLainIn = $('#fSeriLain'), estManIn = $('#fEstManual');
+        var seriLainIn = $('#fSeriLain');
+        var estGrp = $('#fEstGroup');
         if (seriLainIn) seriLainIn.classList.toggle('mc-none', !manual);
-        if (estManIn) estManIn.classList.toggle('mc-none', !manual);
+        if (estGrp) estGrp.classList.toggle('mc-none', !manual);
       }
       syncUnitUI();
       /* Baris harga yang sedang tertampil menjadi patokan readDraft(): selama
@@ -1474,6 +1710,40 @@
          Biaya di layar detail tidak dianggap "berubah" hanya karena kolom
          ini belum pernah disentuh. */
       estManualAwal = (($('#fEstManual') || {}).value || '').trim();
+
+      var estManIn = $('#fEstManual');
+      var modalManIn = $('#fModalManual');
+      var jasaManIn = $('#fJasaManual');
+
+      function syncManualKalk() {
+        var m = smartVal(modalManIn ? modalManIn.value : 0);
+        var j = smartVal(jasaManIn ? jasaManIn.value : 0);
+        if (estManIn && (m > 0 || j > 0)) {
+          estManIn.value = String(m + j);
+        }
+        readDraft();
+      }
+
+      if (estManIn) {
+        setupSmartCalcInput(estManIn, 'Total Biaya (Estimasi)', function (v) {
+          if (modalManIn && jasaManIn) {
+            var m = smartVal(modalManIn.value);
+            if (m > 0) {
+              jasaManIn.value = String(Math.max(0, v - m));
+            }
+          }
+          readDraft();
+        });
+        estManIn.addEventListener('input', function () { readDraft(); });
+      }
+      if (modalManIn) {
+        setupSmartCalcInput(modalManIn, 'Modal Sparepart', syncManualKalk);
+        modalManIn.addEventListener('input', syncManualKalk);
+      }
+      if (jasaManIn) {
+        setupSmartCalcInput(jasaManIn, 'Jasa Manual', syncManualKalk);
+        jasaManIn.addEventListener('input', syncManualKalk);
+      }
 
       brandSel.addEventListener('change', function () {
         dgnFokus(function () {
@@ -1493,8 +1763,6 @@
       // akan hilang), cukup disalin ke draft supaya ikut tersimpan.
       var brandLainIn = $('#fBrandLain');
       if (brandLainIn) brandLainIn.addEventListener('input', function () { readDraft(); });
-      var estManIn = $('#fEstManual');
-      if (estManIn) estManIn.addEventListener('input', function () { readDraft(); });
     }
 
     // Tombol Chat WhatsApp muncul begitu nomornya valid, tanpa perlu
@@ -2256,17 +2524,22 @@
     // mc-none sejak awal.
     html += '<div class="mc-sec">Biaya &amp; Penanganan</div>' +
       '<label class="mc-field"><span class="mc-lbl">Total Biaya (Rp)</span>' +
-        '<input class="mc-inp" id="dTotal" inputmode="numeric" placeholder="0" value="' +
-        esc(o.totalCost != null && o.totalCost !== '' ? String(o.totalCost) : '') + '">' +
+        '<div class="mc-calc-field">' +
+          '<input class="mc-inp" id="dTotal" inputmode="text" placeholder="0" value="' +
+          esc(o.totalCost != null && o.totalCost !== '' ? String(o.totalCost) : '') + '">' +
+          '<button type="button" class="mc-btn-calc" data-target="dTotal" title="Buka Kalkulator Cerdas">🧮</button>' +
+        '</div>' +
       '</label>' +
       '<label class="mc-field"><span class="mc-lbl">Penanganan</span>' +
         '<textarea class="mc-inp" id="dHandling" rows="2" placeholder="Contoh: ganti LCD, ganti baterai, bersihkan bagian dalam">' +
           esc(o.handling || '') + '</textarea>' +
       '</label>' +
       '<p class="mc-hint sm" id="dSavedHint"></p>' +
-      '<p class="mc-hint sm">Tersimpan otomatis saat kursor berpindah. ' +
-        'Atau tekan <b>Simpan</b> di sebelah tombol Ubah Status — ' +
-        'lalu ubah status ke Done Diambil.</p>';
+      (o.serviceStatus !== 'Done Diambil' && o.serviceStatus !== 'Cancel Diambil'
+        ? '<p class="mc-hint sm">Tersimpan otomatis saat kursor berpindah. ' +
+          'Atau tekan <b>Simpan</b> di sebelah tombol Ubah Status — ' +
+          'lalu ubah status ke Done Diambil.</p>'
+        : '<p class="mc-hint sm">Tersimpan otomatis saat kursor berpindah atau tekan <b>Simpan</b>.</p>');
 
     // Tombol aksi besar ("Selesaikan Garapan", "Catat Pembayaran") dan tombol
     // Hapus sudah dihapus di SEMUA status. Status hanya berubah lewat dropdown
@@ -2275,10 +2548,11 @@
     html += '<div class="mc-sec" id="qnStatus">Ubah Status</div>';
     // Satu ketuk ke langkah berikutnya. Dropdown di bawahnya tetap ada untuk
     // pilihan lain (Cancel, Return, Hapus).
+    // Poin 2: Pada status "Done Diambil" tombol bantu status dihilangkan karena tidak perlu.
     var NEXT_ST = { 'Progress': 'Done', 'Done': 'Done Diambil', 'Cancel': 'Cancel Diambil', 'Return': 'Done' };
     var NEXT_LBL = { 'Done': '\u2713 Selesai (Done)', 'Done Diambil': '\u2713 Sudah Diambil & Lunas',
       'Cancel Diambil': '\u2713 Unit Cancel Sudah Diambil' };
-    var nextWant = NEXT_ST[o.serviceStatus];
+    var nextWant = (o.serviceStatus !== 'Done Diambil' && o.serviceStatus !== 'Cancel Diambil') ? NEXT_ST[o.serviceStatus] : null;
     if (nextWant && statusOpts.indexOf(nextWant) >= 0) {
       html += '<button type="button" class="mc-primary sm mc-next" id="dNextSt" data-st="' + esc(nextWant) + '">' +
         esc(NEXT_LBL[nextWant] || nextWant) + '</button>';
@@ -2451,7 +2725,7 @@
         var id = idNota();
         if (!id) { alertErr('Nota ini belum punya identitas. Muat ulang halamannya.'); return; }
         var tEl = $('#dTotal'), hEl = $('#dHandling');
-        var biaya = tEl ? (parseInt(String(tEl.value || '').replace(/\D/g, ''), 10) || 0) : null;
+        var biaya = tEl ? smartVal(tEl.value) : null;
         var handling = hEl ? hEl.value.trim() : '';
         sedangSimpan = true;
         sideSave.disabled = true;
@@ -2485,8 +2759,7 @@
 
     var dTotal = $('#dTotal');
     if (dTotal) {
-      dTotal.addEventListener('blur', function () {
-        var v = parseInt(String(dTotal.value || '').replace(/\D/g, ''), 10) || 0;
+      setupSmartCalcInput(dTotal, 'Total Biaya Servis', function (v) {
         if (M.current && v === M.current.totalCost) return;
         simpanOtomatis({ total_cost: v }, v, 'Total Biaya');
       });
@@ -3179,6 +3452,7 @@
     var tambah = [];      // { name, cost, est, rule, simpanKalk }
     var ruleCur = null;
     var opsi = [];        // harga tersimpan yang sedang ditampilkan di tab Kalkulator
+    var modeCur = 'kalk'; // tab aktif (kalk, atur, manual)
 
     var html = '<div class="mc-pad mc-spx">' +
       '<div class="mc-row2">' +
@@ -3202,22 +3476,33 @@
       '<div id="spPaneAtur" class="mc-none">' +
         '<div class="mc-rules" id="spRuleBtns"></div>' +
         '<label class="mc-field"><span class="mc-lbl">Harga part (Rp)</span>' +
-          '<input class="mc-inp" id="spRuleCost" inputmode="numeric" placeholder="0"></label>' +
+          '<div class="mc-calc-field">' +
+            '<input class="mc-inp" id="spRuleCost" inputmode="text" placeholder="0">' +
+            '<button type="button" class="mc-btn-calc" data-target="spRuleCost" title="Buka Kalkulator Cerdas">🧮</button>' +
+          '</div>' +
+        '</label>' +
         '<p class="mc-hint" id="spRuleInfo">Pilih aturan, lalu isi harga part.</p>' +
-        '<button type="button" class="mc-ghost-btn" id="spRuleAdd" disabled>+ Tambah ke daftar</button>' +
+        '<div class="mc-sp-rule-acts">' +
+          '<button type="button" class="mc-ghost-btn" id="spRuleAdd" disabled>+ Tambah ke daftar</button>' +
+          '<button type="button" class="mc-ghost-btn mc-disk-btn" id="spRuleSaveCalc" title="Simpan estimasi baru ke Kalkulator Servis HP" disabled>💾 Simpan ke Kalkulator</button>' +
+        '</div>' +
       '</div>' +
       '<div id="spPaneManual" class="mc-none">' +
         '<div class="mc-row2">' +
           '<label class="mc-field"><span class="mc-lbl">Nama sparepart</span>' +
             '<input class="mc-inp" id="spName" placeholder="Contoh: Konektor cas"></label>' +
           '<label class="mc-field"><span class="mc-lbl">Harga part (Rp)</span>' +
-            '<input class="mc-inp" id="spCost" inputmode="numeric" placeholder="0"></label>' +
+            '<div class="mc-calc-field">' +
+              '<input class="mc-inp" id="spCost" inputmode="text" placeholder="0">' +
+              '<button type="button" class="mc-btn-calc" data-target="spCost" title="Buka Kalkulator Cerdas">🧮</button>' +
+            '</div>' +
+          '</label>' +
         '</div>' +
         '<button type="button" class="mc-ghost-btn" id="spManAdd" disabled>+ Tambah ke Pool Sementara</button>' +
       '</div>' +
       '<div class="mc-sec">Pool Sementara Sparepart <span class="mc-sec-note" id="spCount"></span></div>' +
       '<div class="mc-parts" id="spList"></div>' +
-      '<div class="mc-calc">' +
+      '<div class="mc-calc" id="spCalcWrap">' +
         '<div><span>Total Modal Part</span><b id="spTotal">0</b></div>' +
       '</div>' +
     '</div>';
@@ -3227,9 +3512,10 @@
       var brandIn = q('#spBrand'), seriIn = q('#spSeri');
       var brandListD = q('#spBrandList'), seriListD = q('#spSeriList');
       var info = q('#spInfo'), kalkBox = q('#spKalk');
-      var ruleBtns = q('#spRuleBtns'), ruleIn = q('#spRuleCost'), ruleInfo = q('#spRuleInfo'), ruleAdd = q('#spRuleAdd');
+      var ruleBtns = q('#spRuleBtns'), ruleIn = q('#spRuleCost'), ruleInfo = q('#spRuleInfo'), ruleAdd = q('#spRuleAdd'), ruleSaveCalc = q('#spRuleSaveCalc');
       var nameIn = q('#spName'), costIn = q('#spCost'), manInfo = q('#spManualInfo'), manAdd = q('#spManAdd');
       var listBox = q('#spList'), totalEl = q('#spTotal'), totalEstEl = q('#spTotalEst'), countEl = q('#spCount');
+      var calcWrap = q('#spCalcWrap');
       var saveBtn = null;
 
       /* ---- tab mode ---- */
@@ -3240,12 +3526,16 @@
         gantiMode(b.dataset.mode);
       });
       function gantiMode(m) {
+        modeCur = m;
         Array.prototype.forEach.call(modeBox.querySelectorAll('button'), function (x) {
           x.classList.toggle('on', x.dataset.mode === m);
         });
         q('#spPaneKalk').classList.toggle('mc-none', m !== 'kalk');
         q('#spPaneAtur').classList.toggle('mc-none', m !== 'atur');
         q('#spPaneManual').classList.toggle('mc-none', m !== 'manual');
+        // Poin 5: Pada mode kalkulator, hilangkan container total modal part
+        if (calcWrap) calcWrap.classList.toggle('mc-none', m === 'kalk');
+        gambarDaftar();
       }
 
       /* ---- unit (brand + seri) ---- */
@@ -3379,17 +3669,22 @@
         hitungRule();
       }
       function hitungRule() {
-        var part = angka(ruleIn.value);
+        var part = smartVal(ruleIn.value);
         ruleAdd.disabled = !(ruleCur && part > 0);
+        if (ruleSaveCalc) {
+          var sr = (seriIn.value || seri || '').trim();
+          ruleSaveCalc.disabled = !(ruleCur && part > 0 && sr);
+        }
         if (!ruleCur) { ruleInfo.textContent = 'Pilih aturan, lalu isi harga part.'; return; }
         if (!part) { ruleInfo.textContent = 'Isi harga part.'; return; }
         var h = w.CalcUI && w.CalcUI.hitung ? w.CalcUI.hitung(part, ruleCur) : { dasar: part, est: part };
         ruleInfo.textContent = rupiah(part) +
           (ruleCur.pct ? ' +' + ruleCur.pct + '%' : '') + ' \u2192 estimasi jasa ' + rupiah(h.est);
       }
+      setupSmartCalcInput(ruleIn, 'Harga Part (Hitung)', function () { hitungRule(); });
       ruleIn.addEventListener('input', hitungRule);
       ruleAdd.addEventListener('click', function () {
-        var part = angka(ruleIn.value);
+        var part = smartVal(ruleIn.value);
         if (!ruleCur || part <= 0) return;
         tambah.push({
           name: ruleCur.name || namaPartDariRule(ruleCur),
@@ -3400,17 +3695,44 @@
         gambarDaftar();
         if (w.TG && w.TG.haptic) w.TG.haptic('success');
       });
+      if (ruleSaveCalc) {
+        ruleSaveCalc.addEventListener('click', function () {
+          var part = smartVal(ruleIn.value);
+          var sr = (seriIn.value || seri || '').trim();
+          var bId = brandId, bNama = brandNama;
+          if (!ruleCur || part <= 0) {
+            alertErr('Pilih aturan dan isi harga part terlebih dahulu');
+            return;
+          }
+          if (!sr) {
+            alertErr('Isi Seri HP terlebih dahulu untuk menyimpan ke Kalkulator');
+            seriIn.focus();
+            return;
+          }
+          var est = estDari(part, ruleCur);
+          var res = upsertTplBrandSeri(bId, sr, ruleCur, part, est, bNama);
+          if (!res || res.ok === false) {
+            alertErr('Gagal menyimpan: ' + (res && res.reason ? res.reason : 'Periksa brand dan seri'));
+            return;
+          }
+          toast('Estimasi ' + (ruleCur.name || ruleCur.id) + ' tersimpan ke Kalkulator Servis HP');
+          isiSeriList();
+          gambarKalk();
+          if (w.TG && w.TG.haptic) w.TG.haptic('success');
+        });
+      }
 
       /* ---- tab Manual ---- */
       function cekManual() {
-        var harga = angka(costIn.value);
+        var harga = smartVal(costIn.value);
         manAdd.disabled = !((nameIn.value || '').trim() && harga > 0);
         if (manInfo) manInfo.textContent = '';
       }
+      setupSmartCalcInput(costIn, 'Harga Part (Manual)', function () { cekManual(); });
       nameIn.addEventListener('input', cekManual);
       costIn.addEventListener('input', cekManual);
       manAdd.addEventListener('click', function () {
-        var nama = (nameIn.value || '').trim(), harga = angka(costIn.value);
+        var nama = (nameIn.value || '').trim(), harga = smartVal(costIn.value);
         if (!nama || harga <= 0) return;
         tambah.push({ name: nama, cost: harga, est: 0, rule: null, simpanKalk: false });
         nameIn.value = ''; costIn.value = '';
@@ -3437,11 +3759,14 @@
           ? tambah.map(function (p, i) {
               return '<div class="mc-part mc-part2">' +
                 '<input class="mc-inp sm" data-spname="' + i + '" value="' + esc(p.name) + '" placeholder="Nama sparepart" aria-label="Nama sparepart">' +
-                '<input class="mc-inp sm" data-spcost="' + i + '" inputmode="numeric" value="' + (p.cost || '') + '" placeholder="Harga (Rp)" aria-label="Harga part">' +
+                '<div class="mc-calc-field sm">' +
+                  '<input class="mc-inp sm" data-spcost="' + i + '" inputmode="text" value="' + (p.cost || '') + '" placeholder="Harga (Rp)" aria-label="Harga part">' +
+                  '<button type="button" class="mc-btn-calc sm" data-spcost-btn="' + i + '" title="Kalkulator">🧮</button>' +
+                '</div>' +
                 '<button type="button" class="mc-x" data-spdel="' + i + '" aria-label="Hapus dari daftar">\u2715</button>' +
               '</div>';
             }).join('')
-          : '<p class="mc-empty sm">Belum ada sparepart di daftar.</p>';
+          : (modeCur === 'kalk' ? '' : '<p class="mc-empty sm">Belum ada sparepart di daftar.</p>');
         hitungTotal();
       }
       listBox.addEventListener('input', function (e) {
@@ -3452,13 +3777,31 @@
         } else if (t.dataset.spcost != null) {
           i = +t.dataset.spcost;
           if (tambah[i]) {
-            tambah[i].cost = angka(t.value);
+            tambah[i].cost = smartVal(t.value);
             tambah[i].est = tambah[i].rule ? estDari(tambah[i].cost, tambah[i].rule) : 0;
           }
         }
         hitungTotal();
       });
       listBox.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-spcost-btn]');
+        if (btn) {
+          var idx = +btn.dataset.spcostBtn;
+          var inEl = listBox.querySelector('[data-spcost="' + idx + '"]');
+          if (inEl && tambah[idx]) {
+            openSmartCalcKeypad({
+              title: 'Harga ' + (tambah[idx].name || 'Part'),
+              target: inEl,
+              initialValue: inEl.value,
+              onApply: function (val) {
+                tambah[idx].cost = val;
+                tambah[idx].est = tambah[idx].rule ? estDari(val, tambah[idx].rule) : 0;
+                hitungTotal();
+              }
+            });
+          }
+          return;
+        }
         var d = e.target.closest('[data-spdel]');
         if (!d) return;
         tambah.splice(+d.dataset.spdel, 1);
@@ -3559,7 +3902,11 @@
       '<p class="mc-hint">Sisa tagihan: <b class="' + (sisa > 0 ? 'neg' : 'pos') + '">' + rupiah(sisa) + '</b></p>' +
       '<div class="mc-amtrow">' +
         '<label class="mc-field"><span class="mc-lbl">Nominal (Rp) *</span>' +
-        '<input class="mc-inp" id="payAmt" inputmode="numeric" value="' + (sisa > 0 ? sisa : '') + '"></label>' +
+        '<div class="mc-calc-field">' +
+          '<input class="mc-inp" id="payAmt" inputmode="text" value="' + (sisa > 0 ? sisa : '') + '">' +
+          '<button type="button" class="mc-btn-calc" data-target="payAmt" title="Buka Kalkulator Cerdas">🧮</button>' +
+        '</div>' +
+        '</label>' +
         (sisa > 0 ? '<button class="mc-lunasi" id="payFull">Lunasi</button>' : '') +
       '</div>' +
       (dp ? '<label class="mc-check"><input type="checkbox" id="payDp"> Tandai sebagai DP</label>' : '') +
@@ -3568,6 +3915,9 @@
       '<p class="mc-hint sm">Garansi &amp; metode pembayaran diminta setelah lunas, satu langkah lagi.</p>' +
       (sisa > 0 ? '' : '<p class="mc-warn">Nota ini sudah lunas. Pembayaran lagi hanya untuk refund atau koreksi.</p>'),
       function (body) {
+        var payInp = $('#payAmt');
+        if (payInp) setupSmartCalcInput(payInp, 'Nominal Pembayaran');
+
         // Tombol Lunasi: isi nominal dengan sisa tagihan, satu ketukan.
         var fullBtn = $('#payFull');
         if (fullBtn) fullBtn.addEventListener('click', function () {
@@ -3580,7 +3930,7 @@
         b.style.marginTop = '12px';
         b.textContent = 'Simpan Pembayaran';
         b.addEventListener('click', function () {
-          var amt = parseInt(String($('#payAmt').value).replace(/\D/g, ''), 10) || 0;
+          var amt = smartVal($('#payAmt').value);
           if (amt <= 0) { alertErr('Nominal harus lebih dari 0'); return; }
           var isDp = dp && $('#payDp') && $('#payDp').checked;
           var note = ($('#payNote').value || '').trim();

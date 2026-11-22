@@ -79,12 +79,10 @@
     // Dari "Cancel" hanya boleh ke "Cancel Diambil": barang tetap keluar
     // meskipun dibatalkan, jadi tanggal pengambilan tetap tercatat.
     'Cancel': ['Cancel Diambil'],
-    // Dari "Done Diambil" (pelanggan sudah ambil & bayar) satu jalan keluar
-    // nyata saja: Return bila trouble dalam masa garansi. Cancel DIHAPUS di
-    // sini — aturan umum: tombol Cancel HANYA muncul untuk status Done &
-    // Progress. Seharusnya tidak ada jalan batal semata-mata dari kondisi
-    // sudah-lunas/atur.
-    'Done Diambil': ['Return'],
+    // Dari "Done Diambil" (pelanggan sudah ambil & bayar) jalan keluar:
+    // Return bila trouble dalam masa garansi, atau Done untuk antisipasi
+    // jika terjadi kesalahan (total biaya, modal sparepart, jasa, dll).
+    'Done Diambil': ['Done', 'Return'],
     'Cancel Diambil': [],
     // Unit yang sedang dikerjakan ulang (Return) boleh diselesaikan atau
     // diambil kembali tanpa lewat Done. Cancel juga dihapus dari sini
@@ -1567,7 +1565,24 @@
     // Barang yang sudah diambil = modal sparepart tidak lagi tertahan,
     // jadi sisa Dana Bank nota ini dilunasi otomatis.
     var settled = 0;
-    if (status === 'Done Diambil') settled = settleBankOnTaken(id);
+    if (status === 'Done Diambil') {
+      settled = settleBankOnTaken(id);
+    } else if (o.serviceStatus === 'Done Diambil' && status === 'Done') {
+      // Antisipasi kesalahan: jika nota dikembalikan ke Done dari Done Diambil,
+      // batalkan pelunasan otomatis Dana Bank supaya modal kembali tertahan.
+      var autoSettled = db.bank.filter(function (b) {
+        return b.orderId === id && !b.reversedAt && b.description && b.description.indexOf('Lunasi Dana Bank otomatis') >= 0;
+      });
+      autoSettled.forEach(function (b) {
+        b.reversedAt = nowIso();
+        if (w.NavaBank && typeof w.NavaBank.remove === 'function') {
+          try { w.NavaBank.remove(b.id); } catch (eRem) {}
+        }
+      });
+      db.bank = db.bank.filter(function (b) {
+        return !(b.orderId === id && b.description && b.description.indexOf('Lunasi Dana Bank otomatis') >= 0);
+      });
+    }
     save();
     // Jasa masuk ke cashflow Project Nava begitu garapan selesai (Done /
     // Done Diambil), langsung tersimpan saat itu juga.

@@ -4607,4 +4607,88 @@ body.mc-bb-active.mc-bb-rotated-css #mc {
   white-space: nowrap;
 }
 
+/* =========================================================
+   MAS CIM — KALKULATOR CERDAS INPUT & MODAL KEYPAD
+   ========================================================= */
+.mc-calc-field{
+  position:relative; display:flex; align-items:center; width:100%;
+}
+.mc-calc-field .mc-inp{
+  padding-right:38px !important; width:100%;
+}
+.mc-calc-field.sm .mc-inp{
+  padding-right:32px !important;
+}
+.mc-btn-calc{
+  position:absolute; right:4px; top:50%; transform:translateY(-50%);
+  background:transparent; border:none; padding:4px 6px; font-size:16px;
+  cursor:pointer; opacity:0.85; transition:transform 0.1s, opacity 0.1s;
+  display:inline-flex; align-items:center; justify-content:center;
+  z-index:2;
+}
+.mc-btn-calc:active{
+  transform:translateY(-50%) scale(0.9); opacity:1;
+}
+.mc-btn-calc.sm{
+  font-size:14px; padding:2px 4px; right:2px;
+}
+.mc-sp-rule-acts{
+  display:flex; gap:8px; align-items:stretch; margin-top:8px;
+}
+.mc-sp-rule-acts button{
+  flex:1;
+}
+.mc-disk-btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  color:#38bdf8 !important; border-color:#0284c7 !important;
+}
+.mc-disk-btn:disabled{
+  opacity:0.4; cursor:default;
+}
+
+/* Modal Bottom Sheet Keypad Kalkulator Cerdas */
+.mc-calc-overlay{
+  position:fixed; top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.68); z-index:99999;
+  display:flex; flex-direction:column; justify-content:flex-end;
+  animation:mcFadeIn 0.15s ease-out;
+}
+.mc-calc-overlay.hidden{ display:none !important; }
+.mc-calc-modal-box{
+  background:#18181b; border-top:1px solid #27272a;
+  border-top-left-radius:20px; border-top-right-radius:20px;
+  overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 -6px 28px rgba(0,0,0,0.7);
+  max-width:480px; margin:0 auto; width:100%;
+  animation:mcSlideUp 0.18s ease-out;
+}
+.mc-calc-header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 16px 8px; border-bottom:1px solid #27272a;
+}
+.mc-calc-title{
+  font-size:14px; font-weight:700; color:#e4e4e7;
+}
+.mc-calc-close{
+  background:none; border:none; font-size:18px; color:#a1a1aa;
+  cursor:pointer; padding:4px 8px; border-radius:6px;
+}
+.mc-calc-close:active{ background:#27272a; color:#fff; }
+.mc-calc-screen{
+  padding:12px 18px 8px; background:#09090b; display:flex;
+  flex-direction:column; align-items:flex-end; min-height:68px;
+  justify-content:center; border-bottom:1px solid #27272a;
+}
+.mc-calc-expr{
+  font-size:22px; font-weight:700; color:#f4f4f5; letter-spacing:0.5px;
+  word-break:break-all; text-align:right; font-variant-numeric:tabular-nums;
+}
+.mc-calc-preview{
+  font-size:13px; font-weight:600; color:#38bdf8; margin-top:2px;
+  text-align:right;
+}
+@keyframes mcFadeIn{ from{ opacity:0; } to{ opacity:1; } }
+@keyframes mcSlideUp{ from{ transform:translateY(100%); } to{ transform:translateY(0); } }
+
+
 
