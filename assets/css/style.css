@@ -2066,6 +2066,27 @@ select.mc-inp{ appearance:none; }
 .mc-hint{ font-size:13px; color:var(--mc-txt2); margin:0 0 10px; }
 .mc-hint.ok{ color:var(--mc-grn); }
 .mc-submit{ margin-top:14px; }
+.mc-submit-row{
+  display:flex !important;
+  gap:8px !important;
+  align-items:stretch !important;
+}
+.mc-submit-row #fSaveOpen{
+  flex:2.2 !important;
+  margin:0 !important;
+  min-height:46px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.mc-submit-row #fExit{
+  flex:1 !important;
+  margin:0 !important;
+  min-height:46px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
 /* tombol seluler lebar penuh, untuk di dalam sheet */
 .mc-ghost-btn.block{ display:block; width:100%; margin:0 0 8px; text-align:left; }
 
@@ -4689,6 +4710,37 @@ body.mc-bb-active.mc-bb-rotated-css #mc {
 }
 @keyframes mcFadeIn{ from{ opacity:0; } to{ opacity:1; } }
 @keyframes mcSlideUp{ from{ transform:translateY(100%); } to{ transform:translateY(0); } }
+
+/* Sheet Pemilih Kontak HP & Riwayat */
+.mc-contact-picker{
+  display:flex; flex-direction:column; gap:10px; max-height:75vh;
+}
+.mc-contact-actions{
+  display:flex; gap:8px; flex-wrap:wrap; margin-bottom:4px;
+}
+.mc-contact-act-btn{
+  flex:1 1 calc(50% - 4px); min-height:42px; border-radius:10px;
+  background:var(--mc-card2, #1f2923); border:1px solid var(--mc-line, #2d3b32);
+  color:var(--mc-txt, #e4e4e7); font-size:13px; font-weight:600;
+  cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;
+  padding:8px 10px; text-align:center; transition:all 0.12s ease;
+}
+.mc-contact-act-btn:active{ transform:scale(0.98); background:rgba(34,197,94,0.18); }
+.mc-contact-search-box{ position:relative; width:100%; margin-bottom:4px; }
+.mc-contact-list{
+  overflow-y:auto; max-height:280px; display:flex; flex-direction:column; gap:6px;
+  padding-right:2px;
+}
+.mc-contact-item{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 12px; background:var(--mc-card, #141a17);
+  border:1px solid var(--mc-line, #26322b); border-radius:10px;
+  cursor:pointer; transition:all 0.12s ease; text-align:left; width:100%;
+}
+.mc-contact-item:active{ background:rgba(34,197,94,0.18); border-color:var(--mc-grn, #22c55e); }
+.mc-contact-name{ font-size:14px; font-weight:700; color:#fff; }
+.mc-contact-tel{ font-size:13px; color:var(--mc-grn, #22c55e); font-variant-numeric:tabular-nums; margin-top:2px; }
+
 
 
 

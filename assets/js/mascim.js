@@ -1178,10 +1178,7 @@
         '<div class="mc-wa">' +
           '<input class="mc-inp" id="fWa" inputmode="tel" value="' + esc(d.whatsapp) +
             '" placeholder="WhatsApp * (Wajib)">' +
-          '<button type="button" class="mc-wa-contact-btn" id="fPickContact" title="Ambil nomor dari Kontak HP">📱 Kontak</button>' +
-          '<a class="mc-wa-btn' + (validWa(d.whatsapp) ? '' : ' hidden') + '" id="fWaBtn" ' +
-            (validWa(d.whatsapp) ? 'href="https://wa.me/' + waNum(d.whatsapp) + '"' : '') +
-            ' target="_blank" rel="noopener">Chat</a>' +
+          '<button type="button" class="mc-wa-contact-btn' + (d.whatsapp ? ' mc-none' : '') + '" id="fPickContact" title="Ambil nomor dari Kontak HP">📱 Kontak</button>' +
         '</div>' +
       '</div></div>';
 
@@ -1313,10 +1310,9 @@
     // detail. Mesinya juga mengunci nilai ini, jadi mustahil nota dibuat
     // langsung jadi Done / Cancel lewat form.
 
-    // Hanya satu tombol aksi. Setelah tersimpan, warnanya berubah kuning
-    // sebagai tanda progres, jadi tidak perlu tombol "Simpan" terpisah —
-    // yang diklik tetap "Simpan & Buka Detail".
-    html += '<div class="mc-submit">' +
+    // Dua tombol aksi berdampingan sejajar (Simpan & Buka Detail dan Exit).
+    // Dibuat rapi dan minimalis dalam satu baris.
+    html += '<div class="mc-submit mc-submit-row">' +
       '<button class="mc-ghost-btn" id="fSaveOpen">Simpan &amp; Buka Detail</button>' +
       '<button class="mc-ghost-btn danger" id="fExit">Exit</button>' +
     '</div>';
@@ -1334,42 +1330,284 @@
   function waNum(v) { return String(v).replace(/[\s-]/g, '').replace(/^0/, '62'); }
 
   /* ------------------------------------------------------------
-     Ambil kontak dari HP pengguna (Contact Picker API).
+     Ambil kontak dari HP pengguna (Contact Picker API + Fallback Interaktif).
      Memungkinkan teknisi memilih kontak dari daftar kontak perangkat
      untuk otomatis mengisi nomor WhatsApp dan nama pelanggan.
   ------------------------------------------------------------ */
-  function pilihKontakHP() {
-    if (!('contacts' in navigator && 'ContactsManager' in window)) {
-      toast('Fitur kontak langsung tidak didukung browser ini. Silakan ketik nomor WhatsApp secara manual.');
-      return;
+  function terapkanKontak(tel, name) {
+    var rawTel = String(tel || '').replace(/[\s\-\(\)]/g, '');
+    if (rawTel.indexOf('+62') === 0) rawTel = '0' + rawTel.slice(3);
+    else if (rawTel.indexOf('62') === 0 && rawTel.length > 9) rawTel = '0' + rawTel.slice(2);
+
+    var waInput = document.getElementById('fWa');
+    var nameInput = document.getElementById('fName');
+    if (waInput) {
+      waInput.value = rawTel;
+      waInput.dispatchEvent(new Event('input', { bubbles: true }));
+      waInput.dispatchEvent(new Event('change', { bubbles: true }));
     }
-    var props = ['tel', 'name'];
-    var opts = { multiple: false };
-    navigator.contacts.select(props, opts).then(function (contacts) {
-      if (!contacts || !contacts.length) return;
-      var c = contacts[0];
-      var tel = (c.tel && c.tel[0]) ? c.tel[0] : '';
-      var name = (c.name && c.name[0]) ? c.name[0] : '';
+    if (name && nameInput) {
+      nameInput.value = name;
+      nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+      nameInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if (M.draft) {
+      M.draft.whatsapp = rawTel;
+      if (name) M.draft.customer_name = name;
+    }
+    var pickBtn = document.getElementById('fPickContact');
+    if (pickBtn) pickBtn.classList.add('mc-none');
+    toast('Kontak ' + (name ? name + ' ' : '') + 'berhasil dimuat');
+    if (w.TG && w.TG.haptic) w.TG.haptic('success');
+  }
+
+  function pilihKontakHP() {
+    // 1. Coba Native Contact Picker API jika didukung oleh browser/perangkat
+    if ('contacts' in navigator && 'ContactsManager' in window && typeof navigator.contacts.select === 'function') {
+      try {
+        var p = navigator.contacts.select(['tel', 'name'], { multiple: false });
+        if (p && typeof p.then === 'function') {
+          p.then(function (contacts) {
+            if (contacts && contacts.length > 0) {
+              var c = contacts[0];
+              var tel = (c.tel && c.tel[0]) ? c.tel[0] : '';
+              var name = (c.name && c.name[0]) ? c.name[0] : '';
+              if (tel || name) {
+                terapkanKontak(tel, name);
+                return;
+              }
+            }
+          }).catch(function (err) {
+            if (err && err.name === 'AbortError') return; // dibatalkan oleh pengguna
+            bukaSheetKontak();
+          });
+          return;
+        }
+      } catch (e) {
+        // Fallback ke sheet
+      }
+    }
+    // 2. Jika tidak didukung WebView (mis. Telegram in-app browser), buka sheet pemilih kontak
+    bukaSheetKontak();
+  }
+
+  function parseVCF(text) {
+    var list = [];
+    var cards = text.split(/BEGIN:VCARD/i);
+    for (var i = 1; i < cards.length; i++) {
+      var c = cards[i];
+      var fnMatch = c.match(/FN[^\:]*:(.*)/i);
+      var name = fnMatch ? fnMatch[1].trim() : '';
+      var telMatch = c.match(/TEL[^\:]*:(.*)/i);
+      var tel = telMatch ? telMatch[1].trim().replace(/[\s\-\(\)]/g, '') : '';
       if (tel) {
-        var rawTel = tel.replace(/[\s\-\(\)]/g, '');
-        var waInput = document.getElementById('fWa');
-        if (waInput) {
-          waInput.value = rawTel;
-          waInput.dispatchEvent(new Event('input'));
-        }
-        if (M.draft) M.draft.whatsapp = rawTel;
+        list.push({ name: name || 'Tanpa Nama', tel: tel });
       }
-      if (name) {
-        var nameInput = document.getElementById('fName');
-        if (nameInput && !nameInput.value.trim()) {
-          nameInput.value = name;
-          if (M.draft) M.draft.customer_name = name;
+    }
+    return list;
+  }
+
+  function ambilSemuaKontakTersimpan() {
+    var map = {};
+    var list = [];
+    // Dari riwayat order Mas Cim
+    try {
+      var db = (window.MascimLocal && window.MascimLocal._db) ? window.MascimLocal._db() : null;
+      var orders = db ? (db.orders || []) : (M.list || []);
+      orders.forEach(function (o) {
+        var tel = String(o.whatsapp || '').replace(/[\s\-\(\)]/g, '');
+        var name = (o.customerName || '').trim();
+        if (tel && !map[tel]) {
+          map[tel] = true;
+          list.push({ name: name || 'Pelanggan', tel: tel });
+        }
+      });
+    } catch (eO) {}
+
+    // Dari kontak vcf yang pernah diimpor
+    try {
+      var savedVcf = JSON.parse(localStorage.getItem('mc_saved_vcf_contacts') || '[]');
+      if (Array.isArray(savedVcf)) {
+        savedVcf.forEach(function (c) {
+          var tel = String(c.tel || '').replace(/[\s\-\(\)]/g, '');
+          if (tel && !map[tel]) {
+            map[tel] = true;
+            list.push({ name: c.name || 'Kontak HP', tel: tel });
+          }
+        });
+      }
+    } catch (eV) {}
+
+    return list;
+  }
+
+  function bukaSheetKontak() {
+    var kontakList = ambilSemuaKontakTersimpan();
+    var isTg = !!(w.Telegram && w.Telegram.WebApp && w.Telegram.WebApp.initData);
+
+    var html = '<div class="mc-contact-picker">' +
+      '<p class="mc-hint sm">Pilih kontak pelanggan dari riwayat servis, tempel dari salinan kontak HP, atau impor file kontak HP.</p>' +
+      '<div class="mc-contact-actions">' +
+        '<button type="button" class="mc-contact-act-btn" id="mcBtnPasteContact">📋 Tempel dari Salinan</button>' +
+        '<label class="mc-contact-act-btn" id="mcLblImportVcf" style="margin:0;cursor:pointer">' +
+          '📁 Impor Kontak HP (.vcf)' +
+          '<input type="file" id="mcFileVcf" accept=".vcf,text/vcard" style="display:none">' +
+        '</label>' +
+        (isTg ? '<button type="button" class="mc-contact-act-btn" id="mcBtnOpenChrome" style="flex:1 1 100%">🌐 Buka di Chrome HP (Kontak Langsung)</button>' : '') +
+      '</div>' +
+      '<div class="mc-contact-search-box">' +
+        '<input class="mc-inp sm" id="mcContactSearch" placeholder="🔍 Cari nama atau nomor HP...">' +
+      '</div>' +
+      '<div class="mc-contact-list" id="mcContactList"></div>' +
+    '</div>';
+
+    sheetOrWarn('Ambil Kontak HP', html, function (body) {
+      var q = function (sel) { return $(sel, body); };
+      var listEl = q('#mcContactList');
+      var searchIn = q('#mcContactSearch');
+      var pasteBtn = q('#mcBtnPasteContact');
+      var vcfIn = q('#mcFileVcf');
+      var chromeBtn = q('#mcBtnOpenChrome');
+
+      function renderList(filter) {
+        filter = (filter || '').toLowerCase().trim();
+        var filtered = kontakList.filter(function (c) {
+          if (!filter) return true;
+          return c.name.toLowerCase().indexOf(filter) >= 0 || c.tel.indexOf(filter) >= 0;
+        });
+
+        if (!filtered.length) {
+          listEl.innerHTML = '<p class="mc-empty sm">' +
+            (filter ? 'Tidak ada kontak yang cocok dengan "' + esc(filter) + '".' : 'Belum ada kontak tersimpan. Gunakan "Tempel dari Salinan" atau "Impor Kontak HP".') +
+          '</p>';
+          return;
+        }
+
+        listEl.innerHTML = filtered.map(function (c, i) {
+          return '<button type="button" class="mc-contact-item" data-ci="' + i + '">' +
+            '<div><div class="mc-contact-name">' + esc(c.name) + '</div>' +
+            '<div class="mc-contact-tel">' + esc(c.tel) + '</div></div>' +
+            '<span class="mc-badge ok">Pilih</span>' +
+          '</button>';
+        }).join('');
+      }
+
+      renderList('');
+
+      if (searchIn) {
+        searchIn.addEventListener('input', function () {
+          renderList(searchIn.value);
+        });
+      }
+
+      listEl.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-ci]');
+        if (!b) return;
+        var filter = (searchIn ? searchIn.value : '').toLowerCase().trim();
+        var filtered = kontakList.filter(function (c) {
+          if (!filter) return true;
+          return c.name.toLowerCase().indexOf(filter) >= 0 || c.tel.indexOf(filter) >= 0;
+        });
+        var c = filtered[+b.dataset.ci];
+        if (c) {
+          tutupSheet();
+          terapkanKontak(c.tel, c.name);
+        }
+      });
+
+      // Tombol Tempel dari Salinan (Clipboard)
+      if (pasteBtn) {
+        pasteBtn.addEventListener('click', function () {
+          if (navigator.clipboard && navigator.clipboard.readText) {
+            navigator.clipboard.readText().then(function (text) {
+              if (!text || !text.trim()) {
+                toast('Salinan di papan klip kosong. Salin nomor dari Kontak HP terlebih dahulu.');
+                return;
+              }
+              prosesTeksKontak(text);
+            }).catch(function () {
+              mintaKetikTempel();
+            });
+          } else {
+            mintaKetikTempel();
+          }
+        });
+      }
+
+      function mintaKetikTempel() {
+        var isi = prompt('Tempel nama / nomor kontak dari HP di sini:');
+        if (isi) prosesTeksKontak(isi);
+      }
+
+      function prosesTeksKontak(text) {
+        var lines = text.split(/[\r\n]+/);
+        var foundTel = '', foundName = '';
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i].trim();
+          var digits = line.replace(/[^\d+]/g, '');
+          if ((/^(\+?62|0)\d{8,14}$/).test(digits) || (digits.length >= 9 && digits.length <= 15)) {
+            foundTel = digits;
+            if (i > 0 && lines[0].trim() && !lines[0].match(/\d{5}/)) {
+              foundName = lines[0].trim();
+            }
+            break;
+          }
+        }
+        if (!foundTel) {
+          var anyDigits = text.replace(/[^\d+]/g, '');
+          if (anyDigits.length >= 9) foundTel = anyDigits;
+        }
+        if (foundTel) {
+          tutupSheet();
+          terapkanKontak(foundTel, foundName);
+        } else {
+          toast('Tidak ditemukan nomor telepon valid pada teks.');
         }
       }
-      toast('Kontak berhasil dimuat');
-    }).catch(function (err) {
-      if (err && err.name !== 'TypeError' && err.name !== 'AbortError') {
-        console.warn('Contact picker error:', err);
+
+      // Impor file VCF dari HP
+      if (vcfIn) {
+        vcfIn.addEventListener('change', function () {
+          var file = vcfIn.files && vcfIn.files[0];
+          if (!file) return;
+          var reader = new FileReader();
+          reader.onload = function (ev) {
+            var content = ev.target.result;
+            var parsed = parseVCF(content);
+            if (!parsed.length) {
+              toast('Tidak ada kontak yang terbaca dari file vCard.');
+              return;
+            }
+            try {
+              var old = JSON.parse(localStorage.getItem('mc_saved_vcf_contacts') || '[]');
+              var map = {};
+              old.forEach(function (x) { map[x.tel] = x; });
+              parsed.forEach(function (x) { map[x.tel] = x; });
+              var merged = Object.keys(map).map(function (k) { return map[k]; });
+              localStorage.setItem('mc_saved_vcf_contacts', JSON.stringify(merged));
+            } catch (eSave) {}
+            toast(parsed.length + ' kontak HP berhasil diimpor!');
+            kontakList = ambilSemuaKontakTersimpan();
+            renderList(searchIn ? searchIn.value : '');
+          };
+          reader.readAsText(file);
+        });
+      }
+
+      // Buka di browser luar (Chrome)
+      if (chromeBtn) {
+        chromeBtn.addEventListener('click', function () {
+          var targetUrl = 'https://app8842237612.tgcloud.ai/';
+          try {
+            if (w.Telegram && w.Telegram.WebApp && typeof w.Telegram.WebApp.openLink === 'function') {
+              w.Telegram.WebApp.openLink(targetUrl);
+            } else {
+              w.open(targetUrl, '_blank');
+            }
+          } catch (eLink) {
+            w.open(targetUrl, '_blank');
+          }
+        });
       }
     });
   }
@@ -1768,22 +2006,19 @@
     // Tombol Chat WhatsApp muncul begitu nomornya valid, tanpa perlu
     // menggambar ulang seluruh form (supaya kursor tidak hilang).
     var waIn = $('#fWa');
+    var pickContactBtn = $('#fPickContact');
+    function updateContactBtnVisibility() {
+      if (!pickContactBtn || !waIn) return;
+      var hasWa = !!(waIn.value || '').trim();
+      pickContactBtn.classList.toggle('mc-none', hasWa);
+    }
     if (waIn) {
       waIn.addEventListener('input', function () {
-        var btn = $('#fWaBtn');
-        if (!btn) return;
-        var v = waIn.value.trim();
-        if (validWa(v)) {
-          btn.setAttribute('href', 'https://wa.me/' + waNum(v));
-          btn.classList.remove('hidden');
-        } else {
-          btn.removeAttribute('href');
-          btn.classList.add('hidden');
-        }
+        updateContactBtnVisibility();
       });
     }
+    updateContactBtnVisibility();
 
-    var pickContactBtn = $('#fPickContact');
     if (pickContactBtn) {
       pickContactBtn.addEventListener('click', function (e) {
         e.preventDefault();
