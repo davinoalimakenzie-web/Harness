@@ -3748,23 +3748,12 @@ button, .btn, .tool, .mini-btn, .tpl-brand-btn, .k-pick-btn, .nav-btn, .seg butt
     var(--mc-bg);
 }
 
-/* --- kartu ringkasan: gradien hidup + kilau tipis --- */
+/* --- kartu ringkasan: gradien hidup --- */
 .mc-hero{
   position:relative; overflow:hidden;
   background:linear-gradient(140deg,#0f3a29 0%,#0d1f18 45%,#101b2b 100%);
   border:1px solid rgba(34,211,238,.22);
   box-shadow:0 10px 30px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05);
-}
-.mc-hero::after{
-  content:''; position:absolute; inset:-40% -10%;
-  background:linear-gradient(115deg, transparent 38%, rgba(34,211,238,.16) 50%, transparent 62%);
-  transform:translateX(-120%);
-  animation:mcSheen 7s ease-in-out infinite;
-  pointer-events:none;
-}
-@keyframes mcSheen{
-  0%,55%{ transform:translateX(-120%); }
-  85%,100%{ transform:translateX(120%); }
 }
 .mc-hero-lbl{ letter-spacing:1.2px; }
 .mc-hero-val{ text-shadow:0 0 22px rgba(31,191,107,.35); }
@@ -3814,20 +3803,13 @@ button, .btn, .tool, .mini-btn, .tpl-brand-btn, .k-pick-btn, .nav-btn, .seg butt
 .mc-badge.st-cancel{ box-shadow:0 0 12px rgba(240,136,62,.26); }
 .mc-badge.st-cambil{ box-shadow:0 0 12px rgba(229,83,75,.28); }
 
-/* --- tombol utama: gradien + kilau --- */
+/* --- tombol utama: gradien solid --- */
 .mc-primary{
   position:relative; overflow:hidden;
   background:linear-gradient(135deg,#22c55e 0%,#16a34a 55%,#0e8f4b 100%) !important;
   color:#04140b !important;
   box-shadow:0 6px 20px rgba(34,197,94,.32), inset 0 1px 0 rgba(255,255,255,.35);
   letter-spacing:.3px;
-}
-.mc-primary::after{
-  content:''; position:absolute; top:0; bottom:0; width:40%;
-  background:linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
-  transform:translateX(-160%) skewX(-18deg);
-  animation:mcSheen 4.6s ease-in-out infinite;
-  pointer-events:none;
 }
 .mc-ghost-btn{
   background:linear-gradient(180deg, rgba(34,211,238,.06), rgba(27,35,31,.95));
@@ -3902,7 +3884,6 @@ button, .btn, .tool, .mini-btn, .tpl-brand-btn, .k-pick-btn, .nav-btn, .seg butt
 
 /* --- hormati pengaturan kurangi gerak --- */
 @media (prefers-reduced-motion: reduce){
-  .mc-hero::after, .mc-primary::after{ animation:none; }
   .mc-card{ animation:none; }
 }
 

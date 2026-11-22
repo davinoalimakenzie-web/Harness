@@ -66,6 +66,7 @@
      "350000" jadi "3" karena penjaga "hanya isi kalau masih kosong" melihat
      total yang sudah terisi digit pertama. */
   var estManualAwal = '';
+  var modalManualAwal = '';
 
   var M = {
     view: 'home',        // home | list | form | detail | money
@@ -1164,16 +1165,61 @@
 
     var html = '<div class="mc-pad">';
 
-    /* Nomor nota dan tanggal masuk TIDAK ditampilkan di form. Keduanya dibuat
-       sistem: nota terbit otomatis saat order pertama kali tersimpan berstatus
-       Progress, dan tanggal masuk selalu hari ini. Ditampilkan hanya bikin form
-       panjang tanpa gunanya — datanya tetap ada di record, cuma tidak perlu
-       ditanyakan. */
+    /* Kepala statis: alur langkah + tombol bantu navigasi cepat */
+    html += '<div class="mc-sticky">';
+
+    // 1. Panel alur: Langkah 1 dari 4 (Input aktif, Progress, Done, Done Diambil)
+    var formStep = 1;
+    if (editing) {
+      if (d.service_status === 'Done Diambil') formStep = 4;
+      else if (d.service_status === 'Done') formStep = 3;
+      else formStep = 2; // Progress
+    }
+    var stepItems = [
+      { num: 1, label: 'Input', cls: 'mc-step-input' },
+      { num: 2, label: 'Progress', cls: 'mc-step-progress' },
+      { num: 3, label: 'Done', cls: 'mc-step-done' },
+      { num: 4, label: 'Done Diambil', cls: 'mc-step-done-diambil' }
+    ];
+    var stepCls = function (n) {
+      if (n < formStep) return 'ok';
+      if (n === formStep) return 'on';
+      return '';
+    };
+
+    html += '<div class="mc-flow">' +
+      '<div class="mc-flow-top">' +
+        '<span class="mc-flow-step">Langkah ' + formStep + ' dari 4</span>' +
+        '<span class="mc-flow-sisa">' +
+          (editing ? '<b>Edit Servis</b>' : '<b>Servis Baru</b>') +
+        '</span>' +
+      '</div>' +
+      '<div class="mc-steps mc-steps-4">' +
+        stepItems.map(function (it, idx) {
+          var n = idx + 1;
+          var stCls = stepCls(n);
+          var iconHtml = stCls === 'ok' ? '\u2713' : String(n);
+          return '<div class="mc-step ' + it.cls + (stCls ? ' ' + stCls : '') + '">' +
+            '<i>' + iconHtml + '</i>' +
+            '<span>' + esc(it.label) + '</span>' +
+          '</div>';
+        }).join('') +
+      '</div>' +
+    '</div>';
+
+    // 2. Tombol bantu bar navigasi
+    html += '<div class="mc-quicknav">' +
+      '<button type="button" data-qn="qnPelanggan">Pelanggan</button>' +
+      '<button type="button" data-qn="qnDevice">Device</button>' +
+      '<button type="button" data-qn="qnKendala">Kendala</button>' +
+      '<button type="button" data-qn="qnKunci">Kunci</button>' +
+    '</div>';
+
+    html += '</div>'; // tutup .mc-sticky
 
     // Pelanggan
-    // Nama dan WhatsApp berdampingan dalam satu baris supaya tidak
-    // memakan tinggi form di layar HP.
-    html += '<div class="mc-field mc-pelanggan"><span class="mc-lbl">Nama Pelanggan &amp; WhatsApp *</span>' +
+    html += '<div class="mc-sec" id="qnPelanggan">Pelanggan &amp; WhatsApp</div>' +
+      '<div class="mc-field mc-pelanggan"><span class="mc-lbl">Nama Pelanggan &amp; WhatsApp *</span>' +
       '<div class="mc-row2">' +
         '<input class="mc-inp" id="fName" value="' + esc(d.customer_name) +
           '" placeholder="Contoh: Pak Budi" autocomplete="name">' +
@@ -1184,14 +1230,21 @@
         '</div>' +
       '</div></div>';
 
-    // Unit — brand + Estimasi Biaya.
-    // Estimasi biaya TIDAK diketik sebagai angka bebas: isinya harga yang
-    // benar-benar tersimpan di Kalkulator Service HP untuk brand itu, dan
-    // labelnya memuat seri + jenis part + estimasi. Memilih salah satu
-    // membawa seri itu sendiri (device tetap "Brand Seri") sekaligus
-    // menetapkan Total Biaya nota dari angka Kalkulator — bukan angka yang
-    // diketik ulang di sini.
-    html += field('Device *',
+    // Unit — brand + Estimasi Biaya (otomatis terisi ke Sparepart).
+    var autoPartHtml = '';
+    if (d.parts && d.parts.length && (parseInt(d.parts[0].capital_cost, 10) > 0) && d.est_sel !== 'Lainnya') {
+      var modalPart = parseInt(d.parts[0].capital_cost, 10) || 0;
+      var totalEst = parseInt(d.total_cost, 10) || 0;
+      var jasaEst = totalEst > modalPart ? (totalEst - modalPart) : 0;
+      autoPartHtml = '<div class="mc-money sm" id="fPartAutoBox" style="margin-top:8px">' +
+        '<div><span>Sparepart Otomatis</span><b>' + esc(d.parts[0].part_name) + '</b></div>' +
+        '<div><span>Modal Part (Kalkulator)</span><b class="neg">' + rupiah(modalPart) + '</b></div>' +
+        (jasaEst > 0 ? '<div><span>Estimasi Jasa Bersih</span><b class="pos">' + rupiah(jasaEst) + '</b></div>' : '') +
+      '</div>';
+    }
+
+    html += '<div class="mc-sec" id="qnDevice">Device &amp; Estimasi Biaya</div>' +
+      field('Device *',
       '<div class="mc-row2">' +
         '<select class="mc-inp" id="fBrand"><option value="">Pilih brand</option>' +
           (w.CalcUI && w.CalcUI.BRANDS ? w.CalcUI.BRANDS : []).map(function (b) {
@@ -1206,6 +1259,7 @@
         '<select class="mc-inp" id="fEstimasi"><option value="">Estimasi Biaya</option>' +
           '<option value="Lainnya">Lainnya (isi sendiri)\u2026</option></select>' +
       '</div>' +
+      autoPartHtml +
       '<input class="mc-inp sm' + (d.brand_id === 'Lainnya' ? '' : ' mc-none') +
       '" id="fBrandLain" value="' + esc(d.brand_lain || '') +
       '" placeholder="Nama brand (hanya jika pilih Lainnya\u2026)">' +
@@ -1213,42 +1267,36 @@
       '<input class="mc-inp sm mc-none" id="fSeriLain" value="' + esc(d.seri_lain || '') +
       '" placeholder="Model HP">' +
       '<div class="mc-calc-group mc-none" id="fEstGroup">' +
-        '<div class="mc-field" style="margin-top:6px">' +
-          '<span class="mc-lbl sm">Total Biaya (Estimasi)</span>' +
-          '<div class="mc-calc-field">' +
-            '<input class="mc-inp sm" id="fEstManual" inputmode="text" value="' +
-            esc(d.est_manual || '') + '" placeholder="Estimasi total biaya (Rp)">' +
-            '<button type="button" class="mc-btn-calc" data-target="fEstManual" title="Buka Kalkulator Cerdas">🧮</button>' +
+        '<div class="mc-row2" style="margin-top:6px">' +
+          '<div class="mc-field">' +
+            '<span class="mc-lbl sm">Total Biaya (Estimasi)</span>' +
+            '<div class="mc-calc-field">' +
+              '<input class="mc-inp sm" id="fEstManual" inputmode="text" value="' +
+              esc(d.est_manual || '') + '" placeholder="Estimasi total biaya (Rp)">' +
+              '<button type="button" class="mc-btn-calc" data-target="fEstManual" title="Buka Kalkulator Cerdas">🧮</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="mc-field">' +
+            '<span class="mc-lbl sm">Modal Sparepart (Rp)</span>' +
+            '<div class="mc-calc-field">' +
+              '<input class="mc-inp sm" id="fPartManual" inputmode="text" value="' +
+              esc(d.modal_manual || '') + '" placeholder="Modal part (opsional)">' +
+              '<button type="button" class="mc-btn-calc" data-target="fPartManual" title="Buka Kalkulator Cerdas">🧮</button>' +
+            '</div>' +
           '</div>' +
         '</div>' +
       '</div>');
-    // Kendala dan kondisi unit digabung jadi satu isian. Memisahkannya hanya
-    // menambah tinggi form tanpa menambah informasi: yang dicari teknisi tetap
-    // "apa yang rusak dan kondisi barang saat masuk". Satu teks ini disimpan di
-    // field `complaint` DAN disalin ke `intake_condition`, jadi bagian kondisi
-    // di nota pelanggan tetap terisi tanpa ada isian kedua.
-    // Urutan membaca teknisi: pelanggan -> device -> keluhan -> kunci layar.
-    // Urutan itu yang dipakai form ini, jadi setiap isian diletakkan sesuai
-    // urutan langkah teknisi saat menerima unit.
-
-    /* Estimasi biaya HANYA dari Kalkulator Service HP (dropdown Estimasi
-       Biaya di atas). Kalau harganya belum ada di Kalkulator, pemakai memilih
-       "Lainnya (isi sendiri)" dan mengetik model + estimasi manual. Sparepart
-       diisi setelah nota dibuat lewat tombol "+ Tambah Sparepart" di layar
-       detail, dan di sana semua harga selalu mengambil dari Kalkulator. */
 
     // Kendala & kondisi unit
-    html += field('Kendala &amp; kondisi unit *' +
-      '<span class="mc-sec-note"> tampil di nota pelanggan</span>',
+    html += '<div class="mc-sec" id="qnKendala">Kendala &amp; Kondisi Unit</div>' +
+      field('Kendala/kondisi unit *<span class="mc-sec-note"> tampil di nota pelanggan</span>',
       '<textarea class="mc-inp" id="fComplaint" rows="3" ' +
       'placeholder="Contoh: Layar pecah tidak bisa disentuh. Body penyok, kartu SIM tidak ada, speaker normal">'
       + esc(d.complaint || d.intake_condition) + '</textarea>');
 
-    // Kunci layar. Dipakai daftar centang (chip), bukan dropdown, karena
-    // teknisi tahu pilihannya tanpa perlu membuka menu. Kolom isian hanya
-    // muncul setelah ada yang dicentang, dan langsung disembunyikan lagi
-    // setelah terisi, supaya tidak memakan tempat di layar HP.
-    html += '<div class="mc-field"><span class="mc-lbl">Kunci Layar</span>' +
+    // Kunci layar
+    html += '<div class="mc-sec" id="qnKunci">Kunci Layar</div>' +
+      '<div class="mc-field"><span class="mc-lbl">Kunci Layar</span>' +
       '<div class="mc-locks" id="fLockChips">' +
       LOCK_TYPES.map(function (t) {
         return '<button type="button" class="mc-lockchip' +
@@ -1503,9 +1551,11 @@
     d.est_sel = (eSel && eSel.value) || '';
     d.seri_lain = (($('#fSeriLain') || {}).value || '').trim();
     d.est_manual = (($('#fEstManual') || {}).value || '').trim();
-    d.modal_manual = '';
+    var pManIn = $('#fPartManual');
+    if (pManIn) d.modal_manual = pManIn.value.trim();
     d.jasa_manual = '';
     var seri = '', est = '';
+    var partFromEst = null;
     if (d.est_sel && d.est_sel !== 'Lainnya') {
       /* Nilai dropdown = "SERI|ruleId". Estimasi diambil ULANG dari data
          Kalkulator (bukan dari teks label) supaya Total Biaya nota persis
@@ -1517,12 +1567,43 @@
         .filter(function (p) {
           return p && p.brandId === brandId && p.series === seri && p.ruleId === bits[1];
         })[0];
-      if (pilih) est = String(parseInt(pilih.est, 10) || 0);
+      if (pilih) {
+        est = String(parseInt(pilih.est, 10) || 0);
+        var partCost = parseInt(pilih.part, 10) || 0;
+        var r = ruleByRuleId(pilih.ruleId);
+        var partName = (r && (r.name || r.id)) || pilih.ruleId || 'Sparepart';
+        if (partCost > 0) {
+          partFromEst = { part_name: partName, capital_cost: String(partCost) };
+        }
+      }
     } else if (d.est_sel === 'Lainnya') {
       // Model + estimasi diketik manual: harga ini yang jadi Total Biaya nota.
       seri = d.seri_lain;
       var evalEst = smartVal(d.est_manual);
       if (evalEst) est = String(evalEst);
+      var evalPart = smartVal(d.modal_manual);
+      if (evalPart > 0) {
+        partFromEst = { part_name: 'Sparepart', capital_cost: String(evalPart) };
+      }
+    }
+
+    /* Update sparepart:
+       - Pada servis baru (!M.editing): selalu ikuti part dari kalkulator/manual
+       - Saat edit (M.editing): hanya ubah part jika dropdown estimasi atau modal manual benar-benar diubah oleh pengguna */
+    if (!M.editing) {
+      if (partFromEst) {
+        d.parts = [partFromEst];
+      } else if (d.est_sel === '' || (d.est_sel === 'Lainnya' && !d.modal_manual)) {
+        d.parts = [];
+      }
+    } else {
+      if (d.est_sel !== estAwalForm || d.modal_manual !== modalManualAwal) {
+        if (partFromEst) {
+          d.parts = [partFromEst];
+        } else if (d.est_sel === 'Lainnya' && !d.modal_manual) {
+          d.parts = [];
+        }
+      }
     }
     /* Nota lama yang tidak menyimpan pilihan estimasi (est_sel kosong) tetap
        harus menyimpan nama modelnya: ambil dari device yang tersimpan. Kunci
@@ -1667,7 +1748,7 @@
   }
 
   function ruleByRuleId(id) {
-    return (w.CalcUI.RULES || []).filter(function (r) { return r.id === id; })[0] || null;
+    return ((w.CalcUI && w.CalcUI.RULES) || []).filter(function (r) { return r.id === id; })[0] || null;
   }
 
   /* Semua entri Kalkulator untuk device ini, dikelompokkan per jenis. */
@@ -1780,6 +1861,7 @@
          Biaya di layar detail tidak dianggap "berubah" hanya karena kolom
          ini belum pernah disentuh. */
       estManualAwal = (($('#fEstManual') || {}).value || '').trim();
+      modalManualAwal = (($('#fPartManual') || {}).value || '').trim();
 
       var estManIn = $('#fEstManual');
       if (estManIn) {
@@ -1788,6 +1870,17 @@
         });
         estManIn.addEventListener('input', function () { readDraft(); });
       }
+
+      var partManIn = $('#fPartManual');
+      if (partManIn) {
+        setupSmartCalcInput(partManIn, 'Modal Sparepart', function () {
+          readDraft();
+        });
+        partManIn.addEventListener('input', function () { readDraft(); });
+      }
+
+      var seriLainIn = $('#fSeriLain');
+      if (seriLainIn) seriLainIn.addEventListener('input', function () { readDraft(); });
 
       brandSel.addEventListener('change', function () {
         dgnFokus(function () {
@@ -2056,6 +2149,34 @@
 
     // Status tidak lagi bisa dipilih di form ini; lihat catatan di renderForm.
 
+    bindStickySlim();
+    var qn = s ? s.querySelector('.mc-quicknav') : null;
+    if (qn) {
+      qn.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-qn]');
+        if (!b) return;
+        var target = document.getElementById(b.dataset.qn);
+        if (!target) return;
+        Array.prototype.forEach.call(qn.querySelectorAll('button'), function (x) {
+          x.classList.remove('on');
+        });
+        b.classList.add('on');
+        var scrEl = document.getElementById('mcScreen');
+        var headEl = scrEl && scrEl.querySelector('.mc-sticky');
+        var headH = (headEl && headEl.classList.contains('mc-slim'))
+          ? (headEl.offsetHeight + 8)
+          : 110;
+        if (scrEl) {
+          var y = target.getBoundingClientRect().top -
+                  scrEl.getBoundingClientRect().top + scrEl.scrollTop - headH;
+          scrEl.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+        } else {
+          target.scrollIntoView({ block: 'start' });
+        }
+        if (w.TG && TG.haptic) TG.haptic('select');
+      });
+    }
+
     // fSave tidak ada lagi — satu-satunya aksi adalah "Simpan & Buka Detail".
     // Tombol diklik -> berubah kuning dulu, baru submit(). Submit() sendiri
     // memanggil render() yang menghapus elemen ini, jadi tanpa jeda singkat
@@ -2159,13 +2280,14 @@
       screen_lock_secret: d.screen_lock_secret,
       handling: d.handling.trim(),
       total_cost: d.total_cost === '' ? 0 : parseInt(String(d.total_cost).replace(/\D/g, ''), 10),
-      parts: d.parts.filter(function (p) { return String(p.part_name || '').trim()})
-        .map(function (p) {
-          return {
-            part_name: String(p.part_name).trim(),
-            capital_cost: parseInt(String(p.capital_cost).replace(/\D/g, ''), 10) || 0,
-          };
-        }),
+      parts: d.parts.filter(function (p) {
+        return String(p.part_name || '').trim() && (parseInt(String(p.capital_cost).replace(/\D/g, ''), 10) > 0);
+      }).map(function (p) {
+        return {
+          part_name: String(p.part_name).trim(),
+          capital_cost: parseInt(String(p.capital_cost).replace(/\D/g, ''), 10) || 0,
+        };
+      }),
     };
 
     // Nota baru SELALU berstatus Progress (mesin data juga mengunci ini).

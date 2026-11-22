@@ -1403,11 +1403,15 @@
       idemKey: inp.idem_key || null
     };
     db.orders.push(o);
+    save();
 
     if (Array.isArray(inp.parts)) {
-      for (var i = 0; i < inp.parts.length; i++) addPart(id, inp.parts[i]);
+      for (var i = 0; i < inp.parts.length; i++) {
+        if (inp.parts[i] && inp.parts[i].part_name && Number(inp.parts[i].capital_cost) > 0) {
+          addPart(id, inp.parts[i]);
+        }
+      }
     }
-    save();
     return computeOrder(o);
   }
 
@@ -1505,6 +1509,18 @@
       cur.completedAt = isClosedStatus(nextStatus) ? (cur.completedAt || nowIso()) : null;
       if (nextStatus !== NGGANDUL) cur.nggandulReason = null;
     }
+
+    if (Array.isArray(patch.parts) && patch.parts.length) {
+      var existingParts = (db.parts || []).filter(function (p) { return p.orderId === id && !p.deletedAt; });
+      if (!existingParts.length) {
+        for (var pi = 0; pi < patch.parts.length; pi++) {
+          if (patch.parts[pi] && patch.parts[pi].part_name && Number(patch.parts[pi].capital_cost) > 0) {
+            addPart(id, patch.parts[pi]);
+          }
+        }
+      }
+    }
+
     save();
     // Bila nota tetap berstatus Done setelah edit, jasanya bisa berubah —
     // catatannya di Project Nava ikut diperbarui (atau dibuang bila status
