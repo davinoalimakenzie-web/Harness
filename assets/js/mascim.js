@@ -2322,11 +2322,15 @@
     /* Seksi Nota hanya ada kalau notanya sudah terbit atau memang sudah bisa
        diterbitkan. Di status Progress (belum selesai / belum lunas) seluruh
        bagian itu tidak ditampilkan, jadi chip "Nota" juga tidak perlu ada. */
+    var isDoneDiambil = (o.serviceStatus === 'Done Diambil');
     var tampilNota = !!(o.noteIssued && o.warrantyNote) || !!o.canIssueNote;
     html += '<div class="mc-quicknav">' +
       '<button type="button" data-qn="qnPelanggan">Pelanggan</button>' +
-      '<button type="button" data-qn="qnSparepart">Sparepart</button>' +
-      '<button type="button" data-qn="qnBiaya">Biaya</button>' +
+      (isDoneDiambil
+        ? '<button type="button" data-qn="qnBiaya">Biaya &amp; Penanganan</button>' +
+          '<button type="button" data-qn="qnPelunasan">Pelunasan</button>'
+        : '<button type="button" data-qn="qnSparepart">Sparepart</button>' +
+          '<button type="button" data-qn="qnBiaya">Biaya</button>') +
       (tampilNota ? '<button type="button" data-qn="qnNota">Nota</button>' : '') +
       '<button type="button" data-qn="qnStatus">Status</button>' +
     '</div>';
@@ -2389,217 +2393,271 @@
     html += '<div class="mc-sec">Kendala &amp; kondisi unit</div>' +
       kv('Kendala & kondisi unit', esc(kendalaTeks) || '-');
 
-    // Sparepart
-    html += '<div class="mc-sec" id="qnSparepart">Sparepart</div>';
-    if (o.parts.length) {
-      html += '<div class="mc-ptable">';
-      o.parts.forEach(function (p) {
-        // Hapus part hanya selama nota belum punya pembayaran (aturan mesin
-        // data: riwayat uang tidak boleh berubah diam-diam).
-        var bisaHapus = !(o.payments && o.payments.length);
-        html += '<div class="mc-prow"><span>' + esc(p.partName) +
-          '<em>' + esc(p.fundingSource) + '</em></span><b>' + rupiah(p.capitalCost) + '</b>' +
-          (bisaHapus ? '<button type="button" class="mc-x mc-x-sm" data-delpart="' + esc(p.id) + '" aria-label="Hapus ' + esc(p.partName) + '">\u2715</button>' : '') +
-          '</div>';
-      });
-      html += '</div>';
-    } else {
-      html += '<p class="mc-empty sm">Belum ada sparepart.</p>';
-    }
-    if (o.serviceStatus !== 'Done Diambil') {
-      html += '<button class="mc-ghost-btn" id="dAddPart">+ Tambah Sparepart</button>';
-    }
-
-    /* Rincian Biaya.
-       "Sudah Dibayar" dan "Sisa Pelunasan" HANYA ditampilkan saat nota sudah
-       masuk tahap bayar (Done / Done Diambil). Aturan Alima: pelunasan
-       dilakukan saat pengambilan unit, jadi di status Progress dua baris itu
-       hanya menampilkan Rp0 dan mengganggu. */
-    var tampilBayar = (o.serviceStatus === 'Done' || o.serviceStatus === 'Done Diambil');
-    html += '<div class="mc-sec" id="qnBiaya">Rincian Biaya</div>' +
-      '<div class="mc-money"><div><span>Total Biaya</span><b>' + rupiah(o.totalCost) + '</b></div>' +
-      '<div><span>Modal Sparepart</span><b class="neg">' + rupiah(o.totalPart) + '</b></div></div>' +
-      '<div class="mc-money"><div><span>Jasa</span><b class="pos">' + rupiah(o.serviceFee) + '</b></div>' +
-      (tampilBayar
-        ? '<div><span>Sudah Dibayar</span><b class="pos">' + rupiah(o.paid) + '</b></div>'
-        : '') + '</div>';
-    if (tampilBayar) {
-      html += '<div class="mc-money big"><div><span>Sisa Pelunasan</span><b class="' +
-        (o.remaining > 0 ? 'neg' : 'pos') + '">' + rupiah(o.remaining) + '</b></div></div>';
-    }
-    if (o.serviceFeeWarning) html += '<p class="mc-warn">' + esc(o.serviceFeeWarning) + '</p>';
-    if (o.overpaidAmount) {
-      html += '<p class="mc-warn">Kelebihan bayar ' + rupiah(o.overpaidAmount) + '. Catat sebagai refund atau koreksi.</p>';
-    }
-
-    /* Pembayaran: pembayaran/biaya baru diisi sebagai syarat mengubah status
-       ke Done, jadi bagian ini hanya relevan setelah tahap bayar tercapai. */
-    if (tampilBayar) {
-    html += '<div class="mc-sec">Pembayaran</div>';
-    if (o.payments.length) {
-      html += '<div class="mc-ptable">';
-      o.payments.forEach(function (p) {
-        var extra = [];
-        if (p.paymentMethod) extra.push('Metode: ' + esc(p.paymentMethod));
-        if (p.warranty) extra.push('Garansi: ' + esc(p.warranty));
-        html += '<div class="mc-prow"><span>' + tglJam(p.paidAt) + '<em>' + esc(p.paymentType) +
-          (extra.length ? ' · ' + extra.join(' · ') : '') + '</em></span><b class="pos">+' +
-          rupiah(p.amount) + '</b></div>';
-      });
-      html += '</div>';
-    } else {
-      html += '<p class="mc-empty sm">Belum ada pembayaran.</p>';
-    }
-    }
-
-    // Garansi & metode pembayaran. Dua tempat: nilai konfirmasi di level nota
-    // (dipakai setelah nota ditutup), dan nilai yang ikut tersimpan di riwayat
-    // pembayaran. Kalau nota sudah lunas tapi belum dikonfirmasi, tampilkan
-    // pengingat supaya pengguna tahu langkah terakhir apa yang kurang.
-    if (o.warranty || o.paymentMethod) {
-      html += '<div class="mc-money"><div><span>Garansi</span><b>' + esc(o.warranty || '-') + '</b></div>' +
-        '<div><span>Metode Bayar</span><b>' + esc(o.paymentMethod || '-') + '</b></div></div>';
-    } else if (o.serviceStatus === 'Done' && o.remaining <= 0) {
-      html += '<p class="mc-hint sm">Pembayaran lunas. Pilih <b>garansi</b> &amp; ' +
-        '<b>metode pembayaran</b> lewat tombol di bawah untuk menutup nota.</p>';
-    }
-
-    // Pembayaran hanya bisa dicatat saat garapan sudah "Done".
-    // Alurnya satu dropdown status di bawah.
-    //   Progress -> Done -> Catat Pembayaran -> (lunas) Konfirmasi -> Diambil
-    if (payIsLocked) {
-      html += '<p class="mc-hint sm">Pembayaran dicatat setelah garapan ditandai <b>Done</b>.' +
-        (o.serviceStatus.trim() === 'Done Diambil' || o.serviceStatus.trim() === 'Cancel Diambil'
-          ? ' Nota ini sudah diambil dan pembayaran sudah lunas.'
-          : ' Status saat ini: <b>' + esc(o.serviceStatus) + '</b>.') + '</p>';
-    }
-
-    // Dana Bank
-    // Catatan: tombol "Kembalikan ke Dana Bank" sengaja dihapus. Modal part
-    // sudah otomatis kembali begitu nota berubah jadi "Done Diambil", jadi
-    // tombol manual hanya dobel dan berisiko mengembalikan dana dua kali.
-    if (o.bankUsed > 0) {
-      var bankSisa = o.bankUsed - o.bankReturned;
-      html += '<div class="mc-sec">Dana Bank</div>' +
-        '<div class="mc-money"><div><span>Dipakai dari Dana Bank</span><b class="neg">' + rupiah(o.bankUsed) + '</b></div>' +
-        '<div><span>Sudah dikembalikan</span><b class="pos">' + rupiah(o.bankReturned) + '</b></div></div>';
-      if (bankSisa > 0) {
-        html += '<p class="mc-hint sm">Sisa tertahan <b>' + rupiah(bankSisa) +
-          '</b> — otomatis kembali saat status jadi <b>Done Diambil</b>.</p>';
-      } else {
-        html += '<p class="mc-hint sm ok">Dana Bank nota ini sudah lunas.</p>';
-      }
-    }
-
-    // Aksi. Hanya dropdown "Ubah Status"
-    // sesuai status nota (lihat flowOf). Jadi tidak ada lagi tebakan "tombol
-    // mana yang harus saya tekan". Di bawahnya dropdown status lengkap dan
-    // tombol edit data.
     var statusOpts = STATUS_TRANS[o.serviceStatus] || [];
 
-    // Penanganan hanya muncul ketika nota sudah berstatus Done. Field ini
-    // sengaja tidak ada di form Tambah/Edit karena saat membuat nota statusnya
-    // masih Progress dan penanganan belum ada artinya; kolomnya dimunculkan
-    // di sini begitu pengerjaan dinyatakan selesai.
-    // Penanganan dan Total Biaya bisa langsung diketik di layar ini, di
-    // SEMUA status. Tidak ada tombol simpan terpisah: nilai tersimpan saat
-    // kursor keluar dari kolomnya. Tombol Simpan dahulu disembunyikan selalu
-    // dan teksnya tidak pernah terlihat karena pembungkusnya membawa kelas
-    // mc-none sejak awal.
-    html += '<div class="mc-sec">Biaya &amp; Penanganan</div>' +
-      '<label class="mc-field"><span class="mc-lbl">Total Biaya (Rp)</span>' +
-        '<div class="mc-calc-field">' +
-          '<input class="mc-inp" id="dTotal" inputmode="text" placeholder="0" value="' +
-          esc(o.totalCost != null && o.totalCost !== '' ? String(o.totalCost) : '') + '">' +
-          '<button type="button" class="mc-btn-calc" data-target="dTotal" title="Buka Kalkulator Cerdas">🧮</button>' +
-        '</div>' +
-      '</label>' +
-      '<label class="mc-field"><span class="mc-lbl">Penanganan</span>' +
+    if (isDoneDiambil) {
+      // ========================================================
+      // TATA ULANG KHUSUS STATUS "DONE DIAMBIL" (RAPI, SIMPLE & MINIMALIS)
+      // ========================================================
+
+      // 1. Rincian Biaya & Penanganan (Seksi Gabungan)
+      html += '<div class="mc-sec" id="qnBiaya">Rincian Biaya &amp; Penanganan</div>' +
+        '<label class="mc-field"><span class="mc-lbl">Total Biaya (Rp)</span>' +
+          '<div class="mc-calc-field">' +
+            '<input class="mc-inp" id="dTotal" inputmode="text" placeholder="0" value="' +
+            esc(o.totalCost != null && o.totalCost !== '' ? String(o.totalCost) : '') + '">' +
+            '<button type="button" class="mc-btn-calc" data-target="dTotal" title="Buka Kalkulator Cerdas">🧮</button>' +
+          '</div>' +
+        '</label>' +
+        '<div class="mc-money">' +
+          '<div><span>Modal Sparepart</span><b class="neg">' + rupiah(o.totalPart) + '</b></div>' +
+          '<div><span>Jasa</span><b class="pos">' + rupiah(o.serviceFee) + '</b></div>' +
+        '</div>';
+
+      // Sparepart dimasukkan ke dalam rincian modal sparepart (tanpa judul seksi Sparepart)
+      if (o.parts && o.parts.length) {
+        html += '<div class="mc-ptable" style="margin-top:-2px;margin-bottom:8px">';
+        o.parts.forEach(function (p) {
+          html += '<div class="mc-prow"><span>' + esc(p.partName) +
+            '<em>' + esc(p.fundingSource) + '</em></span><b>' + rupiah(p.capitalCost) + '</b></div>';
+        });
+        html += '</div>';
+      }
+
+      html += '<div class="mc-money big">' +
+        '<div><span>Sudah Dibayar</span><b class="pos">' + rupiah(o.paid) + '</b></div>' +
+        '<div><span>Sisa Pelunasan</span><b class="pos">Lunas (Rp 0)</b></div>' +
+      '</div>';
+
+      if (o.serviceFeeWarning) html += '<p class="mc-warn">' + esc(o.serviceFeeWarning) + '</p>';
+      if (o.overpaidAmount) {
+        html += '<p class="mc-warn">Kelebihan bayar ' + rupiah(o.overpaidAmount) + '. Catat sebagai refund atau koreksi.</p>';
+      }
+
+      html += '<label class="mc-field" style="margin-top:6px"><span class="mc-lbl">Penanganan</span>' +
         '<textarea class="mc-inp" id="dHandling" rows="2" placeholder="Contoh: ganti LCD, ganti baterai, bersihkan bagian dalam">' +
           esc(o.handling || '') + '</textarea>' +
       '</label>' +
-      '<p class="mc-hint sm" id="dSavedHint"></p>' +
-      (o.serviceStatus !== 'Done Diambil' && o.serviceStatus !== 'Cancel Diambil'
-        ? '<p class="mc-hint sm">Tersimpan otomatis saat kursor berpindah. ' +
-          'Atau tekan <b>Simpan</b> di sebelah tombol Ubah Status — ' +
-          'lalu ubah status ke Done Diambil.</p>'
-        : '<p class="mc-hint sm">Tersimpan otomatis saat kursor berpindah atau tekan <b>Simpan</b>.</p>');
+      '<p class="mc-hint sm" id="dSavedHint"></p>';
 
-    // Nota garansi pelanggan.
-    // Pindah posisi ke paling bawah (di bawah biaya & penanganan dan di atas ubah status)
-    if (tampilNota) html += '<div class="mc-sec" id="qnNota">Nota Garansi</div>';
-    if (o.noteIssued && o.warrantyNote) {
-      var wn = o.warrantyNote;
-      html += '<div class="mc-noteok">' +
-        '<div class="mc-noteok-head"><b>Nota #' + esc(wn.numberLabel) + '</b>' +
-        (wn.revoked
-          ? '<span class="mc-badge neg">Link dicabut</span>'
-          : '<span class="mc-badge ok">Aktif</span>') +
-        '</div>' +
-        '<div class="mc-kv"><span>Terbit</span><b>' + tglJam(wn.issuedAt) + '</b></div>' +
-        '<div class="mc-kv"><span>Garansi</span><b>' + wn.warrantyDays + ' hari &middot; sampai ' +
-          tglJam(wn.warrantyUntil) + '</b></div>' +
-        (wn.revoked
-          ? '<p class="mc-hint sm">Link nota ini sudah dicabut, jadi tidak bisa dibuka lagi. ' +
-            'Nomor nota tetap ada dan tidak berubah.</p>'
-          : '<p class="mc-hint sm">"Bagikan WhatsApp" dan "Salin Link" memakai <b>link mandiri</b>, ' +
-            'yang bisa dibuka pelanggan dari HP-nya sendiri. Buka "Lihat Nota" untuk melihat ' +
-            'link lokal (bisa dicabut).</p>') +
-        '<div class="mc-acts" style="margin-top:8px">' +
-          '<button class="mc-primary" id="nOpen">Lihat Nota</button>' +
-          '<button class="mc-ghost-btn" id="nCopy">Salin Link</button>' +
-          '<button class="mc-ghost-btn" id="nWa"' + (wn.whatsapp || '' ? '' : ' hidden') + '>Bagikan WhatsApp</button>' +
-        '</div>' +
-        '<div class="mc-row2" style="margin-top:6px">' +
-          '<button class="mc-ghost-btn" id="nPrint">Cetak / PDF</button>' +
+      // 2. Pelunasan (Seksi Gabungan Pembayaran dan Dana Bank)
+      html += '<div class="mc-sec" id="qnPelunasan">Pelunasan</div>';
+
+      if (o.warranty || o.paymentMethod) {
+        html += '<div class="mc-money"><div><span>Garansi</span><b>' + esc(o.warranty || '-') + '</b></div>' +
+          '<div><span>Metode Bayar</span><b>' + esc(o.paymentMethod || '-') + '</b></div></div>';
+      }
+
+      if (o.payments && o.payments.length) {
+        html += '<div class="mc-ptable">';
+        o.payments.forEach(function (p) {
+          var extra = [];
+          if (p.paymentMethod) extra.push('Metode: ' + esc(p.paymentMethod));
+          if (p.warranty) extra.push('Garansi: ' + esc(p.warranty));
+          html += '<div class="mc-prow"><span>' + tglJam(p.paidAt) + '<em>' + esc(p.paymentType) +
+            (extra.length ? ' · ' + extra.join(' · ') : '') + '</em></span><b class="pos">+' +
+            rupiah(p.amount) + '</b></div>';
+        });
+        html += '</div>';
+      }
+
+      if (o.bankUsed > 0) {
+        html += '<div class="mc-money" style="margin-top:6px">' +
+          '<div><span>Dipakai dari Dana Bank</span><b class="neg">' + rupiah(o.bankUsed) + '</b></div>' +
+          '<div><span>Status Dana Bank</span><b class="pos">Lunas</b></div>' +
+        '</div>';
+      }
+
+      // 3. Nota Garansi Pelanggan
+      if (tampilNota) html += '<div class="mc-sec" id="qnNota">Nota Garansi</div>';
+      if (o.noteIssued && o.warrantyNote) {
+        var wn = o.warrantyNote;
+        html += '<div class="mc-noteok">' +
+          '<div class="mc-noteok-head"><b>Nota #' + esc(wn.numberLabel) + '</b>' +
           (wn.revoked
-            ? '<button class="mc-ghost-btn danger" id="nRevoke">Batalkan Pencabutan</button>'
-            : '<button class="mc-ghost-btn danger" id="nRevoke">Cabut Link Nota</button>') +
+            ? '<span class="mc-badge neg">Link dicabut</span>'
+            : '<span class="mc-badge ok">Aktif</span>') +
+          '</div>' +
+          '<div class="mc-kv"><span>Terbit</span><b>' + tglJam(wn.issuedAt) + '</b></div>' +
+          '<div class="mc-kv"><span>Garansi</span><b>' + wn.warrantyDays + ' hari &middot; sampai ' +
+            tglJam(wn.warrantyUntil) + '</b></div>' +
+          '<div class="mc-acts" style="margin-top:8px">' +
+            '<button class="mc-primary" id="nOpen">Lihat Nota</button>' +
+            '<button class="mc-ghost-btn" id="nCopy">Salin Link</button>' +
+            '<button class="mc-ghost-btn" id="nWa"' + (wn.whatsapp || '' ? '' : ' hidden') + '>Bagikan WhatsApp</button>' +
+          '</div>' +
+          '<div class="mc-row2" style="margin-top:6px">' +
+            '<button class="mc-ghost-btn" id="nPrint">Cetak / PDF</button>' +
+            (wn.revoked
+              ? '<button class="mc-ghost-btn danger" id="nRevoke">Batalkan Pencabutan</button>'
+              : '<button class="mc-ghost-btn danger" id="nRevoke">Cabut Link Nota</button>') +
+          '</div>' +
+        '</div>';
+      } else if (o.canIssueNote) {
+        html += '<button class="mc-next" id="nIssue">Terbitkan Nota Garansi ' +
+          '<em>\u00b7 buat nomor, garansi 60 hari, dan link</em></button>';
+      }
+
+      // 4. Ubah Status
+      html += '<div class="mc-sec" id="qnStatus">Ubah Status</div>' +
+        '<div class="mc-acts mc-side">' +
+          '<button class="mc-ghost-btn mc-save-side" id="dSaveSide">Simpan</button>' +
+          '<div class="mc-drop mc-grow" id="dStatusDrop">' +
+            '<button class="mc-ghost-btn" id="dStatusBtn">Ubah Status \u25be</button>' +
+            (statusOpts.length
+              ? '<div class="mc-dropmenu" id="dStatusMenu">' +
+                statusOpts.map(function (st) {
+                  return '<button class="mc-pick" data-st="' + esc(st) + '">' + esc(st) + '</button>';
+                }).join('') +
+                '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button>' +
+                '</div>'
+              : '<div class="mc-dropmenu" id="dStatusMenu">' +
+                '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button></div>') +
+          '</div>' +
+        '</div>';
+
+    } else {
+      // ========================================================
+      // TAMPILAN UNTUK STATUS LAIN (PROGRESS, DONE, CANCEL, DSB)
+      // ========================================================
+      // Sparepart
+      html += '<div class="mc-sec" id="qnSparepart">Sparepart</div>';
+      if (o.parts.length) {
+        html += '<div class="mc-ptable">';
+        o.parts.forEach(function (p) {
+          var bisaHapus = !(o.payments && o.payments.length);
+          html += '<div class="mc-prow"><span>' + esc(p.partName) +
+            '<em>' + esc(p.fundingSource) + '</em></span><b>' + rupiah(p.capitalCost) + '</b>' +
+            (bisaHapus ? '<button type="button" class="mc-x mc-x-sm" data-delpart="' + esc(p.id) + '" aria-label="Hapus ' + esc(p.partName) + '">\u2715</button>' : '') +
+            '</div>';
+        });
+        html += '</div>';
+      } else {
+        html += '<p class="mc-empty sm">Belum ada sparepart.</p>';
+      }
+      html += '<button class="mc-ghost-btn" id="dAddPart">+ Tambah Sparepart</button>';
+
+      // Rincian Biaya
+      var tampilBayar = (o.serviceStatus === 'Done');
+      html += '<div class="mc-sec" id="qnBiaya">Rincian Biaya</div>' +
+        '<div class="mc-money"><div><span>Total Biaya</span><b>' + rupiah(o.totalCost) + '</b></div>' +
+        '<div><span>Modal Sparepart</span><b class="neg">' + rupiah(o.totalPart) + '</b></div></div>' +
+        '<div class="mc-money"><div><span>Jasa</span><b class="pos">' + rupiah(o.serviceFee) + '</b></div>' +
+        (tampilBayar
+          ? '<div><span>Sudah Dibayar</span><b class="pos">' + rupiah(o.paid) + '</b></div>'
+          : '') + '</div>';
+      if (tampilBayar) {
+        html += '<div class="mc-money big"><div><span>Sisa Pelunasan</span><b class="' +
+          (o.remaining > 0 ? 'neg' : 'pos') + '">' + rupiah(o.remaining) + '</b></div></div>';
+      }
+      if (o.serviceFeeWarning) html += '<p class="mc-warn">' + esc(o.serviceFeeWarning) + '</p>';
+      if (o.overpaidAmount) {
+        html += '<p class="mc-warn">Kelebihan bayar ' + rupiah(o.overpaidAmount) + '. Catat sebagai refund atau koreksi.</p>';
+      }
+
+      // Pembayaran
+      if (tampilBayar) {
+        html += '<div class="mc-sec">Pembayaran</div>';
+        if (o.payments.length) {
+          html += '<div class="mc-ptable">';
+          o.payments.forEach(function (p) {
+            var extra = [];
+            if (p.paymentMethod) extra.push('Metode: ' + esc(p.paymentMethod));
+            if (p.warranty) extra.push('Garansi: ' + esc(p.warranty));
+            html += '<div class="mc-prow"><span>' + tglJam(p.paidAt) + '<em>' + esc(p.paymentType) +
+              (extra.length ? ' · ' + extra.join(' · ') : '') + '</em></span><b class="pos">+' +
+              rupiah(p.amount) + '</b></div>';
+          });
+          html += '</div>';
+        } else {
+          html += '<p class="mc-empty sm">Belum ada pembayaran.</p>';
+        }
+      }
+
+      if (o.warranty || o.paymentMethod) {
+        html += '<div class="mc-money"><div><span>Garansi</span><b>' + esc(o.warranty || '-') + '</b></div>' +
+          '<div><span>Metode Bayar</span><b>' + esc(o.paymentMethod || '-') + '</b></div></div>';
+      }
+
+      // Dana Bank
+      if (o.bankUsed > 0) {
+        var bankSisa = o.bankUsed - o.bankReturned;
+        html += '<div class="mc-sec">Dana Bank</div>' +
+          '<div class="mc-money"><div><span>Dipakai dari Dana Bank</span><b class="neg">' + rupiah(o.bankUsed) + '</b></div>' +
+          '<div><span>Sudah dikembalikan</span><b class="pos">' + rupiah(o.bankReturned) + '</b></div></div>';
+      }
+
+      // Biaya & Penanganan
+      html += '<div class="mc-sec">Biaya &amp; Penanganan</div>' +
+        '<label class="mc-field"><span class="mc-lbl">Total Biaya (Rp)</span>' +
+          '<div class="mc-calc-field">' +
+            '<input class="mc-inp" id="dTotal" inputmode="text" placeholder="0" value="' +
+            esc(o.totalCost != null && o.totalCost !== '' ? String(o.totalCost) : '') + '">' +
+            '<button type="button" class="mc-btn-calc" data-target="dTotal" title="Buka Kalkulator Cerdas">🧮</button>' +
+          '</div>' +
+        '</label>' +
+        '<label class="mc-field"><span class="mc-lbl">Penanganan</span>' +
+          '<textarea class="mc-inp" id="dHandling" rows="2" placeholder="Contoh: ganti LCD, ganti baterai, bersihkan bagian dalam">' +
+            esc(o.handling || '') + '</textarea>' +
+        '</label>' +
+        '<p class="mc-hint sm" id="dSavedHint"></p>';
+
+      // Nota garansi pelanggan
+      if (tampilNota) html += '<div class="mc-sec" id="qnNota">Nota Garansi</div>';
+      if (o.noteIssued && o.warrantyNote) {
+        var wn = o.warrantyNote;
+        html += '<div class="mc-noteok">' +
+          '<div class="mc-noteok-head"><b>Nota #' + esc(wn.numberLabel) + '</b>' +
+          (wn.revoked
+            ? '<span class="mc-badge neg">Link dicabut</span>'
+            : '<span class="mc-badge ok">Aktif</span>') +
+          '</div>' +
+          '<div class="mc-kv"><span>Terbit</span><b>' + tglJam(wn.issuedAt) + '</b></div>' +
+          '<div class="mc-kv"><span>Garansi</span><b>' + wn.warrantyDays + ' hari &middot; sampai ' +
+            tglJam(wn.warrantyUntil) + '</b></div>' +
+          '<div class="mc-acts" style="margin-top:8px">' +
+            '<button class="mc-primary" id="nOpen">Lihat Nota</button>' +
+            '<button class="mc-ghost-btn" id="nCopy">Salin Link</button>' +
+            '<button class="mc-ghost-btn" id="nWa"' + (wn.whatsapp || '' ? '' : ' hidden') + '>Bagikan WhatsApp</button>' +
+          '</div>' +
+          '<div class="mc-row2" style="margin-top:6px">' +
+            '<button class="mc-ghost-btn" id="nPrint">Cetak / PDF</button>' +
+            (wn.revoked
+              ? '<button class="mc-ghost-btn danger" id="nRevoke">Batalkan Pencabutan</button>'
+              : '<button class="mc-ghost-btn danger" id="nRevoke">Cabut Link Nota</button>') +
+          '</div>' +
+        '</div>';
+      } else if (o.canIssueNote) {
+        html += '<button class="mc-next" id="nIssue">Terbitkan Nota Garansi ' +
+          '<em>\u00b7 buat nomor, garansi 60 hari, dan link</em></button>';
+      }
+
+      // Ubah Status
+      html += '<div class="mc-sec" id="qnStatus">Ubah Status</div>';
+      var NEXT_ST = { 'Progress': 'Done', 'Done': 'Done Diambil', 'Cancel': 'Cancel Diambil', 'Return': 'Done' };
+      var NEXT_LBL = { 'Done': '\u2713 Selesai (Done)', 'Done Diambil': '\u2713 Sudah Diambil & Lunas',
+        'Cancel Diambil': '\u2713 Unit Cancel Sudah Diambil' };
+      var nextWant = (o.serviceStatus !== 'Cancel Diambil') ? NEXT_ST[o.serviceStatus] : null;
+      if (nextWant && statusOpts.indexOf(nextWant) >= 0) {
+        html += '<button type="button" class="mc-primary sm mc-next" id="dNextSt" data-st="' + esc(nextWant) + '">' +
+          esc(NEXT_LBL[nextWant] || nextWant) + '</button>';
+      }
+      html += '<div class="mc-acts mc-side">' +
+        '<button class="mc-ghost-btn mc-save-side" id="dSaveSide">Simpan</button>' +
+        '<div class="mc-drop mc-grow" id="dStatusDrop">' +
+          '<button class="mc-ghost-btn" id="dStatusBtn">' + (nextWant && statusOpts.indexOf(nextWant) >= 0 ? 'Status lain' : 'Ubah Status') + ' \u25be</button>' +
+          (statusOpts.length
+            ? '<div class="mc-dropmenu" id="dStatusMenu">' +
+              statusOpts.map(function (st) {
+                return '<button class="mc-pick" data-st="' + esc(st) + '">' + esc(st) + '</button>';
+              }).join('') +
+              '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button>' +
+              '</div>'
+            : '<div class="mc-dropmenu" id="dStatusMenu">' +
+              '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button></div>') +
         '</div>' +
       '</div>';
-    } else if (o.canIssueNote) {
-      /* Tanpa keterangan panjang: tombolnya sudah menjelaskan dirinya. */
-      html += '<button class="mc-next" id="nIssue">Terbitkan Nota Garansi ' +
-        '<em>\u00b7 buat nomor, garansi 60 hari, dan link</em></button>';
     }
-
-    // Tombol aksi besar ("Selesaikan Garapan", "Catat Pembayaran") dan tombol
-    // Hapus sudah dihapus di SEMUA status. Status hanya berubah lewat dropdown
-    // "Ubah Status" di bawah, supaya tidak ada lagi dua jalan mengubah status
-    // yang bisa berbeda satu sama lain.
-    html += '<div class="mc-sec" id="qnStatus">Ubah Status</div>';
-    // Satu ketuk ke langkah berikutnya. Dropdown di bawahnya tetap ada untuk
-    // pilihan lain (Cancel, Return, Hapus).
-    // Poin 2: Pada status "Done Diambil" tombol bantu status dihilangkan karena tidak perlu.
-    var NEXT_ST = { 'Progress': 'Done', 'Done': 'Done Diambil', 'Cancel': 'Cancel Diambil', 'Return': 'Done' };
-    var NEXT_LBL = { 'Done': '\u2713 Selesai (Done)', 'Done Diambil': '\u2713 Sudah Diambil & Lunas',
-      'Cancel Diambil': '\u2713 Unit Cancel Sudah Diambil' };
-    var nextWant = (o.serviceStatus !== 'Done Diambil' && o.serviceStatus !== 'Cancel Diambil') ? NEXT_ST[o.serviceStatus] : null;
-    if (nextWant && statusOpts.indexOf(nextWant) >= 0) {
-      html += '<button type="button" class="mc-primary sm mc-next" id="dNextSt" data-st="' + esc(nextWant) + '">' +
-        esc(NEXT_LBL[nextWant] || nextWant) + '</button>';
-    }
-    html += '<div class="mc-acts mc-side">' +
-      // Simpan dan Ubah Status berdampingan. kejelasan tombol simpan
-      // khusus: penanganan harus benar-benar tersimpan sebelum status diubah, dan
-      // sekarang bisa dipastikan tanpa menebak-nebak apakah blur sempat
-      // terjadi.
-      '<button class="mc-ghost-btn mc-save-side" id="dSaveSide">Simpan</button>' +
-      '<div class="mc-drop mc-grow" id="dStatusDrop">' +
-        '<button class="mc-ghost-btn" id="dStatusBtn">' + (nextWant && statusOpts.indexOf(nextWant) >= 0 ? 'Status lain' : 'Ubah Status') + ' \u25be</button>' +
-        // Dropdown tetap muncul saat status final, karena status "Done Diambil"
-        // punya tiga jalan keluar: Cancel, Return, dan Hapus.
-        (statusOpts.length
-          ? '<div class="mc-dropmenu" id="dStatusMenu">' +
-            statusOpts.map(function (st) {
-              return '<button class="mc-pick" data-st="' + esc(st) + '">' + esc(st) + '</button>';
-            }).join('') +
-            '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button>' +
-            '</div>'
-          : '<div class="mc-dropmenu" id="dStatusMenu">'
-            + '<button class="mc-pick mc-pick-bahaya" id="dHapusNota">Hapus garapan ini</button></div>') +
-      '</div>' +
-    '</div>';
 
     html += '</div>';
     s.innerHTML = html;
