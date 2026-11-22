@@ -2327,12 +2327,12 @@
     html += '<div class="mc-quicknav">' +
       '<button type="button" data-qn="qnPelanggan">Pelanggan</button>' +
       (isDoneDiambil
-        ? '<button type="button" data-qn="qnBiaya">Biaya &amp; Penanganan</button>' +
+        ? '<button type="button" data-qn="qnBiaya">Biaya</button>' +
           '<button type="button" data-qn="qnPelunasan">Pelunasan</button>'
         : '<button type="button" data-qn="qnSparepart">Sparepart</button>' +
           '<button type="button" data-qn="qnBiaya">Biaya</button>') +
       (tampilNota ? '<button type="button" data-qn="qnNota">Nota</button>' : '') +
-      '<button type="button" data-qn="qnStatus">Status</button>' +
+      (!isDoneDiambil ? '<button type="button" data-qn="qnStatus">Status</button>' : '') +
     '</div>';
 
     html += '</div>'; // tutup .mc-sticky
@@ -2402,21 +2402,14 @@
 
       // 1. Rincian Biaya & Penanganan (Seksi Gabungan)
       html += '<div class="mc-sec" id="qnBiaya">Rincian Biaya &amp; Penanganan</div>' +
-        '<label class="mc-field"><span class="mc-lbl">Total Biaya (Rp)</span>' +
-          '<div class="mc-calc-field">' +
-            '<input class="mc-inp" id="dTotal" inputmode="text" placeholder="0" value="' +
-            esc(o.totalCost != null && o.totalCost !== '' ? String(o.totalCost) : '') + '">' +
-            '<button type="button" class="mc-btn-calc" data-target="dTotal" title="Buka Kalkulator Cerdas">🧮</button>' +
-          '</div>' +
-        '</label>' +
         '<div class="mc-money">' +
+          '<div><span>Total Biaya</span><b>' + rupiah(o.totalCost) + '</b></div>' +
           '<div><span>Modal Sparepart</span><b class="neg">' + rupiah(o.totalPart) + '</b></div>' +
-          '<div><span>Jasa</span><b class="pos">' + rupiah(o.serviceFee) + '</b></div>' +
         '</div>';
 
-      // Sparepart dimasukkan ke dalam rincian modal sparepart (tanpa judul seksi Sparepart)
+      // Sparepart dimasukkan tepat di bawah Modal Sparepart
       if (o.parts && o.parts.length) {
-        html += '<div class="mc-ptable" style="margin-top:-2px;margin-bottom:8px">';
+        html += '<div class="mc-ptable" style="margin-top:-4px;margin-bottom:8px">';
         o.parts.forEach(function (p) {
           html += '<div class="mc-prow"><span>' + esc(p.partName) +
             '<em>' + esc(p.fundingSource) + '</em></span><b>' + rupiah(p.capitalCost) + '</b></div>';
@@ -2424,9 +2417,8 @@
         html += '</div>';
       }
 
-      html += '<div class="mc-money big">' +
-        '<div><span>Sudah Dibayar</span><b class="pos">' + rupiah(o.paid) + '</b></div>' +
-        '<div><span>Sisa Pelunasan</span><b class="pos">Lunas (Rp 0)</b></div>' +
+      html += '<div class="mc-money">' +
+        '<div><span>Jasa</span><b class="pos">' + rupiah(o.serviceFee) + '</b></div>' +
       '</div>';
 
       if (o.serviceFeeWarning) html += '<p class="mc-warn">' + esc(o.serviceFeeWarning) + '</p>';
@@ -2735,7 +2727,9 @@
            tertutup. */
         var scrEl = document.getElementById('mcScreen');
         var headEl = scrEl && scrEl.querySelector('.mc-sticky');
-        var headH = 110;
+        var headH = (headEl && headEl.classList.contains('mc-slim'))
+          ? (headEl.offsetHeight + 8)
+          : 110;
         if (scrEl) {
           var y = target.getBoundingClientRect().top -
                   scrEl.getBoundingClientRect().top + scrEl.scrollTop - headH;
