@@ -320,6 +320,9 @@
   function add(rec) {
     var d = load();
     rec = rec || {};
+    if (rec.id && Array.isArray(d.deletedIds)) {
+      d.deletedIds = d.deletedIds.filter(function (x) { return x !== rec.id; });
+    }
     var mi = Math.max(0, Math.round(Number(rec.moneyIn) || 0));
     var mo = Math.max(0, Math.round(Number(rec.moneyOut) || 0));
     if (mi === 0 && mo === 0) throw new Error('Nominal harus lebih dari 0');
@@ -536,6 +539,15 @@
     var inTxs = (txs || []).filter(function (t) {
       return t && t.type === 'in' && !t.deleted_at && (Number(t.amount) || 0) > 0;
     });
+
+    // Pastikan ID setoran wajib tidak terganjal di deletedIds jika transaksi kembali aktif/dipulihkan
+    if (Array.isArray(d.deletedIds)) {
+      inTxs.forEach(function (t) {
+        var dId = 'wajib_darurat_' + t.id;
+        var sId = 'wajib_sdh_' + t.id;
+        d.deletedIds = d.deletedIds.filter(function (x) { return x !== dId && x !== sId; });
+      });
+    }
 
     var activeTxIds = {};
     inTxs.forEach(function (t) { activeTxIds[t.id] = true; });

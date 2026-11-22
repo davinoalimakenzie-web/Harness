@@ -299,189 +299,187 @@
     if (!Array.isArray(cache.bank)) cache.bank = [];
     if (!Array.isArray(cache.deletedOrderIds)) cache.deletedOrderIds = [];
 
-    var ahmadId = 'so-mwozw70p-w2pbsa';
-    // Hapus ahmadId dari deletedOrderIds dan deletedOrders agar dipulihkan kembali sesuai permintaan user
-    if (cache.deletedOrderIds.indexOf(ahmadId) >= 0) {
-      cache.deletedOrderIds = cache.deletedOrderIds.filter(function (x) { return x !== ahmadId; });
+    // Bersihkan nota dummy uji coba lama (Rp 60.000) jika ada
+    var dummyAhmadId = 'so-mwozw70p-w2pbsa';
+    if (cache.orders.some(function (o) { return o.id === dummyAhmadId; })) {
+      cache.orders = cache.orders.filter(function (o) { return o.id !== dummyAhmadId; });
       changed = true;
     }
-    if (cache.deletedOrders && cache.deletedOrders.some(function (x) { return x.id === ahmadId; })) {
-      cache.deletedOrders = cache.deletedOrders.filter(function (x) { return x.id !== ahmadId; });
+    if (cache.deletedOrders && cache.deletedOrders.some(function (x) { return x.id === dummyAhmadId; })) {
+      cache.deletedOrders = cache.deletedOrders.filter(function (x) { return x.id !== dummyAhmadId; });
+      changed = true;
+    }
+    if (cache.parts.some(function (p) { return p.orderId === dummyAhmadId; })) {
+      cache.parts = cache.parts.filter(function (p) { return p.orderId !== dummyAhmadId; });
+      changed = true;
+    }
+    if (cache.payments.some(function (p) { return p.orderId === dummyAhmadId; })) {
+      cache.payments = cache.payments.filter(function (p) { return p.orderId !== dummyAhmadId; });
+      changed = true;
+    }
+    if (cache.bank.some(function (b) { return b.orderId === dummyAhmadId; })) {
+      cache.bank = cache.bank.filter(function (b) { return b.orderId !== dummyAhmadId; });
+      changed = true;
+    }
+    if (cache.cashflow.some(function (c) { return c.orderId === dummyAhmadId; })) {
+      cache.cashflow = cache.cashflow.filter(function (c) { return c.orderId !== dummyAhmadId; });
+      changed = true;
+    }
+    try {
+      if (w.Store && w.Store.Tx && typeof w.Store.Tx.all === 'function') {
+        var dummyTx = w.Store.Tx.all().find(function (t) { return t.idem_key === 'mascim-jasa:' + dummyAhmadId; });
+        if (dummyTx && !dummyTx.deleted_at && typeof w.Store.Tx.remove === 'function') {
+          w.Store.Tx.remove(dummyTx.id);
+        }
+      }
+    } catch (eTxDummy) {}
+
+    // Pulihkan NOTA ASLI: Mas ahmad Rp 300.000 (so-mwqa4sl6-3210dr, No. Nota #0001)
+    var realAhmadId = 'so-mwqa4sl6-3210dr';
+    if (cache.deletedOrderIds.indexOf(realAhmadId) >= 0) {
+      cache.deletedOrderIds = cache.deletedOrderIds.filter(function (x) { return x !== realAhmadId; });
+      changed = true;
+    }
+    if (cache.deletedOrders && cache.deletedOrders.some(function (x) { return x.id === realAhmadId; })) {
+      cache.deletedOrders = cache.deletedOrders.filter(function (x) { return x.id !== realAhmadId; });
       changed = true;
     }
 
-    var hasAhmad = cache.orders.some(function (o) { return o.id === ahmadId; });
-
-    if (!hasAhmad) {
+    var existReal = cache.orders.filter(function (o) { return o.id === realAhmadId; })[0];
+    if (!existReal) {
       cache.orders.push({
-        id: ahmadId,
-        noteNumberRaw: 1,
-        noteNumber: '0001',
-        internalRef: 'TRK-8X8C69',
-        noteIssued: true,
+        id: realAhmadId,
+        device: 'Realme C15',
+        idemKey: 'nota-1795257785272-ili9ne',
+        takenAt: '2026-11-21T15:49:50.348Z',
+        handling: 'Ganti batre+repair tombol luar dalam',
+        warranty: '60 Hari',
+        whatsapp: '085712445595',
+        complaint: 'Keypad hilang, batre kembung',
+        createdAt: '2026-11-21T10:43:05.274Z',
+        deletedAt: null,
+        totalCost: 300000,
+        updatedAt: '2026-11-21T15:49:50.350Z',
+        receivedAt: '2026-11-21T10:43:05.274Z',
+        completedAt: '2026-11-21T15:49:50.348Z',
+        internalRef: 'TRK-3A7R8D',
+        customerName: 'Mas ahmad',
         warrantyNote: {
           number: 1,
           numberLabel: '0001',
-          issuedAt: '2026-11-20T13:13:22.801Z',
-          warrantyDays: 30,
-          warrantyUntil: '2026-12-20T13:13:22.801Z',
-          warranty: 'Non Garansi',
-          customerName: 'MAS AHMAD',
-          device: 'Realme C15',
-          totalCost: 60000,
-          token: 'nt-0001-ahmad'
+          issuedAt: '2026-11-21T15:49:50.350Z',
+          warrantyDays: 60,
+          warrantyUntil: '2027-01-20T15:49:50.350Z',
+          token: '76985cc0-e38c-4528-97f4-fd020f8b1451',
+          revokedAt: null
         },
-        intakeCondition: 'Keypad on/off+vol hilang, batre kembung, kondisi mati',
-        customerName: 'MAS AHMAD',
-        whatsapp: '',
-        device: 'Realme C15',
-        complaint: 'Keypad on/off+vol hilang, batre kembung, kondisi mati',
-        screenLockType: 'None',
-        screenLockSecret: '',
-        handling: 'Perbaikan tombol',
-        totalCost: 60000,
+        noteNumberRaw: 1,
+        noteNumber: '0001',
+        noteIssued: true,
+        paymentMethod: 'Cash',
         serviceStatus: 'Done Diambil',
-        receivedAt: '2026-11-20T13:08:41.737Z',
-        takenAt: '2026-11-20T13:13:22.801Z',
-        completedAt: '2026-11-20T13:13:22.801Z',
-        createdAt: '2026-11-20T13:08:41.737Z',
-        updatedAt: '2026-11-20T13:13:22.801Z',
-        deletedAt: null,
-        idemKey: null,
-        warranty: 'Non Garansi',
-        paymentMethod: 'Tunai'
+        nggandulReason: null,
+        screenLockType: 'Tanpa Kunci',
+        intakeCondition: 'Keypad hilang, batre kembung',
+        screenLockSecret: ''
       });
-
-      if (!cache.parts.some(function (p) { return p.orderId === ahmadId; })) {
-        cache.parts.push(
-          {
-            id: 'sp-mwozw70p-keypad',
-            orderId: ahmadId,
-            partName: 'Keypad Realme C15',
-            capitalCost: 3000,
-            fundingSource: 'Dana Bank',
-            createdAt: '2026-11-20T13:10:00.000Z'
-          },
-          {
-            id: 'sp-mwozw70p-flex',
-            orderId: ahmadId,
-            partName: 'Flex on/off Realme C15',
-            capitalCost: 3000,
-            fundingSource: 'Dana Bank',
-            createdAt: '2026-11-20T13:10:00.000Z'
-          }
-        );
-      }
-
-      if (!cache.payments.some(function (p) { return p.orderId === ahmadId; })) {
-        cache.payments.push({
-          id: 'pay-mwozw70p-lunas',
-          orderId: ahmadId,
-          amount: 60000,
-          paymentType: 'Pembayaran Servis',
-          paidAt: '2026-11-20T13:12:24.042Z',
-          note: '',
-          warranty: 'Non Garansi',
-          paymentMethod: 'Tunai',
-          idemKey: null,
-          createdAt: '2026-11-20T13:12:24.042Z'
-        });
-      }
-
-      if (!cache.bank.some(function (b) { return b.orderId === ahmadId; })) {
-        cache.bank.push(
-          {
-            id: 'bank-mwozw70p-out1',
-            orderId: ahmadId,
-            description: 'Beli Keypad Realme C15 — nota TRK-8X8C69',
-            moneyIn: 0,
-            moneyOut: 3000,
-            entryDate: '2026-11-20T13:10:00.000Z',
-            createdAt: '2026-11-20T13:10:00.000Z'
-          },
-          {
-            id: 'bank-mwozw70p-out2',
-            orderId: ahmadId,
-            description: 'Beli Flex on/off Realme C15 — nota TRK-8X8C69',
-            moneyIn: 0,
-            moneyOut: 3000,
-            entryDate: '2026-11-20T13:10:00.000Z',
-            createdAt: '2026-11-20T13:10:00.000Z'
-          },
-          {
-            id: 'bank-mwozw70p-in',
-            orderId: ahmadId,
-            description: 'Pelunasan sparepart — nota TRK-8X8C69 — MAS AHMAD',
-            moneyIn: 6000,
-            moneyOut: 0,
-            entryDate: '2026-11-20T13:13:22.801Z',
-            createdAt: '2026-11-20T13:13:22.801Z'
-          }
-        );
-      }
-
-      if (!cache.cashflow.some(function (c) { return c.orderId === ahmadId; })) {
-        cache.cashflow.push(
-          {
-            id: 'cf-mwozw70p-part1',
-            orderId: ahmadId,
-            entryType: 'Modal Sparepart',
-            description: 'Keypad Realme C15 — nota TRK-8X8C69',
-            moneyIn: 0,
-            moneyOut: 3000,
-            entryDate: '2026-11-20T13:10:00.000Z',
-            createdAt: '2026-11-20T13:10:00.000Z'
-          },
-          {
-            id: 'cf-mwozw70p-part2',
-            orderId: ahmadId,
-            entryType: 'Modal Sparepart',
-            description: 'Flex on/off Realme C15 — nota TRK-8X8C69',
-            moneyIn: 0,
-            moneyOut: 3000,
-            entryDate: '2026-11-20T13:10:00.000Z',
-            createdAt: '2026-11-20T13:10:00.000Z'
-          },
-          {
-            id: 'cf-mwozw70p-pay',
-            orderId: ahmadId,
-            entryType: 'Pembayaran Servis',
-            description: 'Nota TRK-8X8C69 — MAS AHMAD',
-            moneyIn: 60000,
-            moneyOut: 0,
-            entryDate: '2026-11-20T13:12:24.042Z',
-            createdAt: '2026-11-20T13:12:24.042Z'
-          }
-        );
-      }
-
       changed = true;
     } else {
-      var existAhmad = cache.orders.filter(function (o) { return o.id === ahmadId; })[0];
-      if (existAhmad) {
-        if (!existAhmad.noteNumber || existAhmad.noteNumber !== '0001' || !existAhmad.warrantyNote || existAhmad.deletedAt) {
-          existAhmad.noteNumber = '0001';
-          existAhmad.noteNumberRaw = 1;
-          existAhmad.noteIssued = true;
-          existAhmad.deletedAt = null;
-          if (!existAhmad.warrantyNote) {
-            existAhmad.warrantyNote = {
-              number: 1,
-              numberLabel: '0001',
-              issuedAt: existAhmad.takenAt || '2026-11-20T13:13:22.801Z',
-              warrantyDays: 30,
-              warrantyUntil: '2026-12-20T13:13:22.801Z',
-              warranty: 'Non Garansi',
-              customerName: 'MAS AHMAD',
-              device: 'Realme C15',
-              totalCost: 60000,
-              token: 'nt-0001-ahmad'
-            };
-          }
-          changed = true;
+      if (existReal.noteNumber !== '0001' || existReal.totalCost !== 300000 || existReal.serviceStatus !== 'Done Diambil' || existReal.deletedAt) {
+        existReal.noteNumber = '0001';
+        existReal.noteNumberRaw = 1;
+        existReal.noteIssued = true;
+        existReal.deletedAt = null;
+        existReal.totalCost = 300000;
+        existReal.serviceStatus = 'Done Diambil';
+        existReal.warranty = '60 Hari';
+        if (!existReal.warrantyNote) {
+          existReal.warrantyNote = {
+            number: 1,
+            numberLabel: '0001',
+            issuedAt: '2026-11-21T15:49:50.350Z',
+            warrantyDays: 60,
+            warrantyUntil: '2027-01-20T15:49:50.350Z',
+            token: '76985cc0-e38c-4528-97f4-fd020f8b1451',
+            revokedAt: null
+          };
+        } else {
+          existReal.warrantyNote.revokedAt = null;
+          existReal.warrantyNote.token = existReal.warrantyNote.token || '76985cc0-e38c-4528-97f4-fd020f8b1451';
         }
+        changed = true;
       }
     }
+
+    // 4 Rincian sparepart riil (Modal Rp 139.000)
+    var realParts = [
+      { id: 'sp-mwqaai7c-91qs7z', orderId: realAhmadId, partName: 'BATT BLP793 - LF', capitalCost: 128000, fundingSource: 'Dana Bank', createdAt: '2026-11-21T10:47:31.752Z' },
+      { id: 'sp-mwqaai8e-q2l77y', orderId: realAhmadId, partName: 'KEYPAD REALME C15', capitalCost: 3000, fundingSource: 'Dana Bank', createdAt: '2026-11-21T10:47:31.790Z' },
+      { id: 'sp-mwqaai9b-jakyhp', orderId: realAhmadId, partName: 'FLEX O/F+VOL REALME C15', capitalCost: 3000, fundingSource: 'Dana Bank', createdAt: '2026-11-21T10:47:31.823Z' },
+      { id: 'sp-mwqbtehr-e45cu4', orderId: realAhmadId, partName: 'ANTIGORES', capitalCost: 5000, fundingSource: 'Dana Bank', createdAt: '2026-11-21T11:30:13.023Z' }
+    ];
+    realParts.forEach(function (rp) {
+      if (!cache.parts.some(function (p) { return p.id === rp.id; })) {
+        cache.parts.push(rp);
+        changed = true;
+      }
+    });
+
+    // Pembayaran riil Rp 300.000 Lunas
+    if (!cache.payments.some(function (p) { return p.orderId === realAhmadId; })) {
+      cache.payments.push({
+        id: 'pay-mwql39zy-qkiybc',
+        orderId: realAhmadId,
+        amount: 300000,
+        paidAt: '2026-11-21T15:49:50.302Z',
+        paymentType: 'Pembayaran Servis',
+        paymentMethod: 'Cash',
+        idemKey: 'taken-lunas-so-mwqa4sl6-3210dr',
+        createdAt: '2026-11-21T15:49:50.302Z',
+        note: '',
+        warranty: '60 Hari'
+      });
+      changed = true;
+    }
+
+    // Mutasi Dana Bank riil Mas Cim
+    var realBank = [
+      { id: 'bf-mwqaai7d-qxh7gb', orderId: realAhmadId, description: 'Beli BATT BLP793 - LF — nota TRK-3A7R8D', moneyIn: 0, moneyOut: 128000, entryDate: '2026-11-21T10:47:31.752Z', createdAt: '2026-11-21T10:47:31.785Z' },
+      { id: 'bf-mwqaai8e-1wy8lo', orderId: realAhmadId, description: 'Beli KEYPAD REALME C15 — nota TRK-3A7R8D', moneyIn: 0, moneyOut: 3000, entryDate: '2026-11-21T10:47:31.790Z', createdAt: '2026-11-21T10:47:31.822Z' },
+      { id: 'bf-mwqaai9b-y7z8xq', orderId: realAhmadId, description: 'Beli FLEX O/F+VOL REALME C15 — nota TRK-3A7R8D', moneyIn: 0, moneyOut: 3000, entryDate: '2026-11-21T10:47:31.823Z', createdAt: '2026-11-21T10:47:31.860Z' },
+      { id: 'bf-mwqbtehs-t6ot6y', orderId: realAhmadId, description: 'Beli ANTIGORES — nota TRK-3A7R8D', moneyIn: 0, moneyOut: 5000, entryDate: '2026-11-21T11:30:13.023Z', createdAt: '2026-11-21T11:30:13.042Z' },
+      { id: 'bf-mwql39zy-zztdz7', orderId: realAhmadId, description: 'Lunasi Dana Bank otomatis — nota TRK-3A7R8D', moneyIn: 139000, moneyOut: 0, entryDate: '2026-11-21T15:49:50.302Z', createdAt: '2026-11-21T15:49:50.348Z' }
+    ];
+    realBank.forEach(function (rb) {
+      if (!cache.bank.some(function (b) { return b.id === rb.id; })) {
+        cache.bank.push(rb);
+        changed = true;
+      }
+    });
+
+    // Mutasi Cashflow Mas Cim riil
+    var realCf = [
+      { id: 'cf-mwqaai7c-my9tl2', orderId: realAhmadId, entryType: 'Modal Sparepart', description: 'BATT BLP793 - LF — nota TRK-3A7R8D', moneyIn: 0, moneyOut: 128000, entryDate: '2026-11-21T10:47:31.752Z', createdAt: '2026-11-21T10:47:31.753Z' },
+      { id: 'cf-mwqaai8e-ltruw0', orderId: realAhmadId, entryType: 'Modal Sparepart', description: 'KEYPAD REALME C15 — nota TRK-3A7R8D', moneyIn: 0, moneyOut: 3000, entryDate: '2026-11-21T10:47:31.790Z', createdAt: '2026-11-21T10:47:31.790Z' },
+      { id: 'cf-mwqaai9b-ieoeql', orderId: realAhmadId, entryType: 'Modal Sparepart', description: 'FLEX O/F+VOL REALME C15 — nota TRK-3A7R8D', moneyIn: 0, moneyOut: 3000, entryDate: '2026-11-21T10:47:31.823Z', createdAt: '2026-11-21T10:47:31.823Z' },
+      { id: 'cf-mwqbtehs-hcadzg', orderId: realAhmadId, entryType: 'Modal Sparepart', description: 'ANTIGORES — nota TRK-3A7R8D', moneyIn: 0, moneyOut: 5000, entryDate: '2026-11-21T11:30:13.023Z', createdAt: '2026-11-21T11:30:13.024Z' },
+      { id: 'cf-mwql39zy-j5afsc', orderId: realAhmadId, entryType: 'Pembayaran Servis', description: 'Nota TRK-3A7R8D — Mas ahmad', moneyIn: 300000, moneyOut: 0, entryDate: '2026-11-21T15:49:50.302Z', createdAt: '2026-11-21T15:49:50.302Z' }
+    ];
+    realCf.forEach(function (rc) {
+      if (!cache.cashflow.some(function (c) { return c.id === rc.id; })) {
+        cache.cashflow.push(rc);
+        changed = true;
+      }
+    });
+
+    // Otomatis sinkronkan mutasi bank ke NavaBank dan jasa ke Cashflow Alima & Kas Wajib
+    try {
+      syncExistingBankEntriesToNava();
+    } catch (eB) {}
+    try {
+      syncJasaToNava(realAhmadId);
+    } catch (eJ) {}
+
     return changed;
   }
 
@@ -1571,26 +1569,42 @@
 
     var note = 'Jasa Service HP — Nota ' + refOf(order) +
       (order.customerName ? ' — ' + order.customerName : '');
+    var txDate = String(order.takenAt || order.completedAt || order.paidAt || todayStr()).slice(0, 10);
     var payload = {
       type: 'in', group: 'Income Ali', sub: 'Service HP',
-      amount: jasa, date: todayStr(), note: note
+      amount: jasa, date: txDate, note: note
     };
 
+    var res = null;
     if (lama) {
       if (lama.amount === jasa && lama.group === payload.group && lama.sub === payload.sub &&
-          lama.note === note) {
-        return { unchanged: true, amount: jasa, id: lama.id };
+          lama.note === note && String(lama.transaction_date).slice(0, 10) === txDate) {
+        res = { unchanged: true, amount: jasa, id: lama.id };
+      } else {
+        S.Tx.update(lama.id, payload);
+        res = { updated: true, amount: jasa, id: lama.id };
       }
-      S.Tx.update(lama.id, payload);
-      return { updated: true, amount: jasa, id: lama.id };
-    }
-    if (tercabut) {
+    } else if (tercabut) {
       S.Tx.restore(tercabut.id);
       S.Tx.update(tercabut.id, payload);
-      return { restored: true, amount: jasa, id: tercabut.id };
+      res = { restored: true, amount: jasa, id: tercabut.id };
+    } else {
+      var r = S.Tx.create(payload, idem);
+      res = { created: !r.duplicate, duplicate: !!r.duplicate, amount: jasa, id: r.tx && r.tx.id };
     }
-    var r = S.Tx.create(payload, idem);
-    return { created: !r.duplicate, duplicate: !!r.duplicate, amount: jasa, id: r.tx && r.tx.id };
+
+    try {
+      if (w.NavaBank && typeof w.NavaBank.syncAutoWajib === 'function') {
+        w.NavaBank.syncAutoWajib(S.Tx.active());
+      }
+    } catch (eNb) {}
+    try {
+      if (w.TxUI && typeof w.TxUI.render === 'function') {
+        w.TxUI.render();
+      }
+    } catch (eRend) {}
+
+    return res;
   }
 
   /*
@@ -1846,6 +1860,23 @@
     db.deletedOrderIds = (db.deletedOrderIds || []).filter(function (x) { return x !== id; });
 
     save();
+
+    // Pulihkan mutasi bank ke NavaBank jika ada
+    try {
+      syncExistingBankEntriesToNava();
+    } catch (eBankSync) {}
+
+    // Pulihkan setoran jasa ke Cashflow Alima & Kas Wajib jika status selesai/diambil
+    try {
+      if (cleanOrder.serviceStatus === 'Done Diambil' || isDoneStatus(cleanOrder.serviceStatus)) {
+        syncJasaToNava(id);
+      }
+    } catch (eJasaSync) {}
+
+    if (w.TxUI && typeof w.TxUI.render === 'function') {
+      try { w.TxUI.render(); } catch (errTx) {}
+    }
+
     if (w.Sync && typeof w.Sync.schedulePush === 'function') {
       w.Sync.schedulePush();
     }
@@ -2702,6 +2733,7 @@
     isNggandulStatus: isNggandulStatus,
     canDelete: canDelete,
     deleteOrder: deleteOrder,
+    restoreOrder: restoreOrder,
     NOTA_TELP_PUSAT: NOTA_TELP_PUSAT,
     NOTA_NAMA_USAHA: NOTA_NAMA_USAHA,
     isClosedStatus: isClosedStatus,
@@ -2773,6 +2805,7 @@
       w.setTimeout(function () {
         syncExistingBankEntriesToNava();
         migrateNonUuidTokens();
+        try { syncJasaToNava('so-mwqa4sl6-3210dr'); } catch (eJ) {}
       }, 300);
     }
   } catch (eSync) {}

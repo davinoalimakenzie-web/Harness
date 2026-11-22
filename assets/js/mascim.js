@@ -2945,9 +2945,12 @@
       if (!window.confirm('Aktifkan kembali garapan ini ke daftar nota aktif Mas Cim?')) return;
       api('POST', '/api/mascim/services/' + encodeURIComponent(idH) + '/restore')
         .then(function () {
-          toast('Garapan berhasil diaktifkan kembali');
+          toast('Garapan berhasil diaktifkan kembali. Setoran Cashflow Alima & Kas Wajib telah dipulihkan.');
           loadDetail(idH);
           reload();
+          if (w.TxUI && typeof w.TxUI.render === 'function') {
+            try { w.TxUI.render(); } catch (eTx) {}
+          }
           if (w.Sync && typeof w.Sync.push === 'function') w.Sync.push();
         })
         .catch(function (err) {
