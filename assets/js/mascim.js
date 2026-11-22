@@ -2328,13 +2328,14 @@
     var isDoneDiambil = (o.serviceStatus === 'Done Diambil');
     var tampilNota = !!(o.noteIssued && o.warrantyNote) || !!o.canIssueNote;
     html += '<div class="mc-quicknav">' +
+      (isDoneDiambil && tampilNota ? '<button type="button" data-qn="qnNota">Nota Garansi</button>' : '') +
       '<button type="button" data-qn="qnPelanggan">Pelanggan</button>' +
+      '<button type="button" data-qn="qnKendala">Kendala &amp; Penanganan</button>' +
       (isDoneDiambil
-        ? '<button type="button" data-qn="qnBiaya">Biaya</button>' +
-          '<button type="button" data-qn="qnPelunasan">Pelunasan</button>'
+        ? '<button type="button" data-qn="qnBiaya">Biaya &amp; Pelunasan</button>'
         : '<button type="button" data-qn="qnBiaya">Biaya+Part</button>') +
-      (tampilNota ? '<button type="button" data-qn="qnNota">Nota</button>' : '') +
-      (!isDoneDiambil ? '<button type="button" data-qn="qnStatus">Status</button>' : '') +
+      (!isDoneDiambil && tampilNota ? '<button type="button" data-qn="qnNota">Nota</button>' : '') +
+      '<button type="button" data-qn="qnStatus">Status</button>' +
     '</div>';
 
     html += '</div>'; // tutup .mc-sticky
@@ -2369,7 +2370,39 @@
         '<span>Pilih status yang benar di bawah: Done, Done Diambil, Progress, Cancel, atau Cancel Diambil.</span></div>';
     }
 
-    // Pelanggan & unit
+    // 1. Pada status Done Diambil: PINDAH NOTA GARANSI KE PALING ATAS DI BAWAH LAYOUT NO. NOTA
+    if (isDoneDiambil && tampilNota) {
+      html += '<div class="mc-sec" id="qnNota">Nota Garansi</div>';
+      if (o.noteIssued && o.warrantyNote) {
+        var wn = o.warrantyNote;
+        html += '<div class="mc-noteok">' +
+          '<div class="mc-noteok-head"><b>Nota #' + esc(wn.numberLabel) + '</b>' +
+          (wn.revoked
+            ? '<span class="mc-badge neg">Link dicabut</span>'
+            : '<span class="mc-badge ok">Aktif</span>') +
+          '</div>' +
+          '<div class="mc-kv"><span>Terbit</span><b>' + tglJam(wn.issuedAt) + '</b></div>' +
+          '<div class="mc-kv"><span>Garansi</span><b>' + wn.warrantyDays + ' hari &middot; sampai ' +
+            tglJam(wn.warrantyUntil) + '</b></div>' +
+          '<div class="mc-acts" style="margin-top:8px">' +
+            '<button class="mc-primary" id="nOpen">Lihat Nota</button>' +
+            '<button class="mc-ghost-btn" id="nCopy">Salin Link</button>' +
+            '<button class="mc-ghost-btn" id="nWa"' + (wn.whatsapp || '' ? '' : ' hidden') + '>Bagikan WhatsApp</button>' +
+          '</div>' +
+          '<div class="mc-row2" style="margin-top:6px">' +
+            '<button class="mc-ghost-btn" id="nPrint">Cetak / PDF</button>' +
+            (wn.revoked
+              ? '<button class="mc-ghost-btn danger" id="nRevoke">Batalkan Pencabutan</button>'
+              : '<button class="mc-ghost-btn danger" id="nRevoke">Cabut Link Nota</button>') +
+          '</div>' +
+        '</div>';
+      } else if (o.canIssueNote) {
+        html += '<button class="mc-next" id="nIssue">Terbitkan Nota Garansi ' +
+          '<em>\u00b7 buat nomor, garansi 60 hari, dan link</em></button>';
+      }
+    }
+
+    // 2. Pelanggan & unit
     html += '<div class="mc-sec" id="qnPelanggan">Pelanggan &amp; Unit</div>' +
       kv('Nama', o.customerName) +
       (o.whatsapp
@@ -2390,17 +2423,20 @@
           '</div>'
         : '');
 
-    /* Kendala & kondisi unit digabung jadi SATU baris. Penanganan TIDAK
-       ditampilkan di sini: penanganan baru diisi saat status diubah ke Done,
-       jadi pada nota yang masih Progress baris itu hanya berisi "-". */
+    // 3. Kendala & Penanganan (Seksi Gabungan)
     var kendalaTeks = String(o.complaint || '').trim();
     var kondisiTeks = String(o.intakeCondition || '').trim();
     if (kondisiTeks === 'undefined' || kondisiTeks === 'null') kondisiTeks = '';
     if (kondisiTeks && kondisiTeks !== kendalaTeks) {
       kendalaTeks = kendalaTeks ? (kendalaTeks + ' · ' + kondisiTeks) : kondisiTeks;
     }
-    html += '<div class="mc-sec">Kendala &amp; kondisi unit</div>' +
-      kv('Kendala & kondisi unit', esc(kendalaTeks) || '-');
+    html += '<div class="mc-sec" id="qnKendala">Kendala &amp; Penanganan</div>' +
+      kv('Kendala &amp; kondisi unit', esc(kendalaTeks) || '-') +
+      '<label class="mc-field" style="margin-top:8px"><span class="mc-lbl">Penanganan</span>' +
+        '<textarea class="mc-inp" id="dHandling" rows="2" placeholder="Contoh: ganti LCD, ganti baterai, perbaikan tombol luar dalam">' +
+          esc(o.handling || '') + '</textarea>' +
+      '</label>' +
+      '<p class="mc-hint sm" id="dSavedHint"></p>';
 
     var statusOpts = STATUS_TRANS[o.serviceStatus] || [];
 
@@ -2409,9 +2445,9 @@
       // TATA ULANG KHUSUS STATUS "DONE DIAMBIL" (RAPI, SIMPLE & MINIMALIS)
       // ========================================================
 
-      // 1. Rincian Biaya & Penanganan (Seksi Gabungan)
+      // 4. Rincian Biaya & Pelunasan (Seksi Gabungan)
       var hasParts = !!(o.parts && o.parts.length);
-      html += '<div class="mc-sec" id="qnBiaya">Rincian Biaya &amp; Penanganan</div>' +
+      html += '<div class="mc-sec" id="qnBiaya">Rincian Biaya &amp; Pelunasan</div>' +
         '<div class="mc-money">' +
           '<div><span>Total Biaya</span><b>' + rupiah(o.totalCost) + '</b></div>' +
           '<div' + (hasParts ? ' class="mc-row-accordion" id="dTogglePartAcc" role="button" tabindex="0" aria-expanded="false"' : '') + '>' +
@@ -2442,22 +2478,14 @@
         html += '<p class="mc-warn">Kelebihan bayar ' + rupiah(o.overpaidAmount) + '. Catat sebagai refund atau koreksi.</p>';
       }
 
-      html += '<label class="mc-field" style="margin-top:6px"><span class="mc-lbl">Penanganan</span>' +
-        '<textarea class="mc-inp" id="dHandling" rows="2" placeholder="Contoh: ganti LCD, ganti baterai, bersihkan bagian dalam">' +
-          esc(o.handling || '') + '</textarea>' +
-      '</label>' +
-      '<p class="mc-hint sm" id="dSavedHint"></p>';
-
-      // 2. Pelunasan (Seksi Gabungan Pembayaran dan Dana Bank)
-      html += '<div class="mc-sec" id="qnPelunasan">Pelunasan</div>';
-
+      // Bagian Pelunasan tergabung rapi di bawah rincian biaya
       if (o.warranty || o.paymentMethod) {
-        html += '<div class="mc-money"><div><span>Garansi</span><b>' + esc(o.warranty || '-') + '</b></div>' +
+        html += '<div class="mc-money" style="margin-top:6px"><div><span>Garansi</span><b>' + esc(o.warranty || '-') + '</b></div>' +
           '<div><span>Metode Bayar</span><b>' + esc(o.paymentMethod || '-') + '</b></div></div>';
       }
 
       if (o.payments && o.payments.length) {
-        html += '<div class="mc-ptable">';
+        html += '<div class="mc-ptable" style="margin-top:6px">';
         o.payments.forEach(function (p) {
           var extra = [];
           if (p.paymentMethod) extra.push('Metode: ' + esc(p.paymentMethod));
@@ -2476,37 +2504,7 @@
         '</div>';
       }
 
-      // 3. Nota Garansi Pelanggan
-      if (tampilNota) html += '<div class="mc-sec" id="qnNota">Nota Garansi</div>';
-      if (o.noteIssued && o.warrantyNote) {
-        var wn = o.warrantyNote;
-        html += '<div class="mc-noteok">' +
-          '<div class="mc-noteok-head"><b>Nota #' + esc(wn.numberLabel) + '</b>' +
-          (wn.revoked
-            ? '<span class="mc-badge neg">Link dicabut</span>'
-            : '<span class="mc-badge ok">Aktif</span>') +
-          '</div>' +
-          '<div class="mc-kv"><span>Terbit</span><b>' + tglJam(wn.issuedAt) + '</b></div>' +
-          '<div class="mc-kv"><span>Garansi</span><b>' + wn.warrantyDays + ' hari &middot; sampai ' +
-            tglJam(wn.warrantyUntil) + '</b></div>' +
-          '<div class="mc-acts" style="margin-top:8px">' +
-            '<button class="mc-primary" id="nOpen">Lihat Nota</button>' +
-            '<button class="mc-ghost-btn" id="nCopy">Salin Link</button>' +
-            '<button class="mc-ghost-btn" id="nWa"' + (wn.whatsapp || '' ? '' : ' hidden') + '>Bagikan WhatsApp</button>' +
-          '</div>' +
-          '<div class="mc-row2" style="margin-top:6px">' +
-            '<button class="mc-ghost-btn" id="nPrint">Cetak / PDF</button>' +
-            (wn.revoked
-              ? '<button class="mc-ghost-btn danger" id="nRevoke">Batalkan Pencabutan</button>'
-              : '<button class="mc-ghost-btn danger" id="nRevoke">Cabut Link Nota</button>') +
-          '</div>' +
-        '</div>';
-      } else if (o.canIssueNote) {
-        html += '<button class="mc-next" id="nIssue">Terbitkan Nota Garansi ' +
-          '<em>\u00b7 buat nomor, garansi 60 hari, dan link</em></button>';
-      }
-
-      // 4. Ubah Status
+      // 5. Ubah Status
       html += '<div class="mc-sec" id="qnStatus">Ubah Status</div>' +
         '<div class="mc-acts mc-side">' +
           '<button class="mc-ghost-btn mc-save-side" id="dSaveSide">Simpan</button>' +
@@ -2530,9 +2528,8 @@
       // ========================================================
       // TAMPILAN UNTUK STATUS LAIN (PROGRESS, DONE, CANCEL, DSB)
       // ========================================================
-      // Rincian Biaya
       var tampilBayar = (o.serviceStatus === 'Done');
-      html += '<div class="mc-sec" id="qnBiaya">Rincian Biaya</div>' +
+      html += '<div class="mc-sec" id="qnBiaya">Rincian Biaya &amp; Pelunasan</div>' +
         '<label class="mc-field"><span class="mc-lbl">Total Biaya (Rp)</span>' +
           '<div class="mc-calc-field">' +
             '<input class="mc-inp" id="dTotal" inputmode="text" placeholder="0" value="' +
@@ -2577,7 +2574,8 @@
 
       // Pembayaran
       if (tampilBayar) {
-        html += '<div class="mc-sec">Pembayaran</div>';
+        html += '<div class="mc-money" style="margin-top:6px"><div><span>Riwayat Pembayaran</span><b>' +
+          (o.payments.length ? o.payments.length + ' transaksi' : 'Belum ada') + '</b></div></div>';
         if (o.payments.length) {
           html += '<div class="mc-ptable">';
           o.payments.forEach(function (p) {
@@ -2602,18 +2600,9 @@
       // Dana Bank
       if (o.bankUsed > 0) {
         var bankSisa = o.bankUsed - o.bankReturned;
-        html += '<div class="mc-sec">Dana Bank</div>' +
-          '<div class="mc-money"><div><span>Dipakai dari Dana Bank</span><b class="neg">' + rupiah(o.bankUsed) + '</b></div>' +
+        html += '<div class="mc-money" style="margin-top:6px"><div><span>Dipakai dari Dana Bank</span><b class="neg">' + rupiah(o.bankUsed) + '</b></div>' +
           '<div><span>Sudah dikembalikan</span><b class="pos">' + rupiah(o.bankReturned) + '</b></div></div>';
       }
-
-      // Penanganan
-      html += '<div class="mc-sec">Penanganan</div>' +
-        '<label class="mc-field"><span class="mc-lbl">Penanganan</span>' +
-          '<textarea class="mc-inp" id="dHandling" rows="2" placeholder="Contoh: ganti LCD, ganti baterai, bersihkan bagian dalam">' +
-            esc(o.handling || '') + '</textarea>' +
-        '</label>' +
-        '<p class="mc-hint sm" id="dSavedHint"></p>';
 
       // Nota garansi pelanggan
       if (tampilNota) html += '<div class="mc-sec" id="qnNota">Nota Garansi</div>';
@@ -2911,51 +2900,137 @@
         menu.style.display = '';
       });
     }
-    // Tombol Hapus: memindahkan nota ke pool sementara Nota Terhapus
+    // Validasi PIN Owner (sementara: 1234) untuk aksi kritis (hapus garapan & aktifkan garapan)
+    var OWNER_PIN = '1234';
+
+    function konfirmasiPinOwner(opts, onValid) {
+      opts = opts || {};
+      var judul = opts.judul || 'Validasi PIN Owner';
+      var pesan = opts.pesan || 'Masukkan 4 angka PIN Owner untuk melanjutkan:';
+      var btnTeks = opts.btnTeks || 'Konfirmasi';
+      var isDanger = !!opts.isDanger;
+
+      var html = '<div class="mc-pin-dialog">' +
+        '<p class="mc-hint" style="margin:0 0 10px;line-height:1.5;">' + pesan + '</p>' +
+        '<label class="mc-field">' +
+          '<span class="mc-lbl">PIN Owner (4 Angka) *</span>' +
+          '<input class="mc-inp mc-pin-inp" type="password" id="dInputOwnerPin" maxlength="4" pattern="[0-9]*" inputmode="numeric" placeholder="••••" autocomplete="off">' +
+        '</label>' +
+        '<p class="mc-warn sm" id="dOwnerPinErr" style="display:none;margin-top:6px;font-weight:600;"></p>' +
+        '<div class="mc-row2" style="margin-top:14px;gap:8px;">' +
+          '<button type="button" class="mc-ghost-btn" id="dBtnPinBatal">Batal</button>' +
+          '<button type="button" class="mc-primary' + (isDanger ? ' danger' : '') + '" id="dBtnPinSubmit">' + esc(btnTeks) + '</button>' +
+        '</div>' +
+      '</div>';
+
+      sheetOrWarn(judul, html, function (body) {
+        var pinInp = $('#dInputOwnerPin', body);
+        var errEl = $('#dOwnerPinErr', body);
+        var btnBatal = $('#dBtnPinBatal', body);
+        var btnSubmit = $('#dBtnPinSubmit', body);
+
+        if (pinInp) {
+          setTimeout(function () { try { pinInp.focus(); } catch (eF) {} }, 200);
+          pinInp.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              btnSubmit && btnSubmit.click();
+            }
+          });
+        }
+        if (btnBatal) {
+          btnBatal.addEventListener('click', function () { tutupSheet(); });
+        }
+        if (btnSubmit) {
+          btnSubmit.addEventListener('click', function () {
+            var val = (pinInp ? pinInp.value : '').trim();
+            if (val !== OWNER_PIN) {
+              if (errEl) {
+                errEl.textContent = 'PIN Owner salah! Masukkan 4 angka PIN yang benar.';
+                errEl.style.display = 'block';
+              }
+              if (pinInp) {
+                pinInp.value = '';
+                pinInp.focus();
+              }
+              if (window.TG && TG.haptic) TG.haptic('error');
+              return;
+            }
+            tutupSheet();
+            if (window.TG && TG.haptic) TG.haptic('success');
+            onValid();
+          });
+        }
+      });
+    }
+
+    // Tombol Hapus: memindahkan nota ke pool sementara Nota Terhapus dengan validasi PIN Owner
     var hapusNotaBtn = $('#dHapusNota');
     if (hapusNotaBtn) hapusNotaBtn.addEventListener('click', function () {
       var menuH = $('#dStatusMenu');
       if (menuH) menuH.style.display = '';
       var idH = idNota();
       if (!idH) { alertErr('Nota ini belum punya identitas. Muat ulang halamannya.'); return; }
-      var tanya = 'Pindahkan garapan ini ke pool sementara Nota Terhapus?\n\n'
-        + 'Nota ini dapat dikembalikan sewaktu-waktu lewat Buku Besar > Status: Nota Terhapus > Aktifkan garapan.\n\n'
-        + 'Lanjut hapus?';
-      if (!window.confirm(tanya)) return;
-      api('DELETE', '/api/mascim/services/' + encodeURIComponent(idH), { fromFinal: true, hard: false })
-        .then(function () {
-          M.current = null;
-          M.id = '';
-          renderList();
-          toast('Nota dipindahkan ke pool Nota Terhapus');
-          if (w.Sync && typeof w.Sync.push === 'function') w.Sync.push();
-        })
-        .catch(function (err) {
-          alertErr('Gagal menghapus: '
-            + (err && err.message ? err.message : 'tidak diketahui'));
-        });
+      var o = M.current || {};
+      var ref = refNota(o);
+      var info = (o.customerName ? o.customerName : '') + (o.device ? ' — ' + o.device : '');
+
+      konfirmasiPinOwner({
+        judul: '⚠️ Hapus Garapan — PIN Owner',
+        pesan: 'Pindahkan garapan <b>' + esc(ref) + '</b>' + (info ? ' (' + esc(info) + ')' : '') +
+          ' ke pool sementara <b>Nota Terhapus</b>?<br><br>' +
+          'Nota ini akan dikeluarkan dari daftar nota aktif dan dapat dipulihkan sewaktu-waktu.<br><br>' +
+          'Masukkan 4 angka PIN Owner (1234) untuk konfirmasi:',
+        btnTeks: 'Ya, Hapus Garapan',
+        isDanger: true
+      }, function () {
+        api('DELETE', '/api/mascim/services/' + encodeURIComponent(idH), { fromFinal: true, hard: false })
+          .then(function () {
+            M.current = null;
+            M.id = '';
+            renderList();
+            toast('Nota dipindahkan ke pool Nota Terhapus');
+            if (w.Sync && typeof w.Sync.push === 'function') w.Sync.push();
+          })
+          .catch(function (err) {
+            alertErr('Gagal menghapus: ' + (err && err.message ? err.message : 'tidak diketahui'));
+          });
+      });
     });
 
-    // Tombol "Aktifkan garapan" di bawah Hapus garapan ini (memulihkan nota terhapus)
+    // Tombol "Aktifkan garapan" di bawah Hapus garapan ini (memulihkan nota terhapus dengan validasi PIN Owner)
     function jalankanAktifkanNota() {
       var menuH = $('#dStatusMenu');
       if (menuH) menuH.style.display = '';
       var idH = idNota();
       if (!idH) { alertErr('Nota ini belum punya identitas. Muat ulang halamannya.'); return; }
-      if (!window.confirm('Aktifkan kembali garapan ini ke daftar nota aktif Mas Cim?')) return;
-      api('POST', '/api/mascim/services/' + encodeURIComponent(idH) + '/restore')
-        .then(function () {
-          toast('Garapan berhasil diaktifkan kembali. Setoran Cashflow Alima & Kas Wajib telah dipulihkan.');
-          loadDetail(idH);
-          reload();
-          if (w.TxUI && typeof w.TxUI.render === 'function') {
-            try { w.TxUI.render(); } catch (eTx) {}
-          }
-          if (w.Sync && typeof w.Sync.push === 'function') w.Sync.push();
-        })
-        .catch(function (err) {
-          alertErr('Gagal mengaktifkan garapan: ' + (err && err.message ? err.message : err));
-        });
+      var o = M.current || {};
+      var ref = refNota(o);
+      var info = (o.customerName ? o.customerName : '') + (o.device ? ' — ' + o.device : '');
+
+      konfirmasiPinOwner({
+        judul: '🔄 Aktifkan Garapan — PIN Owner',
+        pesan: 'Aktifkan kembali garapan <b>' + esc(ref) + '</b>' + (info ? ' (' + esc(info) + ')' : '') +
+          ' ke daftar <b>Nota Aktif Mas Cim</b>?<br><br>' +
+          'Setoran otomatis Cashflow Alima dan Kas Wajib 10% juga akan dipulihkan seperti semula.<br><br>' +
+          'Masukkan 4 angka PIN Owner (1234) untuk konfirmasi:',
+        btnTeks: 'Ya, Aktifkan Garapan',
+        isDanger: false
+      }, function () {
+        api('POST', '/api/mascim/services/' + encodeURIComponent(idH) + '/restore')
+          .then(function () {
+            toast('Garapan berhasil diaktifkan kembali. Setoran Cashflow Alima & Kas Wajib telah dipulihkan.');
+            loadDetail(idH);
+            reload();
+            if (w.TxUI && typeof w.TxUI.render === 'function') {
+              try { w.TxUI.render(); } catch (eTx) {}
+            }
+            if (w.Sync && typeof w.Sync.push === 'function') w.Sync.push();
+          })
+          .catch(function (err) {
+            alertErr('Gagal mengaktifkan garapan: ' + (err && err.message ? err.message : err));
+          });
+      });
     }
     var aktifkanNotaBtn = $('#dAktifkanNota');
     if (aktifkanNotaBtn) aktifkanNotaBtn.addEventListener('click', jalankanAktifkanNota);
