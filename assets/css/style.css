@@ -4085,6 +4085,29 @@ body.fx-kalk{ min-height:100vh; }
 }
 #fbPanel .item{ margin:6px 0; }
 #fbPanel .fb-log .item{ margin:4px 0; }
+#fbPanel .fb-poster-grid{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(72px, 1fr));
+  gap:8px; margin-top:10px;
+}
+#fbPanel .fb-poster-item{
+  position:relative; aspect-ratio:1/1; border-radius:9px; overflow:hidden;
+  border:1px solid var(--line,#2a3a35); background:rgba(0,0,0,0.35);
+}
+#fbPanel .fb-poster-item img{
+  width:100%; height:100%; object-fit:cover; display:block;
+}
+#fbPanel .fb-poster-del{
+  position:absolute; top:3px; right:3px; width:22px; height:22px;
+  background:rgba(239,68,68,0.9); color:#fff; border:none; border-radius:50%;
+  font-size:12px; line-height:1; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; padding:0; box-shadow:0 1px 3px rgba(0,0,0,0.4);
+}
+#fbPanel .fb-btn-row{
+  display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;
+}
+#fbPanel .fb-btn-row .btn{
+  flex:1 1 auto; min-width:140px; font-size:12.5px; padding:10px 12px;
+}
 @media (prefers-reduced-motion:reduce){
   #fbPanel .fb-toggle, #fbPanel .fb-knob{ transition:none !important; }
 }
