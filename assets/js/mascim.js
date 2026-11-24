@@ -398,23 +398,13 @@
   var _bbResizeHandler = null;
 
   function updateBBOrientation(forceRotate) {
-    if (forceRotate !== undefined) {
-      M.bbRotated = !!forceRotate;
-      M.bbRotatedAuto = false;
-    } else if (M.bbRotatedAuto !== false) {
-      var isPortrait = window.innerHeight > window.innerWidth;
-      M.bbRotated = isPortrait;
+    document.body.classList.remove('mc-bb-rotated-css');
+    var mc = document.getElementById('mc');
+    if (mc) {
+      mc.classList.remove('mc-bb-rotated');
+      mc.classList.remove('mc-bb-rotated-css');
     }
-    if (M.bbRotated) {
-      document.body.classList.add('mc-bb-rotated-css');
-    } else {
-      document.body.classList.remove('mc-bb-rotated-css');
-    }
-    var btnRot = document.getElementById('bbBtnRotate');
-    if (btnRot) {
-      btnRot.style.display = 'inline-flex';
-      btnRot.innerHTML = '🔄 ' + (M.bbRotated ? 'POTRET' : 'LANSKAP');
-    }
+    M.bbRotated = false;
   }
 
   function triggerNativeFullscreen() {
@@ -1242,6 +1232,7 @@
       // supaya bertahan meski form digambar ulang.
       lockHidden: false,
       handling: '', total_cost: '', service_status: INITIAL_STATUS,
+      dp: 0, dp_manual: '',
       // Estimasi Biaya: brand manual (dropdown brand "Lainnya…"),
       // pilihan harga (nilai "SERI|ruleId" dari Kalkulator, atau "Lainnya"),
       // dan model/estimasi yang diketik sendiri pada pilihan "Lainnya".
@@ -1263,12 +1254,15 @@
        kebetulan sama persis. */
     var db = pisahDevice(o.device);
     var brandManual = !db[0];
+    var dpVal = o.dp || (o.payments && o.payments.filter(function (p) { return p.paymentType === 'DP'; }).reduce(function (s, p) { return s + p.amount; }, 0)) || 0;
     return {
       customer_name: o.customerName, whatsapp: o.whatsapp, device: o.device,
       complaint: o.complaint, intake_condition: o.intakeCondition || '',
       screen_lock_type: o.screenLockType, screen_lock_secret: o.screenLockSecret || '',
       handling: o.handling, total_cost: o.totalCost ? String(o.totalCost) : '',
       service_status: o.serviceStatus,
+      dp: dpVal,
+      dp_manual: dpVal ? String(dpVal) : '',
       // Pilihan Estimasi Biaya tidak disimpan mesin data (field tetap), jadi
       // saat edit dropdown diisi ulang dari device + Kalkulator lewat
       // bindForm(). Yang penting di sini adalah TOTAL LAMA: kalau dropdown
@@ -1407,6 +1401,14 @@
               '<button type="button" class="mc-btn-calc" data-target="fPartManual" title="Buka Kalkulator Cerdas">🧮</button>' +
             '</div>' +
           '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="mc-field" style="margin-top:8px">' +
+        '<span class="mc-lbl sm">Uang Muka / DP (Rp) <span class="mc-sec-note">opsional, jika pelanggan menitipkan DP</span></span>' +
+        '<div class="mc-calc-field">' +
+          '<input class="mc-inp sm" id="fDp" inputmode="numeric" value="' +
+          esc(d.dp ? rupiah(d.dp) : (d.dp_manual || '')) + '" placeholder="Rp 0 (kosongkan bila belum bayar)">' +
+          '<button type="button" class="mc-btn-calc" data-target="fDp" title="Buka Kalkulator Cerdas">🧮</button>' +
         '</div>' +
       '</div>');
 
@@ -1773,6 +1775,11 @@
     // dan saat mengedit status lama nota tidak ikut berubah karena field ini
     // diabaikan mesin data saat status tidak dikirim eksplisit.
     d.service_status = INITIAL_STATUS;
+    var elDp = $('#fDp');
+    if (elDp) {
+      d.dp = smartVal(elDp.value) || 0;
+      d.dp_manual = elDp.value;
+    }
     return d;
   }
 
@@ -2401,6 +2408,7 @@
       screen_lock_secret: d.screen_lock_secret,
       handling: d.handling.trim(),
       total_cost: d.total_cost === '' ? 0 : parseInt(String(d.total_cost).replace(/\D/g, ''), 10),
+      dp: d.dp || 0,
       parts: d.parts.filter(function (p) {
         return String(p.part_name || '').trim() && (parseInt(String(p.capital_cost).replace(/\D/g, ''), 10) > 0);
       }).map(function (p) {
@@ -2848,15 +2856,16 @@
       html += '<button class="mc-ghost-btn" id="dAddPart" style="margin-top:-4px;margin-bottom:8px">+ Tambah Sparepart</button>';
 
       // Jasa
+      var adaDp = (o.paid > 0 && !tampilBayar);
       html += '<div class="mc-money">' +
         '<div><span>Jasa</span><b class="pos">' + rupiah(o.serviceFee) + '</b></div>' +
-        (tampilBayar
-          ? '<div><span>Sudah Dibayar</span><b class="pos">' + rupiah(o.paid) + '</b></div>'
+        (tampilBayar || adaDp
+          ? '<div><span>' + (adaDp ? 'Uang Muka (DP)' : 'Sudah Dibayar') + '</span><b class="pos">' + rupiah(o.paid) + '</b></div>'
           : '') +
       '</div>';
 
-      if (tampilBayar) {
-        html += '<div class="mc-money big"><div><span>Sisa Pelunasan</span><b class="' +
+      if (tampilBayar || adaDp) {
+        html += '<div class="mc-money big"><div><span>' + (adaDp ? 'Sisa Tagihan' : 'Sisa Pelunasan') + '</span><b class="' +
           (o.remaining > 0 ? 'neg' : 'pos') + '">' + rupiah(o.remaining) + '</b></div></div>';
       }
       if (o.serviceFeeWarning) html += '<p class="mc-warn">' + esc(o.serviceFeeWarning) + '</p>';
@@ -2865,7 +2874,7 @@
       }
 
       // Pembayaran
-      if (tampilBayar) {
+      if (tampilBayar || adaDp) {
         html += '<div class="mc-money" style="margin-top:6px"><div><span>Riwayat Pembayaran</span><b>' +
           (o.payments.length ? o.payments.length + ' transaksi' : 'Belum ada') + '</b></div></div>';
         if (o.payments.length) {
@@ -4496,7 +4505,10 @@
     var garansiOpts = WARRANTY_OPTIONS.map(function (g) {
       return '<option value="' + esc(g) + '"' + (g === warNow ? ' selected' : '') + '>' + esc(g) + '</option>';
     }).join('');
-    var metodeOpts = PAYMENT_METHODS.map(function (m) {
+
+    var methods = PAYMENT_METHODS.slice();
+    if (methods.indexOf('Cash + QRIS/TF') < 0) methods.push('Cash + QRIS/TF');
+    var metodeOpts = methods.map(function (m) {
       return '<option value="' + esc(m) + '"' + (m === metNow ? ' selected' : '') + '>' + esc(m) + '</option>';
     }).join('');
 
@@ -4514,6 +4526,20 @@
         'Belum perlu mencatat pembayaran terpisah.</p>'
       : '<p class="mc-hint">Pembayaran <b class="pos">lunas</b>. Pilih garansi &amp; metode pembayaran untuk menutup nota.</p>';
 
+    var halfCash = Math.round(kurang / 2);
+    var halfQris = kurang - halfCash;
+    var splitBoxHtml = '<div id="cfSplitBox" style="' + (metNow === 'Cash + QRIS/TF' && kurang > 0 ? '' : 'display:none;') + 'margin-top:10px;padding:10px;background:#0d1527;border:1px solid #1e293b;border-radius:8px;">' +
+      '<span class="mc-lbl" style="font-size:11px;font-weight:700;color:#38bdf8;margin-bottom:6px;display:block;">Pecahan Pembayaran Kombinasi (Sisa: ' + rupiah(kurang) + ')</span>' +
+      '<div class="mc-row2">' +
+        '<label class="mc-field"><span class="mc-lbl sm">Porsi Cash (Rp)</span>' +
+          '<input class="mc-inp" id="cfSplitCash" inputmode="numeric" placeholder="0" value="' + (kurang > 0 ? rupiah(halfCash) : '0') + '">' +
+        '</label>' +
+        '<label class="mc-field"><span class="mc-lbl sm">Porsi QRIS / TF (Rp)</span>' +
+          '<input class="mc-inp" id="cfSplitQris" inputmode="numeric" placeholder="0" value="' + (kurang > 0 ? rupiah(halfQris) : '0') + '">' +
+        '</label>' +
+      '</div>' +
+    '</div>';
+
     sheetOrWarn('Konfirmasi Pelunasan',
       banner +
       '<div class="mc-row2">' +
@@ -4522,8 +4548,49 @@
         '<label class="mc-field"><span class="mc-lbl">Metode Bayar *</span>' +
           '<select class="mc-inp" id="cfMethod">' + metodeOpts + '</select></label>' +
       '</div>' +
-      '<p class="mc-hint sm">Setelah dikonfirmasi, nota menjadi <b>Done Diambil</b> dan Dana Bank nota ini otomatis lunas.</p>',
+      splitBoxHtml +
+      '<p class="mc-hint sm" style="margin-top:8px;">Setelah dikonfirmasi, nota menjadi <b>Done Diambil</b> dan Dana Bank nota ini otomatis lunas.</p>',
       function (body) {
+        var metSel = $('#cfMethod');
+        var splitBox = $('#cfSplitBox');
+        var inpCash = $('#cfSplitCash');
+        var inpQris = $('#cfSplitQris');
+
+        function updateSplitVis() {
+          if (!splitBox) return;
+          var isSplit = metSel && metSel.value === 'Cash + QRIS/TF';
+          splitBox.style.display = (isSplit && kurang > 0) ? 'block' : 'none';
+        }
+
+        if (metSel) {
+          metSel.addEventListener('change', updateSplitVis);
+        }
+
+        if (inpCash && inpQris && kurang > 0) {
+          inpCash.addEventListener('input', function () {
+            var cVal = parseInt(String(inpCash.value).replace(/\D/g, ''), 10) || 0;
+            if (cVal > kurang) cVal = kurang;
+            var qVal = kurang - cVal;
+            inpQris.value = rupiah(qVal);
+          });
+          inpCash.addEventListener('blur', function () {
+            var cVal = parseInt(String(inpCash.value).replace(/\D/g, ''), 10) || 0;
+            if (cVal > kurang) cVal = kurang;
+            inpCash.value = rupiah(cVal);
+          });
+          inpQris.addEventListener('input', function () {
+            var qVal = parseInt(String(inpQris.value).replace(/\D/g, ''), 10) || 0;
+            if (qVal > kurang) qVal = kurang;
+            var cVal = kurang - qVal;
+            inpCash.value = rupiah(cVal);
+          });
+          inpQris.addEventListener('blur', function () {
+            var qVal = parseInt(String(inpQris.value).replace(/\D/g, ''), 10) || 0;
+            if (qVal > kurang) qVal = kurang;
+            inpQris.value = rupiah(qVal);
+          });
+        }
+
         var b = document.createElement('button');
         b.className = 'mc-primary';
         b.style.marginTop = '12px';
@@ -4535,21 +4602,27 @@
           var met = $('#cfMethod') ? $('#cfMethod').value : '';
           if (!war) { alertErr('Pilih garansi lebih dulu'); return; }
           if (!met) { alertErr('Pilih metode pembayaran lebih dulu'); return; }
+
+          var payload = { warranty: war, payment_method: met };
+          if (met === 'Cash + QRIS/TF' && kurang > 0) {
+            var cVal = parseInt(String(inpCash ? inpCash.value : '').replace(/\D/g, ''), 10) || 0;
+            var qVal = parseInt(String(inpQris ? inpQris.value : '').replace(/\D/g, ''), 10) || 0;
+            if (cVal + qVal !== kurang) {
+              alertErr('Total pecahan Cash (' + rupiah(cVal) + ') + QRIS/TF (' + rupiah(qVal) + ') harus sama dengan sisa tagihan (' + rupiah(kurang) + ')');
+              return;
+            }
+            payload.cash_amount = cVal;
+            payload.qris_amount = qVal;
+          }
+
           tutupSheet();
-          api('POST', '/api/mascim/services/' + encodeURIComponent(M.current.id) + '/confirm-taken',
-            { warranty: war, payment_method: met })
+          api('POST', '/api/mascim/services/' + encodeURIComponent(M.current.id) + '/confirm-taken', payload)
             .then(function (r) {
               var svc = r.service || {};
               M.current = svc;
               toast('Nota selesai — Done Diambil');
               loadDetail(M.current.id);
               reload();
-              // TIDAK dikirim otomatis. Pengiriman ke pelanggan
-              // menjadi keputusan admin: dia yang tahu pelanggan mana yang
-              // mau dikabari dan lewat aplikasi apa. Membuka WhatsApp
-              // otomatis dari dalam app justru sering gagal di
-              // WebView tanpa pesan apa pun, dan admin bisa
-              // menganggap nota sudah terkirim padahal belum.
               if (svc.note) {
                 toast('Nota #' + svc.note.numberLabel +
                   ' terbit — kirim linknya ke pelanggan dari tombol "Bagikan WhatsApp".');
@@ -4577,10 +4650,18 @@
     var d = M.cf;
     var html = '<div class="mc-pad">';
     if (!d) { html += skeleton(); s.innerHTML = html + '</div>'; return; }
-    var sm = d.summary;
+    var sm = d.summary || {};
     var monthBal = (sm && sm.balance != null) ? sm.balance : 0;
     var totalAvail = (M.cfAll && M.cfAll.summary && M.cfAll.summary.balance != null)
       ? M.cfAll.summary.balance : monthBal;
+
+    var moneyIn = sm.moneyIn != null ? sm.moneyIn : 0;
+    var partModal = sm.partModal != null ? sm.partModal : 0;
+    var otherExpense = sm.otherExpense != null ? sm.otherExpense : 0;
+    var qrisTf = sm.qrisTf != null ? sm.qrisTf : 0;
+    var dpUnpaid = sm.dpUnpaid != null ? sm.dpUnpaid : 0;
+    var totalSetelah = (sm.netAfterPartOutBon != null) ? sm.netAfterPartOutBon
+      : (sm.netServiceFee != null ? sm.netServiceFee : (moneyIn - partModal - otherExpense));
 
     // Strip Filter Bulan, Saldo Perbulan Ini (di bawah bulan) & Total Saldo Akumulasi (di sebelah kanan)
     html += '<div class="card" style="margin-bottom:12px;padding:10px 14px;background:#141a17;border:1px solid #26302b;border-radius:14px;">' +
@@ -4600,12 +4681,21 @@
       '</div>' +
     '</div>';
 
-    html += '<div class="mc-money"><div><span>Uang Masuk</span><b class="pos">' + rupiah(sm.moneyIn) + '</b></div>' +
-      '<div><span>Modal Sparepart</span><b class="neg">' + rupiah(sm.partModal) + '</b></div></div>';
-    html += '<div class="mc-money"><div><span>Pengeluaran Lain</span><b class="neg">' + rupiah(sm.otherExpense) + '</b></div>' +
-      '<div><span>Jasa Bersih</span><b class="pos">' + rupiah(sm.netServiceFee) + '</b></div></div>';
+    // Baris 1: Uang Masuk & Modal Sparepart
+    html += '<div class="mc-money"><div><span>Uang Masuk</span><b class="pos">' + rupiah(moneyIn) + '</b></div>' +
+      '<div><span>Modal Sparepart</span><b class="neg">' + rupiah(partModal) + '</b></div></div>';
 
-    html += '<button class="mc-primary sm" id="cfAdd" style="margin-top:8px;">+ Pengeluaran Lain</button>';
+    // Baris 2: Out / Bon & QRIS / TF (posisi di atas Total setelah Part/Out/Bon)
+    html += '<div class="mc-money"><div><span>Out / Bon</span><b class="neg">' + rupiah(otherExpense) + '</b></div>' +
+      '<div><span>QRIS / TF</span><b class="pos" style="color:#38bdf8;">' + rupiah(qrisTf) + '</b></div></div>';
+
+    // Baris 3: Tombol/Kartu DP & Total setelah Part/Out/Bon
+    html += '<div class="mc-money"><div id="cfBtnDp" style="cursor:pointer;" title="Klik untuk lihat rincian DP nota belum lunas">' +
+      '<span style="display:flex;align-items:center;justify-content:space-between;">DP <small style="font-size:9.5px;color:#94a3b8;cursor:pointer;">(Belum Lunas) ℹ️</small></span>' +
+      '<b class="pos" style="color:#f59e0b;">' + rupiah(dpUnpaid) + '</b></div>' +
+      '<div><span>Total setelah Part/Out/Bon</span><b class="' + (totalSetelah >= 0 ? 'pos' : 'neg') + '">' + rupiah(totalSetelah) + '</b></div></div>';
+
+    html += '<button class="mc-primary sm" id="cfAdd" style="margin-top:8px;">+ Out / Bon</button>';
 
     // Pointer ke Dana Bank yang sekarang tinggal di Project Nava.
     html += '<p class="mc-hint sm">Dana Bank (Out/Bon, Atur Saldo Awal) ada di ' +
@@ -4617,6 +4707,40 @@
     html += '</div>';
     s.innerHTML = html;
     bindMoney();
+  }
+
+  function openDpSheet() {
+    var sm = (M.cf && M.cf.summary) || {};
+    var orders = sm.dpUnpaidOrders || [];
+    var totalDp = sm.dpUnpaid || 0;
+
+    var content = '<p class="mc-hint" style="margin-bottom:12px;">Daftar uang muka (DP) dari nota servis yang <b>belum lunas</b>. ' +
+      'Saat pelunasan nota, DP otomatis tergabung dan ditarik dari daftar ini.</p>';
+
+    if (!orders.length) {
+      content += '<p class="mc-empty">Tidak ada DP dari nota yang belum lunas saat ini.</p>';
+    } else {
+      content += '<div class="mc-ptable">';
+      orders.forEach(function (o) {
+        content += '<div class="mc-prow" style="cursor:pointer;padding:8px 6px;" data-open-dp="' + esc(o.id) + '">' +
+          '<span><b>#' + esc(o.ref) + ' · ' + esc(o.customerName) + '</b>' +
+          '<em>' + esc(o.device || 'Unit') + ' · Sisa: ' + rupiah(o.remaining) + '</em></span>' +
+          '<b class="pos" style="color:#f59e0b;">+' + rupiah(o.dp) + '</b>' +
+        '</div>';
+      });
+      content += '</div>';
+      content += '<div style="margin-top:12px;text-align:right;font-size:13px;font-weight:700;">' +
+        'Total DP Belum Lunas: <span style="color:#f59e0b;">' + rupiah(totalDp) + '</span></div>';
+    }
+
+    sheetOrWarn('Daftar DP (Belum Lunas)', content, function (body) {
+      Array.prototype.forEach.call(body.querySelectorAll('[data-open-dp]'), function (row) {
+        row.addEventListener('click', function () {
+          tutupSheet();
+          loadDetail(row.dataset.openDp);
+        });
+      });
+    });
   }
 
   function cfRow(e) {
@@ -4649,11 +4773,18 @@
       });
     }
 
+    var btnDp = $('#cfBtnDp');
+    if (btnDp) {
+      btnDp.addEventListener('click', function () {
+        openDpSheet();
+      });
+    }
+
     var add = $('#cfAdd');
     if (add) add.addEventListener('click', function () {
-      sheetOrWarn('Pengeluaran Lain',
+      sheetOrWarn('Out / Bon',
         '<label class="mc-field"><span class="mc-lbl">Keterangan *</span>' +
-        '<input class="mc-inp" id="exDesc" placeholder="Contoh: Bensin antar"></label>' +
+        '<input class="mc-inp" id="exDesc" placeholder="Contoh: Bensin antar / Beli konsumsi"></label>' +
         '<label class="mc-field"><span class="mc-lbl">Nominal (Rp) *</span>' +
         '<input class="mc-inp" id="exAmt" inputmode="numeric" placeholder="0"></label>' +
         '<label class="mc-field"><span class="mc-lbl">Tanggal</span>' +
@@ -4671,7 +4802,7 @@
             var date = $('#exDate').value || hariIni();
             tutupSheet();
             api('POST', '/api/mascim/cashflow', {
-              entry_type: 'Pengeluaran Lain', description: desc,
+              entry_type: 'Out / Bon', description: desc,
               money_in: 0, money_out: amt, entry_date: date + 'T00:00:00.000Z',
             }).then(function () { toast('Tercatat'); loadMoney(); reload(); })
               .catch(function (e) { alertErr(e.message); });

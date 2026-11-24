@@ -4344,23 +4344,6 @@ body.mc-bb-active #mcScreen {
   margin: 0 !important;
 }
 
-/* Rotasi Visual 90° ketika layar fisik HP posisi Potret (Lanskap Penuh Otomatis) */
-body.mc-bb-active.mc-bb-rotated-css #mc {
-  position: fixed !important;
-  top: 0 !important;
-  left: 100vw !important;
-  width: 100vh !important;
-  width: 100dvh !important;
-  height: 100vw !important;
-  max-width: 100vh !important;
-  max-width: 100dvh !important;
-  max-height: 100vw !important;
-  transform: rotate(90deg) !important;
-  transform-origin: top left !important;
-  overflow: hidden !important;
-  z-index: 99999999 !important;
-}
-
 /* Fullscreen API Native pseudo-classes */
 :fullscreen,
 :-webkit-full-screen,
@@ -4394,13 +4377,16 @@ body.mc-bb-active.mc-bb-rotated-css #mc {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 10px;
+  padding: 6px 10px;
   background: #080c1d;
   border-bottom: 1px solid #1e293b;
   flex: 0 0 auto;
-  gap: 8px;
+  gap: 10px;
   box-sizing: border-box;
   overflow: hidden;
+  width: 100%;
+  max-width: 100vw;
+  min-width: 0;
 }
 
 .mc-bb-tb-left {
@@ -4408,6 +4394,7 @@ body.mc-bb-active.mc-bb-rotated-css #mc {
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
+  flex-shrink: 0;
 }
 
 .mc-bb-tb-title {
@@ -4445,6 +4432,7 @@ body.mc-bb-active.mc-bb-rotated-css #mc {
   gap: 6px;
   overflow-x: auto;
   flex: 1 1 auto;
+  min-width: 0;
   padding: 2px 2px;
   -webkit-overflow-scrolling: touch;
 }
@@ -4532,6 +4520,7 @@ body.mc-bb-active.mc-bb-rotated-css #mc {
   align-items: center;
   gap: 6px;
   flex: 0 0 auto;
+  flex-shrink: 0;
 }
 
 .mc-bb-back-btn {

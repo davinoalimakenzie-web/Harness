@@ -104,7 +104,7 @@
      Metode pembayaran. "Campuran" dipakai kalau sebagian Tunai sebagian
      Qriss; total nominal tetap satu baris (yang sudah diinput teknisi).
   */
-  var PAYMENT_METHODS = ['Cash', 'QRIS', 'Transfer Bank'];
+  var PAYMENT_METHODS = ['Cash', 'QRIS', 'Transfer Bank', 'Cash + QRIS/TF'];
 
   /*
      Terima nilai opsional dari payload dan pastikan ia salah satu dari daftar
@@ -115,6 +115,11 @@
     if (v == null) return null;
     var s = String(v).trim();
     if (!s) return null;
+    if (label === 'Metode pembayaran') {
+      if (s === 'Cash + QRIS' || s === 'Cash + TF' || s === 'Tunai + QRIS' || s === 'Tunai + TF') {
+        s = 'Cash + QRIS/TF';
+      }
+    }
     if (allowed.indexOf(s) < 0) {
       throw bad(label + ' tidak dikenal: "' + s + '". Pilihan yang tersedia: ' + allowed.join(', '));
     }
@@ -1410,6 +1415,20 @@
         }
       }
     }
+
+    if (inp.dp != null && Number(inp.dp) > 0) {
+      var dpAmt = Number(inp.dp);
+      o.dp = dpAmt;
+      try {
+        addPayment(id, {
+          amount: dpAmt,
+          payment_type: 'DP',
+          payment_method: 'Cash',
+          note: 'Uang Muka (DP)',
+          idem_key: 'dp-init-' + id
+        });
+      } catch (eDp) {}
+    }
     return computeOrder(o);
   }
 
@@ -1517,6 +1536,35 @@
           }
         }
       }
+    }
+
+    if (patch.dp != null) {
+      var newDp = Number(patch.dp) || 0;
+      var curDpPayment = (db.payments || []).filter(function (x) {
+        return x.orderId === id && x.paymentType === 'DP';
+      })[0];
+      if (curDpPayment) {
+        if (newDp <= 0) {
+          try { removePayment(curDpPayment.id); } catch (eRem) {}
+        } else if (curDpPayment.amount !== newDp) {
+          curDpPayment.amount = newDp;
+          var cfDp = (db.cashflow || []).filter(function (x) {
+            return x.orderId === id && x.entryType === 'DP';
+          })[0];
+          if (cfDp) cfDp.moneyIn = newDp;
+        }
+      } else if (newDp > 0) {
+        try {
+          addPayment(id, {
+            amount: newDp,
+            payment_type: 'DP',
+            payment_method: 'Cash',
+            note: 'Uang Muka (DP)',
+            idem_key: 'dp-edit-' + id + '-' + newDp
+          });
+        } catch (eDp2) {}
+      }
+      cur.dp = newDp;
     }
 
     save();
@@ -1999,10 +2047,11 @@
   function addPayment(orderId, p) {
     var db = load();
     var order = getOrder(orderId); // sudah dihitung (paid/remaining valid)
+    var isDp = p.payment_type === 'DP' || p.paymentType === 'DP';
 
-    // Pembayaran hanya sah saat status "Done" (garapan selesai, pelanggan
+    // Pembayaran selain DP hanya sah saat status "Done" (garapan selesai, pelanggan
     // tinggal bayar). Semua status lain terkunci.
-    if (isPayLocked(order.serviceStatus)) {
+    if (!isDp && isPayLocked(order.serviceStatus)) {
       throw bad(order.serviceStatus === 'Done'
         ? 'Tidak bisa menambah pembayaran lagi.'
         : 'Pembayaran hanya bisa dicatat saat status Done. ' +
@@ -2024,7 +2073,7 @@
           '. Sisa setelah ini ' + (totalCost - after) + '. Set allow_overpay hanya bila memang refund/koreksi.');
       }
     }
-    var type = p.payment_type === 'DP' ? 'DP' : (order.paid > 0 ? 'Pelunasan' : 'Pembayaran Servis');
+    var type = isDp ? 'DP' : (order.paid > 0 ? 'Pelunasan' : 'Pembayaran Servis');
     var now = nowIso();
     var paidAt = p.paid_at ? new Date(p.paid_at).toISOString() : now;
     if (isNaN(Date.parse(paidAt))) throw bad('Tanggal bayar tidak valid');
@@ -2035,6 +2084,7 @@
     var warranty = normOpt(p.warranty, WARRANTY_OPTIONS, 'Garansi');
     var payMethod = normOpt(p.payment_method != null ? p.payment_method : p.paymentMethod,
       PAYMENT_METHODS, 'Metode pembayaran');
+    if (!payMethod && isDp) payMethod = 'Cash';
 
     db.payments.push({
       id: p.id || uid('pay'), orderId: orderId, amount: amount, paymentType: type,
@@ -2045,7 +2095,7 @@
     });
     addCashflowEntry({
       orderId: orderId, entryType: type === 'DP' ? 'DP' : 'Pembayaran Servis',
-      description: 'Nota ' + refOf(order) + ' — ' + order.customerName,
+      description: (type === 'DP' ? 'DP Nota ' : 'Nota ') + refOf(order) + ' — ' + order.customerName,
       moneyIn: amount, moneyOut: 0, entryDate: paidAt
     });
     var row = db.orders.filter(function (x) { return x.id === orderId; })[0];
@@ -2103,20 +2153,48 @@
     var payMethod = normOpt(
       p.payment_method != null ? p.payment_method : p.paymentMethod,
       PAYMENT_METHODS, 'Metode pembayaran');
-    if (!payMethod) throw bad('Pilih metode pembayaran lebih dulu (Cash, QRIS, atau Transfer Bank).');
+    if (!payMethod) throw bad('Pilih metode pembayaran lebih dulu (Cash, QRIS, Transfer Bank, atau Cash + QRIS/TF).');
 
     // Lunasi sisa tagihan dengan metode yang sama dengan saat note Customers
     // diambil. Idempoten lewat idem_key, jadi menekan dua kali tidak
     // menghasilkan pembayaran ganda.
     if (order.remaining > 0) {
       try {
-        addPayment(orderId, {
-          amount: order.remaining,
-          method: payMethod,
-          payment_type: order.paid > 0 ? 'Pelunasan' : 'Pembayaran',
-          idem_key: 'taken-lunas-' + orderId,
-          allow_overpay: false
-        });
+        if (payMethod === 'Cash + QRIS/TF' && p.cash_amount != null && p.qris_amount != null) {
+          var cAmt = Number(p.cash_amount) || 0;
+          var qAmt = Number(p.qris_amount) || 0;
+          if (cAmt + qAmt !== order.remaining) {
+            throw bad('Total Cash (' + cAmt.toLocaleString('id-ID') + ') + QRIS/TF (' + qAmt.toLocaleString('id-ID') + ') harus sama dengan sisa tagihan (' + order.remaining.toLocaleString('id-ID') + ')');
+          }
+          if (cAmt > 0) {
+            addPayment(orderId, {
+              amount: cAmt,
+              payment_method: 'Cash',
+              payment_type: 'Pelunasan',
+              note: 'Kombinasi (Porsi Cash)',
+              idem_key: 'taken-lunas-cash-' + orderId,
+              allow_overpay: false
+            });
+          }
+          if (qAmt > 0) {
+            addPayment(orderId, {
+              amount: qAmt,
+              payment_method: 'QRIS',
+              payment_type: 'Pelunasan',
+              note: 'Kombinasi (Porsi QRIS/TF)',
+              idem_key: 'taken-lunas-qris-' + orderId,
+              allow_overpay: false
+            });
+          }
+        } else {
+          addPayment(orderId, {
+            amount: order.remaining,
+            payment_method: payMethod,
+            payment_type: order.paid > 0 ? 'Pelunasan' : 'Pembayaran',
+            idem_key: 'taken-lunas-' + orderId,
+            allow_overpay: false
+          });
+        }
         order = getOrder(orderId);
       } catch (e) {
         // Jangan sampai pembayaran gagal menutup nota dengan status setengah.
@@ -2221,6 +2299,8 @@
   }
 
   function cashflowSummary(f) {
+    f = f || {};
+    var db = load();
     var list = listCashflow(f);
     var inSum = list.reduce(function (s, r) { return s + r.moneyIn; }, 0);
     var outSum = list.reduce(function (s, r) { return s + r.moneyOut; }, 0);
@@ -2231,13 +2311,86 @@
       byType[r.entryType].out += r.moneyOut;
     });
     function bt(t, side) { return (byType[t] && byType[t][side]) || 0; }
+
+    // Hitung DP dari nota yang BELUM LUNAS
+    var dpUnpaid = 0;
+    var dpUnpaidOrders = [];
+    var lunasOrderIds = {};
+
+    (db.orders || []).forEach(function (o) {
+      if (o.deletedAt || o.serviceStatus === 'Terhapus') return;
+      var co = computeOrder(o);
+      if (co.paymentStatus === 'Lunas') {
+        lunasOrderIds[o.id] = true;
+      } else if (co.paid > 0 && co.serviceStatus !== 'Cancel Diambil') {
+        var dpAmount = (co.payments || []).filter(function (p) {
+          return p.paymentType === 'DP';
+        }).reduce(function (s, p) { return s + p.amount; }, 0);
+        if (dpAmount <= 0 && co.paid > 0) dpAmount = co.paid;
+        if (dpAmount > 0) {
+          dpUnpaid += dpAmount;
+          dpUnpaidOrders.push({
+            id: o.id,
+            ref: refOf(o),
+            customerName: o.customerName,
+            device: o.device,
+            totalCost: co.totalCost,
+            dp: dpAmount,
+            remaining: co.remaining,
+            status: co.serviceStatus
+          });
+        }
+      }
+    });
+
+    // Hitung QRIS / TF pada rentang f
+    var qrisTfSum = 0;
+    (db.payments || []).forEach(function (p) {
+      if (!inRange(p.paidAt, f.from, f.to)) return;
+      var pm = (p.paymentMethod || '').toUpperCase();
+      var amt = p.amount || 0;
+      if (pm.indexOf('QRIS') >= 0 || pm.indexOf('TF') >= 0 || pm.indexOf('TRANSFER') >= 0) {
+        qrisTfSum += amt;
+      }
+    });
+
+    // Uang Masuk dari nota yang sudah lunas & transaksi pemasukan lainnya
+    var pelunasanLunas = 0;
+    list.forEach(function (r) {
+      if (r.entryType === 'Pembayaran Servis' || r.entryType === 'Pelunasan') {
+        pelunasanLunas += r.moneyIn;
+      } else if (r.entryType === 'DP') {
+        // Jika nota pemilik DP ini sudah lunas, DP tergabung ke pelunasan lunas
+        if (r.serviceOrderId && lunasOrderIds[r.serviceOrderId]) {
+          pelunasanLunas += r.moneyIn;
+        }
+      } else if (r.entryType === 'Koreksi') {
+        pelunasanLunas += (r.moneyIn - r.moneyOut);
+      } else if (r.entryType !== 'DP' && r.moneyIn > 0) {
+        pelunasanLunas += r.moneyIn;
+      }
+    });
+
+    // Sesuai aturan:
+    // "Saat belum lunas, nilai DP tercantum di tombol DP dan menambah di Uang Masuk. Saat pelunasan nota, DP tergabung dengan sisa pelunasan, ditarik dari tombol DP serta Uang Masuk, lalu terjadi pelunasan seperti biasa (tombol DP hanya mencatat DP dari nota yang BELUM lunas)."
+    var totalMoneyIn = pelunasanLunas + dpUnpaid;
+    var partModal = bt('Modal Sparepart', 'out') - bt('Koreksi', 'in');
+    var otherExpense = bt('Pengeluaran Lain', 'out') + bt('Out / Bon', 'out');
+    var netAfterPartOutBon = totalMoneyIn - partModal - otherExpense;
+
     return {
-      moneyIn: inSum, moneyOut: outSum, balance: inSum - outSum,
-      partModal: bt('Modal Sparepart', 'out') - bt('Koreksi', 'in'),
-      otherExpense: bt('Pengeluaran Lain', 'out'),
-      netServiceFee: bt('Pembayaran Servis', 'in') + bt('DP', 'in') + bt('Koreksi', 'out')
-        - bt('Modal Sparepart', 'out') - bt('Pengeluaran Lain', 'out'),
-      byType: byType, count: list.length
+      moneyIn: totalMoneyIn,
+      moneyOut: outSum,
+      balance: totalMoneyIn - outSum,
+      partModal: partModal,
+      otherExpense: otherExpense,
+      qrisTf: qrisTfSum,
+      dpUnpaid: dpUnpaid,
+      dpUnpaidOrders: dpUnpaidOrders,
+      netAfterPartOutBon: netAfterPartOutBon,
+      netServiceFee: netAfterPartOutBon,
+      byType: byType,
+      count: list.length
     };
   }
 
