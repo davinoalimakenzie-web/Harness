@@ -397,28 +397,14 @@
 
   var _bbResizeHandler = null;
 
-  function updateBBOrientation(toggle) {
-    if (toggle) {
-      M.bbRotated = !M.bbRotated;
-    }
+  function updateBBOrientation() {
+    document.body.classList.remove('mc-bb-rotated-css');
     var mc = document.getElementById('mc');
-    if (M.bbRotated) {
-      document.body.classList.add('mc-bb-rotated-css');
-      if (mc) {
-        mc.classList.add('mc-bb-rotated');
-        mc.classList.add('mc-bb-rotated-css');
-      }
-    } else {
-      document.body.classList.remove('mc-bb-rotated-css');
-      if (mc) {
-        mc.classList.remove('mc-bb-rotated');
-        mc.classList.remove('mc-bb-rotated-css');
-      }
+    if (mc) {
+      mc.classList.remove('mc-bb-rotated');
+      mc.classList.remove('mc-bb-rotated-css');
     }
-    var rotLbl = document.querySelector('.bb-rot-lbl');
-    if (rotLbl) {
-      rotLbl.textContent = M.bbRotated ? 'POTRET' : 'PUTAR';
-    }
+    M.bbRotated = false;
   }
 
   function triggerNativeFullscreen() {
@@ -486,20 +472,7 @@
     } catch (eB) {}
 
     triggerNativeFullscreen();
-    updateBBOrientation(false);
-
-    if (!_bbResizeHandler) {
-      _bbResizeHandler = function () {
-        if (M.view === 'list') {
-          // Bila fisik sudah lanskap (lebar > tinggi), matikan rotasi CSS jika aktif
-          if (window.innerWidth > window.innerHeight && M.bbRotated) {
-            updateBBOrientation(true);
-          }
-        }
-      };
-      window.addEventListener('resize', _bbResizeHandler);
-      window.addEventListener('orientationchange', _bbResizeHandler);
-    }
+    updateBBOrientation();
   }
 
   function exitLandscape() {
@@ -521,11 +494,6 @@
       }
     } catch (eB) {}
 
-    if (_bbResizeHandler) {
-      window.removeEventListener('resize', _bbResizeHandler);
-      window.removeEventListener('orientationchange', _bbResizeHandler);
-      _bbResizeHandler = null;
-    }
 
     try {
       if (window.Telegram && window.Telegram.WebApp) {
@@ -1056,10 +1024,9 @@
     var uangLaci = totCash - totModal;
 
     var html = '<div class="mc-bb-view">' +
-      // HEADER ATAS TERPADU (JUDUL, 5 KARTU REKAP SESUAI GAMBAR, TOMBOL KEMBALI DI PALING KIRI, TOMBOL ROTASI/FULL DI KANAN)
+      // HEADER ATAS TERPADU (JUDUL BUKU BESAR & 5 KARTU REKAP SESUAI GAMBAR)
       '<div class="mc-bb-topbar">' +
         '<div class="mc-bb-tb-left">' +
-          '<button type="button" id="bbBtnBack" class="mc-bb-back-btn" title="Kembali ke Beranda Mas Cim">‹ KEMBALI</button>' +
           '<div class="mc-bb-tb-title">' +
             '<b>BUKU BESAR</b>' +
             '<span class="mc-bb-badge-count">' + filtered.length + ' NOTA</span>' +
@@ -1097,15 +1064,6 @@
             '<div class="mc-bb-kpi-val val-bold">' + rupiah(uangLaci) + '</div>' +
             '<div class="mc-bb-kpi-sub">CASH CUSTOMER ' + rupiah(totCash) + ' - PART &amp; OUT ' + rupiah(totModal) + '</div>' +
           '</div>' +
-        '</div>' +
-
-        '<div class="mc-bb-tb-right">' +
-          '<button type="button" id="bbBtnRotate" class="mc-bb-act-btn" title="Putar mode tampilan Lanskap / Potret">' +
-            '🔄 <span class="bb-rot-lbl">' + (M.bbRotated ? 'POTRET' : 'PUTAR') + '</span>' +
-          '</button>' +
-          '<button type="button" id="bbBtnFullscreen" class="mc-bb-act-btn" title="Mode Layar Penuh Sepenuhnya">' +
-            '⛶ FULL' +
-          '</button>' +
         '</div>' +
       '</div>' +
 
@@ -5025,20 +4983,8 @@
       }
 
       // Navigasi & Aksi Buku Besar
-      if (e.target.id === 'bbBtnBack' || e.target.closest('#bbBtnBack')) {
-        back();
-        return;
-      }
       if (e.target.id === 'bbBtnRefresh' || e.target.closest('#bbBtnRefresh')) {
         loadList();
-        return;
-      }
-      if (e.target.id === 'bbBtnRotate' || e.target.closest('#bbBtnRotate')) {
-        updateBBOrientation(true);
-        return;
-      }
-      if (e.target.id === 'bbBtnFullscreen' || e.target.closest('#bbBtnFullscreen')) {
-        triggerNativeFullscreen();
         return;
       }
 
