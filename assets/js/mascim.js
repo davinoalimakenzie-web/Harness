@@ -4706,10 +4706,6 @@
 
     html += '<button class="mc-primary sm" id="cfAdd" style="margin-top:8px;">+ Out / Bon</button>';
 
-    // Pointer ke Dana Bank yang sekarang tinggal di Project Nava.
-    html += '<p class="mc-hint sm">Dana Bank (Out/Bon, Atur Saldo Awal) ada di ' +
-      'Beranda Project Nava, sebelah kartu Tunai.</p>';
-
     html += '<div class="mc-count">' + d.entries.length + ' transaksi</div>';
     html += d.entries.length ? d.entries.map(cfRow).join('') : '<p class="mc-empty">Belum ada transaksi pada bulan ini.</p>';
 
