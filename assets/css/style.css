@@ -4412,27 +4412,30 @@ body.mc-bb-active.mc-bb-rotated-css #mc {
 
 .mc-bb-tb-title {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   color: #ffffff;
 }
 
 .mc-bb-tb-title b {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.4px;
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: 0.5px;
   white-space: nowrap;
+  line-height: 1.15;
 }
 
 .mc-bb-badge-count {
   background: #1e293b;
   color: #38bdf8;
   border: 1px solid #0284c7;
-  padding: 2px 6px;
-  border-radius: 8px;
-  font-size: 9.5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 8.5px;
   font-weight: 700;
   white-space: nowrap;
+  line-height: 1.2;
 }
 
 /* 5 Kartu Finansial Buku Besar (Sesuai Gambar) */
@@ -4531,28 +4534,6 @@ body.mc-bb-active.mc-bb-rotated-css #mc {
   flex: 0 0 auto;
 }
 
-.mc-bb-fs-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: #1e293b;
-  color: #94a3b8;
-  border: 1px solid #334155;
-  border-radius: 5px;
-  padding: 4px 8px;
-  font-size: 10px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s ease;
-}
-
-.mc-bb-fs-btn:active {
-  background: #334155;
-  color: #ffffff;
-  transform: scale(0.96);
-}
-
 .mc-bb-back-btn {
   display: inline-flex;
   align-items: center;
@@ -4639,7 +4620,7 @@ body.mc-bb-active.mc-bb-rotated-css #mc {
 }
 
 .mc-bb-nota-inp {
-  width: 80px;
+  width: 110px;
 }
 
 .mc-bb-btn {

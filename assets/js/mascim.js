@@ -171,6 +171,19 @@
   }
   function hariIni() { return new Date().toISOString().slice(0, 10); }
   function bulanIni() { return new Date().toISOString().slice(0, 8) + '01'; }
+  function ymOf(dateStr) { return String(dateStr || hariIni()).slice(0, 7); }
+  function monthLabel(ym) {
+    if (w.Store && w.Store.monthLabel) return w.Store.monthLabel(ym);
+    var d = new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, 1));
+    if (isNaN(d)) return ym;
+    return d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  }
+  function shiftMonth(ym, delta) {
+    if (w.Store && w.Store.shiftMonth) return w.Store.shiftMonth(ym, delta);
+    var d = new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1 + delta, 1));
+    if (isNaN(d)) return ym;
+    return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
+  }
   function toast(msg) { if (w.App && w.App.toast) w.App.toast(msg); }
 
   /* ------------------------------------------------------------
@@ -1015,8 +1028,7 @@
       '<div class="mc-bb-topbar">' +
         '<div class="mc-bb-tb-left">' +
           '<div class="mc-bb-tb-title">' +
-            '<span class="mc-bb-tb-icon">📋</span>' +
-            '<b>BUKU BESAR MAS CIM</b>' +
+            '<b>BUKU BESAR</b>' +
             '<span class="mc-bb-badge-count">' + filtered.length + ' NOTA</span>' +
           '</div>' +
         '</div>' +
@@ -1046,16 +1058,15 @@
             '<div class="mc-bb-kpi-val val-white">' + rupiah(totTfQris) + '</div>' +
             '<div class="mc-bb-kpi-sub">TF ' + rupiah(totTf) + ' • QRIS ' + rupiah(totQris) + '</div>' +
           '</div>' +
-          // 5. UANG LACI (HIGHLIGHTED BORDER GLOW)
+          // 5. CASHFLOW (HIGHLIGHTED BORDER GLOW)
           '<div class="mc-bb-kpi-card kpi-laci highlighted">' +
-            '<div class="mc-bb-kpi-lbl">UANG LACI</div>' +
+            '<div class="mc-bb-kpi-lbl">CASHFLOW</div>' +
             '<div class="mc-bb-kpi-val val-bold">' + rupiah(uangLaci) + '</div>' +
             '<div class="mc-bb-kpi-sub">CASH CUSTOMER ' + rupiah(totCash) + ' - PART &amp; OUT ' + rupiah(totModal) + '</div>' +
           '</div>' +
         '</div>' +
 
         '<div class="mc-bb-tb-right">' +
-          '<button type="button" id="bbBtnFullscreen" class="mc-bb-fs-btn" title="Layar Penuh (Fullscreen)">⛶ FULLSCREEN</button>' +
           '<button type="button" id="bbBtnBack" class="mc-bb-back-btn" title="Kembali ke Beranda Mas Cim">‹ KEMBALI</button>' +
         '</div>' +
       '</div>' +
@@ -1102,18 +1113,12 @@
           '</select>' +
         '</div>' +
 
-        // Tombol RESET
-        '<div class="mc-bb-fcol mc-bb-fbtn-col">' +
-          '<span class="mc-bb-flbl">&nbsp;</span>' +
-          '<button type="button" id="bbBtnReset" class="mc-bb-btn">RESET</button>' +
-        '</div>' +
-
-        // No. Nota & CARI
+        // No. Nota & RESET
         '<div class="mc-bb-fcol">' +
           '<span class="mc-bb-flbl">No. Nota</span>' +
           '<div class="mc-bb-fgrp">' +
-            '<input type="text" id="bbInpNota" class="mc-bb-inp mc-bb-nota-inp" placeholder="No. nota" value="' + esc(bf.noteNo) + '">' +
-            '<button type="button" id="bbBtnCari" class="mc-bb-btn">CARI</button>' +
+            '<input type="text" id="bbInpNota" class="mc-bb-inp mc-bb-nota-inp" placeholder="No. nota / nama" value="' + esc(bf.noteNo) + '">' +
+            '<button type="button" id="bbBtnReset" class="mc-bb-btn">RESET</button>' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -4573,29 +4578,41 @@
     var html = '<div class="mc-pad">';
     if (!d) { html += skeleton(); s.innerHTML = html + '</div>'; return; }
     var sm = d.summary;
-    html += '<div class="mc-hero sm">' +
-      '<div class="mc-hero-lbl">Saldo</div>' +
-      '<div class="mc-hero-val ' + (sm.balance >= 0 ? 'pos' : 'neg') + '">' + rupiah(sm.balance) + '</div>' +
+    var monthBal = (sm && sm.balance != null) ? sm.balance : 0;
+    var totalAvail = (M.cfAll && M.cfAll.summary && M.cfAll.summary.balance != null)
+      ? M.cfAll.summary.balance : monthBal;
+
+    // Strip Filter Bulan, Saldo Perbulan Ini (di bawah bulan) & Total Saldo Akumulasi (di sebelah kanan)
+    html += '<div class="card" style="margin-bottom:12px;padding:10px 14px;background:#141a17;border:1px solid #26302b;border-radius:14px;">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+          '<button id="cfPrevMonth" class="icon-btn sm" aria-label="Bulan Sebelumnya" style="width:32px;height:32px;font-size:18px;background:#1f2824;border:1px solid #2c3a34;border-radius:8px;color:#e8f0ec;cursor:pointer;">‹</button>' +
+          '<div>' +
+            '<strong id="cfMonthLabel" style="font-size:14.5px;font-weight:750;display:block;line-height:1.2;color:#e8f0ec;">' + esc(monthLabel(M.cfYM || ymOf(hariIni()))) + '</strong>' +
+            '<strong id="cfMonthNet" style="font-size:15.5px;font-weight:750;display:block;line-height:1.2;margin-top:3px;color:' + (monthBal >= 0 ? '#30d97a' : '#ff6369') + ';">' + rupiah(monthBal) + '</strong>' +
+          '</div>' +
+          '<button id="cfNextMonth" class="icon-btn sm" aria-label="Bulan Berikutnya" style="width:32px;height:32px;font-size:18px;background:#1f2824;border:1px solid #2c3a34;border-radius:8px;color:#e8f0ec;cursor:pointer;">›</button>' +
+        '</div>' +
+        '<div style="text-align:right;">' +
+          '<span style="font-size:10px;color:#8fa39a;text-transform:uppercase;letter-spacing:.5px;display:block;">Total Saldo Akumulasi</span>' +
+          '<strong id="cfTotalAvail" style="font-size:16.5px;font-weight:750;display:block;line-height:1.2;color:' + (totalAvail >= 0 ? '#30d97a' : '#ff6369') + ';">' + rupiah(totalAvail) + '</strong>' +
+        '</div>' +
+      '</div>' +
     '</div>';
+
     html += '<div class="mc-money"><div><span>Uang Masuk</span><b class="pos">' + rupiah(sm.moneyIn) + '</b></div>' +
       '<div><span>Modal Sparepart</span><b class="neg">' + rupiah(sm.partModal) + '</b></div></div>';
     html += '<div class="mc-money"><div><span>Pengeluaran Lain</span><b class="neg">' + rupiah(sm.otherExpense) + '</b></div>' +
       '<div><span>Jasa Bersih</span><b class="pos">' + rupiah(sm.netServiceFee) + '</b></div></div>';
 
-    html += '<div class="mc-filters">' +
-      ['today:Hari Ini', 'month:Bulan Ini', 'year:Tahun Ini'].map(function (x) {
-        var k = x.split(':');
-        return '<button class="mc-chip' + (M.filter === k[0] ? ' on' : '') + '" data-cffilter="' + k[0] + '">' + k[1] + '</button>';
-      }).join('') + '</div>';
-
-    html += '<button class="mc-primary sm" id="cfAdd">+ Pengeluaran Lain</button>';
+    html += '<button class="mc-primary sm" id="cfAdd" style="margin-top:8px;">+ Pengeluaran Lain</button>';
 
     // Pointer ke Dana Bank yang sekarang tinggal di Project Nava.
     html += '<p class="mc-hint sm">Dana Bank (Out/Bon, Atur Saldo Awal) ada di ' +
       'Beranda Project Nava, sebelah kartu Tunai.</p>';
 
     html += '<div class="mc-count">' + d.entries.length + ' transaksi</div>';
-    html += d.entries.length ? d.entries.map(cfRow).join('') : '<p class="mc-empty">Belum ada transaksi.</p>';
+    html += d.entries.length ? d.entries.map(cfRow).join('') : '<p class="mc-empty">Belum ada transaksi pada bulan ini.</p>';
 
     html += '</div>';
     s.innerHTML = html;
@@ -4615,13 +4632,22 @@
   }
 
   function bindMoney() {
-    var s = screen();
-    s.querySelectorAll('[data-mtab]').forEach(function (b) {
-      b.addEventListener('click', function () { M.tab = b.dataset.mtab; loadMoney(); });
-    });
-    s.querySelectorAll('[data-cffilter]').forEach(function (b) {
-      b.addEventListener('click', function () { M.filter = b.dataset.cffilter; loadMoney(); });
-    });
+    var prev = $('#cfPrevMonth');
+    if (prev) {
+      prev.addEventListener('click', function () {
+        M.cfYM = shiftMonth(M.cfYM || ymOf(hariIni()), -1);
+        loadMoney();
+        if (w.TG && w.TG.haptic) w.TG.haptic('select');
+      });
+    }
+    var next = $('#cfNextMonth');
+    if (next) {
+      next.addEventListener('click', function () {
+        M.cfYM = shiftMonth(M.cfYM || ymOf(hariIni()), 1);
+        loadMoney();
+        if (w.TG && w.TG.haptic) w.TG.haptic('select');
+      });
+    }
 
     var add = $('#cfAdd');
     if (add) add.addEventListener('click', function () {
@@ -4733,11 +4759,18 @@
   }
 
   function loadMoney() {
-    // Tab "Dana Bank" sudah pindah ke Project Nava, jadi Keuangan modul ini
-    // hanya satu tampilan: Cashflow.
-    return api('GET', '/api/mascim/cashflow' + qs(cfFilter()))
-      .then(function (r) { M.cf = r; render(); })
-      .catch(function (e) { alertErr(e.message); });
+    if (!M.cfYM) M.cfYM = ymOf(hariIni());
+    var mFrom = M.cfYM + '-01';
+    var mTo = M.cfYM + '-31';
+
+    return Promise.all([
+      api('GET', '/api/mascim/cashflow' + qs({ from: mFrom, to: mTo })),
+      api('GET', '/api/mascim/cashflow?from=2000-01-01')
+    ]).then(function (res) {
+      M.cf = res[0];
+      M.cfAll = res[1];
+      render();
+    }).catch(function (e) { alertErr(e.message); });
   }
 
   function updateToolInfo() {
@@ -4799,10 +4832,6 @@
         back();
         return;
       }
-      if (e.target.id === 'bbBtnFullscreen' || e.target.closest('#bbBtnFullscreen')) {
-        triggerNativeFullscreen();
-        return;
-      }
       if (e.target.id === 'bbBtnRefresh' || e.target.closest('#bbBtnRefresh')) {
         loadList();
         return;
@@ -4812,29 +4841,34 @@
         return;
       }
 
-      // Filter Buku Besar
-      if (e.target.id === 'bbBtnReset') {
-        var tNow = new Date();
-        var todayStr = tNow.toISOString().slice(0, 10);
-        var firstDayStr = todayStr.slice(0, 8) + '01';
-        M.bbFilter = {
-          fromActive: true,
-          from: firstDayStr,
-          toActive: true,
-          to: todayStr,
-          technician: '',
-          status: '',
-          payment: '',
-          noteNo: ''
-        };
-        M.status = '';
-        render();
-        return;
-      }
-      if (e.target.id === 'bbBtnCari') {
+      // Filter Buku Besar - Tombol RESET
+      if (e.target.id === 'bbBtnReset' || e.target.closest('#bbBtnReset')) {
         var inp = document.getElementById('bbInpNota');
-        if (inp) M.bbFilter.noteNo = inp.value.trim();
-        render();
+        var val = inp ? inp.value.trim() : '';
+
+        if (val) {
+          // Kolom no.nota terisi: tombol reset memfilter berdasarkan no.nota atau nama user
+          if (!M.bbFilter) M.bbFilter = {};
+          M.bbFilter.noteNo = val;
+          render();
+        } else {
+          // Standby (kolom kosong): reset menampilkan semua garapan yang terfilter bulan ini
+          var tNow = new Date();
+          var todayStr = tNow.toISOString().slice(0, 10);
+          var firstDayStr = todayStr.slice(0, 8) + '01';
+          M.bbFilter = {
+            fromActive: true,
+            from: firstDayStr,
+            toActive: true,
+            to: todayStr,
+            technician: '',
+            status: '',
+            payment: '',
+            noteNo: ''
+          };
+          M.status = '';
+          render();
+        }
         return;
       }
 
