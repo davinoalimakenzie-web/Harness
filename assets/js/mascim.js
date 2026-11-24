@@ -404,8 +404,60 @@
     }
   }
 
+  function triggerNativeFullscreen() {
+    // 1. Telegram WebApp Fullscreen & Colors
+    try {
+      if (window.Telegram && window.Telegram.WebApp) {
+        var twa = window.Telegram.WebApp;
+        if (twa.expand) twa.expand();
+        if (twa.requestFullscreen) {
+          try { twa.requestFullscreen(); } catch (eRfs) {}
+        }
+        if (twa.setHeaderColor) {
+          try { twa.setHeaderColor('#080c1d'); } catch (eShc) {}
+        }
+        if (twa.setBackgroundColor) {
+          try { twa.setBackgroundColor('#080c1d'); } catch (eSbc) {}
+        }
+        if (twa.setBottomBarColor) {
+          try { twa.setBottomBarColor('#080c1d'); } catch (eSbbc) {}
+        }
+        if (twa.disableVerticalSwipes) {
+          try { twa.disableVerticalSwipes(); } catch (eDvs) {}
+        }
+        if (twa.lockOrientation) {
+          try { twa.lockOrientation(); } catch (eLo) {}
+        }
+      }
+    } catch (eTg) {}
+
+    // 2. HTML5 Fullscreen API pada element document.documentElement atau #mc
+    try {
+      var targetEl = document.getElementById('mc') || document.documentElement;
+      var rfs = targetEl.requestFullscreen ||
+                targetEl.webkitRequestFullscreen ||
+                targetEl.mozRequestFullScreen ||
+                targetEl.msRequestFullscreen ||
+                document.documentElement.requestFullscreen ||
+                document.documentElement.webkitRequestFullscreen;
+      if (rfs && !document.fullscreenElement && !document.webkitFullscreenElement) {
+        var p = rfs.call(targetEl);
+        if (p && p.catch) p.catch(function () {});
+      }
+    } catch (eFs) {}
+
+    // 3. Screen orientation lock landscape
+    try {
+      if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
+        var pOri = window.screen.orientation.lock('landscape');
+        if (pOri && pOri.catch) pOri.catch(function () {});
+      }
+    } catch (eOr) {}
+  }
+
   function enterLandscape() {
     // Mode Buku Besar: aktifkan view Buku Besar Fullscreen Lanskap
+    document.documentElement.classList.add('mc-bb-active');
     document.body.classList.add('mc-bb-active');
     var mc = document.getElementById('mc');
     if (mc) mc.classList.add('mc-landscape');
@@ -420,34 +472,7 @@
       }
     } catch (eB) {}
 
-    // Masuk ke fullscreen penuh (Telegram WebApp & Browser)
-    try {
-      if (window.Telegram && window.Telegram.WebApp) {
-        var twa = window.Telegram.WebApp;
-        if (twa.expand) twa.expand();
-        if (twa.requestFullscreen) twa.requestFullscreen();
-        if (twa.disableVerticalSwipes) twa.disableVerticalSwipes();
-        if (twa.lockOrientation) {
-          twa.lockOrientation();
-        }
-      }
-    } catch (eTg) {}
-
-    try {
-      var docEl = document.documentElement;
-      var rfs = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
-      if (rfs && !document.fullscreenElement && !document.webkitFullscreenElement) {
-        var p = rfs.call(docEl);
-        if (p && p.catch) p.catch(function () {});
-      }
-    } catch (eFs) {}
-
-    try {
-      if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
-        window.screen.orientation.lock('landscape').catch(function () {});
-      }
-    } catch (e) {}
-
+    triggerNativeFullscreen();
     updateBBOrientation();
 
     if (!_bbResizeHandler) {
@@ -462,6 +487,7 @@
   }
 
   function exitLandscape() {
+    document.documentElement.classList.remove('mc-bb-active');
     document.body.classList.remove('mc-bb-active');
     document.body.classList.remove('mc-bb-rotated-css');
     var mc = document.getElementById('mc');
@@ -482,8 +508,18 @@
       if (window.Telegram && window.Telegram.WebApp) {
         var twa = window.Telegram.WebApp;
         if (twa.enableVerticalSwipes) twa.enableVerticalSwipes();
-        if (twa.exitFullscreen) twa.exitFullscreen();
-        if (twa.unlockOrientation) twa.unlockOrientation();
+        if (twa.exitFullscreen) {
+          try { twa.exitFullscreen(); } catch (eEfs) {}
+        }
+        if (twa.setHeaderColor) {
+          try { twa.setHeaderColor('bg_color'); } catch (eShc) {}
+        }
+        if (twa.setBackgroundColor) {
+          try { twa.setBackgroundColor('bg_color'); } catch (eSbc) {}
+        }
+        if (twa.unlockOrientation) {
+          try { twa.unlockOrientation(); } catch (eUo) {}
+        }
       }
     } catch (eTg) {}
 
@@ -512,7 +548,7 @@
       if (window.screen && window.screen.orientation && window.screen.orientation.unlock) {
         window.screen.orientation.unlock();
       }
-    } catch (e) {}
+    } catch (eOr) {}
   }
 
   function render() {
@@ -935,8 +971,10 @@
       return true;
     });
 
-    // Hitung total
+    // Hitung total dan metode pembayaran (UANG MASUK, PART & OUT, TOTAL SETELAH PART & OUT, TF / QRIS, UANG LACI)
     var totBiaya = 0, totModal = 0, totJasa = 0;
+    var totCash = 0, totTf = 0, totQris = 0;
+
     filtered.forEach(function (o) {
       var b = o.totalCost || 0;
       var m = o.totalPart || 0;
@@ -944,23 +982,81 @@
       totBiaya += b;
       totModal += m;
       totJasa += j;
+
+      if (o.payments && o.payments.length) {
+        o.payments.forEach(function (p) {
+          var meth = (p.paymentMethod || '').toUpperCase();
+          var amt = p.amount || 0;
+          if (meth.indexOf('QRIS') >= 0) {
+            totQris += amt;
+          } else if (meth.indexOf('TF') >= 0 || meth.indexOf('TRANSFER') >= 0) {
+            totTf += amt;
+          } else if (meth === 'CASH' || meth === 'TUNAI' || (!meth && o.paymentStatus === 'Lunas')) {
+            totCash += amt;
+          }
+        });
+      } else {
+        var pm = (o.paymentMethod || (o.paymentStatus === 'Lunas' ? 'CASH' : '')).toUpperCase();
+        if (pm.indexOf('QRIS') >= 0) {
+          totQris += b;
+        } else if (pm.indexOf('TF') >= 0 || pm.indexOf('TRANSFER') >= 0) {
+          totTf += b;
+        } else if (pm === 'CASH' || pm === 'TUNAI' || (!pm && o.paymentStatus === 'Lunas')) {
+          totCash += b;
+        }
+      }
     });
 
+    var totTfQris = totTf + totQris;
+    var uangLaci = totCash - totModal;
+
     var html = '<div class="mc-bb-view">' +
-      // HEADER ATAS TERPADU (KEMBALI, JUDUL, NOTA COUNT, TOTAL BIAYA/MODAL/JASA)
+      // HEADER ATAS TERPADU (JUDUL, 5 KARTU REKAP SESUAI GAMBAR, TOMBOL KEMBALI DI PALING KANAN)
       '<div class="mc-bb-topbar">' +
         '<div class="mc-bb-tb-left">' +
-          '<button type="button" id="bbBtnBack" class="mc-bb-back-btn" title="Kembali ke Beranda Mas Cim">‹ KEMBALI</button>' +
           '<div class="mc-bb-tb-title">' +
             '<span class="mc-bb-tb-icon">📋</span>' +
             '<b>BUKU BESAR MAS CIM</b>' +
             '<span class="mc-bb-badge-count">' + filtered.length + ' NOTA</span>' +
           '</div>' +
-          '<div class="mc-bb-totals-top">' +
-            '<span class="mc-bb-tot-pill biaya" title="Total Biaya">Biaya: <b>' + rupiah(totBiaya) + '</b></span>' +
-            '<span class="mc-bb-tot-pill modal" title="Total Modal Part">Modal: <b>' + rupiah(totModal) + '</b></span>' +
-            '<span class="mc-bb-tot-pill jasa" title="Total Laba Jasa">Jasa: <b>' + rupiah(totJasa) + '</b></span>' +
+        '</div>' +
+
+        '<div class="mc-bb-cards-bar">' +
+          // 1. UANG MASUK
+          '<div class="mc-bb-kpi-card kpi-masuk">' +
+            '<div class="mc-bb-kpi-lbl">UANG MASUK</div>' +
+            '<div class="mc-bb-kpi-val val-green">' + rupiah(totBiaya) + '</div>' +
+            '<div class="mc-bb-kpi-sub">TOTAL BIAYA NOTA PADA FILTER</div>' +
           '</div>' +
+          // 2. PART & OUT
+          '<div class="mc-bb-kpi-card kpi-part">' +
+            '<div class="mc-bb-kpi-lbl">PART &amp; OUT</div>' +
+            '<div class="mc-bb-kpi-val val-red">' + rupiah(totModal) + '</div>' +
+            '<div class="mc-bb-kpi-sub">PART SERVIS DAN PENGELUARAN</div>' +
+          '</div>' +
+          // 3. TOTAL SETELAH PART & OUT
+          '<div class="mc-bb-kpi-card kpi-jasa">' +
+            '<div class="mc-bb-kpi-lbl">TOTAL SETELAH PART &amp; OUT</div>' +
+            '<div class="mc-bb-kpi-val val-cyan">' + rupiah(totJasa) + '</div>' +
+            '<div class="mc-bb-kpi-sub">JASA SERVIS ' + rupiah(totJasa) + '</div>' +
+          '</div>' +
+          // 4. TF / QRIS
+          '<div class="mc-bb-kpi-card kpi-tfqris">' +
+            '<div class="mc-bb-kpi-lbl">TF / QRIS</div>' +
+            '<div class="mc-bb-kpi-val val-white">' + rupiah(totTfQris) + '</div>' +
+            '<div class="mc-bb-kpi-sub">TF ' + rupiah(totTf) + ' • QRIS ' + rupiah(totQris) + '</div>' +
+          '</div>' +
+          // 5. UANG LACI (HIGHLIGHTED BORDER GLOW)
+          '<div class="mc-bb-kpi-card kpi-laci highlighted">' +
+            '<div class="mc-bb-kpi-lbl">UANG LACI</div>' +
+            '<div class="mc-bb-kpi-val val-bold">' + rupiah(uangLaci) + '</div>' +
+            '<div class="mc-bb-kpi-sub">CASH CUSTOMER ' + rupiah(totCash) + ' - PART &amp; OUT ' + rupiah(totModal) + '</div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="mc-bb-tb-right">' +
+          '<button type="button" id="bbBtnFullscreen" class="mc-bb-fs-btn" title="Layar Penuh (Fullscreen)">⛶ FULLSCREEN</button>' +
+          '<button type="button" id="bbBtnBack" class="mc-bb-back-btn" title="Kembali ke Beranda Mas Cim">‹ KEMBALI</button>' +
         '</div>' +
       '</div>' +
 
@@ -4703,6 +4799,10 @@
         back();
         return;
       }
+      if (e.target.id === 'bbBtnFullscreen' || e.target.closest('#bbBtnFullscreen')) {
+        triggerNativeFullscreen();
+        return;
+      }
       if (e.target.id === 'bbBtnRefresh' || e.target.closest('#bbBtnRefresh')) {
         loadList();
         return;
@@ -4773,7 +4873,11 @@
           }
         }
         if (v === 'form') { M.draft = blankDraft(); M.editing = null; render(); }
-        else if (v === 'list') loadList();
+        else if (v === 'list') {
+          enterLandscape();
+          triggerNativeFullscreen();
+          loadList();
+        }
         else if (v === 'money') loadMoney();
         else reload();
         return;

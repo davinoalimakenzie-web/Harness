@@ -4278,6 +4278,7 @@ body.mc-bb-active #recBar {
   display: none !important;
 }
 
+html.mc-bb-active,
 body.mc-bb-active {
   overflow: hidden !important;
   background: #080c1d !important;
@@ -4291,6 +4292,14 @@ body.mc-bb-active {
   max-height: 100dvh !important;
 }
 
+body.mc-bb-active #app {
+  max-width: 100vw !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
 body.mc-bb-active #mc {
   position: fixed !important;
   inset: 0 !important;
@@ -4299,16 +4308,18 @@ body.mc-bb-active #mc {
   right: 0 !important;
   bottom: 0 !important;
   width: 100vw !important;
+  width: 100dvw !important;
   height: 100vh !important;
   height: 100dvh !important;
   max-width: 100vw !important;
+  max-width: 100dvw !important;
   max-height: 100vh !important;
   max-height: 100dvh !important;
   margin: 0 !important;
   padding: 0 !important;
   border: none !important;
   border-radius: 0 !important;
-  z-index: 9999999 !important;
+  z-index: 99999999 !important;
   background: #080c1d !important;
   display: flex !important;
   flex-direction: column !important;
@@ -4347,7 +4358,18 @@ body.mc-bb-active.mc-bb-rotated-css #mc {
   transform: rotate(90deg) !important;
   transform-origin: top left !important;
   overflow: hidden !important;
-  z-index: 9999999 !important;
+  z-index: 99999999 !important;
+}
+
+/* Fullscreen API Native pseudo-classes */
+:fullscreen,
+:-webkit-full-screen,
+:-moz-full-screen,
+:-ms-fullscreen {
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  background: #080c1d !important;
 }
 
 .mc.mc-landscape {
@@ -4372,61 +4394,163 @@ body.mc-bb-active.mc-bb-rotated-css #mc {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 5px 12px;
-  background: #0b1126;
+  padding: 4px 10px;
+  background: #080c1d;
   border-bottom: 1px solid #1e293b;
   flex: 0 0 auto;
-  gap: 10px;
+  gap: 8px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .mc-bb-tb-left {
   display: flex;
   align-items: center;
-  gap: 8px 12px;
-  flex-wrap: wrap;
+  gap: 8px;
+  flex: 0 0 auto;
 }
 
-/* Ringkasan Total Biaya, Modal, Jasa di Topbar */
-.mc-bb-totals-top {
-  display: inline-flex;
+.mc-bb-tb-title {
+  display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  color: #ffffff;
 }
 
-.mc-bb-tot-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 5px;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.25;
+.mc-bb-tb-title b {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
   white-space: nowrap;
 }
 
-.mc-bb-tot-pill b {
-  font-weight: 800;
-}
-
-.mc-bb-tot-pill.biaya {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
-  border: 1px solid rgba(52, 211, 153, 0.35);
-}
-
-.mc-bb-tot-pill.modal {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-  border: 1px solid rgba(248, 113, 113, 0.35);
-}
-
-.mc-bb-tot-pill.jasa {
-  background: rgba(56, 189, 248, 0.15);
+.mc-bb-badge-count {
+  background: #1e293b;
   color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.35);
+  border: 1px solid #0284c7;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 9.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* 5 Kartu Finansial Buku Besar (Sesuai Gambar) */
+.mc-bb-cards-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  flex: 1 1 auto;
+  padding: 2px 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mc-bb-cards-bar::-webkit-scrollbar {
+  height: 3px;
+}
+.mc-bb-cards-bar::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 2px;
+}
+
+.mc-bb-kpi-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 135px;
+  max-width: 185px;
+  flex: 0 0 auto;
+  background: #0d1527;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+}
+
+.mc-bb-kpi-card.highlighted {
+  border: 1.5px solid #0284c7;
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.22) 0%, rgba(13, 21, 39, 0.95) 100%);
+  box-shadow: 0 0 10px rgba(2, 132, 199, 0.25);
+}
+
+.mc-bb-kpi-lbl {
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: #94a3b8;
+  margin-bottom: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mc-bb-kpi-val {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.mc-bb-kpi-val.val-green {
+  color: #34d399;
+}
+
+.mc-bb-kpi-val.val-red {
+  color: #f87171;
+}
+
+.mc-bb-kpi-val.val-cyan {
+  color: #38bdf8;
+}
+
+.mc-bb-kpi-val.val-white {
+  color: #f1f5f9;
+}
+
+.mc-bb-kpi-val.val-bold {
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.mc-bb-kpi-sub {
+  font-size: 7.5px;
+  color: #64748b;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mc-bb-tb-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.mc-bb-fs-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #1e293b;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.mc-bb-fs-btn:active {
+  background: #334155;
+  color: #ffffff;
+  transform: scale(0.96);
 }
 
 .mc-bb-back-btn {
@@ -4450,55 +4574,6 @@ body.mc-bb-active.mc-bb-rotated-css #mc {
   background: #334155;
   color: #ffffff;
   transform: scale(0.96);
-}
-
-.mc-bb-tb-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #ffffff;
-}
-
-.mc-bb-tb-title b {
-  font-size: 12.5px;
-  font-weight: 800;
-  letter-spacing: 0.4px;
-  white-space: nowrap;
-}
-
-.mc-bb-badge-count {
-  background: #1e293b;
-  color: #38bdf8;
-  border: 1px solid #0284c7;
-  padding: 2px 7px;
-  border-radius: 10px;
-  font-size: 10px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.mc-bb-tb-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.mc-bb-tb-act {
-  background: #1e293b;
-  color: #cbd5e1;
-  border: 1px solid #334155;
-  border-radius: 5px;
-  padding: 4px 9px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s ease;
-}
-
-.mc-bb-tb-act:active {
-  background: #334155;
-  color: #ffffff;
 }
 
 /* Filter Bar Kompak Horizontal */
