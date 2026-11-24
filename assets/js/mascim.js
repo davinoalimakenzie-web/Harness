@@ -561,26 +561,6 @@
     } catch (eOr) {}
   }
 
-    // Pulihkan tombol Back Telegram saat keluar dari Buku Besar
-    try {
-      if (window.TG && window.TG.back) {
-        window.TG.back.show(function () {
-          if (w.MascimUI && w.MascimUI.isOpen && w.MascimUI.isOpen()) {
-            w.MascimUI.back();
-            return;
-          }
-          if (w.App && w.App.go) w.App.go('home');
-        });
-      }
-    } catch (eB) {}
-
-    try {
-      if (window.screen && window.screen.orientation && window.screen.orientation.unlock) {
-        window.screen.orientation.unlock();
-      }
-    } catch (eOr) {}
-  }
-
   function render() {
     var s = screen();
     if (!s) return;
@@ -1212,14 +1192,15 @@
         if (!o) return '';
         var notaNum = o.noteNumber || (o.noteNumberRaw ? String(o.noteNumberRaw) : (o.internalRef || (o.id ? String(o.id).slice(-4) : '—')));
         var st = (o.isDeleted || o.serviceStatus === 'Terhapus') ? 'Terhapus' : (o.serviceStatus || 'Progress');
-        var stTone = (st === 'Done Diambil' ? 'st-ambil'
-          : (st === 'Done' ? 'st-done'
-          : (st === 'Progress' ? 'st-prog'
-          : (st === 'Cancel' ? 'st-cancel'
-          : (st === 'Cancel Diambil' ? 'st-cambil'
-          : (st === 'Return' ? 'st-return'
-          : (st === 'Return Diambil' ? 'st-rambil'
-          : (st === 'Terhapus' ? 'st-del' : 'st-ngg')))))));
+        var stTone = 'st-ngg';
+        if (st === 'Done Diambil') stTone = 'st-ambil';
+        else if (st === 'Done') stTone = 'st-done';
+        else if (st === 'Progress') stTone = 'st-prog';
+        else if (st === 'Cancel') stTone = 'st-cancel';
+        else if (st === 'Cancel Diambil') stTone = 'st-cambil';
+        else if (st === 'Return') stTone = 'st-return';
+        else if (st === 'Return Diambil') stTone = 'st-rambil';
+        else if (st === 'Terhapus') stTone = 'st-del';
 
         var uName = (o.customerName || '-').toUpperCase();
         var wa = o.whatsapp || '-';
