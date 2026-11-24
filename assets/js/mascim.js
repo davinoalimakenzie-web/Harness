@@ -410,17 +410,37 @@
     var mc = document.getElementById('mc');
     if (mc) mc.classList.add('mc-landscape');
 
-    // Pastikan fullscreen tanpa ada elemen yang menghalangi
+    // Sembunyikan tombol Back Telegram agar header bar Telegram tidak memakan ruang
+    try {
+      if (window.TG && window.TG.back) {
+        window.TG.back.hide();
+      }
+      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.BackButton) {
+        window.Telegram.WebApp.BackButton.hide();
+      }
+    } catch (eB) {}
+
+    // Masuk ke fullscreen penuh (Telegram WebApp & Browser)
     try {
       if (window.Telegram && window.Telegram.WebApp) {
-        if (window.Telegram.WebApp.expand) window.Telegram.WebApp.expand();
-        if (window.Telegram.WebApp.requestFullscreen) window.Telegram.WebApp.requestFullscreen();
-        if (window.Telegram.WebApp.disableVerticalSwipes) window.Telegram.WebApp.disableVerticalSwipes();
-        if (window.Telegram.WebApp.lockOrientation) {
-          window.Telegram.WebApp.lockOrientation();
+        var twa = window.Telegram.WebApp;
+        if (twa.expand) twa.expand();
+        if (twa.requestFullscreen) twa.requestFullscreen();
+        if (twa.disableVerticalSwipes) twa.disableVerticalSwipes();
+        if (twa.lockOrientation) {
+          twa.lockOrientation();
         }
       }
     } catch (eTg) {}
+
+    try {
+      var docEl = document.documentElement;
+      var rfs = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+      if (rfs && !document.fullscreenElement && !document.webkitFullscreenElement) {
+        var p = rfs.call(docEl);
+        if (p && p.catch) p.catch(function () {});
+      }
+    } catch (eFs) {}
 
     try {
       if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
@@ -460,11 +480,33 @@
 
     try {
       if (window.Telegram && window.Telegram.WebApp) {
-        if (window.Telegram.WebApp.enableVerticalSwipes) window.Telegram.WebApp.enableVerticalSwipes();
-        if (window.Telegram.WebApp.exitFullscreen) window.Telegram.WebApp.exitFullscreen();
-        if (window.Telegram.WebApp.unlockOrientation) window.Telegram.WebApp.unlockOrientation();
+        var twa = window.Telegram.WebApp;
+        if (twa.enableVerticalSwipes) twa.enableVerticalSwipes();
+        if (twa.exitFullscreen) twa.exitFullscreen();
+        if (twa.unlockOrientation) twa.unlockOrientation();
       }
     } catch (eTg) {}
+
+    try {
+      var efs = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+      if (efs && (document.fullscreenElement || document.webkitFullscreenElement)) {
+        var pe = efs.call(document);
+        if (pe && pe.catch) pe.catch(function () {});
+      }
+    } catch (eFs) {}
+
+    // Pulihkan tombol Back Telegram saat keluar dari Buku Besar
+    try {
+      if (window.TG && window.TG.back) {
+        window.TG.back.show(function () {
+          if (w.MascimUI && w.MascimUI.isOpen && w.MascimUI.isOpen()) {
+            w.MascimUI.back();
+            return;
+          }
+          if (w.App && w.App.go) w.App.go('home');
+        });
+      }
+    } catch (eB) {}
 
     try {
       if (window.screen && window.screen.orientation && window.screen.orientation.unlock) {
@@ -905,7 +947,7 @@
     });
 
     var html = '<div class="mc-bb-view">' +
-      // HEADER ATAS TERPADU (KEMBALI, JUDUL, NOTA COUNT, ROTASI, SEGAR)
+      // HEADER ATAS TERPADU (KEMBALI, JUDUL, NOTA COUNT, TOTAL BIAYA/MODAL/JASA)
       '<div class="mc-bb-topbar">' +
         '<div class="mc-bb-tb-left">' +
           '<button type="button" id="bbBtnBack" class="mc-bb-back-btn" title="Kembali ke Beranda Mas Cim">‹ KEMBALI</button>' +
@@ -914,14 +956,11 @@
             '<b>BUKU BESAR MAS CIM</b>' +
             '<span class="mc-bb-badge-count">' + filtered.length + ' NOTA</span>' +
           '</div>' +
-        '</div>' +
-        '<div class="mc-bb-tb-right">' +
-          '<button type="button" id="bbBtnRotate" class="mc-bb-tb-act" title="Beralih Rotasi Lanskap / Potret">' +
-            '🔄 ' + (M.bbRotated ? 'POTRET' : 'LANSKAP') +
-          '</button>' +
-          '<button type="button" id="bbBtnRefresh" class="mc-bb-tb-act" title="Muat Ulang Data">' +
-            '↻ SEGAR' +
-          '</button>' +
+          '<div class="mc-bb-totals-top">' +
+            '<span class="mc-bb-tot-pill biaya" title="Total Biaya">Biaya: <b>' + rupiah(totBiaya) + '</b></span>' +
+            '<span class="mc-bb-tot-pill modal" title="Total Modal Part">Modal: <b>' + rupiah(totModal) + '</b></span>' +
+            '<span class="mc-bb-tot-pill jasa" title="Total Laba Jasa">Jasa: <b>' + rupiah(totJasa) + '</b></span>' +
+          '</div>' +
         '</div>' +
       '</div>' +
 
@@ -1053,15 +1092,6 @@
     }
 
     html += '</tbody>' +
-      '<tfoot>' +
-        '<tr>' +
-          '<td colspan="7" style="text-align:right;">TOTAL DITAMPILKAN (' + filtered.length + ' NOTA):</td>' +
-          '<td style="text-align:right; color:#30d97a;">' + rupiah(totBiaya) + '</td>' +
-          '<td style="text-align:right; color:#ff6369;">' + rupiah(totModal) + '</td>' +
-          '<td style="text-align:right; color:#38bdf8;">' + rupiah(totJasa) + '</td>' +
-          '<td colspan="3"></td>' +
-        '</tr>' +
-      '</tfoot>' +
     '</table>' +
     '</div>' +
     '</div>';
@@ -1205,14 +1235,6 @@
           '</div>';
         }).join('') +
       '</div>' +
-    '</div>';
-
-    // 2. Tombol bantu bar navigasi
-    html += '<div class="mc-quicknav">' +
-      '<button type="button" data-qn="qnPelanggan">Pelanggan</button>' +
-      '<button type="button" data-qn="qnDevice">Device</button>' +
-      '<button type="button" data-qn="qnKendala">Kendala</button>' +
-      '<button type="button" data-qn="qnKunci">Kunci</button>' +
     '</div>';
 
     html += '</div>'; // tutup .mc-sticky
