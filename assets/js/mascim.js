@@ -397,14 +397,28 @@
 
   var _bbResizeHandler = null;
 
-  function updateBBOrientation(forceRotate) {
-    document.body.classList.remove('mc-bb-rotated-css');
-    var mc = document.getElementById('mc');
-    if (mc) {
-      mc.classList.remove('mc-bb-rotated');
-      mc.classList.remove('mc-bb-rotated-css');
+  function updateBBOrientation(toggle) {
+    if (toggle) {
+      M.bbRotated = !M.bbRotated;
     }
-    M.bbRotated = false;
+    var mc = document.getElementById('mc');
+    if (M.bbRotated) {
+      document.body.classList.add('mc-bb-rotated-css');
+      if (mc) {
+        mc.classList.add('mc-bb-rotated');
+        mc.classList.add('mc-bb-rotated-css');
+      }
+    } else {
+      document.body.classList.remove('mc-bb-rotated-css');
+      if (mc) {
+        mc.classList.remove('mc-bb-rotated');
+        mc.classList.remove('mc-bb-rotated-css');
+      }
+    }
+    var rotLbl = document.querySelector('.bb-rot-lbl');
+    if (rotLbl) {
+      rotLbl.textContent = M.bbRotated ? 'POTRET' : 'PUTAR';
+    }
   }
 
   function triggerNativeFullscreen() {
@@ -415,6 +429,9 @@
         if (twa.expand) twa.expand();
         if (twa.requestFullscreen) {
           try { twa.requestFullscreen(); } catch (eRfs) {}
+        }
+        if (twa.unlockOrientation) {
+          try { twa.unlockOrientation(); } catch (eUo) {}
         }
         if (twa.setHeaderColor) {
           try { twa.setHeaderColor('#080c1d'); } catch (eShc) {}
@@ -428,28 +445,23 @@
         if (twa.disableVerticalSwipes) {
           try { twa.disableVerticalSwipes(); } catch (eDvs) {}
         }
-        if (twa.lockOrientation) {
-          try { twa.lockOrientation(); } catch (eLo) {}
-        }
       }
     } catch (eTg) {}
 
     // 2. HTML5 Fullscreen API pada element document.documentElement atau #mc
     try {
-      var targetEl = document.getElementById('mc') || document.documentElement;
+      var targetEl = document.documentElement || document.body;
       var rfs = targetEl.requestFullscreen ||
                 targetEl.webkitRequestFullscreen ||
                 targetEl.mozRequestFullScreen ||
-                targetEl.msRequestFullscreen ||
-                document.documentElement.requestFullscreen ||
-                document.documentElement.webkitRequestFullscreen;
+                targetEl.msRequestFullscreen;
       if (rfs && !document.fullscreenElement && !document.webkitFullscreenElement) {
         var p = rfs.call(targetEl);
         if (p && p.catch) p.catch(function () {});
       }
     } catch (eFs) {}
 
-    // 3. Screen orientation lock landscape
+    // 3. Screen orientation lock landscape jika didukung browser
     try {
       if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
         var pOri = window.screen.orientation.lock('landscape');
@@ -465,23 +477,24 @@
     var mc = document.getElementById('mc');
     if (mc) mc.classList.add('mc-landscape');
 
-    // Sembunyikan tombol Back Telegram agar header bar Telegram tidak memakan ruang
+    // Tampilkan tombol Back bawaan Telegram agar navigasi alami berjalan
     try {
-      if (window.TG && window.TG.back) {
-        window.TG.back.hide();
-      }
       if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.BackButton) {
-        window.Telegram.WebApp.BackButton.hide();
+        window.Telegram.WebApp.BackButton.show();
+        window.Telegram.WebApp.BackButton.onClick(back);
       }
     } catch (eB) {}
 
     triggerNativeFullscreen();
-    updateBBOrientation();
+    updateBBOrientation(false);
 
     if (!_bbResizeHandler) {
       _bbResizeHandler = function () {
         if (M.view === 'list') {
-          updateBBOrientation();
+          // Bila fisik sudah lanskap (lebar > tinggi), matikan rotasi CSS jika aktif
+          if (window.innerWidth > window.innerHeight && M.bbRotated) {
+            updateBBOrientation(true);
+          }
         }
       };
       window.addEventListener('resize', _bbResizeHandler);
@@ -497,9 +510,16 @@
     if (mc) {
       mc.classList.remove('mc-landscape');
       mc.classList.remove('mc-bb-rotated');
+      mc.classList.remove('mc-bb-rotated-css');
     }
     M.bbRotated = false;
-    M.bbRotatedAuto = true;
+
+    try {
+      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.BackButton) {
+        window.Telegram.WebApp.BackButton.hide();
+        window.Telegram.WebApp.BackButton.offClick(back);
+      }
+    } catch (eB) {}
 
     if (_bbResizeHandler) {
       window.removeEventListener('resize', _bbResizeHandler);
@@ -533,6 +553,13 @@
         if (pe && pe.catch) pe.catch(function () {});
       }
     } catch (eFs) {}
+
+    try {
+      if (window.screen && window.screen.orientation && window.screen.orientation.unlock) {
+        window.screen.orientation.unlock();
+      }
+    } catch (eOr) {}
+  }
 
     // Pulihkan tombol Back Telegram saat keluar dari Buku Besar
     try {
@@ -577,15 +604,35 @@
     var d = M.dash;
     if (!d) { s.innerHTML = skeleton(); return; }
 
+    var saldoBulanIni = (d.saldoCashflowBulanIni != null) ? d.saldoCashflowBulanIni : (d.saldoCashflow != null ? d.saldoCashflow : 0);
+    var saldoAkumulasi = (d.saldoCashflowTotal != null) ? d.saldoCashflowTotal : saldoBulanIni;
+    var ymCurrent = M.dashYM || d.ym || ymOf(hariIni());
+    var numStats = 5 + (d.returnCount > 0 ? 1 : 0) + (d.returnDiambilCount > 0 ? 1 : 0);
+    var statsClass = 'mc-stats' + (numStats === 6 ? ' cols-6' : (numStats >= 7 ? ' cols-7' : ''));
+
     s.innerHTML =
       '<div class="mc-pad">' +
-        '<div class="mc-hero">' +
-          '<div class="mc-hero-lbl">Saldo Cashflow</div>' +
-          '<div class="mc-hero-val ' + (d.saldoCashflow >= 0 ? 'pos' : 'neg') + '">' + rupiah(d.saldoCashflow) + '</div>' +
-          '<div class="mc-hero-sub">Dana Bank: ' + rupiah(d.saldoBank) + '</div>' +
+        // Hero Card Saldo Cashflow dengan filter bulan (persis sama seperti Cashflow Arus Kas)
+        '<div class="mc-hero" style="padding:12px 14px;">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
+            '<div style="display:flex;align-items:center;gap:8px;">' +
+              '<button id="dashPrevMonth" class="icon-btn sm" aria-label="Bulan Sebelumnya" style="width:32px;height:32px;font-size:18px;background:#1f2824;border:1px solid #2c3a34;border-radius:8px;color:#e8f0ec;cursor:pointer;">‹</button>' +
+              '<div>' +
+                '<strong id="dashMonthLabel" style="font-size:14px;font-weight:750;display:block;line-height:1.2;color:#e8f0ec;">' + esc(monthLabel(ymCurrent)) + '</strong>' +
+                '<strong id="dashMonthNet" class="' + (saldoBulanIni >= 0 ? 'pos' : 'neg') + '" style="font-size:16px;font-weight:800;display:block;line-height:1.2;margin-top:3px;">' + rupiah(saldoBulanIni) + '</strong>' +
+                '<span style="font-size:9.5px;color:#8fa39a;display:block;">Saldo Cashflow Bulan Ini</span>' +
+              '</div>' +
+              '<button id="dashNextMonth" class="icon-btn sm" aria-label="Bulan Berikutnya" style="width:32px;height:32px;font-size:18px;background:#1f2824;border:1px solid #2c3a34;border-radius:8px;color:#e8f0ec;cursor:pointer;">›</button>' +
+            '</div>' +
+            '<div style="text-align:right;">' +
+              '<span style="font-size:10px;color:#8fa39a;text-transform:uppercase;letter-spacing:.5px;display:block;">Total Saldo Akumulasi</span>' +
+              '<strong id="dashTotalAvail" class="' + (saldoAkumulasi >= 0 ? 'pos' : 'neg') + '" style="font-size:16.5px;font-weight:800;display:block;line-height:1.2;">' + rupiah(saldoAkumulasi) + '</strong>' +
+              '<div class="mc-hero-sub" style="margin-top:3px;font-size:11px;">Dana Bank: ' + rupiah(d.saldoBank || 0) + '</div>' +
+            '</div>' +
+          '</div>' +
         '</div>' +
 
-        '<div class="mc-stats">' + statusCards(d) + '</div>' +
+        '<div class="' + statsClass + '">' + statusCards(d) + '</div>' +
 
         '<div class="mc-nggwrap">' + nggantungCard(d) + '</div>' +
 
@@ -596,7 +643,7 @@
         '</div>' +
 
         '<div class="mc-sec">5 Servis Terbaru</div>' +
-        (d.recent.length
+        (d.recent && d.recent.length
           ? d.recent.map(orderCard).join('')
           : '<p class="mc-empty">Belum ada servis. Tekan <b>Input</b> untuk mulai.</p>') +
       '</div>';
@@ -761,17 +808,24 @@
   }
 
   function statusCards(d) {
-    // Satu baris sejajar dari kiri: Progress, Done, Done Diambil, Cancel,
-    // Cancel Diambil. Tiap kartu hanya menampilkan ANGKA, warna membedakan
-    // statusnya (kuning, hijau, biru, orange, merah). Nggantung tampil
-    // terpisah sebagai kartu ungu di bawahnya.
-    return [
-      { k: 'Progress', n: d.proses, tone: 'warn', desc: 'Unit baru masuk, masih dikerjakan teknisi' },
-      { k: 'Done', n: d.selesai, tone: 'ok', desc: 'Sudah selesai, belum diambil' },
-      { k: 'Done Diambil', n: d.doneDiambil, tone: 'ok2', desc: 'Sudah selesai dan sudah diambil' },
-      { k: 'Cancel', n: d.cancel, tone: 'neg', desc: 'Dibatalkan, belum diambil' },
-      { k: 'Cancel Diambil', n: d.cancelDiambil, tone: 'neg2', desc: 'Dibatalkan dan sudah diambil' }
-    ].map(function (s) {
+    // Default 5 tombol: Progress, Done, Done Diambil, Cancel, Cancel Diambil.
+    // Tombol Return dan Return Diambil HANYA muncul jika terjadi return saja (> 0).
+    var items = [
+      { k: 'Progress', n: d.proses || 0, tone: 'warn', desc: 'Unit baru masuk, masih dikerjakan teknisi' },
+      { k: 'Done', n: d.selesai || 0, tone: 'ok', desc: 'Sudah selesai, belum diambil' },
+      { k: 'Done Diambil', n: d.doneDiambil || 0, tone: 'ok2', desc: 'Sudah selesai dan sudah diambil' },
+      { k: 'Cancel', n: d.cancel || 0, tone: 'neg', desc: 'Dibatalkan, belum diambil' },
+      { k: 'Cancel Diambil', n: d.cancelDiambil || 0, tone: 'neg2', desc: 'Dibatalkan dan sudah diambil' }
+    ];
+
+    if (d.returnCount && d.returnCount > 0) {
+      items.push({ k: 'Return', n: d.returnCount, tone: 'ret', desc: 'Unit retur dalam pengerjaan ulang' });
+    }
+    if (d.returnDiambilCount && d.returnDiambilCount > 0) {
+      items.push({ k: 'Return Diambil', n: d.returnDiambilCount, tone: 'ret2', desc: 'Unit retur selesai dan sudah diambil' });
+    }
+
+    return items.map(function (s) {
       return '<button class="mc-stat ' + s.tone + '" data-mv="list" data-status="' + esc(s.k) +
         '" title="' + esc(s.k) + ' — ' + esc(s.desc) + '" aria-label="' + esc(s.k) + ': ' + s.n + '">' +
         '<b>' + s.n + '</b><span>' + esc(pendekStatus(s.k)) + '</span>' +
@@ -789,19 +843,27 @@
 
   /*
      Kartu "Nggantung": jumlah akumulasi nota yang masih menggantung, yaitu
-     Progress + Cancel + Done. Warnanya ungu (lihat CSS) dan tetap seperti
+     Progress + Cancel + Done (+ Return jika ada). Warnanya ungu (lihat CSS) dan tetap seperti
      sebelumnya — hanya beda warna. Ketuk untuk menyaring daftar Nggandul.
   */
   function nggantungCard(d) {
     var total = d.nggantung || 0;
+    var extraChips = '';
+    if (d.returnCount && d.returnCount > 0) {
+      extraChips += '<span class="mc-ngg-sub" data-mv="list" data-status="Return">Retur ' + d.returnCount + '</span>';
+    }
+    if (d.returnDiambilCount && d.returnDiambilCount > 0) {
+      extraChips += '<span class="mc-ngg-sub" data-mv="list" data-status="Return Diambil">R. Diambil ' + d.returnDiambilCount + '</span>';
+    }
     return '<div class="mc-nggcnt' + (total ? ' on' : '') + '" data-mv="list" data-status="Nggandul"' +
       ' role="button" aria-label="Nggandul: ' + total + ' nota">' +
       '<div class="mc-nggcnt-l" data-mv="list" data-status="Nggandul"><b>' + total + '</b><span>Nggandul</span>' +
-        '<em>Total garapan yang masih Progress, Cancel, atau Done</em></div>' +
+        '<em>Total garapan yang masih Progress, Cancel, Done' + (d.returnCount > 0 ? ', atau Return' : '') + '</em></div>' +
       '<div class="mc-nggcnt-r">' +
         '<span class="mc-ngg-sub" data-mv="list" data-status="Progress">Progress ' + (d.proses || 0) + '</span>' +
         '<span class="mc-ngg-sub" data-mv="list" data-status="Done">Done ' + (d.selesai || 0) + '</span>' +
         '<span class="mc-ngg-sub" data-mv="list" data-status="Cancel">Cancel ' + (d.cancel || 0) + '</span>' +
+        extraChips +
       '</div>' +
     '</div>';
   }
@@ -1014,9 +1076,10 @@
     var uangLaci = totCash - totModal;
 
     var html = '<div class="mc-bb-view">' +
-      // HEADER ATAS TERPADU (JUDUL, 5 KARTU REKAP SESUAI GAMBAR, TOMBOL KEMBALI DI PALING KANAN)
+      // HEADER ATAS TERPADU (JUDUL, 5 KARTU REKAP SESUAI GAMBAR, TOMBOL KEMBALI DI PALING KIRI, TOMBOL ROTASI/FULL DI KANAN)
       '<div class="mc-bb-topbar">' +
         '<div class="mc-bb-tb-left">' +
+          '<button type="button" id="bbBtnBack" class="mc-bb-back-btn" title="Kembali ke Beranda Mas Cim">‹ KEMBALI</button>' +
           '<div class="mc-bb-tb-title">' +
             '<b>BUKU BESAR</b>' +
             '<span class="mc-bb-badge-count">' + filtered.length + ' NOTA</span>' +
@@ -1057,7 +1120,12 @@
         '</div>' +
 
         '<div class="mc-bb-tb-right">' +
-          '<button type="button" id="bbBtnBack" class="mc-bb-back-btn" title="Kembali ke Beranda Mas Cim">‹ KEMBALI</button>' +
+          '<button type="button" id="bbBtnRotate" class="mc-bb-act-btn" title="Putar mode tampilan Lanskap / Potret">' +
+            '🔄 <span class="bb-rot-lbl">' + (M.bbRotated ? 'POTRET' : 'PUTAR') + '</span>' +
+          '</button>' +
+          '<button type="button" id="bbBtnFullscreen" class="mc-bb-act-btn" title="Mode Layar Penuh Sepenuhnya">' +
+            '⛶ FULL' +
+          '</button>' +
         '</div>' +
       '</div>' +
 
@@ -1086,7 +1154,7 @@
           '<span class="mc-bb-flbl">Status</span>' +
           '<select id="bbSelStatus" class="mc-bb-sel">' +
             '<option value="">Semua</option>' +
-            ['Done Diambil', 'Done', 'Progress', 'Cancel', 'Cancel Diambil', 'Nggandul', 'Return', 'Nota Terhapus'].map(function (st) {
+            ['Done Diambil', 'Done', 'Progress', 'Cancel', 'Cancel Diambil', 'Nggandul', 'Return', 'Return Diambil', 'Nota Terhapus'].map(function (st) {
               return '<option value="' + esc(st) + '" ' + (bf.status === st ? 'selected' : '') + '>' + esc(st) + '</option>';
             }).join('') +
           '</select>' +
@@ -1141,7 +1209,8 @@
       '</td></tr>';
     } else {
       html += filtered.map(function (o) {
-        var notaNum = o.noteNumber || (o.noteNumberRaw ? String(o.noteNumberRaw) : (o.internalRef || o.id.slice(-4)));
+        if (!o) return '';
+        var notaNum = o.noteNumber || (o.noteNumberRaw ? String(o.noteNumberRaw) : (o.internalRef || (o.id ? String(o.id).slice(-4) : '—')));
         var st = (o.isDeleted || o.serviceStatus === 'Terhapus') ? 'Terhapus' : (o.serviceStatus || 'Progress');
         var stTone = (st === 'Done Diambil' ? 'st-ambil'
           : (st === 'Done' ? 'st-done'
@@ -1149,6 +1218,7 @@
           : (st === 'Cancel' ? 'st-cancel'
           : (st === 'Cancel Diambil' ? 'st-cambil'
           : (st === 'Return' ? 'st-return'
+          : (st === 'Return Diambil' ? 'st-rambil'
           : (st === 'Terhapus' ? 'st-del' : 'st-ngg')))))));
 
         var uName = (o.customerName || '-').toUpperCase();
@@ -1156,17 +1226,17 @@
         var dev = (o.device || '-').toUpperCase();
         var kel = (o.complaint || '-').toUpperCase();
         var tglMasuk = formatTglBB(o.receivedAt || o.createdAt);
-        var biaya = rupiah(o.totalCost || 0);
-        var modal = rupiah(o.totalPart || 0);
-        var jasa = rupiah(o.serviceFee != null ? o.serviceFee : ((o.totalCost || 0) - (o.totalPart || 0)));
-        var tglAmbil = (o.serviceStatus === 'Done Diambil' || o.serviceStatus === 'Cancel Diambil')
+        var biaya = rupiah(Number(o.totalCost) || 0);
+        var modal = rupiah(Number(o.totalPart) || 0);
+        var jasa = rupiah(o.serviceFee != null ? Number(o.serviceFee) : ((Number(o.totalCost) || 0) - (Number(o.totalPart) || 0)));
+        var tglAmbil = (o.serviceStatus === 'Done Diambil' || o.serviceStatus === 'Cancel Diambil' || o.serviceStatus === 'Return Diambil')
           ? formatTglBB(o.takenAt || o.completedAt || o.updatedAt) : '-';
         var garansi = (o.warranty || (o.warrantyNote && o.warrantyNote.warranty) || (o.serviceStatus === 'Done Diambil' ? '30 HARI' : '-')).toUpperCase();
         var bayar = (o.paymentMethod || (o.payments && o.payments[0] && o.payments[0].paymentMethod) || (o.paymentStatus === 'Lunas' ? 'CASH' : '-')).toUpperCase();
 
-        return '<tr data-open="' + esc(o.id) + '">' +
+        return '<tr data-open="' + esc(o.id || '') + '">' +
           '<td style="text-align:center; font-weight:700;">' + esc(notaNum) + '</td>' +
-          '<td style="text-align:center;"><span class="mc-bb-st ' + stTone + '">' + esc(o.serviceStatus) + '</span></td>' +
+          '<td style="text-align:center;"><span class="mc-bb-st ' + stTone + '">' + esc(o.serviceStatus || st) + '</span></td>' +
           '<td>' + esc(uName) + '</td>' +
           '<td>' + esc(wa) + '</td>' +
           '<td>' + esc(dev) + '</td>' +
@@ -4844,7 +4914,8 @@
     // Tampilkan memuat lebih dulu supaya layar tidak pernah kosong
     // selagi server sedang answering.
     if (M.view === 'home' && !M.dash) showLoading();
-    return api('GET', '/api/mascim/dashboard')
+    if (!M.dashYM) M.dashYM = ymOf(hariIni());
+    return api('GET', '/api/mascim/dashboard' + qs({ ym: M.dashYM }))
       .then(function (r) { M.dash = r.dashboard; render(); updateToolInfo(); })
       .catch(function (e) { if (M.view === 'home') renderOffline(e.message); });
   }
@@ -4958,6 +5029,20 @@
     m.addEventListener('click', function (e) {
       var t;
 
+      // Navigasi Filter Bulan Dashboard Mascim
+      if (e.target.id === 'dashPrevMonth' || e.target.closest('#dashPrevMonth')) {
+        M.dashYM = shiftMonth(M.dashYM || ymOf(hariIni()), -1);
+        reload();
+        if (w.TG && w.TG.haptic) w.TG.haptic('select');
+        return;
+      }
+      if (e.target.id === 'dashNextMonth' || e.target.closest('#dashNextMonth')) {
+        M.dashYM = shiftMonth(M.dashYM || ymOf(hariIni()), 1);
+        reload();
+        if (w.TG && w.TG.haptic) w.TG.haptic('select');
+        return;
+      }
+
       // Navigasi & Aksi Buku Besar
       if (e.target.id === 'bbBtnBack' || e.target.closest('#bbBtnBack')) {
         back();
@@ -4968,7 +5053,11 @@
         return;
       }
       if (e.target.id === 'bbBtnRotate' || e.target.closest('#bbBtnRotate')) {
-        updateBBOrientation(!M.bbRotated);
+        updateBBOrientation(true);
+        return;
+      }
+      if (e.target.id === 'bbBtnFullscreen' || e.target.closest('#bbBtnFullscreen')) {
+        triggerNativeFullscreen();
         return;
       }
 

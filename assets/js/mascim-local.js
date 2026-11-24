@@ -2686,13 +2686,16 @@
     return rows.map(function (o) { return computeOrder(o); });
   }
 
-  function dashboard() {
+  function dashboard(q) {
+    q = q || {};
     var db = load();
     var today = new Date().toISOString().slice(0, 10);
-    var monthStart = today.slice(0, 8) + '01';
+    var currentYM = (q.ym && /^\d{4}-\d{2}$/.test(q.ym)) ? q.ym : today.slice(0, 7);
+    var monthStart = currentYM + '-01';
+    var monthEnd = currentYM + '-31';
 
-    var orders = db.orders.filter(function (o) { return !o.deletedAt; });
-    var masukHariIni = orders.filter(function (o) { return o.receivedAt.slice(0, 10) === today; }).length;
+    var orders = db.orders.filter(function (o) { return !o.deletedAt && o.serviceStatus !== 'Terhapus'; });
+    var masukHariIni = orders.filter(function (o) { return (o.receivedAt || o.createdAt || '').slice(0, 10) === today; }).length;
     var proses = orders.filter(function (o) { return o.serviceStatus === ACTIVE_STATUS; }).length;
     // Kartu "Done" hanya menghitung status 'Done' persis. Semula memakai
     // isDoneStatus() yang mencakup 'Done' DAN 'Done Diambil', jadi nota yang
@@ -2704,9 +2707,14 @@
     // sebelumnya masih memakai isCancelStatus() yang ikut menghitungnya —
     // bug yang sama seperti kartu Done.
     var cancel = orders.filter(function (o) { return o.serviceStatus === 'Cancel'; }).length;
+    var doneDiambil = orders.filter(function (o) { return o.serviceStatus === 'Done Diambil'; }).length;
+    var cancelDiambil = orders.filter(function (o) { return o.serviceStatus === 'Cancel Diambil'; }).length;
+    var returnCount = orders.filter(function (o) { return o.serviceStatus === 'Return'; }).length;
+    var returnDiambilCount = orders.filter(function (o) { return o.serviceStatus === 'Return Diambil'; }).length;
     var nggandul = orders.filter(function (o) { return isNggandulStatus(o.serviceStatus); }).length;
 
-    var cf = cashflowSummary({ from: monthStart });
+    var cfMonth = cashflowSummary({ from: monthStart, to: monthEnd });
+    var cfAll = cashflowSummary({ from: '2000-01-01' });
     var bank = bankSummary();
 
     // "5 Servis Terbaru" hanya untuk garapan yang masih di meja. Nota yang
@@ -2720,20 +2728,26 @@
 
     // "Nggantung" = akumulasi nota yang statusnya masih menggantung di meja:
     // Progress (belum selesai) + Done (sudah jadi belum diambil) +
-    // Cancel (dibatalkan belum diambil). Yang benar-benar sudah keluar
+    // Cancel (dibatalkan belum diambil) + Return (dalam pengerjaan ulang). Yang benar-benar sudah keluar
     // (Done Diambil & Cancel Diambil) tidak dihitung.
     var nggantungNilai = orders.filter(function (o) {
       return isNggandulStatus(o.serviceStatus);
     }).length;
 
     return {
+      ym: currentYM,
       masukHariIni: masukHariIni, proses: proses, selesai: selesai,
       cancel: cancel, nggandul: nggandul,
-      doneDiambil: orders.filter(function (o) { return o.serviceStatus === 'Done Diambil'; }).length,
-      cancelDiambil: orders.filter(function (o) { return o.serviceStatus === 'Cancel Diambil'; }).length,
+      doneDiambil: doneDiambil,
+      cancelDiambil: cancelDiambil,
+      returnCount: returnCount,
+      returnDiambilCount: returnDiambilCount,
       nggantung: nggantungNilai,
-      uangMasukBulanIni: cf.moneyIn, pengeluaranBulanIni: cf.moneyOut,
-      saldoCashflow: cf.balance, saldoBank: bank.available, bank: bank,
+      uangMasukBulanIni: cfMonth.moneyIn, pengeluaranBulanIni: cfMonth.moneyOut,
+      saldoCashflow: cfMonth.balance,
+      saldoCashflowBulanIni: cfMonth.balance,
+      saldoCashflowTotal: cfAll.balance,
+      saldoBank: bank.available, bank: bank,
       recent: recent.map(function (o) { return computeOrder(o); })
     };
   }
@@ -2789,7 +2803,8 @@
       // Seed contoh sekali saja supaya layar pertama tidak kosong dan
       // semua tombol kelihatan bisa diklik. Data pelanggan fiktif.
       seed();
-      return out({ dashboard: dashboard() });
+      var q = parseQuery(path);
+      return out({ dashboard: dashboard(q) });
     }
     if (len === 1 && r[0] === 'settings') {
       if (method === 'GET') return out({ settings: getSettings() });

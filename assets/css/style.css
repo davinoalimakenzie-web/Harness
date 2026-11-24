@@ -2265,6 +2265,12 @@ select.mc-inp{ appearance:none; }
 .mc-stats {
   display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 12px;
 }
+.mc-stats.cols-6 {
+  grid-template-columns: repeat(6, 1fr) !important;
+}
+.mc-stats.cols-7 {
+  grid-template-columns: repeat(7, 1fr) !important;
+}
 .mc-stat {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
   padding: 10px 4px; border-radius: 12px; text-align: center;
@@ -2286,6 +2292,8 @@ select.mc-inp{ appearance:none; }
 .mc-stat.ok2   { --mc-tone: #2f81f7; --mc-tone-bg: rgba(47,129,247,.16); }  /* Done Diambil  biru */
 .mc-stat.neg   { --mc-tone: #f0883e; --mc-tone-bg: rgba(240,136,62,.16); }  /* Cancel  orange */
 .mc-stat.neg2  { --mc-tone: #e5534b; --mc-tone-bg: rgba(229,83,75,.16); }   /* Cancel Diambil  merah */
+.mc-stat.ret   { --mc-tone: #c084fc; --mc-tone-bg: rgba(192,132,252,.18); }  /* Return  ungu */
+.mc-stat.ret2  { --mc-tone: #fbbf24; --mc-tone-bg: rgba(251,191,36,.18); }   /* Return Diambil  kuning emas */
 .mc-stat.ngg   { --mc-tone: #a371f7; --mc-tone-bg: rgba(163,113,247,.16); }  /* Nggantung  ungu */
 .mc-stat:active { transform: scale(.97); }
 
@@ -4360,6 +4368,26 @@ body.mc-bb-active #mcScreen {
   width: 100% !important;
 }
 
+/* Mode Rotasi Lanskap CSS Manual bila auto-rotate HP dimatikan */
+body.mc-bb-rotated-css {
+  overflow: hidden !important;
+}
+body.mc-bb-rotated-css #mc {
+  transform: rotate(90deg) !important;
+  transform-origin: top left !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 100vw !important;
+  width: 100vh !important;
+  width: 100dvh !important;
+  height: 100vw !important;
+  height: 100dvw !important;
+  max-width: 100vh !important;
+  max-height: 100vw !important;
+  overflow: hidden !important;
+  z-index: 99999999 !important;
+}
+
 .mc-bb-view {
   display: flex;
   flex-direction: column;
@@ -4377,16 +4405,21 @@ body.mc-bb-active #mcScreen {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
+  padding-top: max(8px, env(safe-area-inset-top, 0px), var(--tg-content-safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px));
+  padding-bottom: 6px;
+  padding-left: max(10px, env(safe-area-inset-left, 0px), var(--tg-safe-area-inset-left, 0px));
+  padding-right: max(10px, env(safe-area-inset-right, 0px), var(--tg-safe-area-inset-right, 0px));
   background: #080c1d;
   border-bottom: 1px solid #1e293b;
   flex: 0 0 auto;
-  gap: 10px;
+  gap: 8px;
   box-sizing: border-box;
   overflow: hidden;
   width: 100%;
   max-width: 100vw;
   min-width: 0;
+  position: relative;
+  z-index: 20;
 }
 
 .mc-bb-tb-left {
@@ -4541,6 +4574,29 @@ body.mc-bb-active #mcScreen {
 }
 
 .mc-bb-back-btn:active {
+  background: #334155;
+  color: #ffffff;
+  transform: scale(0.96);
+}
+
+.mc-bb-act-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #1e293b;
+  color: #38bdf8;
+  border: 1px solid #334155;
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.mc-bb-act-btn:active {
   background: #334155;
   color: #ffffff;
   transform: scale(0.96);
