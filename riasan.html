@@ -131,15 +131,57 @@
         </div>
       </div>
 
-      <!-- List Jadwal Mendatang -->
+      <!-- KALENDER JADWAL ACARA TERDEKAT (1 - 31) -->
       <div class="space-y-3">
-        <div class="flex items-center justify-center relative">
-          <h2 class="text-sm font-bold uppercase tracking-wider text-brand-gold text-center flex items-center justify-center gap-1.5">
-            <span>📅 Jadwal Acara Terdekat</span>
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-brand-gold flex items-center gap-1.5">
+            <span>📅 Kalender Jadwal (1 - 31)</span>
           </h2>
-          <span class="text-xs text-brand-muted absolute right-0" id="jadwalCount">0 jadwal</span>
+          <button type="button" onclick="RiasApp.calendarGoToday()" class="text-[11px] px-2.5 py-1 rounded-lg bg-brand-card border border-brand-line text-brand-rose font-semibold hover:border-brand-rose active:scale-95 transition-all">
+            Hari Ini 📍
+          </button>
         </div>
-        <div id="jadwalList" class="space-y-3"></div>
+
+        <!-- Card Kalender Bulanan -->
+        <div class="bg-brand-card border border-brand-line rounded-2xl p-3 shadow-sm space-y-3">
+          <!-- Navigasi Bulan Kalender -->
+          <div class="flex items-center justify-between border-b border-brand-line/60 pb-2">
+            <button type="button" onclick="RiasApp.shiftCalMonth(-1)" class="w-8 h-8 rounded-lg bg-brand-card2 border border-brand-line text-brand-text hover:text-white flex items-center justify-center text-base font-bold active:scale-95 transition-transform" aria-label="Bulan Sebelumnya">‹</button>
+            <div class="text-center">
+              <strong id="calMonthLabel" class="text-sm font-bold text-brand-text block leading-tight">November 2026</strong>
+              <span id="calEventsCount" class="text-[10px] text-brand-muted">0 kegiatan</span>
+            </div>
+            <button type="button" onclick="RiasApp.shiftCalMonth(1)" class="w-8 h-8 rounded-lg bg-brand-card2 border border-brand-line text-brand-text hover:text-white flex items-center justify-center text-base font-bold active:scale-95 transition-transform" aria-label="Bulan Berikutnya">›</button>
+          </div>
+
+          <!-- Legend Status Acara / Booking / Fitting Minimalis -->
+          <div class="flex items-center justify-around text-[10px] text-brand-muted py-1 border-b border-brand-line/40">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500 inline-block"></span> 💍 Acara</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-500 inline-block"></span> 👗 Fitting</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> 📝 Booking</span>
+          </div>
+
+          <!-- Header Hari (Sen - Min) -->
+          <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-brand-muted uppercase">
+            <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span class="text-brand-rose">Sab</span><span class="text-red-400">Min</span>
+          </div>
+
+          <!-- Grid Tanggal 1 s/d 31 -->
+          <div id="calGrid" class="grid grid-cols-7 gap-1"></div>
+        </div>
+
+        <!-- Rincian Agenda Tanggal Terpilih -->
+        <div class="space-y-2 pt-1">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-brand-gold uppercase tracking-wider flex items-center gap-1" id="calSelectedDateLabel">
+              📅 Rincian Agenda Terdekat
+            </span>
+            <span class="text-[11px] text-brand-muted" id="calSelectedDateCount">
+              0 Jadwal
+            </span>
+          </div>
+          <div id="calSelectedList" class="space-y-2.5"></div>
+        </div>
       </div>
     </section>
 
@@ -205,19 +247,41 @@
 
     <!-- TAB 4: KEUANGAN (REKAP TAGIHAN) -->
     <section id="tab-keuangan" class="tab-pane hidden space-y-4">
-      <!-- Ringkasan Keuangan -->
-      <div class="bg-gradient-to-br from-brand-card to-brand-card2 border border-brand-line rounded-2xl p-4 shadow-lg space-y-3">
-        <div class="flex items-center justify-between border-b border-brand-line/60 pb-2.5">
-          <span class="text-xs text-brand-muted font-medium">Total Omset Acara</span>
-          <strong class="text-base font-bold text-brand-gold" id="statOmsetTotal">0</strong>
+      <!-- Ringkasan Keuangan dengan Filter Bulan (Seperti Dana Bank & Cashflow Alima) -->
+      <div class="bg-gradient-to-br from-brand-card to-brand-card2 border border-brand-line rounded-2xl p-3.5 shadow-lg space-y-3">
+        <!-- Bar Navigasi Bulan & Omzet -->
+        <div class="flex items-center justify-between gap-2 border-b border-brand-line/60 pb-3">
+          <!-- Sisi Kiri: Filter Bulan (‹ Bulan Tahun ›) dan Omzet Bulan Terpilih -->
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="RiasApp.shiftBillingMonth(-1)" class="w-8 h-8 rounded-lg bg-brand-card2 border border-brand-line text-brand-text hover:text-white flex items-center justify-center text-base font-bold active:scale-95 transition-transform" aria-label="Bulan Sebelumnya">‹</button>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <strong id="billingMonthLabel" class="text-sm font-bold text-brand-text block leading-tight">November 2026</strong>
+                <button type="button" id="billingAllToggleBtn" onclick="RiasApp.toggleBillingAllMonths()" class="text-[9px] px-1.5 py-0.5 rounded bg-brand-card border border-brand-line/80 text-brand-muted hover:text-brand-gold font-semibold uppercase">SEMUA</button>
+              </div>
+              <div class="flex items-baseline gap-1 mt-0.5">
+                <span class="text-[10px] text-brand-muted uppercase">Omzet:</span>
+                <strong id="statOmsetTotal" class="text-sm font-extrabold text-brand-gold leading-tight">0</strong>
+              </div>
+            </div>
+            <button type="button" onclick="RiasApp.shiftBillingMonth(1)" class="w-8 h-8 rounded-lg bg-brand-card2 border border-brand-line text-brand-text hover:text-white flex items-center justify-center text-base font-bold active:scale-95 transition-transform" aria-label="Bulan Berikutnya">›</button>
+          </div>
+
+          <!-- Sisi Kanan: Total Omzet Akumulasi (Semua Waktu) -->
+          <div class="text-right shrink-0">
+            <span class="text-[10px] text-brand-muted uppercase tracking-wider block">Total Omzet Akumulasi</span>
+            <strong id="statOmsetAkumulasi" class="text-sm font-bold text-brand-gold block mt-0.5">0</strong>
+          </div>
         </div>
-        <div class="grid grid-cols-2 gap-3 pt-1">
-          <div>
-            <span class="text-[11px] text-brand-muted block">Sudah Diterima (DP/Cicilan)</span>
+
+        <!-- 2 Kolom: Sudah Diterima & Sisa Tagihan (Piutang) -->
+        <div class="grid grid-cols-2 gap-3 pt-0.5">
+          <div class="bg-brand-card/60 border border-brand-line/40 rounded-xl p-2.5">
+            <span class="text-[10.5px] text-brand-muted block font-medium">Sudah Diterima (DP/Cicilan)</span>
             <strong class="text-sm font-bold text-emerald-400 mt-0.5 block" id="statTotalMasuk">0</strong>
           </div>
-          <div>
-            <span class="text-[11px] text-brand-muted block">Sisa Tagihan (Piutang)</span>
+          <div class="bg-brand-card/60 border border-brand-line/40 rounded-xl p-2.5">
+            <span class="text-[10.5px] text-brand-muted block font-medium">Sisa Tagihan (Piutang)</span>
             <strong class="text-sm font-bold text-amber-400 mt-0.5 block" id="statTotalSisa">0</strong>
           </div>
         </div>
@@ -275,6 +339,19 @@
           <div>
             <label class="block text-brand-muted mb-1 font-medium">Tanggal Acara *</label>
             <input type="date" id="clientEventDate" required 
+              class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-brand-muted mb-1 font-medium">Tanggal Fitting (Opsional)</label>
+            <input type="date" id="clientFittingDate" placeholder="Default H-2 jika kosong" 
+              class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
+          </div>
+          <div>
+            <label class="block text-brand-muted mb-1 font-medium">Tanggal Booking (Opsional)</label>
+            <input type="date" id="clientBookingDate" 
               class="w-full bg-brand-card2 border border-brand-line rounded-xl px-3 py-2 text-brand-text focus:outline-none focus:border-brand-rose">
           </div>
         </div>
@@ -787,6 +864,69 @@
         return d.toISOString().split('T')[0];
       },
 
+      calYM: null,
+      selectedCalDate: null,
+      billingYM: null,
+      billingShowAll: false,
+      monthNames: ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'],
+
+      monthLabel: function (ym) {
+        if (!ym) return '-';
+        var p = ym.split('-');
+        var y = p[0], m = parseInt(p[1], 10) - 1;
+        return (this.monthNames[m] || ym) + ' ' + y;
+      },
+
+      shiftMonth: function (ym, delta) {
+        var p = (ym || '').split('-').map(Number);
+        if (p.length < 2 || isNaN(p[0]) || isNaN(p[1])) {
+          var now = new Date();
+          p = [now.getFullYear(), now.getMonth() + 1];
+        }
+        var d = new Date(p[0], p[1] - 1 + delta, 1);
+        var y = d.getFullYear();
+        var m = String(d.getMonth() + 1).padStart(2, '0');
+        return y + '-' + m;
+      },
+
+      shiftCalMonth: function (delta) {
+        var base = this.calYM || (new Date().toISOString().slice(0, 7));
+        this.calYM = this.shiftMonth(base, delta);
+        this.renderSchedules();
+      },
+
+      calendarGoToday: function () {
+        var today = new Date().toISOString().split('T')[0];
+        this.calYM = today.slice(0, 7);
+        this.selectedCalDate = today;
+        this.renderSchedules();
+      },
+
+      selectCalDate: function (dateStr) {
+        this.selectedCalDate = dateStr;
+        this.renderSchedules();
+      },
+
+      shiftBillingMonth: function (delta) {
+        this.billingShowAll = false;
+        var base = this.billingYM || (new Date().toISOString().slice(0, 7));
+        this.billingYM = this.shiftMonth(base, delta);
+        this.renderBilling();
+      },
+
+      toggleBillingAllMonths: function () {
+        this.billingShowAll = !this.billingShowAll;
+        this.renderBilling();
+      },
+
+      openClientModalWithDate: function (dateStr) {
+        this.openClientModal();
+        if (dateStr) {
+          var evInput = document.getElementById('clientEventDate');
+          if (evInput) evInput.value = dateStr;
+        }
+      },
+
       toast: function (msg) {
         var t = document.getElementById('toast');
         if (!t) return;
@@ -829,18 +969,18 @@
       },
 
       /* =========================================================
-         1. TAB JADWAL & KLIEN
+         1. TAB JADWAL & KLIEN (KALENDER 1 - 31)
          ========================================================= */
       renderSchedules: function () {
+        var today = new Date().toISOString().split('T')[0];
+        if (!this.calYM) this.calYM = today.slice(0, 7);
+        if (!this.selectedCalDate) this.selectedCalDate = today;
+
         var clients = this.db.clients.slice().sort(function (a, b) {
           return a.eventDate.localeCompare(b.eventDate);
         });
 
-        document.getElementById('jadwalCount').textContent = clients.length + ' jadwal';
-        document.getElementById('statTotalAcara').textContent = clients.length + ' Acara';
-
-        // Acara Terdekat
-        var today = new Date().toISOString().split('T')[0];
+        // Acara Terdekat berikutnya
         var upcoming = clients.filter(function (c) { return c.eventDate >= today; });
         var next = upcoming[0] || clients[0];
         if (next) {
@@ -862,57 +1002,234 @@
         });
 
         var alertBox = document.getElementById('jadwalAlertBox');
-        if (crowdedDates.length) {
-          alertBox.classList.remove('hidden');
-          alertBox.innerHTML = crowdedDates.map(function (d) {
-            return '<div class="bg-red-500/15 border border-red-500/40 rounded-xl p-3 flex items-start gap-2.5 text-xs text-red-200">' +
-              '<span class="text-lg">⚠️</span>' +
-              '<div>' +
-                '<strong class="text-red-300 font-bold block">Peringatan Jadwal Padat!</strong>' +
-                '<span>Ada <b>' + dateCounts[d] + ' acara</b> pada tanggal <b>' + RiasApp.formatDate(d) + '</b>. Pastikan tim rias & busana siap.</span>' +
-              '</div>' +
-            '</div>';
-          }).join('');
-        } else {
-          alertBox.classList.add('hidden');
-          alertBox.innerHTML = '';
-        }
-
-        // Render Cards
-        var list = document.getElementById('jadwalList');
-        if (!clients.length) {
-          list.innerHTML = '<div class="text-center py-10 text-brand-muted text-xs bg-brand-card rounded-2xl border border-brand-line">Belum ada jadwal acara. Tekan <b>+ Klien</b> untuk mencatat acara baru.</div>';
-          return;
-        }
-
-        list.innerHTML = clients.map(function (c) {
-          var isCrowded = dateCounts[c.eventDate] > 2;
-          var clothCount = (c.clothes || []).length;
-
-          return '<div class="bg-brand-card border ' + (isCrowded ? 'border-red-500/40' : 'border-brand-line') + ' rounded-2xl p-4 space-y-2.5 shadow-sm">' +
-            '<div class="flex items-start justify-between gap-2">' +
-              '<div>' +
-                '<div class="flex items-center gap-1.5 flex-wrap">' +
-                  '<strong class="text-sm font-bold text-brand-text">' + c.name + '</strong>' +
-                  (isCrowded ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/30 font-semibold">⚠️ ' + dateCounts[c.eventDate] + ' Acara Sama</span>' : '') +
+        if (alertBox) {
+          if (crowdedDates.length) {
+            alertBox.classList.remove('hidden');
+            alertBox.innerHTML = crowdedDates.map(function (d) {
+              return '<div class="bg-red-500/15 border border-red-500/40 rounded-xl p-3 flex items-start gap-2.5 text-xs text-red-200">' +
+                '<span class="text-lg">⚠️</span>' +
+                '<div>' +
+                  '<strong class="text-red-300 font-bold block">Peringatan Jadwal Padat!</strong>' +
+                  '<span>Ada <b>' + dateCounts[d] + ' acara</b> pada tanggal <b>' + RiasApp.formatDate(d) + '</b>. Pastikan tim rias & busana siap.</span>' +
                 '</div>' +
-                '<p class="text-xs text-brand-gold font-medium mt-0.5">🗓️ ' + RiasApp.formatDate(c.eventDate) + '</p>' +
-              '</div>' +
-              '<a href="https://wa.me/' + c.phone.replace(/[^0-9]/g, '') + '" target="_blank" class="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold flex items-center gap-1 active:scale-95">' +
-                '<span>💬 WA</span>' +
-              '</a>' +
-            '</div>' +
+              '</div>';
+            }).join('');
+          } else {
+            alertBox.classList.add('hidden');
+            alertBox.innerHTML = '';
+          }
+        }
 
-            (c.notes ? '<p class="text-xs text-brand-muted bg-brand-card2/80 rounded-xl p-2.5 border border-brand-line/50 leading-relaxed">' + c.notes + '</p>' : '') +
+        // ================= KALENDER FULL 1-31 =================
+        var curYM = this.calYM;
+        var p = curYM.split('-');
+        var year = parseInt(p[0], 10);
+        var monthIdx = parseInt(p[1], 10) - 1; // 0-11
+        var daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+        var firstDayDow = new Date(year, monthIdx, 1).getDay(); // 0=Min, 1=Sen...
+        var startCol = (firstDayDow + 6) % 7; // 0=Senin ... 6=Minggu
 
-            '<div class="flex items-center justify-between text-xs pt-1 border-t border-brand-line/50">' +
-              '<span class="text-brand-muted">Busana: <b class="text-brand-text">' + clothCount + ' dipilih</b></span>' +
-              '<button onclick="RiasApp.openAssignClothModal(\'' + c.id + '\')" class="text-brand-rose font-semibold hover:underline">' +
-                (clothCount ? 'Ubah Busana 👗' : '+ Pasang Busana 👗') +
+        var calMonthLabel = document.getElementById('calMonthLabel');
+        if (calMonthLabel) calMonthLabel.textContent = this.monthLabel(curYM);
+
+        // Kumpulkan event per tanggal (Acara, Fitting, Booking)
+        var eventsByDate = {};
+        var monthTotalEvents = 0;
+        var monthAcaraCount = 0;
+
+        clients.forEach(function (c) {
+          // 1. Acara (Event Date)
+          if (c.eventDate) {
+            eventsByDate[c.eventDate] = eventsByDate[c.eventDate] || [];
+            eventsByDate[c.eventDate].push({
+              type: 'acara',
+              client: c,
+              name: c.name,
+              title: 'Acara: ' + c.name,
+              date: c.eventDate
+            });
+            if (c.eventDate.slice(0, 7) === curYM) {
+              monthTotalEvents++;
+              monthAcaraCount++;
+            }
+          }
+
+          // 2. Fitting (Fitting Date atau default H-2)
+          var fitDate = c.fittingDate;
+          if (!fitDate && c.eventDate) {
+            fitDate = RiasApp.addDays(c.eventDate, -2);
+          }
+          if (fitDate) {
+            eventsByDate[fitDate] = eventsByDate[fitDate] || [];
+            eventsByDate[fitDate].push({
+              type: 'fitting',
+              client: c,
+              name: c.name,
+              title: 'Fitting: ' + c.name,
+              date: fitDate
+            });
+            if (fitDate.slice(0, 7) === curYM) {
+              monthTotalEvents++;
+            }
+          }
+
+          // 3. Booking
+          var bookDate = c.bookingDate;
+          if (!bookDate && c.payments && c.payments.length > 0) {
+            var firstP = c.payments[0];
+            if (firstP && firstP.date) bookDate = firstP.date;
+          }
+          if (bookDate && bookDate !== c.eventDate && bookDate !== fitDate) {
+            eventsByDate[bookDate] = eventsByDate[bookDate] || [];
+            eventsByDate[bookDate].push({
+              type: 'booking',
+              client: c,
+              name: c.name,
+              title: 'Booking: ' + c.name,
+              date: bookDate
+            });
+            if (bookDate.slice(0, 7) === curYM) {
+              monthTotalEvents++;
+            }
+          }
+        });
+
+        var statTotalAcara = document.getElementById('statTotalAcara');
+        if (statTotalAcara) statTotalAcara.textContent = monthAcaraCount + ' Acara (' + this.monthLabel(curYM) + ')';
+
+        var calEventsCount = document.getElementById('calEventsCount');
+        if (calEventsCount) calEventsCount.textContent = monthTotalEvents + ' kegiatan di bulan ini';
+
+        // Render Grid Kalender 1-31
+        var calGrid = document.getElementById('calGrid');
+        if (calGrid) {
+          var cellsHtml = '';
+          // Sel kosong awal bulan sebelum tanggal 1
+          for (var i = 0; i < startCol; i++) {
+            cellsHtml += '<div class="min-h-[56px] rounded-lg bg-brand-card2/20 border border-brand-line/20 opacity-30"></div>';
+          }
+
+          // Hari 1 s/d daysInMonth (1 - 31)
+          for (var d = 1; d <= daysInMonth; d++) {
+            var dateStr = year + '-' + String(monthIdx + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+            var isToday = (dateStr === today);
+            var isSelected = (dateStr === this.selectedCalDate);
+            var evs = eventsByDate[dateStr] || [];
+            var hasEvents = evs.length > 0;
+            var isPadat = evs.filter(function (x) { return x.type === 'acara'; }).length > 2;
+
+            var borderClass = isSelected
+              ? 'border-brand-gold ring-1 ring-brand-gold bg-brand-gold/10'
+              : (hasEvents ? 'border-brand-rose/40 bg-brand-card hover:border-brand-gold/50' : 'border-brand-line/40 bg-brand-card2/40 hover:border-brand-line');
+
+            cellsHtml += '<div onclick="RiasApp.selectCalDate(\'' + dateStr + '\')" ' +
+              'class="min-h-[56px] p-1 rounded-lg border ' + borderClass + ' flex flex-col justify-between cursor-pointer transition-all active:scale-95">' +
+              '<div class="flex items-center justify-between">' +
+                '<span class="text-[10.5px] ' + (isToday ? 'w-4 h-4 rounded-full bg-brand-rose text-white flex items-center justify-center font-extrabold shadow-sm text-[9.5px]' : (isSelected ? 'text-brand-gold font-extrabold' : 'text-brand-muted font-bold')) + '">' + d + '</span>' +
+                (isPadat ? '<span class="text-[8px] text-red-400 font-extrabold leading-none" title="Jadwal Padat">⚠️</span>' : '') +
+              '</div>';
+
+            // Items minimalis di dalam sel
+            if (hasEvents) {
+              cellsHtml += '<div class="space-y-0.5 mt-0.5">';
+              var showEvs = evs.slice(0, 2);
+              showEvs.forEach(function (ev) {
+                if (ev.type === 'acara') {
+                  cellsHtml += '<div class="text-[8px] font-bold px-1 py-0.5 rounded bg-rose-500/25 text-rose-200 border border-rose-500/30 truncate leading-none" title="💍 ' + ev.name + '">💍 ' + ev.name + '</div>';
+                } else if (ev.type === 'fitting') {
+                  cellsHtml += '<div class="text-[8px] font-bold px-1 py-0.5 rounded bg-sky-500/25 text-sky-200 border border-sky-500/30 truncate leading-none" title="👗 ' + ev.name + '">👗 ' + ev.name + '</div>';
+                } else {
+                  cellsHtml += '<div class="text-[8px] font-bold px-1 py-0.5 rounded bg-amber-500/25 text-amber-200 border border-amber-500/30 truncate leading-none" title="📝 ' + ev.name + '">📝 ' + ev.name + '</div>';
+                }
+              });
+              if (evs.length > 2) {
+                cellsHtml += '<div class="text-[7.5px] font-bold text-brand-gold text-right leading-none">+' + (evs.length - 2) + ' lagi</div>';
+              }
+              cellsHtml += '</div>';
+            } else {
+              cellsHtml += '<div></div>';
+            }
+
+            cellsHtml += '</div>';
+          }
+          calGrid.innerHTML = cellsHtml;
+        }
+
+        // ================= RINCIAN AGENDA TANGGAL TERPILIH =================
+        var selDate = this.selectedCalDate || today;
+        var selEvs = eventsByDate[selDate] || [];
+
+        var labelDate = document.getElementById('calSelectedDateLabel');
+        if (labelDate) {
+          labelDate.innerHTML = '<span>📅 Rincian Agenda: ' + this.formatDate(selDate) + (selDate === today ? ' <span class="text-brand-rose">(Hari Ini)</span>' : '') + '</span>';
+        }
+
+        var countDate = document.getElementById('calSelectedDateCount');
+        if (countDate) {
+          countDate.textContent = selEvs.length + ' kegiatan';
+        }
+
+        var listContainer = document.getElementById('calSelectedList');
+        if (listContainer) {
+          if (!selEvs.length) {
+            listContainer.innerHTML = '<div class="bg-brand-card border border-brand-line rounded-2xl p-4 text-center space-y-2">' +
+              '<p class="text-xs text-brand-muted">Tidak ada jadwal acara, booking, atau fitting pada tanggal ini.</p>' +
+              '<button type="button" onclick="RiasApp.openClientModalWithDate(\'' + selDate + '\')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-brand-rose to-brand-gold text-white font-bold text-xs shadow-sm active:scale-95 transition-transform">' +
+                '+ Jadwalkan Klien di Tanggal Ini' +
               '</button>' +
-            '</div>' +
-          '</div>';
-        }).join('');
+            '</div>';
+          } else {
+            listContainer.innerHTML = selEvs.map(function (ev) {
+              var c = ev.client;
+              var isAcara = ev.type === 'acara';
+              var isFitting = ev.type === 'fitting';
+              var isBooking = ev.type === 'booking';
+
+              var badgeHtml = isAcara
+                ? '<span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold">💍 HARI ACARA</span>'
+                : (isFitting
+                    ? '<span class="text-[10px] px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30 font-bold">👗 JADWAL FITTING</span>'
+                    : '<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">📝 DP / BOOKING</span>');
+
+              var clothCount = (c.clothes || []).length;
+              var totalPaid = (c.payments || []).reduce(function (s, p) { return s + (p.amount || 0); }, 0);
+              var grandTotal = c.grandTotal || c.packagePrice || 0;
+              var isLunas = (grandTotal > 0 && totalPaid >= grandTotal);
+
+              return '<div class="bg-brand-card border border-brand-line rounded-2xl p-3.5 space-y-2.5 shadow-sm">' +
+                '<div class="flex items-start justify-between gap-2">' +
+                  '<div>' +
+                    '<div class="flex items-center gap-1.5 flex-wrap">' +
+                      badgeHtml +
+                      '<strong class="text-sm font-bold text-brand-text">' + c.name + '</strong>' +
+                    '</div>' +
+                    '<p class="text-xs text-brand-muted mt-1">' +
+                      'Hari H Acara: <b class="text-brand-gold">' + RiasApp.formatDate(c.eventDate) + '</b>' +
+                      (c.fittingDate ? ' · Fitting: <b class="text-brand-rose">' + RiasApp.formatDate(c.fittingDate) + '</b>' : '') +
+                    '</p>' +
+                  '</div>' +
+                  '<a href="https://wa.me/' + c.phone.replace(/[^0-9]/g, '') + '" target="_blank" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold flex items-center gap-1 active:scale-95 shrink-0">' +
+                    '<span>💬 WA</span>' +
+                  '</a>' +
+                '</div>' +
+
+                (c.notes ? '<p class="text-xs text-brand-muted bg-brand-card2/80 rounded-xl p-2.5 border border-brand-line/50 leading-relaxed">' + c.notes + '</p>' : '') +
+
+                '<div class="flex items-center justify-between text-xs pt-1.5 border-t border-brand-line/50">' +
+                  '<span class="text-brand-muted">Status: <b class="' + (isLunas ? 'text-emerald-400' : 'text-amber-400') + '">' + (isLunas ? '✓ Lunas' : 'Belum Lunas') + '</b></span>' +
+                  '<div class="flex items-center gap-2">' +
+                    '<button type="button" onclick="RiasApp.openAssignClothModal(\'' + c.id + '\')" class="text-brand-rose font-semibold hover:underline text-[11px]">' +
+                      (clothCount ? 'Busana (' + clothCount + ') 👗' : '+ Busana 👗') +
+                    '</button>' +
+                    '<button type="button" onclick="RiasApp.openClientModal(\'' + c.id + '\')" class="text-brand-gold font-semibold hover:underline text-[11px]">' +
+                      'Edit ✏️' +
+                    '</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+            }).join('');
+          }
+        }
       },
 
       renderClients: function () {
@@ -1147,36 +1464,82 @@
       },
 
       /* =========================================================
-         3. TAB KEUANGAN (REKAP TAGIHAN)
+         3. TAB KEUANGAN (REKAP TAGIHAN DENGAN FILTER BULAN)
          ========================================================= */
       renderBilling: function () {
-        var clients = this.db.clients;
-        document.getElementById('billingCount').textContent = clients.length + ' klien';
-
-        var totalOmset = 0;
-        var totalMasuk = 0;
-
-        clients.forEach(function (c) {
-          var cTotal = c.grandTotal || c.packagePrice || 0;
-          totalOmset += cTotal;
-          var paid = (c.payments || []).reduce(function (s, p) { return s + p.amount; }, 0);
-          totalMasuk += paid;
+        var allClients = this.db.clients || [];
+        
+        // Akumulasi total omzet seluruh klien (sepanjang waktu)
+        var totalOmsetAll = 0;
+        allClients.forEach(function (c) {
+          totalOmsetAll += (c.grandTotal || c.packagePrice || 0);
         });
 
-        var totalSisa = totalOmset - totalMasuk;
-        document.getElementById('statOmsetTotal').textContent = this.formatIDR(totalOmset);
-        document.getElementById('statTotalMasuk').textContent = this.formatIDR(totalMasuk);
-        document.getElementById('statTotalSisa').textContent = this.formatIDR(totalSisa);
+        var today = new Date().toISOString().split('T')[0];
+        if (!this.billingYM) this.billingYM = today.slice(0, 7);
+        var curYM = this.billingYM;
+        var isAll = !!this.billingShowAll;
+
+        var filteredClients = allClients;
+        if (!isAll) {
+          filteredClients = allClients.filter(function (c) {
+            return (c.eventDate || '').slice(0, 7) === curYM;
+          });
+        }
+
+        var monthOmset = 0;
+        var monthMasuk = 0;
+
+        filteredClients.forEach(function (c) {
+          var cTotal = c.grandTotal || c.packagePrice || 0;
+          monthOmset += cTotal;
+          var paid = (c.payments || []).reduce(function (s, p) { return s + (p.amount || 0); }, 0);
+          monthMasuk += paid;
+        });
+
+        var monthSisa = monthOmset - monthMasuk;
+
+        // Label Bulan & Toggle
+        var labelEl = document.getElementById('billingMonthLabel');
+        if (labelEl) labelEl.textContent = isAll ? 'SEMUA PERIODE' : this.monthLabel(curYM);
+
+        var allToggleBtn = document.getElementById('billingAllToggleBtn');
+        if (allToggleBtn) {
+          allToggleBtn.textContent = isAll ? 'FILTER BULAN' : 'SEMUA';
+          allToggleBtn.className = isAll 
+            ? 'text-[9px] px-1.5 py-0.5 rounded bg-brand-rose/25 text-brand-rose border border-brand-rose/40 font-bold uppercase active:scale-95 transition-all'
+            : 'text-[9px] px-1.5 py-0.5 rounded bg-brand-card border border-brand-line/80 text-brand-muted hover:text-brand-gold font-semibold uppercase active:scale-95 transition-all';
+        }
+
+        var statOmset = document.getElementById('statOmsetTotal');
+        if (statOmset) statOmset.textContent = this.formatIDR(monthOmset);
+
+        var statAkumulasi = document.getElementById('statOmsetAkumulasi');
+        if (statAkumulasi) statAkumulasi.textContent = this.formatIDR(totalOmsetAll);
+
+        var statMasuk = document.getElementById('statTotalMasuk');
+        if (statMasuk) statMasuk.textContent = this.formatIDR(monthMasuk);
+
+        var statSisa = document.getElementById('statTotalSisa');
+        if (statSisa) statSisa.textContent = this.formatIDR(monthSisa);
+
+        var countEl = document.getElementById('billingCount');
+        if (countEl) {
+          countEl.textContent = filteredClients.length + ' klien' + (isAll ? ' (Semua)' : ' (' + this.monthLabel(curYM) + ')');
+        }
 
         var list = document.getElementById('billingList');
-        if (!clients.length) {
-          list.innerHTML = '<div class="text-center py-10 text-brand-muted text-xs bg-brand-card rounded-2xl border border-brand-line">Belum ada data tagihan klien.</div>';
+        if (!list) return;
+
+        if (!filteredClients.length) {
+          list.innerHTML = '<div class="text-center py-10 text-brand-muted text-xs bg-brand-card rounded-2xl border border-brand-line">' +
+            'Belum ada data tagihan klien ' + (isAll ? '' : 'pada bulan ' + this.monthLabel(curYM)) + '.</div>';
           return;
         }
 
-        list.innerHTML = clients.map(function (c) {
+        list.innerHTML = filteredClients.map(function (c) {
           var cTotal = c.grandTotal || c.packagePrice || 0;
-          var paid = (c.payments || []).reduce(function (s, p) { return s + p.amount; }, 0);
+          var paid = (c.payments || []).reduce(function (s, p) { return s + (p.amount || 0); }, 0);
           var remain = cTotal - paid;
           var isLunas = remain <= 0;
           var pct = Math.min(100, Math.round((paid / (cTotal || 1)) * 100));
@@ -1185,7 +1548,8 @@
             '<div class="flex items-start justify-between gap-2">' +
               '<div>' +
                 '<h3 class="text-sm font-bold text-brand-text">' + c.name + '</h3>' +
-                '<p class="text-xs text-brand-muted">Acara: <b class="text-brand-gold">' + RiasApp.formatDate(c.eventDate) + '</b></p>' +
+                '<p class="text-xs text-brand-muted">Acara: <b class="text-brand-gold">' + RiasApp.formatDate(c.eventDate) + '</b>' +
+                  (c.fittingDate ? ' · Fitting: <b class="text-brand-rose">' + RiasApp.formatDate(c.fittingDate) + '</b>' : '') + '</p>' +
               '</div>' +
               '<span class="text-[10px] px-2.5 py-1 rounded-full font-bold ' + 
                 (isLunas ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30') + '">' +
@@ -1209,7 +1573,7 @@
                 '<span class="text-brand-muted block text-[10px]">Sisa Tagihan:</span>' +
                 '<b class="text-sm font-bold ' + (isLunas ? 'text-emerald-400' : 'text-amber-400') + '">' + (isLunas ? '0' : RiasApp.formatIDR(remain)) + '</b>' +
               '</div>' +
-              '<button onclick="RiasApp.openPaymentModal(\'' + c.id + '\')" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-brand-rose to-brand-gold text-white font-bold text-xs shadow-sm active:scale-95 transition-transform">' +
+              '<button type="button" onclick="RiasApp.openPaymentModal(\'' + c.id + '\')" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-brand-rose to-brand-gold text-white font-bold text-xs shadow-sm active:scale-95 transition-transform">' +
                 'Update Pembayaran 💳' +
               '</button>' +
             '</div>' +
@@ -1688,6 +2052,8 @@
         document.getElementById('clientId').value = '';
         var today = new Date().toISOString().split('T')[0];
         document.getElementById('clientEventDate').value = today;
+        document.getElementById('clientFittingDate').value = '';
+        document.getElementById('clientBookingDate').value = '';
 
         if (id) {
           var c = this.db.clients.find(function (x) { return x.id === id; });
@@ -1697,6 +2063,8 @@
             document.getElementById('clientName').value = c.name;
             document.getElementById('clientPhone').value = c.phone;
             document.getElementById('clientEventDate').value = c.eventDate;
+            document.getElementById('clientFittingDate').value = c.fittingDate || '';
+            document.getElementById('clientBookingDate').value = c.bookingDate || '';
             document.getElementById('clientNotes').value = c.notes || '';
             document.getElementById('clientPackagePrice').value = c.packagePrice || 0;
             document.getElementById('clientDownPayment').value = c.downPayment || 0;
@@ -1720,6 +2088,8 @@
         var name = document.getElementById('clientName').value.trim().toUpperCase();
         var phone = document.getElementById('clientPhone').value.trim();
         var eventDate = document.getElementById('clientEventDate').value;
+        var fittingDate = document.getElementById('clientFittingDate').value;
+        var bookingDate = document.getElementById('clientBookingDate').value;
         var notes = document.getElementById('clientNotes').value.trim().toUpperCase();
         var price = parseInt(document.getElementById('clientPackagePrice').value, 10) || 0;
         var dp = parseInt(document.getElementById('clientDownPayment').value, 10) || 0;
@@ -1735,6 +2105,8 @@
             c.name = name;
             c.phone = phone;
             c.eventDate = eventDate;
+            c.fittingDate = fittingDate;
+            c.bookingDate = bookingDate;
             c.notes = notes;
             c.packagePrice = price;
             c.downPayment = dp;
@@ -1771,6 +2143,8 @@
             name: name,
             phone: phone,
             eventDate: eventDate,
+            fittingDate: fittingDate,
+            bookingDate: bookingDate,
             notes: notes,
             packagePrice: price,
             downPayment: dp,
