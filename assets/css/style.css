@@ -2033,7 +2033,21 @@ select.mc-inp{ appearance:none; }
   background:var(--mc-card2); color:var(--mc-txt); font-size:18px; cursor:pointer;
 }
 .mc-pattern button:active{ background:var(--mc-grn-d); }
-.mc-check{ display:flex; align-items:center; gap:8px; font-size:14px; margin:0 0 10px; }
+/* Checklist Kelengkapan & Kondisi Unit Mas Cim */
+.mc-cond-grid{
+  display:grid; grid-template-columns:repeat(2, 1fr); gap:8px 12px;
+  background:var(--mc-card); border:1px solid var(--mc-line);
+  border-radius:12px; padding:10px 12px; margin:6px 0 10px;
+}
+.mc-cond-item{
+  display:inline-flex; align-items:center; gap:8px; font-size:13px;
+  color:var(--mc-txt); cursor:pointer; user-select:none;
+}
+.mc-cond-item input[type="checkbox"]{
+  width:16px; height:16px; accent-color:var(--mc-grn); cursor:pointer; margin:0;
+}
+.mc-cond-item span{ font-weight:500; }
+
 
 .mc-sec{ font-size:12px; color:var(--mc-txt2); text-transform:uppercase;
          letter-spacing:.6px; margin:16px 0 8px; font-weight:700; }

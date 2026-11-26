@@ -1422,11 +1422,26 @@
       '</div>');
 
     // Kendala & kondisi unit
+    var condList = ['Sim Card', 'Sim Tray', 'Memory Card', 'Battery', 'Back Case', 'Case'];
+    var currentCond = String(d.intake_condition || '');
+    var checkBoxesHtml = condList.map(function (item) {
+      var isChecked = currentCond.indexOf(item) >= 0;
+      return '<label class="mc-cond-item">' +
+        '<input type="checkbox" class="mc-cond-cb" data-item="' + esc(item) + '"' + (isChecked ? ' checked' : '') + '>' +
+        '<span>' + esc(item) + '</span>' +
+      '</label>';
+    }).join('');
+
     html += '<div class="mc-sec" id="qnKendala">Kendala &amp; Kondisi Unit</div>' +
-      field('Kendala/kondisi unit *<span class="mc-sec-note"> tampil di nota pelanggan</span>',
-      '<textarea class="mc-inp" id="fComplaint" rows="3" ' +
-      'placeholder="Contoh: Layar pecah tidak bisa disentuh. Body penyok, kartu SIM tidak ada, speaker normal">'
-      + esc(d.complaint || d.intake_condition) + '</textarea>');
+      field('Kendala Unit *<span class="mc-sec-note"> kerusakan yang dikeluhkan</span>',
+      '<textarea class="mc-inp" id="fComplaint" rows="2" ' +
+      'placeholder="Contoh: Layar pecah tidak bisa disentuh, mati total, restart terus">'
+      + esc(d.complaint || '') + '</textarea>') +
+      '<div class="mc-field" style="margin-top:10px">' +
+        '<span class="mc-lbl sm">Kondisi / Kelengkapan Unit <span class="mc-sec-note">pilih kelengkapan fisik</span></span>' +
+        '<div class="mc-cond-grid" id="fCondCheckboxes">' + checkBoxesHtml + '</div>' +
+        '<input type="text" class="mc-inp sm" id="fIntakeCondition" value="' + esc(d.intake_condition || '') + '" placeholder="Kondisi lain (misal: lecet pemakaian, tanpa charger)">' +
+      '</div>';
 
     // Kunci layar
     html += '<div class="mc-sec" id="qnKunci">Kunci Layar</div>' +
@@ -1759,9 +1774,11 @@
     d.device = brandName ? (seri && seri !== 'Lainnya' ? brandName + ' ' + seri : brandName) : '';
 
     d.complaint = ($('#fComplaint') || {}).value || '';
-    // Satu isian untuk kendala sekaligus kondisi unit; disalin agar bagian
-    // kondisi di nota pelanggan tidak ikut kosong.
-    d.intake_condition = d.complaint;
+    d.intake_condition = ($('#fIntakeCondition') || {}).value || '';
+    // Jika intake_condition kosong, fallback ke complaint agar tidak hilang
+    if (!d.intake_condition && d.complaint) {
+      d.intake_condition = d.complaint;
+    }
     // Chip kunci layar menyimpan pilihan aktif di atribut data, jadi
     // tidak ada <select> yang perlu dibaca.
     var chipOn = $('#fLockChips .on');
@@ -2191,10 +2208,35 @@
        ulang, jadi kursor tidak hilang. Dengan begitu tidak ada jalur render()
        mana pun (chip kunci, tombol pola, atau kode baru di kemudian hari)
        yang bisa menghapus teks yang sedang diketik. */
-    ['#fName', '#fWa', '#fComplaint'].forEach(function (sel) {
+    ['#fName', '#fWa', '#fComplaint', '#fIntakeCondition'].forEach(function (sel) {
       var el = $(sel);
       if (el) el.addEventListener('input', function () { readDraft(); });
     });
+
+    // Checkbox kelengkapan & kondisi unit
+    var condGrid = $('#fCondCheckboxes');
+    if (condGrid) {
+      condGrid.addEventListener('change', function (e) {
+        if (!e.target || !e.target.classList.contains('mc-cond-cb')) return;
+        var checkedItems = [];
+        [].forEach.call(condGrid.querySelectorAll('.mc-cond-cb:checked'), function (cb) {
+          if (cb.dataset.item) checkedItems.push(cb.dataset.item);
+        });
+        var inpCond = $('#fIntakeCondition');
+        if (inpCond) {
+          // Gabungkan item yang dicentang dengan teks custom yang mungkin sudah ada
+          var currentVal = inpCond.value.trim();
+          var condList = ['Sim Card', 'Sim Tray', 'Memory Card', 'Battery', 'Back Case', 'Case'];
+          // Hapus item-item standar dari currentVal untuk mempertahankan catatan kustom
+          var customParts = currentVal.split(',').map(function (s) { return s.trim(); }).filter(function (s) {
+            return s && condList.indexOf(s) < 0;
+          });
+          var combined = checkedItems.concat(customParts);
+          inpCond.value = combined.join(', ');
+          readDraft();
+        }
+      });
+    }
 
     // Pola: simpan hasil gambar ke draft setiap kali selesai.
     var patSecret = $('#fPatSecret');
@@ -2727,14 +2769,16 @@
     var kendalaTeks = String(o.complaint || '').trim();
     var kondisiTeks = String(o.intakeCondition || '').trim();
     if (kondisiTeks === 'undefined' || kondisiTeks === 'null') kondisiTeks = '';
-    if (kondisiTeks && kondisiTeks !== kendalaTeks) {
-      kendalaTeks = kendalaTeks ? (kendalaTeks + ' · ' + kondisiTeks) : kondisiTeks;
-    }
     var canShowHandling = (o.serviceStatus === 'Done' || o.serviceStatus === 'Done Diambil');
+
     html += '<div class="mc-sec" id="qnKendala">' + (canShowHandling ? 'Kendala &amp; Penanganan' : 'Kendala &amp; Kondisi Unit') + '</div>' +
-      '<label class="mc-field"><span class="mc-lbl">Kendala/kondisi unit</span>' +
+      '<label class="mc-field"><span class="mc-lbl">Kendala Kerusakan Unit</span>' +
         '<textarea class="mc-inp" id="dComplaint" rows="2" placeholder="Contoh: Layar pecah, mati total, keypad hilang">' +
           esc(kendalaTeks || '') + '</textarea>' +
+      '</label>' +
+      '<label class="mc-field" style="margin-top:8px"><span class="mc-lbl">Kondisi / Kelengkapan Unit</span>' +
+        '<textarea class="mc-inp" id="dIntakeCondition" rows="2" placeholder="Contoh: Sim Tray, Battery, lecet pemakaian">' +
+          esc(kondisiTeks || '') + '</textarea>' +
       '</label>';
     if (canShowHandling) {
       html += '<label class="mc-field" style="margin-top:8px"><span class="mc-lbl">Penanganan</span>' +
@@ -3134,10 +3178,11 @@
         if (sedangSimpan || M.lock) return;
         var id = idNota();
         if (!id) { alertErr('Nota ini belum punya identitas. Muat ulang halamannya.'); return; }
-        var tEl = $('#dTotal'), hEl = $('#dHandling'), cEl = $('#dComplaint');
+        var tEl = $('#dTotal'), hEl = $('#dHandling'), cEl = $('#dComplaint'), condEl = $('#dIntakeCondition');
         var biaya = tEl ? smartVal(tEl.value) : null;
         var handling = hEl ? hEl.value.trim() : '';
         var complaint = cEl ? cEl.value.trim() : '';
+        var intakeCond = condEl ? condEl.value.trim() : '';
         sedangSimpan = true;
         sideSave.disabled = true;
         var isi = {};
@@ -3145,7 +3190,9 @@
         if (hEl && handling !== (M.current ? (M.current.handling || '') : '')) isi.handling = handling;
         if (cEl && complaint && complaint !== (M.current ? (M.current.complaint || '') : '')) {
           isi.complaint = complaint;
-          isi.intake_condition = complaint;
+        }
+        if (condEl && intakeCond !== (M.current ? (M.current.intakeCondition || '') : '')) {
+          isi.intake_condition = intakeCond;
         }
         if (!Object.keys(isi).length) {
           sedangSimpan = false;
@@ -3196,7 +3243,15 @@
           return;
         }
         if (M.current && v === (M.current.complaint || '')) return;
-        simpanOtomatis({ complaint: v, intake_condition: v }, v, 'Kendala/kondisi');
+        simpanOtomatis({ complaint: v }, v, 'Kendala');
+      });
+    }
+    var dIntakeCond = $('#dIntakeCondition');
+    if (dIntakeCond) {
+      dIntakeCond.addEventListener('blur', function () {
+        var v = dIntakeCond.value.trim();
+        if (M.current && v === (M.current.intakeCondition || '')) return;
+        simpanOtomatis({ intake_condition: v }, v, 'Kondisi Unit');
       });
     }
     var s = screen();
