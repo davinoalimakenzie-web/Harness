@@ -355,13 +355,15 @@
       var doneProfit = 0;
 
       orders.forEach(function (o) {
+        if (!o || o.deletedAt) return;
         // Ambil servis di bulan ini yang statusnya Done / Done Diambil
-        var dStr = (o.created_at || o.tgl || '').slice(0, 7);
-        var st = (o.status || '').toLowerCase();
-        if (dStr === ymPrefix && (st === 'done' || st === 'done diambil' || st === 'selesai' || st === 'lunas')) {
+        var st = (o.serviceStatus || o.service_status || o.status || '').toLowerCase();
+        var isDone = (st === 'done' || st === 'done diambil' || st === 'selesai' || st === 'lunas');
+        var tgl = o.completedAt || o.completed_at || o.updatedAt || o.receivedAt || o.received_at || o.createdAt || o.created_at || o.tgl || '';
+        var dStr = String(tgl).slice(0, 7);
+        if (isDone && dStr === ymPrefix) {
           doneCount++;
-          // Jika ada estimasi untung atau harga servis
-          var fee = Number(o.biaya) || Number(o.total) || 0;
+          var fee = Number(o.totalCost) || Number(o.total_cost) || Number(o.biaya) || Number(o.total) || 0;
           doneProfit += fee;
         }
       });
@@ -687,6 +689,9 @@
     var paneNotes = $('#wfPane-notes');
     if (panePayroll) panePayroll.classList.toggle('active', tabId === 'payroll');
     if (paneNotes) paneNotes.classList.toggle('active', tabId === 'notes');
+    if (tabId === 'notes' && w.NotesUI && w.NotesUI.render) {
+      w.NotesUI.render();
+    }
   }
 
   w.WorkflowUI = {
