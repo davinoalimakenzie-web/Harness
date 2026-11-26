@@ -417,17 +417,19 @@
 
     <!-- PANE 1: ABSENSI & PAYROLL GAJI -->
     <div id="wfPane-payroll" class="wf-pane active">
-      <!-- Periode & Teknisi Header Card -->
+      <!-- Periode & Tombol Kirim Link Absensi Header Card -->
       <div class="card wf-header-card">
         <div class="wf-header-row">
           <label class="wf-hdr-field grow">
             <span class="lbl-sm">Bulan Periode</span>
             <input type="month" id="wfMonthPicker" class="wf-input-month">
           </label>
-          <label class="wf-hdr-field grow">
-            <span class="lbl-sm">Nama Teknisi</span>
-            <input type="text" id="wfEmpName" class="wf-input-text" placeholder="Nama Teknisi" value="Ali (Teknisi)">
-          </label>
+          <div class="wf-hdr-field wf-hdr-btn-wrap">
+            <button type="button" class="btn primary wf-btn-send-link" id="wfBtnCopySlip">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg>
+              <span>Kirim Link Absensi</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -458,7 +460,6 @@
             <h3 class="wf-slip-title">💰 Rincian Kompensasi (Payroll)</h3>
             <span class="wf-slip-subtitle">Skema Intika Gadget Kudus (Per September 2026)</span>
           </div>
-          <button type="button" class="mini-btn primary wf-copy-slip-btn" id="wfBtnCopySlip">📋 Salin Slip WA</button>
         </div>
 
         <div class="wf-slip-body">
@@ -549,14 +550,20 @@
       <!-- Quick Action Bar & Tabel Absensi Harian -->
       <div class="card wf-table-card">
         <div class="wf-table-header">
-          <div>
+          <div class="wf-table-header-left">
             <strong>📅 Presensi Absensi Harian</strong>
-            <div class="muted xs">Standar Toko: 09:00 WIB (Keterlambatan dihitung otomatis)</div>
+            <div class="muted xs" id="wfSelectedDateLabel">Target: <b id="wfActiveDateTxt">Hari ini</b></div>
           </div>
-          <div class="wf-quick-actions">
-            <button type="button" class="mini-btn" id="wfBtnSetWorkdays" title="Set Senin-Sabtu Masuk">Sen-Sab Masuk</button>
-            <button type="button" class="mini-btn" id="wfBtnSetSundaysOff" title="Set Minggu Libur">Minggu Libur</button>
-            <button type="button" class="mini-btn text-danger" id="wfBtnResetMonth" title="Reset Bulan Ini">Reset</button>
+          <div class="wf-quick-actions wf-action-buttons">
+            <button type="button" class="btn wf-btn-action wf-action-masuk" id="wfBtnQuickMasuk" title="Catat Masuk Tepat Waktu (09:00)">
+              <span>✓ Masuk</span>
+            </button>
+            <button type="button" class="btn wf-btn-action wf-action-late" id="wfBtnQuickLate" title="Catat Telat / Keterlambatan">
+              <span>⏱ Telat</span>
+            </button>
+            <button type="button" class="btn wf-btn-action wf-action-off" id="wfBtnQuickOff" title="Catat Libur">
+              <span>✕ Libur</span>
+            </button>
           </div>
         </div>
 

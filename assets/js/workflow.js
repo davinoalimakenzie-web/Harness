@@ -11,15 +11,16 @@
 
   var STORAGE_PREFIX = 'calm_workflow_payroll_';
   var STANDARD_START = '09:00'; // Jam masuk standar 09.00
+  var APP_URL = 'https://app8842237612.tgcloud.ai/?view=workflow';
 
   // State aktif payroll
   var curMonth = ''; // YYYY-MM
+  var selectedDate = ''; // YYYY-MM-DD
   var payrollData = {
-    empName: 'Ali (Teknisi)',
     bonusMapsCount: 0,
     bonusUnitRp: 0,
     disciplineTier: 'auto', // auto | full_clean | min_clean | full_late | min_late | none
-    days: {} // 'YYYY-MM-DD': { status: 'masuk'|'terlambat'|'libur', time: '09:00', lateMin: 0 }
+    days: {} // 'YYYY-MM-DD': { status: 'masuk'|'terlambat'|'libur'|'none', time: '09:00', lateMin: 0 }
   };
 
   function rupiah(n) {
@@ -37,21 +38,25 @@
     return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
   }
 
-  function minutesToTimeStr(m) {
-    m = Math.max(0, Math.floor(m));
-    var hh = String(Math.floor(m / 60)).padStart(2, '0');
-    var mm = String(m % 60).padStart(2, '0');
-    return hh + ':' + mm;
+  function todayStr() {
+    var now = new Date();
+    return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
   }
 
   function loadMonthData(ym) {
     curMonth = ym;
+    var tStr = todayStr();
+    if (tStr.slice(0, 7) === ym) {
+      selectedDate = tStr;
+    } else {
+      selectedDate = ym + '-01';
+    }
+
     var raw = localStorage.getItem(STORAGE_PREFIX + ym);
     if (raw) {
       try {
         var parsed = JSON.parse(raw);
         payrollData = Object.assign({
-          empName: 'Ali (Teknisi)',
           bonusMapsCount: 0,
           bonusUnitRp: 0,
           disciplineTier: 'auto',
@@ -62,35 +67,12 @@
       }
     } else {
       payrollData = {
-        empName: 'Ali (Teknisi)',
         bonusMapsCount: 0,
         bonusUnitRp: 0,
         disciplineTier: 'auto',
         days: {}
       };
-      // Inisialisasi hari default: Senin-Sabtu masuk, Minggu libur
-      initDefaultDays(ym);
       saveMonthData();
-    }
-  }
-
-  function initDefaultDays(ym) {
-    var parts = ym.split('-');
-    var yr = parseInt(parts[0], 10);
-    var mo = parseInt(parts[1], 10);
-    var totalDays = getDaysInMonth(yr, mo);
-
-    for (var d = 1; d <= totalDays; d++) {
-      var dateKey = ym + '-' + String(d).padStart(2, '0');
-      var dt = new Date(yr, mo - 1, d);
-      var dayOfWeek = dt.getDay(); // 0 = Minggu
-      if (!payrollData.days[dateKey]) {
-        if (dayOfWeek === 0) {
-          payrollData.days[dateKey] = { status: 'libur', time: '09:00', lateMin: 0 };
-        } else {
-          payrollData.days[dateKey] = { status: 'masuk', time: '09:00', lateMin: 0 };
-        }
-      }
     }
   }
 
@@ -119,7 +101,10 @@
 
     for (var d = 1; d <= totalDays; d++) {
       var dateKey = curMonth + '-' + String(d).padStart(2, '0');
-      var item = payrollData.days[dateKey] || { status: 'masuk', time: '09:00', lateMin: 0 };
+      var item = payrollData.days[dateKey];
+      if (!item || !item.status || item.status === 'none') {
+        continue; // Hari belum diabsen, tidak dihitung
+      }
 
       if (item.status === 'libur') {
         countLibur++;
@@ -218,9 +203,25 @@
   /* ---------------- Render UI ---------------- */
   function renderAll() {
     var sum = calculateSummary();
+    renderHeaderInfo();
     renderStats(sum);
     renderAttendanceTable(sum);
     renderPayrollSlip(sum);
+  }
+
+  function renderHeaderInfo() {
+    var elDateTxt = $('#wfActiveDateTxt');
+    if (elDateTxt) {
+      if (selectedDate) {
+        var p = selectedDate.split('-');
+        var d = parseInt(p[2], 10);
+        var moNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        var mStr = moNames[parseInt(p[1], 10) - 1] || '';
+        elDateTxt.textContent = d + ' ' + mStr;
+      } else {
+        elDateTxt.textContent = 'Hari ini';
+      }
+    }
   }
 
   function renderStats(s) {
@@ -255,42 +256,43 @@
       var dayName = dayNames[dt.getDay()];
       var isSunday = dt.getDay() === 0;
 
-      var item = payrollData.days[dateKey] || { status: isSunday ? 'libur' : 'masuk', time: '09:00', lateMin: 0 };
-      var st = item.status;
-      var tm = item.time || '09:00';
-      var lateM = item.lateMin || 0;
+      var item = payrollData.days[dateKey];
+      var st = item ? item.status : 'none';
+      var tm = (item && item.time) ? item.time : '09:00';
+      var lateM = (item && item.lateMin) ? item.lateMin : 0;
+      var isSelected = (selectedDate === dateKey);
 
-      // Status pill style & text
-      var rowCls = 'wf-row-' + st;
-      var statusBadge = '';
-      if (st === 'masuk') {
-        statusBadge = '<span class="wf-badge wf-badge-ontime">MASUK</span>';
+      var rowCls = 'wf-att-row ' + (st !== 'none' ? 'wf-row-' + st : '') + (isSelected ? ' wf-row-selected' : '');
+
+      var timeCell = '';
+      if (st === 'libur') {
+        timeCell = '<span class="wf-time-dash">-</span>';
       } else if (st === 'terlambat') {
-        statusBadge = '<span class="wf-badge wf-badge-late">TERLAMBAT (' + tm + ')</span>';
-      } else {
-        statusBadge = '<span class="wf-badge wf-badge-off">LIBUR</span>';
-      }
-
-      var infoText = '';
-      if (st === 'terlambat') {
         var h = Math.floor(lateM / 60);
         var m = lateM % 60;
-        infoText = '<span class="wf-late-info">+' + (h > 0 ? h + 'j ' : '') + m + 'm</span>';
+        var infoText = '<span class="wf-late-info">+' + (h > 0 ? h + 'j ' : '') + m + 'm</span>';
+        timeCell = '<div class="wf-time-edit-wrap"><input type="time" class="wf-time-input" value="' + tm + '" data-time-dt="' + dateKey + '">' + infoText + '</div>';
+      } else if (st === 'masuk') {
+        timeCell = '<span class="wf-time-txt">09:00</span>';
+      } else {
+        timeCell = '<span class="wf-time-dash muted">-</span>';
       }
 
-      html += '<tr class="wf-att-row ' + rowCls + '" data-date="' + dateKey + '">' +
+      var chip = '';
+      if (st === 'masuk') {
+        chip = '<span class="wf-status-chip wf-chip-masuk">✓ Masuk</span>';
+      } else if (st === 'terlambat') {
+        chip = '<span class="wf-status-chip wf-chip-late">⏱ Telat</span>';
+      } else if (st === 'libur') {
+        chip = '<span class="wf-status-chip wf-chip-off">✕ Libur</span>';
+      } else {
+        chip = '<span class="wf-status-chip wf-chip-none">—</span>';
+      }
+
+      html += '<tr class="' + rowCls + '" data-row-date="' + dateKey + '" title="Ketuk untuk memilih tanggal ini">' +
         '<td class="wf-col-date"><span class="wf-date-num">' + d + '</span> <span class="wf-date-day ' + (isSunday ? 'wf-sunday' : '') + '">' + dayName + '</span></td>' +
-        '<td class="wf-col-status">' +
-          '<div class="wf-status-select-wrap">' +
-            '<button type="button" class="wf-st-btn wf-btn-masuk ' + (st === 'masuk' ? 'active' : '') + '" data-setst="masuk" data-dt="' + dateKey + '">Masuk</button>' +
-            '<button type="button" class="wf-st-btn wf-btn-late ' + (st === 'terlambat' ? 'active' : '') + '" data-setst="terlambat" data-dt="' + dateKey + '">Lambat</button>' +
-            '<button type="button" class="wf-st-btn wf-btn-off ' + (st === 'libur' ? 'active' : '') + '" data-setst="libur" data-dt="' + dateKey + '">Libur</button>' +
-          '</div>' +
-        '</td>' +
-        '<td class="wf-col-time">' +
-          '<input type="time" class="wf-time-input ' + (st === 'libur' ? 'disabled' : '') + '" value="' + tm + '" data-time-dt="' + dateKey + '" ' + (st === 'libur' ? 'disabled' : '') + '>' +
-          infoText +
-        '</td>' +
+        '<td class="wf-col-status">' + chip + '</td>' +
+        '<td class="wf-col-time">' + timeCell + '</td>' +
       '</tr>';
     }
 
@@ -302,7 +304,6 @@
     var elHarianSub = $('#wfSlipHarianSub');
     var elBonusMaps = $('#wfSlipBonusMaps');
     var elBonusUnit = $('#wfSlipBonusUnit');
-    var elDisiplinRow = $('#wfSlipDisiplinRow');
     var elDisiplinVal = $('#wfSlipDisiplinVal');
     var elDisiplinSub = $('#wfSlipDisiplinSub');
     var elDendaTerlambat = $('#wfSlipDendaTerlambat');
@@ -349,14 +350,13 @@
     try {
       var data = JSON.parse(raw);
       var orders = Array.isArray(data.orders) ? data.orders : [];
-      var ymPrefix = curMonth; // 'YYYY-MM'
+      var ymPrefix = curMonth;
 
       var doneCount = 0;
       var doneProfit = 0;
 
       orders.forEach(function (o) {
         if (!o || o.deletedAt) return;
-        // Ambil servis di bulan ini yang statusnya Done / Done Diambil
         var st = (o.serviceStatus || o.service_status || o.status || '').toLowerCase();
         var isDone = (st === 'done' || st === 'done diambil' || st === 'selesai' || st === 'lunas');
         var tgl = o.completedAt || o.completed_at || o.updatedAt || o.receivedAt || o.received_at || o.createdAt || o.created_at || o.tgl || '';
@@ -369,8 +369,6 @@
       });
 
       if (doneCount > 0) {
-        // Asumsi insentif teknisi per unit (misal Rp 15.000/unit atau sesuai input)
-        // Kita tawarkan ke pengguna
         var estimasi = doneCount * 15000;
         TG.confirm('Ditemukan ' + doneCount + ' servis selesai/done di Mas Cim pada ' + curMonth + '.\n\nIsi bonus unit sebesar ' + rupiah(estimasi) + ' (' + doneCount + ' unit x Rp 15.000)?', function (ok) {
           if (!ok) return;
@@ -391,8 +389,8 @@
     }
   }
 
-  /* ---------------- Salin Slip Gaji WhatsApp ---------------- */
-  function copyPayrollSlipText() {
+  /* ---------------- Kirim Link Absensi ---------------- */
+  function sendAttendanceLink() {
     var s = calculateSummary();
     var parts = curMonth.split('-');
     var yr = parts[0];
@@ -403,14 +401,13 @@
     var mnt = s.totalMenitLambat % 60;
     var durText = (jam > 0 ? jam + ' jam ' : '') + mnt + ' menit';
 
-    var text = '📄 *SLIP GAJI & REKAP ABSENSI TEKNISI*\n' +
-      '*Nama:* ' + (payrollData.empName || 'Teknisi') + '\n' +
+    var text = '📋 *REKAP & LINK ABSENSI BULANAN*\n' +
       '*Periode:* ' + moName + ' ' + yr + '\n' +
       '-----------------------------------------\n' +
       '📊 *REKAP KEHADIRAN:*\n' +
-      '• Hari Masuk: ' + s.countHadir + ' Hari\n' +
-      '• Terlambat: ' + s.countTerlambat + ' Hari (' + durText + ')\n' +
-      '• Hari Libur: ' + s.countLibur + ' Hari\n' +
+      '• Masuk Kerja : ' + s.countHadir + ' Hari\n' +
+      '• Terlambat   : ' + s.countTerlambat + ' Hari (' + durText + ')\n' +
+      '• Hari Libur  : ' + s.countLibur + ' Hari\n' +
       '-----------------------------------------\n' +
       '💰 *RINCIAN PENGHASILAN:*\n' +
       '(+) Gaji Harian (' + s.countHadir + ' x 135rb) : ' + rupiah(s.gajiHarian) + '\n' +
@@ -425,21 +422,52 @@
       '💵 *TOTAL GAJI BERSIH (DITERIMA):*\n' +
       '*' + rupiah(s.totalGajiBersih) + '*\n' +
       '-----------------------------------------\n' +
-      '_Dibuat otomatis via Project Nava Workflow_';
+      '🔗 *Buka Link Absensi:*\n' +
+      APP_URL;
 
+    // Jika di Telegram, bagikan langsung via Telegram Share URL
+    if (TG && TG.isTelegram && typeof TG.openLink === 'function') {
+      try {
+        var tgShareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(APP_URL) + '&text=' + encodeURIComponent(text);
+        TG.openLink(tgShareUrl);
+        TG.haptic('success');
+        w.App.toast('Membuka share link Telegram…');
+        return;
+      } catch (eTg) {}
+    }
+
+    // Jika Web Share API tersedia
+    if (navigator.share) {
+      navigator.share({
+        title: 'Rekap Absensi & Gaji ' + moName + ' ' + yr,
+        text: text,
+        url: APP_URL
+      }).then(function () {
+        TG.haptic('success');
+        w.App.toast('Link absensi berhasil dibagikan');
+      }).catch(function () {
+        copyTextFallback(text);
+      });
+      return;
+    }
+
+    copyTextFallback(text);
+  }
+
+  function copyTextFallback(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(function () {
         TG.haptic('success');
-        w.App.toast('Rincian slip gaji disalin ke clipboard! Siap ditempel ke WhatsApp.');
+        w.App.toast('Link & rekap absensi disalin ke clipboard! Siap dikirim ke WhatsApp.');
       }).catch(function () {
-        fallbackCopy(text);
+        execCopy(text);
       });
     } else {
-      fallbackCopy(text);
+      execCopy(text);
     }
   }
 
-  function fallbackCopy(text) {
+  function execCopy(text) {
     var ta = document.createElement('textarea');
     ta.value = text;
     ta.style.position = 'fixed';
@@ -450,11 +478,134 @@
     try {
       document.execCommand('copy');
       TG.haptic('success');
-      w.App.toast('Rincian slip gaji disalin!');
+      w.App.toast('Link absensi disalin!');
     } catch (e) {
-      TG.alert('Gagal menyalin otomatis. Silakan salin manual:\n\n' + text);
+      TG.alert('Silakan salin teks link absensi berikut:\n\n' + text);
     }
     document.body.removeChild(ta);
+  }
+
+  /* ---------------- Tindakan Tombol Input Absen (Masuk, Telat, Libur) ---------------- */
+  function applyAttendance(status, targetDate, customTime) {
+    var dt = targetDate || selectedDate || todayStr();
+    if (!payrollData.days[dt]) {
+      payrollData.days[dt] = { status: 'none', time: '09:00', lateMin: 0 };
+    }
+
+    var item = payrollData.days[dt];
+    item.status = status;
+
+    if (status === 'masuk') {
+      item.time = '09:00';
+      item.lateMin = 0;
+    } else if (status === 'terlambat') {
+      var tm = customTime || item.time || '09:15';
+      if (parseTimeMinutes(tm) <= 540) {
+        tm = '09:15';
+      }
+      item.time = tm;
+      item.lateMin = Math.max(1, parseTimeMinutes(tm) - 540);
+    } else if (status === 'libur') {
+      item.time = '';
+      item.lateMin = 0;
+    }
+
+    selectedDate = dt;
+    saveMonthData();
+    renderAll();
+    TG.haptic('select');
+  }
+
+  /* ---------------- Bottom Sheet Pilih Jam Keterlambatan ---------------- */
+  var _lateSheet = null;
+  function closeLateSheet() {
+    if (_lateSheet && _lateSheet.parentNode) _lateSheet.parentNode.removeChild(_lateSheet);
+    _lateSheet = null;
+    document.removeEventListener('keydown', onSheetEsc);
+  }
+  function onSheetEsc(e) {
+    if (e.key === 'Escape') closeLateSheet();
+  }
+
+  function openLateSheet(dt, defTime) {
+    closeLateSheet();
+
+    var now = new Date();
+    var nowTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+    var quick = [];
+    [15, 30, 45, 60].forEach(function (m) {
+      var t = 9 * 60 + m;
+      quick.push(String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'));
+    });
+    if (parseTimeMinutes(nowTime) > 540 && quick.indexOf(nowTime) < 0) quick.push(nowTime);
+
+    var chips = quick.map(function (t) {
+      return '<button type="button" class="wf-sheet-chip" data-jam="' + t + '">' + t + '</button>';
+    }).join('');
+
+    var ov = document.createElement('div');
+    ov.className = 'wf-sheet-overlay';
+    ov.innerHTML =
+      '<div class="wf-sheet" role="dialog" aria-modal="true">' +
+        '<div class="wf-sheet-grip"></div>' +
+        '<div class="wf-sheet-title">⏱ Catat Keterlambatan</div>' +
+        '<div class="wf-sheet-sub">Tanggal ' + dt + ' · standar masuk 09:00</div>' +
+        '<div class="wf-sheet-chips">' + chips + '</div>' +
+        '<label class="wf-sheet-label">Jam masuk aktual</label>' +
+        '<input type="time" class="wf-sheet-time" id="wfSheetTime" value="' + defTime + '">' +
+        '<div class="wf-sheet-late" id="wfSheetLateInfo"></div>' +
+        '<div class="wf-sheet-actions">' +
+          '<button type="button" class="btn ghost wf-sheet-cancel" id="wfSheetCancel">Batal</button>' +
+          '<button type="button" class="btn primary wf-sheet-ok" id="wfSheetOk">Simpan Telat</button>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(ov);
+    _lateSheet = ov;
+
+    var inp = ov.querySelector('#wfSheetTime');
+    var info = ov.querySelector('#wfSheetLateInfo');
+
+    function refreshInfo() {
+      var v = inp.value || defTime;
+      var tMin = parseTimeMinutes(v);
+      var late = Math.max(0, tMin - 540);
+      if (late > 0) {
+        var h = Math.floor(late / 60);
+        var m = late % 60;
+        info.innerHTML = 'Keterlambatan <b>+' + (h > 0 ? h + 'j ' : '') + m + 'm</b> · denda ' + rupiah(15000) + ' + potongan ' + rupiah(Math.round(late / 60 * 14000));
+      } else {
+        info.innerHTML = '<span class="text-success">Tidak terlambat (tepat waktu 09:00)</span>';
+      }
+    }
+    refreshInfo();
+
+    ov.addEventListener('click', function (e) {
+      if (e.target === ov) { closeLateSheet(); return; }
+      var chip = e.target.closest('[data-jam]');
+      if (chip) {
+        inp.value = chip.dataset.jam;
+        refreshInfo();
+        TG.haptic('select');
+        return;
+      }
+      if (e.target.closest('#wfSheetCancel')) { closeLateSheet(); return; }
+      if (e.target.closest('#wfSheetOk')) {
+        var tm = inp.value || defTime;
+        if (parseTimeMinutes(tm) <= 540) {
+          TG.alert('Jam masuk harus lebih dari 09:00 untuk status Telat.');
+          return;
+        }
+        applyAttendance('terlambat', dt, tm);
+        closeLateSheet();
+        w.App.toast('Absen Telat (' + tm + ') tanggal ' + dt.slice(8) + ' tercatat');
+      }
+    });
+
+    inp.addEventListener('input', refreshInfo);
+    document.addEventListener('keydown', onSheetEsc);
+    setTimeout(function () { try { inp.focus(); } catch (e) {} }, 60);
   }
 
   /* ---------------- Event Listeners & Binding ---------------- */
@@ -481,13 +632,11 @@
       });
     }
 
-    // Nama Karyawan
-    var empInput = $('#wfEmpName');
-    if (empInput) {
-      empInput.value = payrollData.empName || 'Ali (Teknisi)';
-      empInput.addEventListener('input', function () {
-        payrollData.empName = this.value;
-        saveMonthData();
+    // Tombol Kirim Link Absensi (sejajar dengan bulan)
+    var btnCopySlip = $('#wfBtnCopySlip');
+    if (btnCopySlip) {
+      btnCopySlip.addEventListener('click', function () {
+        sendAttendanceLink();
       });
     }
 
@@ -532,110 +681,53 @@
       });
     }
 
-    // Tombol Salin Slip WhatsApp
-    var btnCopySlip = $('#wfBtnCopySlip');
-    if (btnCopySlip) {
-      btnCopySlip.addEventListener('click', function () {
-        copyPayrollSlipText();
+    // Tiga Tombol Utama Input Absen di Header Tabel
+    // 1. Tombol Masuk
+    var btnQuickMasuk = $('#wfBtnQuickMasuk');
+    if (btnQuickMasuk) {
+      btnQuickMasuk.addEventListener('click', function () {
+        var dt = selectedDate || todayStr();
+        applyAttendance('masuk', dt, '09:00');
+        w.App.toast('Absen Masuk (09:00) tanggal ' + dt.slice(8) + ' tercatat');
       });
     }
 
-    // Tombol Tindakan Cepat Absensi
-    var btnSetSenSab = $('#wfBtnSetWorkdays');
-    if (btnSetSenSab) {
-      btnSetSenSab.addEventListener('click', function () {
-        TG.confirm('Tandai semua hari Senin-Sabtu di bulan ini sebagai MASUK (09:00)?', function (ok) {
-          if (!ok) return;
-          var parts = curMonth.split('-');
-          var yr = parseInt(parts[0], 10);
-          var mo = parseInt(parts[1], 10);
-          var totalDays = getDaysInMonth(yr, mo);
-          for (var d = 1; d <= totalDays; d++) {
-            var dt = new Date(yr, mo - 1, d);
-            var dateKey = curMonth + '-' + String(d).padStart(2, '0');
-            if (dt.getDay() !== 0) { // bukan Minggu
-              payrollData.days[dateKey] = { status: 'masuk', time: '09:00', lateMin: 0 };
-            }
-          }
-          saveMonthData();
-          renderAll();
-          TG.haptic('success');
-          w.App.toast('Senin-Sabtu diatur Masuk');
-        });
+    // 2. Tombol Telat
+    var btnQuickLate = $('#wfBtnQuickLate');
+    if (btnQuickLate) {
+      btnQuickLate.addEventListener('click', function () {
+        var dt = selectedDate || todayStr();
+        var now = new Date();
+        var nowTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        var defTime = parseTimeMinutes(nowTime) > 540 ? nowTime : '09:15';
+        openLateSheet(dt, defTime);
       });
     }
 
-    var btnSetSunOff = $('#wfBtnSetSundaysOff');
-    if (btnSetSunOff) {
-      btnSetSunOff.addEventListener('click', function () {
-        var parts = curMonth.split('-');
-        var yr = parseInt(parts[0], 10);
-        var mo = parseInt(parts[1], 10);
-        var totalDays = getDaysInMonth(yr, mo);
-        for (var d = 1; d <= totalDays; d++) {
-          var dt = new Date(yr, mo - 1, d);
-          var dateKey = curMonth + '-' + String(d).padStart(2, '0');
-          if (dt.getDay() === 0) { // Minggu
-            payrollData.days[dateKey] = { status: 'libur', time: '09:00', lateMin: 0 };
-          }
-        }
-        saveMonthData();
-        renderAll();
-        TG.haptic('select');
-        w.App.toast('Semua hari Minggu diatur Libur');
+    // 3. Tombol Libur
+    var btnQuickOff = $('#wfBtnQuickOff');
+    if (btnQuickOff) {
+      btnQuickOff.addEventListener('click', function () {
+        var dt = selectedDate || todayStr();
+        applyAttendance('libur', dt);
+        w.App.toast('Absen Libur tanggal ' + dt.slice(8) + ' tercatat');
       });
     }
 
-    var btnResetMonth = $('#wfBtnResetMonth');
-    if (btnResetMonth) {
-      btnResetMonth.addEventListener('click', function () {
-        TG.confirm('Reset data absensi & kompensasi bulan ' + curMonth + ' ke default?', function (ok) {
-          if (!ok) return;
-          payrollData.bonusMapsCount = 0;
-          payrollData.bonusUnitRp = 0;
-          payrollData.days = {};
-          initDefaultDays(curMonth);
-          saveMonthData();
-          if (inMaps) inMaps.value = 0;
-          if (inUnit) inUnit.value = 0;
-          renderAll();
-          TG.haptic('success');
-          w.App.toast('Data bulan direset');
-        });
-      });
-    }
-
-    // Delegasi interaksi di tabel absensi (ganti status & ubah jam)
+    // Delegasi interaksi di tabel absensi:
+    // 1. Klik baris tabel untuk memilih tanggal aktif (target tombol Masuk/Telat/Libur)
+    // 2. Ubah isian jam keterlambatan langsung di baris (status terlambat)
     var tableBody = $('#wfAttTableBody');
     if (tableBody) {
       tableBody.addEventListener('click', function (e) {
-        var btn = e.target.closest('[data-setst]');
-        if (!btn) return;
-        var st = btn.dataset.setst;
-        var dt = btn.dataset.dt;
-        if (!dt) return;
-
-        if (!payrollData.days[dt]) {
-          payrollData.days[dt] = { status: 'masuk', time: '09:00', lateMin: 0 };
-        }
-
-        var item = payrollData.days[dt];
-        item.status = st;
-        if (st === 'masuk') {
-          item.time = '09:00';
-          item.lateMin = 0;
-        } else if (st === 'terlambat') {
-          // Bila sebelumnya tepat waktu, set default jam terlambat 09:15
-          if (parseTimeMinutes(item.time) <= 540) {
-            item.time = '09:15';
-          }
-          item.lateMin = Math.max(1, parseTimeMinutes(item.time) - 540);
-        } else if (st === 'libur') {
-          item.lateMin = 0;
-        }
-
-        saveMonthData();
-        renderAll();
+        if (e.target.closest('[data-time-dt]')) return;
+        var row = e.target.closest('[data-row-date]');
+        if (!row) return;
+        selectedDate = row.dataset.rowDate;
+        renderHeaderInfo();
+        $$('.wf-att-row').forEach(function (r) {
+          r.classList.toggle('wf-row-selected', r.dataset.rowDate === selectedDate);
+        });
         TG.haptic('select');
       });
 
@@ -647,7 +739,7 @@
         if (!dt) return;
 
         if (!payrollData.days[dt]) {
-          payrollData.days[dt] = { status: 'masuk', time: '09:00', lateMin: 0 };
+          payrollData.days[dt] = { status: 'terlambat', time: tm, lateMin: 0 };
         }
 
         var item = payrollData.days[dt];
@@ -663,6 +755,7 @@
           }
         }
 
+        selectedDate = dt;
         saveMonthData();
         renderAll();
       });
@@ -699,7 +792,8 @@
     render: renderAll,
     setTab: setWorkflowTab,
     calculateSummary: calculateSummary,
-    copySlip: copyPayrollSlipText
+    sendLink: sendAttendanceLink,
+    applyAttendance: applyAttendance
   };
 
 })(window);

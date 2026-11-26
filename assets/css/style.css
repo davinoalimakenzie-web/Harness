@@ -5122,6 +5122,35 @@ body.mc-bb-rotated-css #mc {
   padding: 8px 10px;
   min-height: 38px;
 }
+.wf-hdr-field.grow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.wf-hdr-btn-wrap {
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+.wf-btn-send-link {
+  width: 100%;
+  min-height: 38px;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+@media (max-width: 400px) {
+  .wf-header-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .wf-hdr-btn-wrap {
+    justify-content: stretch;
+  }
+}
 
 /* Grid Metrik Kehadiran */
 .wf-stat-grid {
@@ -5351,31 +5380,203 @@ body.mc-bb-rotated-css #mc {
   display: inline-flex;
   gap: 3px;
 }
-.wf-st-btn {
-  padding: 4px 7px;
-  font-size: 11px;
-  font-weight: 600;
-  border-radius: 6px;
+.wf-status-chip {
+  display: inline-block;
+  padding: 3px 9px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: 999px;
   border: 1px solid var(--line);
-  background: var(--bg-elev);
-  color: var(--text-2);
-  cursor: pointer;
-  transition: all .1s ease;
+  white-space: nowrap;
 }
-.wf-st-btn.wf-btn-masuk.active {
+.wf-chip-masuk {
+  background: rgba(2, 132, 199, 0.14);
+  border-color: rgba(2, 132, 199, 0.5);
+  color: #0284c7;
+}
+.wf-chip-late {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.55);
+  color: #d97706;
+}
+.wf-chip-off {
+  background: rgba(239, 68, 68, 0.13);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: var(--danger);
+}
+.wf-chip-none {
+  color: var(--text-muted);
+  background: var(--bg-elev);
+}
+.wf-att-row {
+  cursor: pointer;
+}
+.wf-row-selected {
+  box-shadow: inset 3px 0 0 var(--primary, #0284c7);
+  background: rgba(2, 132, 199, 0.1) !important;
+}
+.wf-time-edit-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.wf-time-txt {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0284c7;
+}
+.wf-time-dash {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+/* Tombol Aksi Cepat Absensi (Masuk / Telat / Libur) */
+.wf-action-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  width: 100%;
+}
+.wf-btn-action {
+  min-height: 42px;
+  font-size: 12.5px;
+  font-weight: 800;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 8px;
+  color: var(--text);
+  background: var(--bg-elev);
+  transition: transform .08s ease, filter .15s ease;
+}
+.wf-btn-action:active {
+  transform: scale(.96);
+  filter: brightness(1.08);
+}
+.wf-action-masuk {
   background: #0284c7;
   border-color: #0284c7;
   color: #fff;
 }
-.wf-st-btn.wf-btn-late.active {
+.wf-action-late {
   background: #f59e0b;
   border-color: #f59e0b;
-  color: #000;
+  color: #1a1200;
 }
-.wf-st-btn.wf-btn-off.active {
+.wf-action-off {
   background: var(--danger);
   border-color: var(--danger);
   color: #fff;
+}
+.wf-table-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Bottom Sheet Jam Keterlambatan */
+.wf-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  background: rgba(0, 0, 0, .55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: wfFade .16s ease;
+}
+@keyframes wfFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.wf-sheet {
+  width: 100%;
+  max-width: 460px;
+  background: var(--bg, #0b1020);
+  border-radius: 18px 18px 0 0;
+  border-top: 1px solid var(--line);
+  padding: 8px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  animation: wfSlideUp .2s ease;
+}
+@keyframes wfSlideUp {
+  from { transform: translateY(24px); opacity: .6; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.wf-sheet-grip {
+  width: 42px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line);
+  margin: 0 auto 10px;
+}
+.wf-sheet-title {
+  font-size: 15px;
+  font-weight: 800;
+  text-align: center;
+}
+.wf-sheet-sub {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 2px;
+}
+.wf-sheet-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin: 12px 0 10px;
+}
+.wf-sheet-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+.wf-sheet-label {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.wf-sheet-time {
+  width: 100%;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  color: var(--text);
+}
+.wf-sheet-late {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #d97706;
+  min-height: 16px;
+}
+.wf-sheet-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+.wf-sheet-actions .btn {
+  min-height: 44px;
+  font-weight: 700;
+  border-radius: 10px;
 }
 .wf-time-input {
   font: inherit;
