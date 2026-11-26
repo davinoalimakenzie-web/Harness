@@ -60,6 +60,7 @@
         var parsed = JSON.parse(raw);
         payrollData = Object.assign({
           bonusMapsCount: 0,
+          bonusUnitCount: 0,
           bonusUnitRp: 0,
           bonusBon: 0,
           bonusAngsuran: 0,
@@ -72,6 +73,7 @@
     } else {
       payrollData = {
         bonusMapsCount: 0,
+        bonusUnitCount: 0,
         bonusUnitRp: 0,
         bonusBon: 0,
         bonusAngsuran: 0,
@@ -138,8 +140,11 @@
     // 2. Bonus Maps: Rp 1.000 / maps
     var bonusMaps = Math.max(0, parseInt(payrollData.bonusMapsCount, 10) || 0) * 1000;
 
-    // 3. Bonus Unit / Done Diambil
-    var bonusUnit = Math.max(0, parseInt(payrollData.bonusUnitRp, 10) || 0);
+    // 3. Bonus Unit / Done Diambil (Jika >= 350 unit -> x Rp 2.000 / unit)
+    var bonusUnitCount = Math.max(0, parseInt(payrollData.bonusUnitCount, 10) || 0);
+    var bonusUnitManualRp = Math.max(0, parseInt(payrollData.bonusUnitRp, 10) || 0);
+    var isUnitTierReached = bonusUnitCount >= 350;
+    var bonusUnit = isUnitTierReached ? (bonusUnitCount * 2000) : bonusUnitManualRp;
 
     // 4. Tunjangan Kedisiplinan (Syarat: Minimal 27 hari kerja)
     var tunjanganSyarat = countHadir >= 27;
@@ -200,6 +205,8 @@
       gajiHarian: gajiHarian,
       bonusMaps: bonusMaps,
       bonusUnit: bonusUnit,
+      bonusUnitCount: bonusUnitCount,
+      isUnitTierReached: isUnitTierReached,
       tunjanganSyarat: tunjanganSyarat,
       rateDisiplinPerHari: rateDisiplinPerHari,
       tunjanganDisiplin: tunjanganDisiplin,
@@ -322,6 +329,7 @@
     var elHarianSub = $('#wfSlipHarianSub');
     var elBonusMaps = $('#wfSlipBonusMaps');
     var elBonusUnit = $('#wfSlipBonusUnit');
+    var elBonusUnitSub = $('#wfSlipBonusUnitSub');
     var elDisiplinVal = $('#wfSlipDisiplinVal');
     var elDisiplinSub = $('#wfSlipDisiplinSub');
     var elDendaTerlambat = $('#wfSlipDendaTerlambat');
@@ -337,6 +345,15 @@
 
     if (elBonusMaps) elBonusMaps.textContent = rupiah(s.bonusMaps);
     if (elBonusUnit) elBonusUnit.textContent = rupiah(s.bonusUnit);
+    if (elBonusUnitSub) {
+      if (s.isUnitTierReached) {
+        elBonusUnitSub.innerHTML = '<span class="text-success font-bold">✓ ' + s.bonusUnitCount + ' unit (&ge; 350) x Rp 2.000/unit</span>';
+      } else if (s.bonusUnitCount > 0) {
+        elBonusUnitSub.textContent = s.bonusUnitCount + ' unit (< 350 target Rp 2.000/unit)';
+      } else {
+        elBonusUnitSub.textContent = 'Target \u2265 350 unit \u2192 otomatis x Rp 2.000';
+      }
+    }
 
     if (elDisiplinVal) elDisiplinVal.textContent = rupiah(s.tunjanganDisiplin);
     if (elDisiplinSub) {
@@ -392,10 +409,14 @@
       });
 
       if (doneCount > 0) {
-        var estimasi = doneCount * 15000;
-        TG.confirm('Ditemukan ' + doneCount + ' servis selesai/done di Mas Cim pada ' + curMonth + '.\n\nIsi bonus unit sebesar ' + rupiah(estimasi) + ' (' + doneCount + ' unit x Rp 15.000)?', function (ok) {
+        var estimasi = (doneCount >= 350) ? (doneCount * 2000) : (doneCount * 15000);
+        var rateMsg = (doneCount >= 350) ? (doneCount + ' unit x Rp 2.000 (Target >= 350)') : (doneCount + ' unit x Rp 15.000');
+        TG.confirm('Ditemukan ' + doneCount + ' servis selesai/done di Mas Cim pada ' + curMonth + '.\n\nIsi bonus unit sebesar ' + rupiah(estimasi) + ' (' + rateMsg + ')?', function (ok) {
           if (!ok) return;
+          payrollData.bonusUnitCount = doneCount;
           payrollData.bonusUnitRp = estimasi;
+          var inCount = $('#wfInBonusUnitCount');
+          if (inCount) inCount.value = doneCount;
           var inUnit = $('#wfInBonusUnit');
           if (inUnit) inUnit.value = estimasi;
           saveMonthData();
@@ -435,7 +456,7 @@
       '💰 *RINCIAN PENGHASILAN:*\n' +
       '(+) Gaji Harian (' + s.countHadir + ' x 135rb) : ' + rupiah(s.gajiHarian) + '\n' +
       '(+) Bonus Maps (' + (payrollData.bonusMapsCount || 0) + ' maps) : ' + rupiah(s.bonusMaps) + '\n' +
-      '(+) Bonus Unit Selesai : ' + rupiah(s.bonusUnit) + '\n' +
+      '(+) Bonus Unit Selesai (' + (s.bonusUnitCount || 0) + ' unit' + (s.isUnitTierReached ? ' x 2rb' : '') + ') : ' + rupiah(s.bonusUnit) + '\n' +
       '(+) Tunjangan Disiplin : ' + rupiah(s.tunjanganDisiplin) + ' (' + (s.tunjanganSyarat ? s.tierDesc : 'Syarat <27 hr belum terpenuhi') + ')\n' +
       '-----------------------------------------\n' +
       '⚠️ *PENGURANGAN / POTONGAN:*\n' +
@@ -444,7 +465,7 @@
       '(-) Bon : ' + rupiah(s.potonganBon) + '\n' +
       '(-) Angsuran : ' + rupiah(s.potonganAngsuran) + '\n' +
       '-----------------------------------------\n' +
-      '💵 *TOTAL GAJI BERSIH (DITERIMA):*\n' +
+      '💵 *THP:*\n' +
       '*' + rupiah(s.totalGajiBersih) + '*\n' +
       '-----------------------------------------\n' +
       '🔗 *Buka Link Absensi:*\n' +
@@ -652,6 +673,19 @@
         if (this.value) {
           loadMonthData(this.value);
           renderAll();
+          // Update nilai input form sesuai data bulan terpilih
+          var inMaps = $('#wfInBonusMaps');
+          if (inMaps) inMaps.value = payrollData.bonusMapsCount || 0;
+          var inCount = $('#wfInBonusUnitCount');
+          if (inCount) inCount.value = payrollData.bonusUnitCount || 0;
+          var inUnit = $('#wfInBonusUnit');
+          if (inUnit) inUnit.value = (payrollData.bonusUnitCount >= 350) ? (payrollData.bonusUnitCount * 2000) : (payrollData.bonusUnitRp || 0);
+          var inBon = $('#wfInBon');
+          if (inBon) inBon.value = payrollData.bonusBon || 0;
+          var inAngsuran = $('#wfInAngsuran');
+          if (inAngsuran) inAngsuran.value = payrollData.bonusAngsuran || 0;
+          var selTier = $('#wfSelDisciplineTier');
+          if (selTier) selTier.value = payrollData.disciplineTier || 'auto';
           TG.haptic('select');
         }
       });
@@ -676,10 +710,25 @@
       });
     }
 
-    // Bonus Unit Input
+    // Bonus Unit Inputs (Jumlah Unit & Rupiah)
+    var inUnitCount = $('#wfInBonusUnitCount');
     var inUnit = $('#wfInBonusUnit');
+
+    if (inUnitCount) {
+      inUnitCount.value = payrollData.bonusUnitCount || 0;
+      inUnitCount.addEventListener('input', function () {
+        payrollData.bonusUnitCount = Math.max(0, parseInt(this.value, 10) || 0);
+        if (payrollData.bonusUnitCount >= 350) {
+          payrollData.bonusUnitRp = payrollData.bonusUnitCount * 2000;
+          if (inUnit) inUnit.value = payrollData.bonusUnitRp;
+        }
+        saveMonthData();
+        renderPayrollSlip(calculateSummary());
+      });
+    }
+
     if (inUnit) {
-      inUnit.value = payrollData.bonusUnitRp || 0;
+      inUnit.value = (payrollData.bonusUnitCount >= 350) ? (payrollData.bonusUnitCount * 2000) : (payrollData.bonusUnitRp || 0);
       inUnit.addEventListener('input', function () {
         payrollData.bonusUnitRp = Math.max(0, parseInt(this.value, 10) || 0);
         saveMonthData();

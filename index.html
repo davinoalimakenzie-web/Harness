@@ -463,7 +463,7 @@
 
         <div class="wf-slip-body">
           <!-- Gaji Pokok Harian -->
-          <div class="wf-slip-line">
+          <div class="wf-slip-line wf-income-row">
             <div class="wf-slip-line-left">
               <b>Gaji Harian</b>
               <span class="wf-slip-note" id="wfSlipHarianSub">0 hari x Rp 135.000</span>
@@ -472,7 +472,7 @@
           </div>
 
           <!-- Bonus Maps -->
-          <div class="wf-slip-line">
+          <div class="wf-slip-line wf-income-row">
             <div class="wf-slip-line-left">
               <b>Bonus Maps (Rp 1.000/maps)</b>
               <div class="wf-inline-input-wrap">
@@ -484,20 +484,23 @@
           </div>
 
           <!-- Bonus Unit / Selesai Diambil -->
-          <div class="wf-slip-line">
+          <div class="wf-slip-line wf-income-row">
             <div class="wf-slip-line-left">
               <b>Bonus Unit / Done Diambil</b>
-              <div class="wf-inline-input-wrap">
-                <span class="muted xs">Rp</span>
-                <input type="number" id="wfInBonusUnit" min="0" step="5000" placeholder="0" class="wf-mini-input wide">
+              <div class="wf-inline-input-wrap" style="flex-wrap: wrap;">
+                <input type="number" id="wfInBonusUnitCount" min="0" placeholder="0" class="wf-mini-input" style="width: 55px;" title="Jumlah Unit Selesai">
+                <span class="muted xs">unit</span>
+                <span class="muted xs" style="margin-left: 2px;">Rp</span>
+                <input type="number" id="wfInBonusUnit" min="0" step="5000" placeholder="0" class="wf-mini-input wide" title="Nominal Bonus Unit">
                 <button type="button" class="mini-btn wf-sync-unit-btn" id="wfBtnSyncMascim" title="Tarik dari Servis Selesai Mas Cim">⚡ Tarik Mas Cim</button>
               </div>
+              <span class="wf-slip-note" id="wfSlipBonusUnitSub">Target &ge; 350 unit &rarr; otomatis x Rp 2.000</span>
             </div>
             <div class="wf-slip-val text-success" id="wfSlipBonusUnit">Rp 0</div>
           </div>
 
           <!-- Tunjangan Kedisiplinan -->
-          <div class="wf-slip-line" id="wfSlipDisiplinRow">
+          <div class="wf-slip-line wf-income-row" id="wfSlipDisiplinRow">
             <div class="wf-slip-line-left">
               <b>Tunjangan Kedisiplinan</b>
               <div class="wf-slip-note" id="wfSlipDisiplinSub"><span class="text-danger">Belum memenuhi syarat (&lt; 27 hari)</span></div>
@@ -518,7 +521,7 @@
           <div class="wf-slip-divider"></div>
 
           <!-- Pengurangan: Denda Keterlambatan -->
-          <div class="wf-slip-line">
+          <div class="wf-slip-line wf-expense-row">
             <div class="wf-slip-line-left">
               <b class="text-danger">Denda Keterlambatan</b>
               <span class="wf-slip-note" id="wfSlipDendaSub">0 hari terlambat x Rp 15.000</span>
@@ -527,7 +530,7 @@
           </div>
 
           <!-- Pengurangan: Potongan Jam Kehadiran -->
-          <div class="wf-slip-line">
+          <div class="wf-slip-line wf-expense-row">
             <div class="wf-slip-line-left">
               <b class="text-danger">Potongan Jam Kehadiran</b>
               <span class="wf-slip-note" id="wfSlipPotonganJamSub">0 jam (Rp 14.000/jam)</span>
@@ -536,7 +539,7 @@
           </div>
 
           <!-- Pengurangan Manual: Bon -->
-          <div class="wf-slip-line">
+          <div class="wf-slip-line wf-expense-row">
             <div class="wf-slip-line-left">
               <b class="text-danger">Bon</b>
               <div class="wf-inline-input-wrap">
@@ -548,7 +551,7 @@
           </div>
 
           <!-- Pengurangan Manual: Angsuran -->
-          <div class="wf-slip-line">
+          <div class="wf-slip-line wf-expense-row">
             <div class="wf-slip-line-left">
               <b class="text-danger">Angsuran</b>
               <div class="wf-inline-input-wrap">
@@ -562,8 +565,7 @@
           <!-- TOTAL GAJI BERSIH -->
           <div class="wf-slip-total-wrap">
             <div class="wf-slip-total-lbl">
-              <span>TOTAL GAJI BERSIH (DITERIMA)</span>
-              <small class="muted">Take Home Pay Teknisi</small>
+              <span>THP</span>
             </div>
             <div class="wf-slip-total-val" id="wfSlipTotalGaji">Rp 0</div>
           </div>
