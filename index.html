@@ -421,13 +421,12 @@
       <div class="card wf-header-card">
         <div class="wf-header-row">
           <label class="wf-hdr-field grow">
-            <span class="lbl-sm">Bulan Periode</span>
-            <input type="month" id="wfMonthPicker" class="wf-input-month">
+            <input type="month" id="wfMonthPicker" class="wf-input-month" title="Filter Bulan">
           </label>
           <div class="wf-hdr-field wf-hdr-btn-wrap">
             <button type="button" class="btn primary wf-btn-send-link" id="wfBtnCopySlip">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg>
-              <span>Kirim Link Absensi</span>
+              <span>Link Absen</span>
             </button>
           </div>
         </div>
@@ -534,6 +533,30 @@
               <span class="wf-slip-note" id="wfSlipPotonganJamSub">0 jam (Rp 14.000/jam)</span>
             </div>
             <div class="wf-slip-val text-danger" id="wfSlipPotonganJam">- Rp 0</div>
+          </div>
+
+          <!-- Pengurangan Manual: Bon -->
+          <div class="wf-slip-line">
+            <div class="wf-slip-line-left">
+              <b class="text-danger">Bon</b>
+              <div class="wf-inline-input-wrap">
+                <span class="muted xs">Rp</span>
+                <input type="number" id="wfInBon" min="0" step="1000" placeholder="0" class="wf-mini-input wide">
+              </div>
+            </div>
+            <div class="wf-slip-val text-danger" id="wfSlipBon">- Rp 0</div>
+          </div>
+
+          <!-- Pengurangan Manual: Angsuran -->
+          <div class="wf-slip-line">
+            <div class="wf-slip-line-left">
+              <b class="text-danger">Angsuran</b>
+              <div class="wf-inline-input-wrap">
+                <span class="muted xs">Rp</span>
+                <input type="number" id="wfInAngsuran" min="0" step="1000" placeholder="0" class="wf-mini-input wide">
+              </div>
+            </div>
+            <div class="wf-slip-val text-danger" id="wfSlipAngsuran">- Rp 0</div>
           </div>
 
           <!-- TOTAL GAJI BERSIH -->

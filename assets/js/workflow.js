@@ -19,6 +19,8 @@
   var payrollData = {
     bonusMapsCount: 0,
     bonusUnitRp: 0,
+    bonusBon: 0,
+    bonusAngsuran: 0,
     disciplineTier: 'auto', // auto | full_clean | min_clean | full_late | min_late | none
     days: {} // 'YYYY-MM-DD': { status: 'masuk'|'terlambat'|'libur'|'none', time: '09:00', lateMin: 0 }
   };
@@ -59,6 +61,8 @@
         payrollData = Object.assign({
           bonusMapsCount: 0,
           bonusUnitRp: 0,
+          bonusBon: 0,
+          bonusAngsuran: 0,
           disciplineTier: 'auto',
           days: {}
         }, parsed);
@@ -69,6 +73,8 @@
       payrollData = {
         bonusMapsCount: 0,
         bonusUnitRp: 0,
+        bonusBon: 0,
+        bonusAngsuran: 0,
         disciplineTier: 'auto',
         days: {}
       };
@@ -177,8 +183,12 @@
     // Potongan Jam Kehadiran: Rp 14.000 / jam keterlambatan
     var potonganJam = Math.round(totalJamLambat * 14000);
 
+    // 6. Potongan Manual: Bon & Angsuran
+    var potonganBon = Math.max(0, parseInt(payrollData.bonusBon, 10) || 0);
+    var potonganAngsuran = Math.max(0, parseInt(payrollData.bonusAngsuran, 10) || 0);
+
     // Total Gaji Bersih
-    var totalGajiBersih = (gajiHarian + bonusMaps + bonusUnit + tunjanganDisiplin) - (dendaTerlambat + potonganJam);
+    var totalGajiBersih = (gajiHarian + bonusMaps + bonusUnit + tunjanganDisiplin) - (dendaTerlambat + potonganJam + potonganBon + potonganAngsuran);
 
     return {
       totalDays: totalDays,
@@ -196,6 +206,8 @@
       tierDesc: tierDesc,
       dendaTerlambat: dendaTerlambat,
       potonganJam: potonganJam,
+      potonganBon: potonganBon,
+      potonganAngsuran: potonganAngsuran,
       totalGajiBersih: totalGajiBersih
     };
   }
@@ -249,12 +261,18 @@
     var mo = parseInt(parts[1], 10);
     var dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
+    var todayKey = todayStr();
+
     var html = '';
     for (var d = 1; d <= s.totalDays; d++) {
       var dateKey = curMonth + '-' + String(d).padStart(2, '0');
+      // Hari yang belum terjadi tidak ditampilkan
+      if (dateKey > todayKey) continue;
+
       var dt = new Date(yr, mo - 1, d);
       var dayName = dayNames[dt.getDay()];
       var isSunday = dt.getDay() === 0;
+      var isFriday = dt.getDay() === 5;
 
       var item = payrollData.days[dateKey];
       var st = item ? item.status : 'none';
@@ -290,7 +308,7 @@
       }
 
       html += '<tr class="' + rowCls + '" data-row-date="' + dateKey + '" title="Ketuk untuk memilih tanggal ini">' +
-        '<td class="wf-col-date"><span class="wf-date-num">' + d + '</span> <span class="wf-date-day ' + (isSunday ? 'wf-sunday' : '') + '">' + dayName + '</span></td>' +
+        '<td class="wf-col-date"><span class="wf-date-num">' + d + '</span> <span class="wf-date-day ' + (isSunday ? 'wf-sunday ' : '') + (isFriday ? 'wf-friday' : '') + '">' + dayName + '</span></td>' +
         '<td class="wf-col-status">' + chip + '</td>' +
         '<td class="wf-col-time">' + timeCell + '</td>' +
       '</tr>';
@@ -310,6 +328,8 @@
     var elDendaSub = $('#wfSlipDendaSub');
     var elPotonganJam = $('#wfSlipPotonganJam');
     var elPotonganJamSub = $('#wfSlipPotonganJamSub');
+    var elBon = $('#wfSlipBon');
+    var elAngsuran = $('#wfSlipAngsuran');
     var elTotalGaji = $('#wfSlipTotalGaji');
 
     if (elGajiHarian) elGajiHarian.textContent = rupiah(s.gajiHarian);
@@ -336,6 +356,9 @@
 
     if (elPotonganJam) elPotonganJam.textContent = '- ' + rupiah(s.potonganJam);
     if (elPotonganJamSub) elPotonganJamSub.textContent = durText + ' (Rp 14.000/jam)';
+
+    if (elBon) elBon.textContent = '- ' + rupiah(s.potonganBon);
+    if (elAngsuran) elAngsuran.textContent = '- ' + rupiah(s.potonganAngsuran);
 
     if (elTotalGaji) elTotalGaji.textContent = rupiah(s.totalGajiBersih);
   }
@@ -418,6 +441,8 @@
       '⚠️ *PENGURANGAN / POTONGAN:*\n' +
       '(-) Denda Terlambat (' + s.countTerlambat + ' hr x 15rb) : ' + rupiah(s.dendaTerlambat) + '\n' +
       '(-) Potongan Jam (' + durText + ' x 14rb/jam) : ' + rupiah(s.potonganJam) + '\n' +
+      '(-) Bon : ' + rupiah(s.potonganBon) + '\n' +
+      '(-) Angsuran : ' + rupiah(s.potonganAngsuran) + '\n' +
       '-----------------------------------------\n' +
       '💵 *TOTAL GAJI BERSIH (DITERIMA):*\n' +
       '*' + rupiah(s.totalGajiBersih) + '*\n' +
@@ -657,6 +682,28 @@
       inUnit.value = payrollData.bonusUnitRp || 0;
       inUnit.addEventListener('input', function () {
         payrollData.bonusUnitRp = Math.max(0, parseInt(this.value, 10) || 0);
+        saveMonthData();
+        renderPayrollSlip(calculateSummary());
+      });
+    }
+
+    // Potongan Manual: Bon
+    var inBon = $('#wfInBon');
+    if (inBon) {
+      inBon.value = payrollData.bonusBon || 0;
+      inBon.addEventListener('input', function () {
+        payrollData.bonusBon = Math.max(0, parseInt(this.value, 10) || 0);
+        saveMonthData();
+        renderPayrollSlip(calculateSummary());
+      });
+    }
+
+    // Potongan Manual: Angsuran
+    var inAngsuran = $('#wfInAngsuran');
+    if (inAngsuran) {
+      inAngsuran.value = payrollData.bonusAngsuran || 0;
+      inAngsuran.addEventListener('input', function () {
+        payrollData.bonusAngsuran = Math.max(0, parseInt(this.value, 10) || 0);
         saveMonthData();
         renderPayrollSlip(calculateSummary());
       });
