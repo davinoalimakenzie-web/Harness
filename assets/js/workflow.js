@@ -868,6 +868,122 @@
     });
 
     renderAll();
+    initAttendanceReminder();
+  }
+
+  /* ---------------- Pengingat Notifikasi Absensi Tiap Jam 9 (Ulang Tiap 5 Menit) ---------------- */
+  var _remindModal = null;
+  function showAttendanceActionPopup(dateStr) {
+    if (_remindModal && _remindModal.parentNode) return; // sudah terbuka
+    var dt = dateStr || todayStr();
+
+    var overlay = document.createElement('div');
+    overlay.className = 'wf-remind-modal-overlay';
+    overlay.innerHTML =
+      '<div class="wf-remind-modal-box" role="dialog" aria-modal="true">' +
+        '<div class="wf-remind-icon">⏰</div>' +
+        '<h3 class="wf-remind-title">Waktunya Absensi!</h3>' +
+        '<div class="wf-remind-desc">Sudah jam 09:00 WIB. Silakan pilih status absensi hari ini (' + dt + ') agar kompensasi tercatat akurat.</div>' +
+        '<div class="wf-remind-btn-group">' +
+          '<button type="button" class="wf-remind-btn wf-remind-masuk" id="wfModalBtnMasuk">✓ Masuk Tepat Waktu (09:00)</button>' +
+          '<button type="button" class="wf-remind-btn wf-remind-telat" id="wfModalBtnTelat">⏱ Terlambat / Jam Tertentu</button>' +
+          '<button type="button" class="wf-remind-btn wf-remind-libur" id="wfModalBtnLibur">✕ Hari Libur</button>' +
+        '</div>' +
+        '<button type="button" class="wf-remind-close" id="wfModalBtnTutup">Nanti Saja</button>' +
+      '</div>';
+
+    document.body.appendChild(overlay);
+    _remindModal = overlay;
+
+    overlay.querySelector('#wfModalBtnMasuk').addEventListener('click', function () {
+      applyAttendance('masuk', dt, '09:00');
+      closeAttendanceModal();
+      w.App.toast('✓ Absen Masuk berhasil dicatat!', 2500, 'ok');
+    });
+
+    overlay.querySelector('#wfModalBtnTelat').addEventListener('click', function () {
+      closeAttendanceModal();
+      var now = new Date();
+      var nowTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      var defTime = parseTimeMinutes(nowTime) > 540 ? nowTime : '09:15';
+      openLateSheet(dt, defTime);
+    });
+
+    overlay.querySelector('#wfModalBtnLibur').addEventListener('click', function () {
+      applyAttendance('libur', dt);
+      closeAttendanceModal();
+      w.App.toast('✕ Absen Libur berhasil dicatat!', 2500, 'ok');
+    });
+
+    overlay.querySelector('#wfModalBtnTutup').addEventListener('click', function () {
+      closeAttendanceModal();
+    });
+  }
+
+  function closeAttendanceModal() {
+    if (_remindModal && _remindModal.parentNode) {
+      _remindModal.parentNode.removeChild(_remindModal);
+    }
+    _remindModal = null;
+  }
+
+  function initAttendanceReminder() {
+    // Minta izin Web Notification jika didukung
+    try {
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    } catch (e) {}
+
+    // Periksa status absensi & jadwal pengingat jam 9 tiap 5 menit
+    function checkReminderSchedule() {
+      var now = new Date();
+      var h = now.getHours();
+      var tToday = todayStr();
+
+      // Cek apakah tanggal hari ini sudah diisi absen
+      var currentItem = payrollData.days ? payrollData.days[tToday] : null;
+      var hasAttended = (currentItem && currentItem.status && currentItem.status !== 'none');
+      if (hasAttended) return; // Sudah absen, tidak perlu diingatkan lagi
+
+      // Jika waktu lokal jam >= 9:00 pagi
+      if (h >= 9) {
+        var lastNotifKey = 'calm_wf_last_remind_time';
+        var lastTime = parseInt(localStorage.getItem(lastNotifKey) || '0', 10);
+        var nowMs = Date.now();
+        var INTERVAL_5_MIN = 5 * 60 * 1000;
+
+        // Ulangi tiap 5 menit
+        if (nowMs - lastTime >= INTERVAL_5_MIN) {
+          localStorage.setItem(lastNotifKey, String(nowMs));
+
+          // 1. Kirim System/Phone Web Notification jika didukung
+          try {
+            if ('Notification' in window && Notification.permission === 'granted') {
+              var notif = new Notification('⏰ Pengingat Absensi (09:00 WIB)', {
+                body: 'Ketuk di sini untuk memilih Masuk, Telat, atau Libur hari ini.',
+                icon: 'assets/icons/icon-192.png',
+                tag: 'absensi-reminder-' + tToday
+              });
+              notif.onclick = function () {
+                window.focus();
+                if (w.App && w.App.go) w.App.go('workflow');
+                showAttendanceActionPopup(tToday);
+                notif.close();
+              };
+            }
+          } catch (eNotif) {}
+
+          // 2. Tampilkan dialog interaktif 3 tombol (Masuk - Telat - Libur) langsung di layar
+          showAttendanceActionPopup(tToday);
+          TG.haptic('warn');
+        }
+      }
+    }
+
+    // Jalankan pengecekan awal & polling interval tiap 30 detik (menjamin batas 5 menit tepat terdeteksi)
+    setTimeout(checkReminderSchedule, 1500);
+    setInterval(checkReminderSchedule, 30000);
   }
 
   function setWorkflowTab(tabId) {

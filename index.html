@@ -471,38 +471,36 @@
             <div class="wf-slip-val text-success" id="wfSlipGajiHarian">Rp 0</div>
           </div>
 
-          <!-- Bonus Maps -->
+          <!-- Bonus Maps (Ganti tulisan jadi Maps dan jadikan 1 baris) -->
           <div class="wf-slip-line wf-income-row">
-            <div class="wf-slip-line-left">
-              <b>Bonus Maps (Rp 1.000/maps)</b>
+            <div class="wf-slip-line-left wf-slip-line-1line">
+              <b>Maps</b>
               <div class="wf-inline-input-wrap">
-                <input type="number" id="wfInBonusMaps" min="0" placeholder="0" class="wf-mini-input">
+                <input type="number" id="wfInBonusMaps" min="0" placeholder="0" class="wf-mini-input" style="width: 55px;">
                 <span class="muted xs">maps</span>
               </div>
             </div>
             <div class="wf-slip-val text-success" id="wfSlipBonusMaps">Rp 0</div>
           </div>
 
-          <!-- Bonus Unit / Selesai Diambil -->
+          <!-- Bonus Unit / Selesai Diambil (Ganti tulisan jadi Unit dan jadikan 1 baris) -->
           <div class="wf-slip-line wf-income-row">
-            <div class="wf-slip-line-left">
-              <b>Bonus Unit / Done Diambil</b>
-              <div class="wf-inline-input-wrap" style="flex-wrap: wrap;">
-                <input type="number" id="wfInBonusUnitCount" min="0" placeholder="0" class="wf-mini-input" style="width: 55px;" title="Jumlah Unit Selesai">
+            <div class="wf-slip-line-left wf-slip-line-1line">
+              <b>Unit</b>
+              <div class="wf-inline-input-wrap">
+                <input type="number" id="wfInBonusUnitCount" min="0" placeholder="0" class="wf-mini-input" style="width: 50px;" title="Jumlah Unit Selesai">
                 <span class="muted xs">unit</span>
-                <span class="muted xs" style="margin-left: 2px;">Rp</span>
-                <input type="number" id="wfInBonusUnit" min="0" step="5000" placeholder="0" class="wf-mini-input wide" title="Nominal Bonus Unit">
-                <button type="button" class="mini-btn wf-sync-unit-btn" id="wfBtnSyncMascim" title="Tarik dari Servis Selesai Mas Cim">⚡ Tarik Mas Cim</button>
+                <input type="number" id="wfInBonusUnit" min="0" step="5000" placeholder="0" class="wf-mini-input" style="width: 78px;" title="Nominal Bonus Unit">
+                <button type="button" class="mini-btn wf-sync-unit-btn" id="wfBtnSyncMascim" title="Tarik dari Servis Selesai Mas Cim" style="padding: 3px 6px;">⚡ Cim</button>
               </div>
-              <span class="wf-slip-note" id="wfSlipBonusUnitSub">Target &ge; 350 unit &rarr; otomatis x Rp 2.000</span>
             </div>
             <div class="wf-slip-val text-success" id="wfSlipBonusUnit">Rp 0</div>
           </div>
 
-          <!-- Tunjangan Kedisiplinan -->
+          <!-- Tunjangan Kedisiplinan (Ganti tulisan jadi Kedisiplinan) -->
           <div class="wf-slip-line wf-income-row" id="wfSlipDisiplinRow">
             <div class="wf-slip-line-left">
-              <b>Tunjangan Kedisiplinan</b>
+              <b>Kedisiplinan</b>
               <div class="wf-slip-note" id="wfSlipDisiplinSub"><span class="text-danger">Belum memenuhi syarat (&lt; 27 hari)</span></div>
               <div class="wf-tier-select-wrap mt-xs">
                 <select id="wfSelDisciplineTier" class="wf-mini-select">

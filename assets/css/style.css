@@ -5050,10 +5050,17 @@ body.mc-bb-rotated-css #mc {
 /* =========================================================
    MODUL WORKFLOW: ABSENSI & PAYROLL GAJI + CATATAN PRIORITAS
    ========================================================= */
+/* Tampilan layout workflow dibuat full lebar kanan kiri */
+#view-workflow {
+  padding-left: 0;
+  padding-right: 0;
+  padding-top: 4px;
+  width: 100%;
+}
 .wf-tabs-bar {
   display: flex;
   gap: 8px;
-  padding: 10px 14px 12px;
+  padding: 8px 8px 10px;
   background: var(--bg);
   position: sticky;
   top: 0;
@@ -5099,8 +5106,8 @@ body.mc-bb-rotated-css #mc {
 
 /* Absensi & Payroll Header Card */
 .wf-header-card {
-  margin: 12px 14px 10px;
-  padding: 12px 14px;
+  margin: 6px 8px 10px;
+  padding: 10px 12px;
 }
 .wf-header-row {
   display: flex;
@@ -5177,8 +5184,8 @@ body.mc-bb-rotated-css #mc {
 .wf-stat-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin: 0 14px 12px;
+  gap: 6px;
+  margin: 0 8px 10px;
 }
 .wf-stat-card {
   background: var(--bg-elev);
@@ -5207,8 +5214,8 @@ body.mc-bb-rotated-css #mc {
 
 /* Kartu Slip Kompensasi & Payroll */
 .wf-slip-card {
-  margin: 0 14px 14px;
-  padding: 14px;
+  margin: 0 8px 12px;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: 14px;
 }
@@ -5238,23 +5245,39 @@ body.mc-bb-rotated-css #mc {
 }
 .wf-slip-line {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  padding: 8px 0;
+  padding: 7px 0;
   border-bottom: 1px dashed var(--line);
-  gap: 10px;
+  gap: 8px;
 }
 .wf-slip-line:last-of-type {
   border-bottom: none;
 }
 .wf-slip-line-left {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.wf-slip-line-1line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.wf-slip-line-1line .wf-inline-input-wrap {
+  margin-top: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 .wf-slip-val {
   font-size: 14.5px;
   font-weight: 700;
   text-align: right;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .wf-slip-note {
   display: block;
@@ -5331,7 +5354,7 @@ body.mc-bb-rotated-css #mc {
 
 /* Tabel Absensi Harian */
 .wf-table-card {
-  margin: 0 14px 24px;
+  margin: 0 8px 24px;
   padding: 12px;
 }
 .wf-table-header {
@@ -5707,14 +5730,107 @@ body.mc-bb-rotated-css #mc {
 .item.item-prio-slow {
   border-left: 3px solid #0284c7 !important;
 }
-.seg.seg-scroll {
-  overflow-x: auto;
-  white-space: nowrap;
-  scrollbar-width: none;
+/* Topbar disembunyikan saat membuka Workflow / Absensi agar layar full & bersih */
+body.wf-standalone-mode .topbar,
+body.wf-standalone-mode .tabbar {
+  display: none !important;
 }
-.seg.seg-scroll::-webkit-scrollbar {
-  display: none;
+body.wf-standalone-mode #app {
+  padding-bottom: env(safe-area-inset-bottom, 12px);
 }
+
+/* Modal Popup Pengingat Absensi Jam 9 */
+.wf-remind-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: wfFade .2s ease;
+}
+.wf-remind-modal-box {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  width: 100%;
+  max-width: 360px;
+  padding: 20px 18px 18px;
+  box-shadow: 0 10px 32px rgba(0,0,0,0.4);
+  text-align: center;
+  animation: wfScaleIn .22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes wfScaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+.wf-remind-icon {
+  font-size: 38px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.wf-remind-title {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+}
+.wf-remind-desc {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-bottom: 18px;
+  line-height: 1.4;
+}
+.wf-remind-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.wf-remind-btn {
+  width: 100%;
+  padding: 13px 16px;
+  font-size: 14.5px;
+  font-weight: 700;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+}
+.wf-remind-btn:active {
+  transform: scale(0.98);
+}
+.wf-remind-masuk {
+  background: #0284c7;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+}
+.wf-remind-telat {
+  background: #f59e0b;
+  color: #1a1200;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+}
+.wf-remind-libur {
+  background: var(--danger);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+}
+.wf-remind-close {
+  margin-top: 12px;
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+}
+
 
 
 

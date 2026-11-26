@@ -92,6 +92,9 @@
          (back) Telegram untuk berpindah. */
       var navbawah = $('.tabbar');
       if (navbawah) navbawah.style.display = (v === 'ronce' || isWorkflow || v === 'fbpp') ? 'none' : '';
+      if (w.document.body) {
+        w.document.body.classList.toggle('wf-standalone-mode', isWorkflow);
+      }
       if (v === 'workflow') {
         if (w.WorkflowUI && w.WorkflowUI.setTab) w.WorkflowUI.setTab('payroll');
         if (w.WorkflowUI && w.WorkflowUI.render) w.WorkflowUI.render();
@@ -503,27 +506,26 @@
       if (b.dataset.view) b.addEventListener('click', function () { App.go(b.dataset.view); });
     });
 
-    // Deep-link via hash: #calc, #view=calc, #mascim, dll.
-    function hashView() {
+    // Deep-link via query param atau hash: ?view=workflow, #workflow, dll.
+    function checkInitialView() {
+      var s = w.location.search || '';
+      var qMatch = s.match(/[?&]view=([a-z]+)/i);
+      if (qMatch && TITLES[qMatch[1].toLowerCase()]) return qMatch[1].toLowerCase();
       var h = String(w.location.hash || '');
-      var m = h.match(/^(?:#|#view=)([a-z]+)$/);
-      if (m && TITLES[m[1]]) return m[1];
+      var m = h.match(/^(?:#|#view=)([a-z]+)$/i);
+      if (m && TITLES[m[1].toLowerCase()]) return m[1].toLowerCase();
       return null;
+    }
+    function hashView() {
+      return checkInitialView();
     }
     w.addEventListener('hashchange', function () {
       var v = hashView();
       if (v) App.go(v);
     });
-    // Apply initial hash after all UI inits below
-    setTimeout(function () {
-      var v = hashView();
-      if (v) App.go(v);
-    }, 0);
-    // Apply initial hash after all UI inits below
-    setTimeout(function () {
-      var v = hashView();
-      if (v) App.go(v);
-    }, 0);
+    // Apply initial view immediately
+    var initialV = checkInitialView();
+    if (initialV) App.go(initialV);
     document.addEventListener('click', function (e) {
       var g = e.target.closest('[data-goto]');
       if (g) App.go(g.dataset.goto);
@@ -1078,12 +1080,18 @@
     mulaiAplikasi();
   }
 
-  // Apply initial hash after ALL scripts loaded and DOM ready.
+  // Apply initial hash/query after ALL scripts loaded and DOM ready.
   // Must stay INSIDE the IIFE — TITLES is not global.
   function applyInitialHash() {
+    var s = w.location.search || '';
+    var qMatch = s.match(/[?&]view=([a-z]+)/i);
+    if (qMatch && TITLES[qMatch[1].toLowerCase()]) {
+      App.go(qMatch[1].toLowerCase());
+      return;
+    }
     var h = String(w.location.hash || '');
-    var m = h.match(/^(?:#|#view=)([a-z]+)$/);
-    if (m && TITLES[m[1]]) App.go(m[1]);
+    var m = h.match(/^(?:#|#view=)([a-z]+)$/i);
+    if (m && TITLES[m[1].toLowerCase()]) App.go(m[1].toLowerCase());
   }
   if (document.readyState === 'complete') {
     applyInitialHash();
