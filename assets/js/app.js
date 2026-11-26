@@ -16,7 +16,8 @@
     history: ['Riwayat', 'Semua transaksi tersimpan'],
     recap:   ['Cashflow Alima', 'Ringkasan & riwayat transaksi'],
     more:    ['Lainnya', 'Alat, kategori, akun & data'],
-    notes:   ['Catatan', 'Pengingat voice'],
+    workflow:['Workflow', 'Absensi, Payroll Gaji & Catatan Prioritas'],
+    notes:   ['Workflow', 'Absensi, Payroll Gaji & Catatan Prioritas'],
     ronce:   ['Kalkulator', 'Ronce, Servis HP & Riasan'],
     fbpp:    ['AutoPostFB', 'Jadwal posting grup Facebook'],
     mascim:  ['Mas cim', 'Service HP']
@@ -72,20 +73,32 @@
       if (w.document.body.classList.contains('mitra-mode') && v !== 'ronce') return;
       if (v === 'recap') v = 'home';
       if (v === 'kas') v = 'bank';
+      var isWorkflow = (v === 'workflow' || v === 'notes');
       App.view = v;
       $$('.tab').forEach(function (b) { b.classList.toggle('active', b.dataset.view === v); });
-      $$('.view').forEach(function (s) { s.classList.toggle('active', s.id === 'view-' + v); });
+      $$('.view').forEach(function (s) {
+        var match = s.id === 'view-' + v;
+        if (isWorkflow && (s.id === 'view-workflow' || s.id === 'view-notes')) match = true;
+        s.classList.toggle('active', match);
+      });
       var t = TITLES[v] || ['', ''];
       $('#pageTitle').textContent = t[0];
       $('#pageSub').textContent = t[1];
       w.scrollTo(0, 0);
       TG.haptic('select');
       /* Nav bawah (Beranda/Riwayat/+/Rekap/Lainnya) disembunyikan saat alat
-         penuh layar dibuka — Kalkulator & Catatan — supaya kontennya tampak
+         penuh layar dibuka — Kalkulator & Workflow — supaya kontennya tampak
          full screen dan tidak ada tombol pengganggu. Pakai tombol kembali
          (back) Telegram untuk berpindah. */
       var navbawah = $('.tabbar');
-      if (navbawah) navbawah.style.display = (v === 'ronce' || v === 'notes' || v === 'fbpp') ? 'none' : '';
+      if (navbawah) navbawah.style.display = (v === 'ronce' || isWorkflow || v === 'fbpp') ? 'none' : '';
+      if (v === 'workflow') {
+        if (w.WorkflowUI && w.WorkflowUI.setTab) w.WorkflowUI.setTab('payroll');
+        if (w.WorkflowUI && w.WorkflowUI.render) w.WorkflowUI.render();
+      } else if (v === 'notes') {
+        if (w.WorkflowUI && w.WorkflowUI.setTab) w.WorkflowUI.setTab('notes');
+        if (w.NotesUI && w.NotesUI.render) w.NotesUI.render();
+      }
       if (v === 'more') {
         refreshMore();
         if (App.renderAutoBackup) App.renderAutoBackup();
@@ -544,6 +557,7 @@
     });
 
     // Sub-modul
+    try { if (w.WorkflowUI && w.WorkflowUI.init) w.WorkflowUI.init(); } catch (e) { console.error('WorkflowUI init error:', e); }
     try { if (w.NotesUI && w.NotesUI.init) w.NotesUI.init(); } catch (e) { console.error('NotesUI init error:', e); }
     try { if (w.TxUI && w.TxUI.init) w.TxUI.init(); } catch (e) { console.error('TxUI init error:', e); }
     try { if (w.CalcUI && w.CalcUI.init) w.CalcUI.init(); } catch (e) { console.error('CalcUI init error:', e); }

@@ -1,7 +1,7 @@
 /* =========================================================
    voice.js — Rekam & pemain rekaman suara
    Pakai MediaRecorder + Web Audio untuk visualizer.
-   Speech-to-text (Web Speech API) dipakai bila tersedia.
+   Speech-to-text (Web Speech API) otomatis aktif bila tersedia.
    ========================================================= */
 (function (w) {
   'use strict';
@@ -18,6 +18,7 @@
   var startAt = 0, tickId = 0;
   var stt = null;       // SpeechRecognition
   var onTick = null;
+  var onTranscript = null;
 
   function fmt(sec) {
     sec = Math.max(0, Math.floor(sec));
@@ -48,9 +49,32 @@
 
   function stopStream() {
     cancelAnimationFrame(rafId);
-    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
-    if (audioCtx) { audioCtx.close().catch(function(){}); audioCtx = null; }
+    if (stream) {
+      try {
+        stream.getTracks().forEach(function (t) { t.stop(); });
+      } catch (e) {}
+      stream = null;
+    }
+    if (audioCtx) {
+      try {
+        audioCtx.close().catch(function(){});
+      } catch (e) {}
+      audioCtx = null;
+    }
     analyser = null;
+    stopSTT();
+  }
+
+  function stopSTT() {
+    if (stt) {
+      try {
+        stt.onresult = null;
+        stt.onerror = null;
+        stt.onend = null;
+        stt.stop();
+      } catch (e) {}
+      stt = null;
+    }
   }
 
   var Voice = {
@@ -59,28 +83,51 @@
     get recording() { return !!(rec && rec.state === 'recording'); },
 
     /* Rekam; cb(blob, durationSec) saat selesai, cbErr(err) saat gagal */
-    start: function (waveEl, timeEl, onTickCb) {
+    start: function (waveEl, timeEl, onTickCb, onTranscriptCb) {
       if (this.recording) return Promise.reject(new Error('Sudah merekam'));
       if (!hasMic) return Promise.reject(new Error('Browser tidak mendukung rekam (butuh HTTPS / browser modern)'));
 
       onTick = onTickCb;
+      onTranscript = onTranscriptCb;
+
       return md.getUserMedia({ audio: true }).then(function (s) {
         stream = s;
         chunks = [];
         var mime = '';
-        ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg']
-          .some(function (m) { if (w.MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) { mime = m; return true; } return false; });
+        var testMimes = [
+          'audio/webm;codecs=opus',
+          'audio/webm',
+          'audio/mp4',
+          'audio/aac',
+          'audio/ogg'
+        ];
+        testMimes.some(function (m) {
+          if (w.MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) {
+            mime = m;
+            return true;
+          }
+          return false;
+        });
 
-        rec = mime ? new MediaRecorder(s, { mimeType: mime }) : new MediaRecorder(s);
-        rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+        try {
+          rec = mime ? new MediaRecorder(s, { mimeType: mime }) : new MediaRecorder(s);
+        } catch (eRec) {
+          rec = new MediaRecorder(s);
+        }
+
+        rec.ondataavailable = function (e) {
+          if (e.data && e.data.size) chunks.push(e.data);
+        };
+
         rec.onstop = function () {
           var dur = (Date.now() - startAt) / 1000;
-          var type = (rec && rec.mimeType) || chunks[0]?.type || 'audio/webm';
+          var type = (rec && rec.mimeType) || (chunks[0] && chunks[0].type) || 'audio/webm';
           var blob = new Blob(chunks, { type: type });
           chunks = [];
           stopStream();
           if (Voice._onDone) Voice._onDone(blob, dur);
         };
+
         rec.start(250);
         startAt = Date.now();
 
@@ -93,11 +140,37 @@
           }, 250);
         }
 
-        // Visualizer
+        // Jalankan Speech-to-text otomatis jika didukung
+        if (hasSTT && onTranscript) {
+          try {
+            stt = new SR();
+            stt.lang = 'id-ID';
+            stt.continuous = true;
+            stt.interimResults = true;
+            stt.maxAlternatives = 1;
+            stt.onresult = function (e) {
+              var fullText = '';
+              for (var i = 0; i < e.results.length; i++) {
+                fullText += e.results[i][0].transcript;
+              }
+              if (onTranscript) onTranscript(fullText.trim());
+            };
+            stt.onerror = function () {};
+            stt.onend = function () {};
+            stt.start();
+          } catch (eStt) {
+            console.warn('STT tidak dapat dimulai:', eStt);
+          }
+        }
+
+        // Visualizer Web Audio
         try {
           var AC = w.AudioContext || w.webkitAudioContext;
           if (AC && waveEl) {
             audioCtx = new AC();
+            if (audioCtx.state === 'suspended') {
+              audioCtx.resume().catch(function(){});
+            }
             var src = audioCtx.createMediaStreamSource(s);
             analyser = audioCtx.createAnalyser();
             analyser.fftSize = 64;
@@ -113,41 +186,45 @@
     },
 
     stop: function () {
-      if (rec && rec.state === 'recording') rec.stop();
       clearInterval(tickId);
+      stopSTT();
+      if (rec && rec.state === 'recording') {
+        try { rec.stop(); } catch (e) {}
+      }
     },
 
     cancel: function () {
+      clearInterval(tickId);
+      stopSTT();
       if (rec && rec.state === 'recording') {
         rec.onstop = null;      // buang hasil
-        rec.stop();
+        try { rec.stop(); } catch (e) {}
       }
-      clearInterval(tickId);
       stopStream();
     },
 
     onDone: function (cb) { Voice._onDone = cb; },
     _onDone: null,
 
-    /* -------- Speech-to-text (opsional) -------- */
+    /* -------- Speech-to-text standalone -------- */
     listenOnce: function () {
       if (!hasSTT) return Promise.reject(new Error('Speech-to-text tidak didukung di browser ini'));
       return new Promise(function (res, rej) {
         try {
-          stt = new SR();
-          stt.lang = 'id-ID';
-          stt.interimResults = false;
-          stt.maxAlternatives = 1;
+          var singleStt = new SR();
+          singleStt.lang = 'id-ID';
+          singleStt.interimResults = false;
+          singleStt.maxAlternatives = 1;
           var got = '';
-          stt.onresult = function (e) { got = e.results[0][0].transcript; };
-          stt.onerror = function (e) { rej(new Error(e.error || 'Gagal mengenali suara')); };
-          stt.onend = function () { res(got.trim()); };
-          stt.start();
+          singleStt.onresult = function (e) { got = e.results[0][0].transcript; };
+          singleStt.onerror = function (e) { rej(new Error(e.error || 'Gagal mengenali suara')); };
+          singleStt.onend = function () { res(got.trim()); };
+          singleStt.start();
         } catch (e) { rej(e); }
       });
     },
 
-    stopListening: function () { if (stt) { try { stt.stop(); } catch (e) {} } },
+    stopListening: function () { stopSTT(); },
 
     /* -------- Playback -------- */
     playURL: null,

@@ -995,7 +995,8 @@
     el.txAccounts.innerHTML =
       '<button type="button" class="tx-acc" data-kalkmode="servis">📱 Servis HP</button>' +
       '<button type="button" class="tx-acc" data-kalkmode="ronce">📿 Ronce</button>' +
-      '<button type="button" class="tx-acc" data-kalkmode="riasan">💄 Riasan</button>';
+      '<button type="button" class="tx-acc" data-kalkmode="riasan">💄 Riasan</button>' +
+      '<button type="button" class="tx-acc tx-acc-servis-btn" id="btnInputServisHp" data-txaction="input-servis" title="Input Servis HP">📝 Input Servis HP</button>';
   }
 
   function isDirect() {
@@ -1663,8 +1664,19 @@
       });
     }
 
-    /* --- Tombol Shortcut Kalkulator (Servis HP, Ronce, Riasan) di halaman input --- */
+    /* --- Tombol Shortcut Kalkulator & Input Servis HP di halaman input --- */
     el.txAccounts.addEventListener('click', function (e) {
+      var act = e.target.closest('[data-txaction]');
+      if (act && act.dataset.txaction === 'input-servis') {
+        closeTxPage();
+        if (w.MascimUI && w.MascimUI.open) {
+          w.MascimUI.open('form');
+        } else if (w.App && w.App.go) {
+          w.App.go('mascim');
+        }
+        TG.haptic('select');
+        return;
+      }
       var b = e.target.closest('[data-kalkmode]');
       if (!b) return;
       var mode = b.dataset.kalkmode;

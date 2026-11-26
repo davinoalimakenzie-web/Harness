@@ -1,5 +1,5 @@
 /* =========================================================
-   notes.js — Catatan pengingat (teks + voice note)
+   notes.js — Catatan pengingat (teks + voice note) dengan Skala Prioritas
    ========================================================= */
 (function (w) {
   'use strict';
@@ -9,15 +9,24 @@
 
   var el = {};
   var filter = 'all';
-  var pendingAudio = null;   // {blob, dur, url}
-  var fired = {};            // id => sudah dikasih notif
+  var currentPriority = 'mid'; // 'high' | 'mid' | 'slow'
+  var pendingAudio = null;     // {blob, dur, url}
+  var fired = {};              // id => sudah dikasih notif
   var inSheet = null;
-  var notesPool = [];        // pool sementara tambah catatan & pengingat
+  var notesPool = [];          // pool sementara tambah catatan & pengingat
+  var editing = null;
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
+  }
+
+  function fmt(sec) {
+    sec = Math.max(0, Math.floor(sec));
+    var m = String(Math.floor(sec / 60)).padStart(2, '0');
+    var s = String(sec % 60).padStart(2, '0');
+    return m + ':' + s;
   }
 
   function fmtDate(ts) {
@@ -41,25 +50,36 @@
     return { due: due, fireAt: fireAt };
   }
 
+  function setPriority(prio) {
+    currentPriority = prio || 'mid';
+    var chips = document.querySelectorAll('.priority-chip');
+    chips.forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.prio === currentPriority);
+    });
+  }
+
   /* ---------------- Audio helpers ---------------- */
   function setPending(blob, dur) {
     if (pendingAudio && pendingAudio.url) URL.revokeObjectURL(pendingAudio.url);
     pendingAudio = { blob: blob, dur: dur, url: URL.createObjectURL(blob) };
-    el.preview.classList.remove('hidden');
-    el.prevLabel.textContent = 'Rekaman ' + fmt(dur);
+    if (el.preview) el.preview.classList.remove('hidden');
+    if (el.prevLabel) el.prevLabel.textContent = 'Rekaman ' + fmt(dur);
   }
   function clearPending() {
     if (pendingAudio && pendingAudio.url) URL.revokeObjectURL(pendingAudio.url);
     pendingAudio = null;
-    el.preview.classList.add('hidden');
-    el.icoPlay.classList.remove('hidden');
-    el.icoPause.classList.add('hidden');
+    if (el.preview) el.preview.classList.add('hidden');
+    if (el.icoPlay) el.icoPlay.classList.remove('hidden');
+    if (el.icoPause) el.icoPause.classList.add('hidden');
   }
 
   /* ---------------- Render ---------------- */
   function matches(n) {
     if (filter === 'done') return n.done;
     if (filter === 'pending') return !n.done;
+    if (filter === 'prio-high') return (n.priority || 'mid') === 'high';
+    if (filter === 'prio-mid') return (n.priority || 'mid') === 'mid';
+    if (filter === 'prio-slow') return (n.priority || 'mid') === 'slow';
     if (filter === 'today') {
       if (n.done) return false;
       if (n.remindAt) {
@@ -86,6 +106,12 @@
     var list = S.Notes.all().filter(matches);
     list.sort(function (a, b) {
       if (!!a.done !== !!b.done) return a.done ? 1 : -1;
+      // Urutkan prioritas: High (3), Mid (2), Slow (1)
+      var prioWeight = { high: 3, mid: 2, slow: 1 };
+      var pa = prioWeight[a.priority || 'mid'] || 2;
+      var pb = prioWeight[b.priority || 'mid'] || 2;
+      if (pa !== pb) return pb - pa;
+
       if (a.remindAt && b.remindAt) return new Date(a.remindAt) - new Date(b.remindAt);
       if (a.remindAt) return -1;
       if (b.remindAt) return 1;
@@ -95,9 +121,11 @@
     var dueNow = countDue();
     updateBadge(dueNow);
 
+    if (!el.list) return;
+
     if (!list.length) {
       el.list.innerHTML = '<div class="empty"><b>Belum ada catatan</b>' +
-        'Catat cepat di atas, atau tekan <b>Rekam</b> untuk making voice note pengingat.</div>';
+        'Ketik catatan di atas, pilih prioritas (High, Mid, Slow), atau tekan <b>Rekam</b> untuk voice note.</div>';
       return;
     }
 
@@ -105,8 +133,19 @@
       var d = relDue(n);
       var overdue = d && !n.done && d.fireAt <= new Date();
       var soon = d && !n.done && d.fireAt > new Date() && d.fireAt - new Date() < 3600000;
-      var cls = 'item' + (n.done ? ' done' : '') + (overdue ? ' due' : '');
+      var prio = n.priority || 'mid';
+      var cls = 'item item-prio-' + prio + (n.done ? ' done' : '') + (overdue ? ' due' : '');
       var sub = [];
+
+      // Badge Skala Prioritas
+      if (prio === 'high') {
+        sub.push('<span class="tag tag-prio-high">🔴 High</span>');
+      } else if (prio === 'slow') {
+        sub.push('<span class="tag tag-prio-slow">🔵 Slow</span>');
+      } else {
+        sub.push('<span class="tag tag-prio-mid">🟡 Mid</span>');
+      }
+
       var remAt = n.remindAt || n.remindAtSaved;
       if (remAt) {
         var rep = { none: '', daily: ' · harian', weekly: ' · mingguan', biweekly: ' · 2 mingguan',
@@ -146,9 +185,15 @@
   }
 
   function updateBadge(n) {
-    if (!el.badge) return;
-    el.badge.textContent = n;
-    el.badge.classList.toggle('hidden', n <= 0);
+    if (el.badge) {
+      el.badge.textContent = n;
+      el.badge.classList.toggle('hidden', n <= 0);
+    }
+    var wfBadge = $('#wfNotesBadge');
+    if (wfBadge) {
+      wfBadge.textContent = n;
+      wfBadge.classList.toggle('hidden', n <= 0);
+    }
   }
 
   /* ---------------- Pool Sementara Catatan & Pengingat ---------------- */
@@ -188,6 +233,11 @@
 
     el.poolList.innerHTML = notesPool.map(function (item, idx) {
       var tags = [];
+      var p = item.priority || 'mid';
+      if (p === 'high') tags.push('🔴 High');
+      else if (p === 'slow') tags.push('🔵 Slow');
+      else tags.push('🟡 Mid');
+
       if (item.audio) {
         tags.push('🎙 Voice Note');
       }
@@ -207,17 +257,18 @@
 
   function addNoteToPool() {
     if (editing) {
-      App.toast('Selesaikan ubah catatan terlebih dahulu');
+      w.App.toast('Selesaikan ubah catatan terlebih dahulu');
       return;
     }
     var text = el.text.value.trim();
     if (!text && !pendingAudio) {
       TG.haptic('warning');
-      App.toast('Tulis catatan atau rekam suara dulu ya');
+      w.App.toast('Tulis catatan atau rekam suara dulu ya');
       return;
     }
     var item = {
       text: text,
+      priority: currentPriority || 'mid',
       remindAt: collectReminder(),
       repeat: el.rmRepeat.value,
       leadMin: Number(el.rmLead.value) || 0,
@@ -227,15 +278,15 @@
 
     // Reset input komposer tanpa mematikan URL audio yang disimpan di pool
     pendingAudio = null;
-    el.preview.classList.add('hidden');
-    el.icoPlay.classList.remove('hidden');
-    el.icoPause.classList.add('hidden');
+    if (el.preview) el.preview.classList.add('hidden');
+    if (el.icoPlay) el.icoPlay.classList.remove('hidden');
+    if (el.icoPause) el.icoPause.classList.add('hidden');
     el.text.value = '';
     el.remindBox.classList.add('hidden');
     el.remindLabel.textContent = 'Ingatkan';
     renderNotesPool();
     TG.haptic('select');
-    App.toast('Catatan ditambahkan ke pool');
+    w.App.toast('Catatan ditambahkan ke pool');
   }
 
   function removeNoteFromPool(idx) {
@@ -260,7 +311,7 @@
     notesPool = [];
     renderNotesPool();
     TG.haptic('select');
-    App.toast('Pool catatan dikosongkan');
+    w.App.toast('Pool catatan dikosongkan');
   }
 
   /* ---------------- Save / edit ---------------- */
@@ -276,6 +327,7 @@
       if (curText || pendingAudio) {
         notesPool.push({
           text: curText,
+          priority: currentPriority || 'mid',
           remindAt: collectReminder(),
           repeat: el.rmRepeat.value,
           leadMin: Number(el.rmLead.value) || 0,
@@ -288,6 +340,7 @@
       notesPool.forEach(function (item) {
         var payload = {
           text: item.text,
+          priority: item.priority || 'mid',
           remindAt: item.remindAt,
           repeat: item.repeat,
           leadMin: item.leadMin
@@ -314,7 +367,7 @@
       renderNotesPool();
       render();
       TG.haptic('success');
-      App.toast(count + ' catatan berhasil disimpan!');
+      w.App.toast(count + ' catatan berhasil disimpan!');
       if (w.Sync && typeof w.Sync.push === 'function') {
         try { w.Sync.push(); } catch (e) {}
       }
@@ -325,17 +378,17 @@
     var text = el.text.value.trim();
     if (!text && !pendingAudio) {
       TG.haptic('warning');
-      App.toast('Tulis catatan atau rekam dulu ya');
+      w.App.toast('Tulis catatan atau rekam dulu ya');
       return;
     }
     var payload = {
       text: text,
+      priority: currentPriority || 'mid',
       remindAt: collectReminder(),
       repeat: el.rmRepeat.value,
       leadMin: Number(el.rmLead.value) || 0
     };
 
-    // Buat id rekaman sekali, lalu pakai di kedua jalur (tambah / ubah)
     if (pendingAudio && !pendingAudio.id) pendingAudio.id = S.uid();
 
     var noteId = editing;
@@ -354,7 +407,6 @@
         audioId: aid,
         audioMeta: { dur: pendingAudio.dur, size: pendingAudio.blob.size }
       });
-      // Kirim penanda ke bot supaya bisa follow-up (fallback jika user tidak buka app)
       if (TG.isTelegram) TG.sendData('catatan:' + noteId);
       clearPending();
     }
@@ -362,7 +414,7 @@
     resetForm();
     render();
     TG.haptic('success');
-    App.toast(editing ? 'Catatan diubah' : 'Catatan tersimpan');
+    w.App.toast(editing ? 'Catatan diubah' : 'Catatan tersimpan');
     if (w.Sync && typeof w.Sync.push === 'function') {
       try { w.Sync.push(); } catch (e) {}
     }
@@ -371,6 +423,7 @@
   function resetForm() {
     editing = null;
     el.text.value = '';
+    setPriority('mid');
     el.remindBox.classList.add('hidden');
     el.remindLabel.textContent = 'Ingatkan';
     if (el.btnAddPool) el.btnAddPool.classList.remove('hidden');
@@ -378,14 +431,13 @@
     clearPending();
   }
 
-  var editing = null;
-
   function startEdit(id) {
     var n = S.Notes.all().filter(function (x) { return x.id === id; })[0];
     if (!n) return;
     editing = id;
     if (el.btnAddPool) el.btnAddPool.classList.add('hidden');
     el.text.value = n.text || '';
+    setPriority(n.priority || 'mid');
     if (n.remindAt) {
       el.remindBox.classList.remove('hidden');
       el.remindLabel.textContent = 'Ingatkan ✓';
@@ -421,10 +473,10 @@
       if (hits.length === 1) {
         var n = hits[0];
         var body = n.text || (n.audioId ? 'Voice note tersimpan' : 'Catatan pengingat');
-        App.alertSound();
+        w.App.alertSound();
         TG.alert('⏰ Pengingat\n\n' + body + '\n\nWaktu: ' + fmtDate(n.remindAt));
       } else {
-        App.alertSound();
+        w.App.alertSound();
         TG.alert('⏰ ' + hits.length + ' pengingat jatuh tempo. Buka Catatan untuk melihat.');
       }
       render();
@@ -437,7 +489,7 @@
     if (!n || !n.audioId) return;
     if (Voice.playURL === 'note:' + id) { Voice.stopPlay(); btn.textContent = '▶ Putar'; return; }
     AudioDB.get(n.audioId).then(function (blob) {
-      if (!blob) { App.toast('Rekaman tidak ditemukan'); return; }
+      if (!blob) { w.App.toast('Rekaman tidak ditemukan'); return; }
       var url = URL.createObjectURL(blob);
       Voice.play(url, function () {
         btn.textContent = '▶ Putar';
@@ -445,7 +497,7 @@
       });
       Voice.playURL = 'note:' + id;
       btn.textContent = '⏸ Berhenti';
-    }).catch(function () { App.toast('Gagal memuat rekaman'); });
+    }).catch(function () { w.App.toast('Gagal memuat rekaman'); });
   }
 
   /* ---------------- Init ---------------- */
@@ -480,6 +532,17 @@
     el.filter = $('#noteFilter');
     el.badge = $('#badgeNotes');
 
+    // Prioritas selector binding
+    var prioBar = $('#notePriorityBar');
+    if (prioBar) {
+      prioBar.addEventListener('click', function (e) {
+        var chip = e.target.closest('.priority-chip');
+        if (!chip) return;
+        setPriority(chip.dataset.prio);
+        TG.haptic('select');
+      });
+    }
+
     // Pool Sementara Catatan
     el.btnAddPool = $('#btnAddNotePool');
     el.poolCard = $('#notePoolCard');
@@ -488,7 +551,7 @@
     el.btnClearPool = $('#btnNoteClearPool');
     el.btnSaveAllPool = $('#btnNoteSaveAllPool');
 
-    el.btnSave.addEventListener('click', function () { save(); });
+    if (el.btnSave) el.btnSave.addEventListener('click', function () { save(); });
     if (el.btnAddPool) {
       el.btnAddPool.addEventListener('click', function () { addNoteToPool(); });
     }
@@ -505,128 +568,158 @@
       });
     }
 
-    el.text.addEventListener('input', function () {
-      if (!editing && notesPool.length > 0) {
-        renderSaveBtn();
-      }
-    });
-
-    // Mikrofon
-    if (!Voice.supported) {
-      el.btnMic.classList.add('hidden');
-    } else {
-      el.btnMic.addEventListener('click', function () {
-        if (Voice.recording) { Voice.stop(); return; }
-        el.recBar.classList.remove('hidden');
-        el.micLabel.textContent = 'Berhenti';
-        el.btnMic.classList.add('rec');
-        TG.haptic('medium');
-        Voice.onDone(function (blob, dur) {
-          el.recBar.classList.add('hidden');
-          el.micLabel.textContent = 'Rekam';
-          el.btnMic.classList.remove('rec');
-          setPending(blob, dur);
-          TG.haptic('success');
-        });
-        Voice.start(el.recWave, el.recTime).catch(function (err) {
-          el.recBar.classList.add('hidden');
-          el.micLabel.textContent = 'Rekam';
-          el.btnMic.classList.remove('rec');
-          TG.haptic('error');
-          TG.alert('Tidak bisa akses mikrofon.\n\n' + (err.message || '') +
-            '\n\nPastikan izin mikrofon diizinkan dan aplikasi dibuka di HTTPS.');
-        });
-      });
-      el.btnRecStop.addEventListener('click', function () { Voice.stop(); });
-      el.btnRecCancel.addEventListener('click', function () {
-        Voice.cancel();
-        el.recBar.classList.add('hidden');
-        el.micLabel.textContent = 'Rekam';
-        el.btnMic.classList.remove('rec');
+    if (el.text) {
+      el.text.addEventListener('input', function () {
+        if (!editing && notesPool.length > 0) {
+          renderSaveBtn();
+        }
       });
     }
 
-    // Preview rekaman
-    el.btnPlayPreview.addEventListener('click', function () {
-      if (!pendingAudio) return;
-      if (Voice.playURL === pendingAudio.url) {
-        Voice.stopPlay();
-        el.icoPlay.classList.remove('hidden');
-        el.icoPause.classList.add('hidden');
-        return;
+    // Mikrofon & Speech-to-text
+    if (el.btnMic) {
+      if (!Voice.supported) {
+        el.btnMic.classList.add('hidden');
+      } else {
+        el.btnMic.addEventListener('click', function () {
+          if (Voice.recording) { Voice.stop(); return; }
+          el.recBar.classList.remove('hidden');
+          el.micLabel.textContent = 'Berhenti';
+          el.btnMic.classList.add('rec');
+          TG.haptic('medium');
+
+          Voice.onDone(function (blob, dur) {
+            el.recBar.classList.add('hidden');
+            el.micLabel.textContent = 'Rekam';
+            el.btnMic.classList.remove('rec');
+            setPending(blob, dur);
+            TG.haptic('success');
+          });
+
+          var initialText = el.text.value;
+          Voice.start(el.recWave, el.recTime, null, function (liveTranscript) {
+            if (liveTranscript) {
+              el.text.value = initialText ? (initialText + ' ' + liveTranscript) : liveTranscript;
+              if (!editing && notesPool.length > 0) renderSaveBtn();
+            }
+          }).catch(function (err) {
+            el.recBar.classList.add('hidden');
+            el.micLabel.textContent = 'Rekam';
+            el.btnMic.classList.remove('rec');
+            TG.haptic('error');
+            TG.alert('Tidak bisa akses mikrofon.\n\n' + (err.message || '') +
+              '\n\nPastikan izin mikrofon diaktifkan di setelan aplikasi/browser.');
+          });
+        });
+
+        if (el.btnRecStop) el.btnRecStop.addEventListener('click', function () { Voice.stop(); });
+        if (el.btnRecCancel) {
+          el.btnRecCancel.addEventListener('click', function () {
+            Voice.cancel();
+            el.recBar.classList.add('hidden');
+            el.micLabel.textContent = 'Rekam';
+            el.btnMic.classList.remove('rec');
+          });
+        }
       }
-      Voice.play(pendingAudio.url, function () {
-        el.icoPlay.classList.remove('hidden');
-        el.icoPause.classList.add('hidden');
+    }
+
+    // Preview rekaman
+    if (el.btnPlayPreview) {
+      el.btnPlayPreview.addEventListener('click', function () {
+        if (!pendingAudio) return;
+        if (Voice.playURL === pendingAudio.url) {
+          Voice.stopPlay();
+          el.icoPlay.classList.remove('hidden');
+          el.icoPause.classList.add('hidden');
+          return;
+        }
+        Voice.play(pendingAudio.url, function () {
+          el.icoPlay.classList.remove('hidden');
+          el.icoPause.classList.add('hidden');
+        });
+        el.icoPlay.classList.add('hidden');
+        el.icoPause.classList.remove('hidden');
       });
-      el.icoPlay.classList.add('hidden');
-      el.icoPause.classList.remove('hidden');
-    });
-    el.btnDropAudio.addEventListener('click', function () {
-      clearPending();
-      TG.haptic('select');
-    });
+    }
+
+    if (el.btnDropAudio) {
+      el.btnDropAudio.addEventListener('click', function () {
+        clearPending();
+        TG.haptic('select');
+      });
+    }
 
     // Pengingat
-    el.btnRemind.addEventListener('click', function () {
-      var on = el.remindBox.classList.contains('hidden');
-      el.remindBox.classList.toggle('hidden', !on);
-      el.remindLabel.textContent = on ? 'Ingatkan ✓' : 'Ingatkan';
-      if (on && !el.rmDate.value) {
-        var d = new Date(Date.now() + 3600000);
-        el.rmDate.value = S.todayStr(d);
-        el.rmTime.value = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-      }
-      TG.haptic('select');
-    });
+    if (el.btnRemind) {
+      el.btnRemind.addEventListener('click', function () {
+        var on = el.remindBox.classList.contains('hidden');
+        el.remindBox.classList.toggle('hidden', !on);
+        el.remindLabel.textContent = on ? 'Ingatkan ✓' : 'Ingatkan';
+        if (on && !el.rmDate.value) {
+          var d = new Date(Date.now() + 3600000);
+          el.rmDate.value = S.todayStr(d);
+          el.rmTime.value = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+        }
+        TG.haptic('select');
+      });
+    }
 
     // Filter
-    el.filter.addEventListener('click', function (e) {
-      var b = e.target.closest('.seg-btn');
-      if (!b) return;
-      filter = b.dataset.f;
-      [].forEach.call(this.querySelectorAll('.seg-btn'), function (x) { x.classList.remove('active'); });
-      b.classList.add('active');
-      render();
-    });
+    if (el.filter) {
+      el.filter.addEventListener('click', function (e) {
+        var b = e.target.closest('.seg-btn');
+        if (!b) return;
+        filter = b.dataset.f;
+        [].forEach.call(this.querySelectorAll('.seg-btn'), function (x) { x.classList.remove('active'); });
+        b.classList.add('active');
+        render();
+        TG.haptic('select');
+      });
+    }
 
     // Aksi item (delegasi)
-    el.list.addEventListener('click', function (e) {
-      var t = e.target.closest('[data-toggle],[data-del],[data-edit],[data-play]');
-      if (!t) return;
-      if (t.dataset.toggle) {
-        var n = S.Notes.toggle(t.dataset.toggle);
-        TG.haptic(n && n.done ? 'success' : 'select');
-        render();
-      } else if (t.dataset.del) {
-        var id = t.dataset.del;
-        TG.confirm('Hapus catatan ini?', function (ok) {
-          if (!ok) return;
-          S.Notes.remove(id);
-          if (editing === id) cancelEdit();
+    if (el.list) {
+      el.list.addEventListener('click', function (e) {
+        var t = e.target.closest('[data-toggle],[data-del],[data-edit],[data-play]');
+        if (!t) return;
+        if (t.dataset.toggle) {
+          var n = S.Notes.toggle(t.dataset.toggle);
+          TG.haptic(n && n.done ? 'success' : 'select');
           render();
-          TG.haptic('success');
-          App.toast('Catatan dihapus');
-        });
-      } else if (t.dataset.edit) {
-        startEdit(t.dataset.edit);
-      } else if (t.dataset.play) {
-        playById(t.dataset.play, t);
-      }
-    });
+        } else if (t.dataset.del) {
+          var id = t.dataset.del;
+          TG.confirm('Hapus catatan ini?', function (ok) {
+            if (!ok) return;
+            S.Notes.remove(id);
+            if (editing === id) cancelEdit();
+            render();
+            TG.haptic('success');
+            w.App.toast('Catatan dihapus');
+          });
+        } else if (t.dataset.edit) {
+          startEdit(t.dataset.edit);
+        } else if (t.dataset.play) {
+          playById(t.dataset.play, t);
+        }
+      });
+    }
 
     // Enter ctrl+enter untuk simpan
-    el.text.addEventListener('keydown', function (e) {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') save();
-    });
+    if (el.text) {
+      el.text.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') save();
+      });
+    }
 
-    el.rmDate.min = S.todayStr();
+    if (el.rmDate) el.rmDate.min = S.todayStr();
+    setPriority('mid');
     render();
-    // Jaga agar error di dalam timer tidak mematikan WebView Telegram.
+
     function cekAman() { try { checkReminders(); } catch (e) { console.error('notes: pengingat gagal', e); } }
     setInterval(cekAman, 30000);
     setTimeout(cekAman, 1500);
   }
 
-  w.NotesUI = { init: init, render: render, reset: cancelEdit, check: checkReminders };
+  w.NotesUI = { init: init, render: render, reset: cancelEdit, check: checkReminders, setPriority: setPriority };
 })(window);

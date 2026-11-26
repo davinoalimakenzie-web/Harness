@@ -1338,6 +1338,12 @@ button.item .item-sub{ margin-top:3px; }
   font-size:12.5px; font-weight:600; color:var(--text-2); cursor:pointer;
 }
 .tx-acc.on{ background:var(--accent); border-color:var(--accent); color:var(--accent-text); }
+.tx-acc-servis-btn{
+  background:rgba(2, 132, 199, 0.12) !important;
+  border-color:rgba(2, 132, 199, 0.35) !important;
+  color:var(--accent) !important;
+  font-weight:700 !important;
+}
 .tx-date-wrap{
   position:relative; display:inline-flex; align-items:center; flex:0 0 auto;
 }
@@ -1346,6 +1352,9 @@ button.item .item-sub{ margin-top:3px; }
   flex:0 0 auto; width:38px; height:38px; padding:0; background:var(--bg-elev);
   border:1px solid var(--line); border-radius:11px; cursor:pointer;
   transition:all .15s ease;
+}
+.tx-date-btn-row{
+  position:relative; display:inline-flex; align-items:center; justify-content:center;
 }
 .tx-date:active{ transform:scale(.94); }
 .tx-date-icon{ color:var(--accent); flex-shrink:0; }
@@ -5036,6 +5045,442 @@ body.mc-bb-rotated-css #mc {
   text-align:center !important; font-size:24px !important; letter-spacing:10px !important;
   font-weight:700 !important; padding:10px 0 !important; border-radius:12px !important;
   font-family:monospace !important;
+}
+
+/* =========================================================
+   MODUL WORKFLOW: ABSENSI & PAYROLL GAJI + CATATAN PRIORITAS
+   ========================================================= */
+.wf-tabs-bar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--line);
+}
+.wf-tab-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.wf-tab-btn.active {
+  background: #0284c7;
+  border-color: #0284c7;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.28);
+}
+.wf-tab-badge {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.wf-pane {
+  display: none;
+}
+.wf-pane.active {
+  display: block;
+}
+
+/* Absensi & Payroll Header Card */
+.wf-header-card {
+  margin: 12px 14px 10px;
+  padding: 12px 14px;
+}
+.wf-header-row {
+  display: flex;
+  gap: 10px;
+}
+.wf-hdr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wf-input-month, .wf-input-text {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg-2, var(--tap));
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-height: 38px;
+}
+
+/* Grid Metrik Kehadiran */
+.wf-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 0 14px 12px;
+}
+.wf-stat-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 4px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.wf-stat-val {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.wf-stat-lbl {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.wf-stat-ontime .wf-stat-val { color: #0284c7; }
+.wf-stat-late .wf-stat-val { color: #f59e0b; }
+.wf-stat-time .wf-stat-val { color: #8b5cf6; }
+.wf-stat-off .wf-stat-val { color: var(--danger); }
+
+/* Kartu Slip Kompensasi & Payroll */
+.wf-slip-card {
+  margin: 0 14px 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.wf-slip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.wf-slip-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+.wf-slip-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.wf-copy-slip-btn {
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+.wf-slip-line {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line);
+  gap: 10px;
+}
+.wf-slip-line:last-of-type {
+  border-bottom: none;
+}
+.wf-slip-line-left {
+  flex: 1;
+}
+.wf-slip-val {
+  font-size: 14.5px;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+.wf-slip-note {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.wf-inline-input-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.wf-mini-input {
+  width: 70px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg-2, var(--tap));
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.wf-mini-input.wide {
+  width: 105px;
+}
+.wf-mini-select {
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg-2, var(--tap));
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+.wf-sync-unit-btn {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(2, 132, 199, 0.12);
+  color: #0284c7;
+  border: 1px solid rgba(2, 132, 199, 0.3);
+  font-weight: 600;
+  cursor: pointer;
+}
+.wf-slip-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 10px 0;
+}
+.wf-slip-total-wrap {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.12), rgba(16, 185, 129, 0.12));
+  border: 1px solid rgba(2, 132, 199, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.wf-slip-total-lbl {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+.wf-slip-total-val {
+  font-size: 19px;
+  font-weight: 800;
+  color: #0284c7;
+}
+
+/* Tabel Absensi Harian */
+.wf-table-card {
+  margin: 0 14px 24px;
+  padding: 12px;
+}
+.wf-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.wf-quick-actions {
+  display: flex;
+  gap: 5px;
+}
+.wf-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.wf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.wf-table th {
+  padding: 8px 6px;
+  background: var(--bg-2, var(--tap));
+  border-bottom: 1px solid var(--line);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-2);
+  text-align: left;
+}
+.wf-att-row td {
+  padding: 7px 6px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.wf-row-masuk {
+  background: rgba(2, 132, 199, 0.04);
+}
+.wf-row-terlambat {
+  background: rgba(245, 158, 11, 0.07);
+}
+.wf-row-libur {
+  background: rgba(239, 68, 68, 0.05);
+}
+.wf-col-date {
+  white-space: nowrap;
+  font-weight: 600;
+}
+.wf-date-num {
+  display: inline-block;
+  width: 18px;
+  font-weight: 700;
+}
+.wf-date-day {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+.wf-date-day.wf-sunday {
+  color: var(--danger);
+  font-weight: 700;
+}
+.wf-status-select-wrap {
+  display: inline-flex;
+  gap: 3px;
+}
+.wf-st-btn {
+  padding: 4px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all .1s ease;
+}
+.wf-st-btn.wf-btn-masuk.active {
+  background: #0284c7;
+  border-color: #0284c7;
+  color: #fff;
+}
+.wf-st-btn.wf-btn-late.active {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #000;
+}
+.wf-st-btn.wf-btn-off.active {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+.wf-time-input {
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 5px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  color: var(--text);
+  width: 68px;
+}
+.wf-time-input.disabled {
+  opacity: .35;
+  pointer-events: none;
+}
+.wf-late-info {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #d97706;
+}
+
+/* Skala Prioritas Catatan & Pengingat */
+.note-priority-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.note-prio-lbl {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.note-prio-chips {
+  display: flex;
+  gap: 6px;
+}
+.priority-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.priority-chip.active {
+  color: #fff;
+}
+.priority-chip.prio-high.active {
+  background: #ef4444;
+  border-color: #ef4444;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+}
+.priority-chip.prio-mid.active {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #000;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
+}
+.priority-chip.prio-slow.active {
+  background: #0284c7;
+  border-color: #0284c7;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
+}
+.tag-prio-high {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #ef4444 !important;
+  font-weight: 700;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+.tag-prio-mid {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #d97706 !important;
+  font-weight: 700;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+.tag-prio-slow {
+  background: rgba(2, 132, 199, 0.15) !important;
+  color: #0284c7 !important;
+  font-weight: 700;
+  border: 1px solid rgba(2, 132, 199, 0.35);
+}
+.item.item-prio-high {
+  border-left: 3px solid #ef4444 !important;
+}
+.item.item-prio-mid {
+  border-left: 3px solid #f59e0b !important;
+}
+.item.item-prio-slow {
+  border-left: 3px solid #0284c7 !important;
+}
+.seg.seg-scroll {
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+.seg.seg-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 
