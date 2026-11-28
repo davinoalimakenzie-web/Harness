@@ -264,6 +264,76 @@
 
   var cache = null;
 
+  /*
+     Nama-nama nota uji coba lama yang harus dibersihkan permanen.
+     Pembersihan hanya berjalan SEKALI (ditandai settings.legacyPurgedAt),
+     sehingga nota riil pengguna dengan nama yang sama di kemudian hari
+     tidak akan pernah ikut terhapus.
+  */
+  var LEGACY_TEST_NAMES = ['andi wijaya', 'siti aminah'];
+
+  function purgeLegacyOrders() {
+    var changed = false;
+    if (!cache.settings) cache.settings = {};
+    if (cache.settings.legacyPurgedAt) return false;
+
+    var isLegacy = function (name) {
+      return LEGACY_TEST_NAMES.indexOf(String(name || '').trim().toLowerCase()) >= 0;
+    };
+
+    var idSet = {};
+    (cache.orders || []).forEach(function (o) {
+      if (o && isLegacy(o.customerName)) idSet[o.id] = true;
+    });
+    (cache.deletedOrders || []).forEach(function (o) {
+      if (o && isLegacy(o.customerName)) idSet[o.id] = true;
+    });
+
+    var ids = Object.keys(idSet);
+    if (ids.length) {
+      // Cabut transaksi jasa terkait di Cashflow Alima
+      try {
+        if (w.Store && w.Store.Tx && typeof w.Store.Tx.all === 'function') {
+          w.Store.Tx.all().slice().forEach(function (t) {
+            if (!t || !t.idem_key) return;
+            var oid = String(t.idem_key).replace('mascim-jasa:', '');
+            if (idSet[oid] && typeof w.Store.Tx.remove === 'function') {
+              try { w.Store.Tx.remove(t.id); } catch (eTx) {}
+            }
+          });
+        }
+      } catch (eTxAll) {}
+
+      // Cabut mutasi Dana Bank terkait
+      try {
+        if (w.NavaBank && typeof w.NavaBank.remove === 'function') {
+          (cache.bank || []).slice().forEach(function (b) {
+            if (b && idSet[b.orderId]) {
+              try { w.NavaBank.remove(b.id); } catch (eBank) {}
+            }
+          });
+        }
+      } catch (eBankAll) {}
+
+      cache.orders = (cache.orders || []).filter(function (o) { return !idSet[o.id]; });
+      cache.deletedOrders = (cache.deletedOrders || []).filter(function (o) { return !idSet[o.id]; });
+      cache.parts = (cache.parts || []).filter(function (p) { return !idSet[p.orderId]; });
+      cache.payments = (cache.payments || []).filter(function (p) { return !idSet[p.orderId]; });
+      cache.bank = (cache.bank || []).filter(function (b) { return !idSet[b.orderId]; });
+      cache.cashflow = (cache.cashflow || []).filter(function (c) { return !idSet[c.orderId]; });
+      cache.deletedOrderIds = (cache.deletedOrderIds || []).filter(function (id) { return !idSet[id]; });
+
+      try {
+        if (w.TxUI && typeof w.TxUI.render === 'function') w.TxUI.render();
+      } catch (eR) {}
+
+      changed = true;
+    }
+
+    cache.settings.legacyPurgedAt = nowIso();
+    return true;
+  }
+
   function load() {
     if (cache) return cache;
     try {
@@ -281,10 +351,11 @@
     if (!Array.isArray(cache.bank)) cache.bank = [];
     if (!cache.settings) cache.settings = { bankFundInitial: 0, noteCounter: 0 };
 
+    var mP = purgeLegacyOrders();
     var m0 = recoverLostOrders();
     var m1 = migrate();
     var m2 = sanitizeDangling();
-    if (m0 || m1 || m2) save();
+    if (mP || m0 || m1 || m2) save();
     return cache;
   }
 
@@ -337,8 +408,14 @@
       }
     } catch (eTxDummy) {}
 
-    // Pulihkan NOTA ASLI: Mas ahmad Rp 300.000 (so-mwqa4sl6-3210dr, No. Nota #0001)
+    /*
+       Pulihkan NOTA ASLI: Mas ahmad Rp 300.000 (so-mwqa4sl6-3210dr, No. Nota #0001).
+       Hanya dijalankan SEKALI. Setelah pengguna menghapus nota ini secara sengaja,
+       nota tidak akan pernah muncul kembali (mencegah "input lama masuk lagi").
+    */
     var realAhmadId = 'so-mwqa4sl6-3210dr';
+    if (!cache.settings) cache.settings = {};
+    if (!cache.settings.realAhmadRecovered) {
     if (cache.deletedOrderIds.indexOf(realAhmadId) >= 0) {
       cache.deletedOrderIds = cache.deletedOrderIds.filter(function (x) { return x !== realAhmadId; });
       changed = true;
@@ -475,12 +552,18 @@
       }
     });
 
+      cache.settings.realAhmadRecovered = true;
+      changed = true;
+    }
+
     // Otomatis sinkronkan mutasi bank ke NavaBank dan jasa ke Cashflow Alima & Kas Wajib
     try {
       syncExistingBankEntriesToNava();
     } catch (eB) {}
     try {
-      syncJasaToNava(realAhmadId);
+      if (cache.orders.some(function (o) { return o.id === realAhmadId; })) {
+        syncJasaToNava(realAhmadId);
+      }
     } catch (eJ) {}
 
     return changed;
@@ -495,6 +578,7 @@
       if (!Array.isArray(cache.cashflow)) cache.cashflow = [];
       if (!Array.isArray(cache.bank)) cache.bank = [];
       if (!cache.settings) cache.settings = { bankFundInitial: 0, noteCounter: 0 };
+      purgeLegacyOrders();
       recoverLostOrders();
       sanitizeDangling();
       save();
@@ -3002,7 +3086,15 @@
       w.setTimeout(function () {
         syncExistingBankEntriesToNava();
         migrateNonUuidTokens();
-        try { syncJasaToNava('so-mwqa4sl6-3210dr'); } catch (eJ) {}
+        // Sinkron jasa nota #0001 HANYA jika nota masih ada dan pemulihan
+        // sekali-jalan sudah terjadi (mencegah "input lama masuk lagi").
+        try {
+          var db = load();
+          if (db.settings && db.settings.realAhmadRecovered &&
+              db.orders.some(function (o) { return o && o.id === 'so-mwqa4sl6-3210dr'; })) {
+            syncJasaToNava('so-mwqa4sl6-3210dr');
+          }
+        } catch (eJ) {}
       }, 300);
     }
   } catch (eSync) {}

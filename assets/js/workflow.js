@@ -140,11 +140,12 @@
     // 2. Bonus Maps: Rp 1.000 / maps
     var bonusMaps = Math.max(0, parseInt(payrollData.bonusMapsCount, 10) || 0) * 1000;
 
-    // 3. Bonus Unit / Done Diambil (Jika >= 350 unit -> x Rp 2.000 / unit)
+    // 3. Bonus Unit / Done Diambil (basis Rp 1.000/unit, >= 350 unit -> x Rp 2.000 / unit)
     var bonusUnitCount = Math.max(0, parseInt(payrollData.bonusUnitCount, 10) || 0);
-    var bonusUnitManualRp = Math.max(0, parseInt(payrollData.bonusUnitRp, 10) || 0);
     var isUnitTierReached = bonusUnitCount >= 350;
-    var bonusUnit = isUnitTierReached ? (bonusUnitCount * 2000) : bonusUnitManualRp;
+    var bonusUnit = bonusUnitCount > 0
+      ? (isUnitTierReached ? (bonusUnitCount * 2000) : (bonusUnitCount * 1000))
+      : 0;
 
     // 4. Tunjangan Kedisiplinan (Syarat: Minimal 27 hari kerja)
     var tunjanganSyarat = countHadir >= 27;
@@ -349,9 +350,9 @@
       if (s.isUnitTierReached) {
         elBonusUnitSub.innerHTML = '<span class="text-success font-bold">✓ ' + s.bonusUnitCount + ' unit (&ge; 350) x Rp 2.000/unit</span>';
       } else if (s.bonusUnitCount > 0) {
-        elBonusUnitSub.textContent = s.bonusUnitCount + ' unit (< 350 target Rp 2.000/unit)';
+        elBonusUnitSub.textContent = s.bonusUnitCount + ' unit x Rp 1.000/unit';
       } else {
-        elBonusUnitSub.textContent = 'Target \u2265 350 unit \u2192 otomatis x Rp 2.000';
+        elBonusUnitSub.textContent = '\u2265 350 unit \u2192 Rp 2.000/unit · < 350 \u2192 Rp 1.000/unit';
       }
     }
 
@@ -409,16 +410,14 @@
       });
 
       if (doneCount > 0) {
-        var estimasi = (doneCount >= 350) ? (doneCount * 2000) : (doneCount * 15000);
-        var rateMsg = (doneCount >= 350) ? (doneCount + ' unit x Rp 2.000 (Target >= 350)') : (doneCount + ' unit x Rp 15.000');
+        var estimasi = (doneCount >= 350) ? (doneCount * 2000) : (doneCount * 1000);
+        var rateMsg = (doneCount >= 350) ? (doneCount + ' unit x Rp 2.000 (Target >= 350)') : (doneCount + ' unit x Rp 1.000');
         TG.confirm('Ditemukan ' + doneCount + ' servis selesai/done di Mas Cim pada ' + curMonth + '.\n\nIsi bonus unit sebesar ' + rupiah(estimasi) + ' (' + rateMsg + ')?', function (ok) {
           if (!ok) return;
           payrollData.bonusUnitCount = doneCount;
           payrollData.bonusUnitRp = estimasi;
           var inCount = $('#wfInBonusUnitCount');
           if (inCount) inCount.value = doneCount;
-          var inUnit = $('#wfInBonusUnit');
-          if (inUnit) inUnit.value = estimasi;
           saveMonthData();
           renderAll();
           TG.haptic('success');
@@ -678,8 +677,6 @@
           if (inMaps) inMaps.value = payrollData.bonusMapsCount || 0;
           var inCount = $('#wfInBonusUnitCount');
           if (inCount) inCount.value = payrollData.bonusUnitCount || 0;
-          var inUnit = $('#wfInBonusUnit');
-          if (inUnit) inUnit.value = (payrollData.bonusUnitCount >= 350) ? (payrollData.bonusUnitCount * 2000) : (payrollData.bonusUnitRp || 0);
           var inBon = $('#wfInBon');
           if (inBon) inBon.value = payrollData.bonusBon || 0;
           var inAngsuran = $('#wfInAngsuran');
@@ -710,27 +707,13 @@
       });
     }
 
-    // Bonus Unit Inputs (Jumlah Unit & Rupiah)
+    // Bonus Unit Input (hanya Jumlah Unit — nominal dihitung otomatis)
     var inUnitCount = $('#wfInBonusUnitCount');
-    var inUnit = $('#wfInBonusUnit');
 
     if (inUnitCount) {
       inUnitCount.value = payrollData.bonusUnitCount || 0;
       inUnitCount.addEventListener('input', function () {
         payrollData.bonusUnitCount = Math.max(0, parseInt(this.value, 10) || 0);
-        if (payrollData.bonusUnitCount >= 350) {
-          payrollData.bonusUnitRp = payrollData.bonusUnitCount * 2000;
-          if (inUnit) inUnit.value = payrollData.bonusUnitRp;
-        }
-        saveMonthData();
-        renderPayrollSlip(calculateSummary());
-      });
-    }
-
-    if (inUnit) {
-      inUnit.value = (payrollData.bonusUnitCount >= 350) ? (payrollData.bonusUnitCount * 2000) : (payrollData.bonusUnitRp || 0);
-      inUnit.addEventListener('input', function () {
-        payrollData.bonusUnitRp = Math.max(0, parseInt(this.value, 10) || 0);
         saveMonthData();
         renderPayrollSlip(calculateSummary());
       });
